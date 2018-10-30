@@ -17,10 +17,11 @@ class MQTTController:
     def on_message(self, client, userdata, message):
         result = str(message.payload.decode("utf-8"))
         if result == "ON":
-            self.i2cController.set_i2c_enabled()
+            self.i2cController.set_enabled()
         elif result == "OFF":
-            self.i2cController.set_i2c_disabled()
+            self.i2cController.set_disabled()
         self.publish(result)
 
     def publish(self, message):
         self.client.publish(self.path + "/status", message)
+

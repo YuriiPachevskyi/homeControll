@@ -13,19 +13,27 @@ class I2CPin:
         self.register = register
         self.number = number
         self.path = path
+        self.i2cWriteController = i2c.I2CWriteController(self.register, self.number)
 
         if pinType == Type.OUTPUT:
             self.set_mqtt_listener()
 
     def set_mqtt_listener(self):
-        self.mqttController = mqtt.MQTTController(self.path,
-                                i2c.I2CWriteController(self.register, self.number))
+        self.mqttController = mqtt.MQTTController(self.path, self.i2cWriteController)
 
-    def get_pin_type():
+    def set_enabled(self):
+        self.i2cWriteController.set_enabled()
+        self.mqttController.publish("ON")
+
+    def set_disabled(self):
+        self.i2cWriteController.set_disabled()
+        self.mqttController.publish("OFF")
+
+    def get_type():
         return self.type
 
-    def get_pin_number():
+    def get_number():
         return self.number
 
-    def get_pin_register():
+    def get_register():
         return self.number
