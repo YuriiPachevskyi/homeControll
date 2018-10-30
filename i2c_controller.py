@@ -1,4 +1,5 @@
 import time
+import i2c_pin
 import smbus2 as smbus
 
 class I2CController:
@@ -20,14 +21,15 @@ class I2CReadController(I2CController):
 
 class I2CPinController(I2CController):
 
-    def __init__(self, register):
+    def __init__(self, register, pin):
         I2CController.__init__(self, register)
         self.pin = pin
 
     def set_i2c_enabled(self):
-        value = self.bus.read_byte(self.register) & (0xFF ^ self.pin)
-        self.bus.write_byte(self.register, 0)
+        value = self.bus.read_byte(self.register) & ~(1 << self.pin)
+        self.bus.write_byte(self.register, value)
 
     def set_i2c_disabled(self):
-        value = self.bus.read_byte(self.register) | self.pin
+        value = self.bus.read_byte(self.register) | (1 << self.pin)
         self.bus.write_byte(self.register, value)
+
