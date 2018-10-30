@@ -10,3 +10,9 @@ class I2CPin:
         self.type = pin_type
         self.number = register
 
+    def get_pin_type():
+        return self.type
+
+    def get_pin_number():
+        return self.number
+
