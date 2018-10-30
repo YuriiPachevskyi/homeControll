@@ -1,14 +1,15 @@
 import time
+import settings
 import i2c_controller as i2c
 import paho.mqtt.client as paho
 
 class MQTTController:
 
-    def __init__(self, brokerAdress, path, i2cController):
+    def __init__(self, path, i2cController):
         self.path = path
         self.client=paho.Client(path)
         self.client.on_message=self.on_message
-        self.client.connect(brokerAdress)
+        self.client.connect(settings.serverAddress)
         self.client.loop_start()
         self.client.subscribe(path)
         self.i2cController = i2cController

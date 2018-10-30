@@ -19,7 +19,7 @@ class I2CReadController(I2CController):
             print("value = ", value)
             time.sleep(0.05)
 
-class I2CPinController(I2CController):
+class I2CWriteController(I2CController):
 
     def __init__(self, register, pin):
         I2CController.__init__(self, register)
