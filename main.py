@@ -19,12 +19,26 @@ i2cPin6 = i2c_pin.I2CPin(i2c_pin.Type.OUTPUT, 0x20, 5, "home/bedroom/switch6")
 i2cPin7 = i2c_pin.I2CPin(i2c_pin.Type.OUTPUT, 0x20, 6, "home/bedroom/switch7")
 i2cPin8 = i2c_pin.I2CPin(i2c_pin.Type.OUTPUT, 0x20, 7, "home/bedroom/switch8")
 
+def isEqualPin(value, number):
+    return ~value & (1 << number)
+
 def onEvent(key, value):
-    if key == 127:
-        i2cPin1.set_enabled()
-    elif key == 191:
-        i2cPin2.set_enabled()
-    print("key =", key, " value = ", value) 
+    if isEqualPin(key, 7):
+        i2cPin1.trigger_value()
+    elif isEqualPin(key, 6):
+        i2cPin2.trigger_value()
+    elif isEqualPin(key, 5):
+        i2cPin3.trigger_value()
+    elif isEqualPin(key, 4):
+        i2cPin4.trigger_value()
+    elif isEqualPin(key, 3):
+        i2cPin5.trigger_value()
+    elif isEqualPin(key, 2):
+        i2cPin6.trigger_value()
+    elif isEqualPin(key, 1):
+        i2cPin7.trigger_value()
+    elif isEqualPin(key, 0):
+        i2cPin8.trigger_value()
 
 readController = i2c.I2CReadController(0x21, onEvent)
 

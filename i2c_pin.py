@@ -29,6 +29,13 @@ class I2CPin:
         self.i2cWriteController.set_disabled()
         self.mqttController.publish("OFF")
 
+    def trigger_value(self):
+        result = self.i2cWriteController.trigger_value()
+        if  result == False:
+            self.mqttController.publish("ON")
+        else:
+            self.mqttController.publish("OFF")
+
     def get_type():
         return self.type
 
