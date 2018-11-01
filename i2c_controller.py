@@ -21,10 +21,7 @@ class I2CReadController(I2CController):
         while True:
             key = self.bus.read_byte(self.register)
             if key == settings.i2cMaxValue:
-                if not self.expanderState:
-                    time.sleep(settings.i2cReadTimeout)
-                    continue
-                else:
+                if self.expanderState:
                     for key in self.expanderState:
                         self.callback(key, self.expanderState[key])
                     self.expanderState.clear()
@@ -46,3 +43,7 @@ class I2CWriteController(I2CController):
         value = self.bus.read_byte(self.register) | (1 << self.pin)
         self.bus.write_byte(self.register, value)
 
+    def trigger_value(self):
+        value = self.bus.read_byte(self.register) ^ (1 << self.pin)
+        self.bus.write_byte(self.register, value)
+        return value & (1 << self.pin)
