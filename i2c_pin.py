@@ -2,23 +2,13 @@ from enum import Enum
 import i2c_controller as i2c
 import mqtt_controller as mqtt
 
-class Type(Enum):
-    INPUT = 0
-    OUTPUT = 1
-
 class I2CPin:
 
-    def __init__(self, pinType, register, number, path):
-        self.type = pinType
+    def __init__(self, register, number, path):
         self.register = register
         self.number = number
         self.path = path
         self.i2cWriteController = i2c.I2CWriteController(self.register, self.number)
-
-        if pinType == Type.OUTPUT:
-            self.set_mqtt_listener()
-
-    def set_mqtt_listener(self):
         self.mqttController = mqtt.MQTTController(self.path, self.i2cWriteController)
 
     def set_enabled(self):
