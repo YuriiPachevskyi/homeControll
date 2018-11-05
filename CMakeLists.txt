@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.5)
+
+install(FILES scripts/hass-io.service DESTINATION /lib/systemd/system)
+install(FILES scripts/configuration/configuration.yaml DESTINATION /usr/share/hassio/homeassistant/)
+
