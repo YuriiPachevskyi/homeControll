@@ -1,0 +1,35 @@
+default_view:
+  name: DEFAULT
+  view: yes
+  icon: mdi:home
+  entities:
+    - group.master_bedroom
+    - group.living_room1
+    - group.living_room2
+
+status_view:
+  name: Status Bedroom
+  view: yes
+  icon: mdi:chip
+  entities:
+    - group.master_bedroom
+
+master_bedroom:
+  name: Master Bedroom
+  entities:
+    - switch.bedroom_switch1
+    - switch.bedroom_switch2
+
+living_room1:
+  name: Living Room1
+  entities:
+    - switch.bedroom_switch3
+    - switch.bedroom_switch4
+
+living_room2:
+  name: Living Room2
+  entities:
+    - switch.bedroom_switch5
+    - switch.bedroom_switch6
+    - switch.bedroom_switch7
+    - switch.bedroom_switch8

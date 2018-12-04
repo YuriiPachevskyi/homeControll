@@ -3,8 +3,8 @@
 # WIKI https://www.shchers.com/wiki/doku.php?id=howto:basic_router_on_debian
 
 echo "Install dnsmasq iptables iptables-persistent"
-sudo apt-get update
-sudo apt-get install dnsmasq iptables iptables-persistent
+#sudo apt-get update
+#sudo apt-get install dnsmasq iptables iptables-persistent
 
 
 # Setup DHCP/DNS server
@@ -25,3 +25,16 @@ sudo ln -s /lib/systemd/system/network-nat.service /etc/systemd/system/multi-use
 sudo chmod +x /usr/bin/network-nat.sh
 
 sudo sed -i "s/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/g" /etc/sysctl.conf
+
+sudo su
+#sudo echo "# configuration with static MACK address" >> /etc/network/interfaces
+sudo echo "auto eth0" >> /etc/network/interfaces
+sudo echo "iface eth0 inet dhcp" >> /etc/network/interfaces
+sudo echo "hwaddress ether b8:27:eb:6d:42:7b" >> /etc/network/interfaces
+
+sudo echo "auto enxe46f13f4fad9" >> /etc/network/interfaces
+sudo echo "iface enxe46f13f4fad9 inet static" >> /etc/network/interfaces
+sudo echo "address 192.168.1.1" >> /etc/network/interfaces
+sudo echo "netmask 255.255.255.0" >> /etc/network/interfaces
+sudo echo "network 192.168.1.0" >> /etc/network/interfaces
+
