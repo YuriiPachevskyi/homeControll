@@ -1,0 +1,68 @@
+{
+    "switchs": [
+        {
+            "id": "1",
+            "name": "Kitchen Main",
+            "path": "home/kitchen/main",
+            "i2cDevice": "1",
+            "i2c_reg": "0X20",
+            "pin": "0"
+        },
+        {
+            "id": "2",
+            "name": "Kitchen Lighting",
+            "path": "home/kitchen/lighting",
+            "i2cDevice": "1",
+            "i2c_reg": "0X20",
+            "pin": "1"
+        },
+        {
+            "id": "3",
+            "name": "Guest Zone Light",
+            "path": "home/kitchen/kitchen_guest_zone",
+            "i2cDevice": "1",
+            "i2c_reg": "0X20",
+            "pin": "2"
+        },
+        {
+            "id": "4",
+            "name": "Guest Zone Light Left",
+            "path": "home/kitchen/kitchen_light_left",
+            "i2cDevice": "1",
+            "i2c_reg": "0X20",
+            "pin": "3"
+        },
+        {
+            "id": "5",
+            "name": "Guest Zone Light Right",
+            "path": "home/kitchen/kitchen_light_right",
+            "i2cDevice": "1",
+            "i2c_reg": "0X20",
+            "pin": "4"
+        },
+        {
+            "id": "6",
+            "name": "Kitchen Venting",
+            "path": "home/kitchen/venting",
+            "i2cDevice": "1",
+            "i2c_reg": "0X20",
+            "pin": "5"
+        },
+        {
+            "id": "7",
+            "name": "Kitchen Fan",
+            "path": "home/kitchen/fan",
+            "i2cDevice": "1",
+            "i2c_reg": "0X20",
+            "pin": "6"
+        },
+        {
+            "id": "8",
+            "name": "Kitchen Warm Floor",
+            "path": "home/kitchen/warm_floor",
+            "i2cDevice": "1",
+            "i2c_reg": "0X20",
+            "pin": "7"
+        }
+    ]
+}

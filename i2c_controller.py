@@ -4,16 +4,16 @@ import settings
 import smbus2 as smbus
 
 class I2CController:
-    bus = smbus.SMBus(settings.i2cDevice)
 
-    def __init__(self, register):
+    def __init__(self, i2cDevice, register):
         self.register = register
+        self.bus = smbus.SMBus(i2cDevice)
 
 class I2CReadController(I2CController):
     expanderState = {}
 
-    def __init__(self, register, callback):
-        I2CController.__init__(self, register)
+    def __init__(self, i2cDevice, register, callback):
+        I2CController.__init__(self, i2cDevice, register)
         self.callback = callback
         self.i2c_read()
 
@@ -31,8 +31,8 @@ class I2CReadController(I2CController):
 
 class I2CWriteController(I2CController):
 
-    def __init__(self, register, pin):
-        I2CController.__init__(self, register)
+    def __init__(self, i2cDevice, register, pin):
+        I2CController.__init__(self, i2cDevice, register)
         self.pin = pin
 
     def set_enabled(self):

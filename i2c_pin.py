@@ -4,12 +4,13 @@ import mqtt_controller as mqtt
 
 class I2CPin:
 
-    def __init__(self, register, number, path):
+    def __init__(self, i2cDevice, register, number, path):
+        self.i2cDevice = i2cDevice
         self.register = register
         self.number = number
         self.path = path
-        self.i2cWriteController = i2c.I2CWriteController(self.register, self.number)
-        self.mqttController = mqtt.MQTTController(self.path, self.i2cWriteController)
+        self.i2cWriteController = i2c.I2CWriteController(i2cDevice, register, number)
+        self.mqttController = mqtt.MQTTController(path, self.i2cWriteController)
 
     def set_enabled(self):
         self.i2cWriteController.set_enabled()
