@@ -15,6 +15,16 @@ kitchen_view:
     - group.kitchen_main
     - group.kitchen_guest_light
 
+utility_rooms_view:
+  name: Utility
+  view: yes
+  icon: mdi:youtube-creator-studio
+  entities:
+    - group.corridor
+    - group.bathroom
+    - group.toilet
+    - group.larder
+
 kitchen_main_light:
   name: Kitchen Main Light
   entities:
@@ -34,4 +44,27 @@ kitchen_guest_light:
     - switch.guest_zone_light
     - switch.guest_zone_light_left
     - switch.guest_zone_light_right
+
+corridor:
+  name: Corridor
+  entities:
+    - switch.corridor_light
+
+bathroom:
+  name: Bathroom
+  entities:
+    - switch.bathroom_light
+    - switch.bathroom_lighting
+    - switch.bathroom_fan
+
+toilet:
+  name: Toilet
+  entities:
+    - switch.toilet_fan
+    - switch.toilet_light
+
+larder:
+  name: Larder
+  entities:
+    - switch.larder_light
 
