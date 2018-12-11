@@ -9,6 +9,25 @@ class I2CController:
         self.register = register
         self.bus = smbus.SMBus(i2cDevice)
 
+class I2CWriteController(I2CController):
+
+    def __init__(self, i2cDevice, register, pin):
+        I2CController.__init__(self, i2cDevice, register)
+        self.pin = pin
+
+    def set_enabled(self):
+        value = self.bus.read_byte(self.register) & ~(1 << self.pin)
+        self.bus.write_byte(self.register, value)
+
+    def set_disabled(self):
+        value = self.bus.read_byte(self.register) | (1 << self.pin)
+        self.bus.write_byte(self.register, value)
+
+    def trigger_value(self):
+        value = self.bus.read_byte(self.register) ^ (1 << self.pin)
+        self.bus.write_byte(self.register, value)
+        return value & (1 << self.pin)
+
 class I2CReadController(I2CController):
     expanderState = {}
 
@@ -29,21 +48,3 @@ class I2CReadController(I2CController):
                 self.expanderState[key] = self.expanderState.get(key, 0) + 1
             time.sleep(settings.i2cReadTimeout)
 
-class I2CWriteController(I2CController):
-
-    def __init__(self, i2cDevice, register, pin):
-        I2CController.__init__(self, i2cDevice, register)
-        self.pin = pin
-
-    def set_enabled(self):
-        value = self.bus.read_byte(self.register) & ~(1 << self.pin)
-        self.bus.write_byte(self.register, value)
-
-    def set_disabled(self):
-        value = self.bus.read_byte(self.register) | (1 << self.pin)
-        self.bus.write_byte(self.register, value)
-
-    def trigger_value(self):
-        value = self.bus.read_byte(self.register) ^ (1 << self.pin)
-        self.bus.write_byte(self.register, value)
-        return value & (1 << self.pin)

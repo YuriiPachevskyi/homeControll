@@ -5,7 +5,7 @@
             "name": "Kitchen Main",
             "path": "home/kitchen/main",
             "i2cDevice": "1",
-            "i2c_reg": "0X20",
+            "i2cReg": "32",
             "pin": "0"
         },
         {
@@ -13,7 +13,7 @@
             "name": "Kitchen Lighting",
             "path": "home/kitchen/lighting",
             "i2cDevice": "1",
-            "i2c_reg": "0X20",
+            "i2cReg": "32",
             "pin": "1"
         },
         {
@@ -21,7 +21,7 @@
             "name": "Guest Zone Light",
             "path": "home/kitchen/kitchen_guest_zone",
             "i2cDevice": "1",
-            "i2c_reg": "0X20",
+            "i2cReg": "32",
             "pin": "2"
         },
         {
@@ -29,7 +29,7 @@
             "name": "Guest Zone Light Left",
             "path": "home/kitchen/kitchen_light_left",
             "i2cDevice": "1",
-            "i2c_reg": "0X20",
+            "i2cReg": "32",
             "pin": "3"
         },
         {
@@ -37,7 +37,7 @@
             "name": "Guest Zone Light Right",
             "path": "home/kitchen/kitchen_light_right",
             "i2cDevice": "1",
-            "i2c_reg": "0X20",
+            "i2cReg": "32",
             "pin": "4"
         },
         {
@@ -45,7 +45,7 @@
             "name": "Kitchen Venting",
             "path": "home/kitchen/venting",
             "i2cDevice": "1",
-            "i2c_reg": "0X20",
+            "i2cReg": "32",
             "pin": "5"
         },
         {
@@ -53,7 +53,7 @@
             "name": "Kitchen Fan",
             "path": "home/kitchen/fan",
             "i2cDevice": "1",
-            "i2c_reg": "0X20",
+            "i2cReg": "32",
             "pin": "6"
         },
         {
@@ -61,8 +61,16 @@
             "name": "Kitchen Warm Floor",
             "path": "home/kitchen/warm_floor",
             "i2cDevice": "1",
-            "i2c_reg": "0X20",
+            "i2cReg": "32",
             "pin": "7"
+        }
+    ],
+    "input": [
+        {
+            "i2cDevice": "1",
+            "i2cReg": "33",
+            "pin": "0",
+            "switches": [1, 2]
         }
     ]
 }
