@@ -80,7 +80,7 @@
             "i2cDevice": "1",
             "i2cReg": "33",
             "pin": "1",
-            "onShortSwId": [],
+            "onShortSwId": [1321],
             "onLongSwId": [],
             "onLongLongSwId": []
 
@@ -90,7 +90,7 @@
             "i2cDevice": "1",
             "i2cReg": "33",
             "pin": "2",
-            "onShortSwId": [],
+            "onShortSwId": [1322],
             "onLongSwId": [],
             "onLongLongSwId": []
 
@@ -100,7 +100,7 @@
             "i2cDevice": "1",
             "i2cReg": "33",
             "pin": "3",
-            "onShortSwId": [],
+            "onShortSwId": [1323],
             "onLongSwId": [],
             "onLongLongSwId": []
 
@@ -110,7 +110,7 @@
             "i2cDevice": "1",
             "i2cReg": "33",
             "pin": "4",
-            "onShortSwId": [],
+            "onShortSwId": [1324],
             "onLongSwId": [],
             "onLongLongSwId": []
 
@@ -120,7 +120,7 @@
             "i2cDevice": "1",
             "i2cReg": "33",
             "pin": "5",
-            "onShortSwId": [],
+            "onShortSwId": [1325],
             "onLongSwId": [],
             "onLongLongSwId": []
         },
@@ -129,7 +129,7 @@
             "i2cDevice": "1",
             "i2cReg": "33",
             "pin": "6",
-            "onShortSwId": [],
+            "onShortSwId": [1326],
             "onLongSwId": [],
             "onLongLongSwId": []
         },
@@ -138,7 +138,7 @@
             "i2cDevice": "1",
             "i2cReg": "33",
             "pin": "7",
-            "onShortSwId": [],
+            "onShortSwId": [1327],
             "onLongSwId": [],
             "onLongLongSwId": []
         },
@@ -147,7 +147,7 @@
             "i2cDevice": "1",
             "i2cReg": "34",
             "pin": "0",
-            "onShortSwId": [],
+            "onShortSwId": [1320],
             "onLongSwId": [],
             "onLongLongSwId": []
         },
@@ -156,16 +156,16 @@
             "i2cDevice": "1",
             "i2cReg": "34",
             "pin": "1",
-            "onShortSwId": [],
+            "onShortSwId": [1321],
             "onLongSwId": [],
             "onLongLongSwId": []
         },
         {
             "id": "1350",
-            "i2cDevice": "",
+            "i2cDevice": "1",
             "i2cReg": "35",
             "pin": "0",
-            "onShortSwId": [],
+            "onShortSwId": [1320],
             "onLongSwId": [],
             "onLongLongSwId": []
         },
@@ -174,7 +174,7 @@
             "i2cDevice": "1",
             "i2cReg": "35",
             "pin": "1",
-            "onShortSwId": [],
+            "onShortSwId": [1321],
             "onLongSwId": [],
             "onLongLongSwId": []
         }
