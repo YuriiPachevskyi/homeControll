@@ -4,31 +4,27 @@ import i2c_controller as i2c
 import json
 from pprint import pprint
 
-switchsMap = {}
+switchMap = {}
 
-#########################################
 with open('/home/yuso/work/controllService/conf.json') as conf:
     data = json.load(conf)
 
-for item in range(len(data["switchs"])):
-    print("item ", data["switchs"][item]["name"])
-    switchsMap[data["switchs"][item]["id"]] = i2c_pin.I2CPin(\
-    int(data["switchs"][item]["i2cDevice"]), \
-    int(data["switchs"][item]["i2cReg"]), \
-    int(data["switchs"][item]["pin"]), \
-    data["switchs"][item]["path"])
-##########################################
+switch = data["switch"]
+inputs = data["inputs"]
 
-print(data["input"])
+for i in range(len(switch)):
+    switchMap[switch[i]["id"]] = i2c_pin.I2CPin(int(switch[i]["i2cDevice"]), \
+    int(switch[i]["i2cReg"]), int(switch[i]["pin"]), switch[i]["path"])
 
+#def isEqualPin(value, number):
+#    return ~value & (1 << number)
 
-def isEqualPin(value, number):
-    return ~value & (1 << number)
+def onEvent(key, delay):
+    print("onEvent key", key, "delay", delay)
 
-def onEvent(key, value):
-    if isEqualPin(key, 7):
-        i2cPin1.trigger_value()
+    #if isEqualPin(key, 7):
+    #    i2cPin1.trigger_value()
 
-readController = i2c.I2CReadController(1, 0x21, onEvent)
+i2c.I2CReadController(inputs, onEvent)
 
 while not 0: time.sleep(0.1)
