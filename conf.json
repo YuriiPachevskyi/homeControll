@@ -1,7 +1,7 @@
 {
     "switch": [
         {
-            "id": "1",
+            "id": "1320",
             "name": "Kitchen Main",
             "path": "home/kitchen/main",
             "i2cDevice": "1",
@@ -9,7 +9,7 @@
             "pin": "0"
         },
         {
-            "id": "2",
+            "id": "1321",
             "name": "Kitchen Lighting",
             "path": "home/kitchen/lighting",
             "i2cDevice": "1",
@@ -17,7 +17,7 @@
             "pin": "1"
         },
         {
-            "id": "3",
+            "id": "1322",
             "name": "Guest Zone Light",
             "path": "home/kitchen/kitchen_guest_zone",
             "i2cDevice": "1",
@@ -25,7 +25,7 @@
             "pin": "2"
         },
         {
-            "id": "4",
+            "id": "1323",
             "name": "Guest Zone Light Left",
             "path": "home/kitchen/kitchen_light_left",
             "i2cDevice": "1",
@@ -33,7 +33,7 @@
             "pin": "3"
         },
         {
-            "id": "5",
+            "id": "1324",
             "name": "Guest Zone Light Right",
             "path": "home/kitchen/kitchen_light_right",
             "i2cDevice": "1",
@@ -41,7 +41,7 @@
             "pin": "4"
         },
         {
-            "id": "6",
+            "id": "1325",
             "name": "Kitchen Venting",
             "path": "home/kitchen/venting",
             "i2cDevice": "1",
@@ -49,7 +49,7 @@
             "pin": "5"
         },
         {
-            "id": "7",
+            "id": "1326",
             "name": "Kitchen Fan",
             "path": "home/kitchen/fan",
             "i2cDevice": "1",
@@ -57,7 +57,7 @@
             "pin": "6"
         },
         {
-            "id": "8",
+            "id": "1327",
             "name": "Kitchen Warm Floor",
             "path": "home/kitchen/warm_floor",
             "i2cDevice": "1",
@@ -70,7 +70,7 @@
             "i2cDevice": "1",
             "i2cReg": "33",
             "pin": "0",
-            "onShortSwId": [1],
+            "onShortSwId": [1320],
             "onLongSwId": [],
             "onLongLongSwId": []
         },
