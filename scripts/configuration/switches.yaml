@@ -1,0 +1,148 @@
+- platform: mqtt
+  name: "Kitchen Main"
+  state_topic: "home/kitchen/main/status"
+  command_topic: "home/kitchen/main"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Kitchen Lighting"
+  state_topic: "home/kitchen/lighting/status"
+  command_topic: "home/kitchen/lighting"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Guest Zone Light"
+  state_topic: "home/kitchen/kitchen_guest_zone/status"
+  command_topic: "home/kitchen/kitchen_guest_zone"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Guest Zone Light Left"
+  state_topic: "home/kitchen/kitchen_light_left/status"
+  command_topic: "home/kitchen/kitchen_light_left"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Guest Zone Light Right"
+  state_topic: "home/kitchen/kitchen_light_right/status"
+  command_topic: "home/kitchen/kitchen_light_right"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Kitchen Venting"  
+  state_topic: "home/kitchen/venting/status"
+  command_topic: "home/kitchen/venting"
+  payload_on: "ON"
+  payload_off: "OFF"     
+  state_on: "ON"       
+  state_off: "OFF"       
+
+- platform: mqtt
+  name: "Kitchen Fan"
+  state_topic: "home/kitchen/fan/status"
+  command_topic: "home/kitchen/fan"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Kitchen Warm Floor"
+  state_topic: "home/kitchen/warm_floor/status"
+  command_topic: "home/kitchen/warm_floor"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+# Corridor
+- platform: mqtt
+  name: "Corridor Light"
+  state_topic: "home/coridor/light/status"
+  command_topic: "home/coridor/light"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+# Toilet
+- platform: mqtt
+  name: "Toilet Light"
+  state_topic: "home/toilet/light/status"
+  command_topic: "home/toilet/light"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Toilet Fan"
+  state_topic: "home/toilet/fan/status"
+  command_topic: "home/toilet/fan"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+# Larder
+- platform: mqtt
+  name: "Larder Light"
+  state_topic: "home/larder/light/status"
+  command_topic: "home/larder/light"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Boiler Water Tap"
+  state_topic: "home/water/boiler/status"
+  command_topic: "home/water/boiler"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+# Bathroom
+- platform: mqtt
+  name: "Bathroom Light"
+  state_topic: "home/bathroom/light/status"
+  command_topic: "home/bathroom/light"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Bathroom Lighting"
+  state_topic: "home/bathroom/lighting/status"
+  command_topic: "home/bathroom/lighting"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "Bathroom Fan"
+  state_topic: "home/bathroom/fan/status"
+  command_topic: "home/bathroom/fan"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+

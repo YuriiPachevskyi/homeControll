@@ -1,0 +1,70 @@
+default_view:
+  name: DEFAULT
+  view: yes
+  icon: mdi:home
+  entities:
+    - group.kitchen_main
+    - group.kitchen_guest_light
+
+kitchen_view:
+  name: Kitchen
+  view: yes
+  icon: mdi:rabbit
+  entities:
+    - group.kitchen_main_light
+    - group.kitchen_main
+    - group.kitchen_guest_light
+
+utility_rooms_view:
+  name: Utility
+  view: yes
+  icon: mdi:youtube-creator-studio
+  entities:
+    - group.corridor
+    - group.bathroom
+    - group.toilet
+    - group.larder
+
+kitchen_main_light:
+  name: Kitchen Main Light
+  entities:
+    - switch.kitchen_main
+    - switch.kitchen_lighting
+
+kitchen_main:
+  name: Kitchen Main
+  entities:
+    - switch.kitchen_fan
+    - switch.kitchen_venting
+    - switch.kitchen_warm_floor
+
+kitchen_guest_light:
+  name: Kitchen Guest Light
+  entities:
+    - switch.guest_zone_light
+    - switch.guest_zone_light_left
+    - switch.guest_zone_light_right
+
+corridor:
+  name: Corridor
+  entities:
+    - switch.corridor_light
+
+bathroom:
+  name: Bathroom
+  entities:
+    - switch.bathroom_light
+    - switch.bathroom_lighting
+    - switch.bathroom_fan
+
+toilet:
+  name: Toilet
+  entities:
+    - switch.toilet_fan
+    - switch.toilet_light
+
+larder:
+  name: Larder
+  entities:
+    - switch.larder_light
+

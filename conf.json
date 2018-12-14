@@ -1,0 +1,210 @@
+{
+    "inputs": [
+        {
+            "i2cDevice": "1",
+            "i2cReg": "33",
+            "id": "1330",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1320
+            ],
+            "pin": "0"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "33",
+            "id": "1331",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1321
+            ],
+            "pin": "1"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "33",
+            "id": "1332",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1322
+            ],
+            "pin": "2"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "33",
+            "id": "1333",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1323
+            ],
+            "pin": "3"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "33",
+            "id": "1334",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1324
+            ],
+            "pin": "4"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "33",
+            "id": "1335",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1325
+            ],
+            "pin": "5"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "33",
+            "id": "1336",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1326
+            ],
+            "pin": "6"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "33",
+            "id": "1337",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1327
+            ],
+            "pin": "7"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "34",
+            "id": "1340",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1320
+            ],
+            "pin": "0"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "34",
+            "id": "1341",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1321
+            ],
+            "pin": "1"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "35",
+            "id": "1350",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1320
+            ],
+            "pin": "0"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "35",
+            "id": "1351",
+            "onLongLongSwId": [],
+            "onLongSwId": [],
+            "onShortSwId": [
+                1321
+            ],
+            "pin": "1"
+        }
+    ],
+    "switch": [
+        {
+            "i2cDevice": "1",
+            "i2cReg": "32",
+            "id": "1320",
+            "name": "Kitchen Main",
+            "path": "home/kitchen/main",
+            "pin": "0",
+            "state": "ON"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "32",
+            "id": "1321",
+            "name": "Kitchen Lighting",
+            "path": "home/kitchen/lighting",
+            "pin": "1",
+            "state": "ON"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "32",
+            "id": "1322",
+            "name": "Guest Zone Light",
+            "path": "home/kitchen/kitchen_guest_zone",
+            "pin": "2",
+            "state": "OFF"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "32",
+            "id": "1323",
+            "name": "Guest Zone Light Left",
+            "path": "home/kitchen/kitchen_light_left",
+            "pin": "3",
+            "state": "OFF"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "32",
+            "id": "1324",
+            "name": "Guest Zone Light Right",
+            "path": "home/kitchen/kitchen_light_right",
+            "pin": "4",
+            "state": "OFF"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "32",
+            "id": "1325",
+            "name": "Kitchen Venting",
+            "path": "home/kitchen/venting",
+            "pin": "5",
+            "state": "OFF"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "32",
+            "id": "1326",
+            "name": "Kitchen Fan",
+            "path": "home/kitchen/fan",
+            "pin": "6",
+            "state": "OFF"
+        },
+        {
+            "i2cDevice": "1",
+            "i2cReg": "32",
+            "id": "1327",
+            "name": "Kitchen Warm Floor",
+            "path": "home/kitchen/warm_floor",
+            "pin": "7",
+            "state": "ON"
+        }
+    ]
+}

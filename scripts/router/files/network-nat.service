@@ -1,0 +1,11 @@
+[Unit]
+Description=My Script Service
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/network-nat.sh
+
+[Install]
+WantedBy=multi-user.target
+
