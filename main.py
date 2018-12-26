@@ -2,18 +2,23 @@ import time
 import i2c_controller as i2c
 import mqtt_controller as mqtt
 import json
+from ruamel import yaml
 
-with open('/home/yuso/work/controllService/conf.json') as conf:
-    data = json.load(conf)
+switchesConfFile = '/usr/share/hassio/homeassistant/switches.yaml'
+inputsConfFile = '/usr/share/hassio/homeassistant/inputs.json'
 
 switchDict = {}
 inputDict = {}
 
-switch = data["switch"]
-inputs = data["inputs"]
+inputs = json.load(open(inputsConfFile))
+switches = yaml.safe_load(open(switchesConfFile))
 
-for i in range(len(switch)):
-    switchDict[switch[i]["id"]] = switch[i]["state_" + switch[i]["id"]]
+for i in range(len(switches)):
+    key = switches[i]['command_topic'][-4:]
+    switchDict[key] = switches[i]["state_" + str(key)]
+
+for key in switchDict:
+    print("key", key, "status", switchDict[key])
 
 for i in range(len(inputs)):
     inputDict[inputs[i]["id"]] = i2c.I2CInputDevice(inputs[i]["onShort"], inputs[i]["onLong"], inputs[i]["onLongLong"])
