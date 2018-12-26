@@ -5,23 +5,21 @@ import paho.mqtt.client as paho
 
 class MQTTController:
 
-    def __init__(self, path, i2cController):
+    def __init__(self, path, callback):
+        self.callback = callback
         self.path = path
         self.client=paho.Client(path)
         self.client.on_message=self.on_message
         self.client.connect(settings.serverAddress)
         self.client.loop_start()
         self.client.subscribe(path)
-        self.i2cController = i2cController
 
     def on_message(self, client, userdata, message):
-        result = str(message.payload.decode("utf-8"))
-        if result == "ON":
-            self.i2cController.set_enabled()
-        elif result == "OFF":
-            self.i2cController.set_disabled()
-        self.publish(result)
+        state = str(message.payload.decode("utf-8"))
+        swId = message.topic[-4:]
+        self.callback(swId, state)
+        self.publish(swId, state)
 
-    def publish(self, message):
-        self.client.publish(self.path + "/status", message)
+    def publish(self, id, state):
+        self.client.publish("home/status/main/" + id, state)
 
