@@ -1,27 +1,25 @@
 import time
+import settings
 import i2c_controller as i2c
 import mqtt_controller as mqtt
 import json
 from ruamel import yaml
 
-switchesConfFile = '/usr/share/hassio/homeassistant/switches.yaml'
-inputsConfFile = '/usr/share/hassio/homeassistant/inputs.json'
-
 switchDict = {}
 inputDict = {}
-
-inputs = json.load(open(inputsConfFile))
-switches = yaml.safe_load(open(switchesConfFile))
+inputs = json.load(open(settings.inputsConfFile))
+switches = yaml.safe_load(open(settings.switchesConfFile))
+i2CWriteController = i2c.I2CWriteController()
 
 for i in range(len(switches)):
     key = switches[i]['command_topic'][-4:]
     switchDict[key] = switches[i]["state_" + str(key)]
 
-for key in switchDict:
-    print("key", key, "status", switchDict[key])
-
 for i in range(len(inputs)):
     inputDict[inputs[i]["id"]] = i2c.I2CInputDevice(inputs[i]["onShort"], inputs[i]["onLong"], inputs[i]["onLongLong"])
+
+def onMQTTEvent(id, state):
+    setSwitchState(id, state)
 
 def onInputEvent(key, delay):
     prefix = str(key)[:3]
@@ -37,7 +35,14 @@ def onInputEvent(key, delay):
             else:
                 triggerState(inputDict[key].get_on_longl_id())
 
-def onMQTTEvent(id, state):
+def triggerState(switchesId):
+    for id in switchesId:
+        i2cDevice = int(str(id)[:1])
+        i2cRegister = int(str(id)[1:-1])
+        i2cPin = int(str(id)[-1:])
+        i2CWriteController.trigger_value(i2cDevice, i2cRegister, i2cPin)
+
+def setSwitchState(id, state):
     i2cDevice = int(id[:1])
     i2cRegister = int(id[1:-1])
     i2cPin = int(id[-1:])
@@ -47,15 +52,12 @@ def onMQTTEvent(id, state):
     elif state == "OFF":
         i2CWriteController.set_disabled(i2cDevice, i2cRegister, i2cPin)
 
-def triggerState(switchesId):
-    for id in switchesId:
-        i2cDevice = int(str(id)[:1])
-        i2cRegister = int(str(id)[1:-1])
-        i2cPin = int(str(id)[-1:])
-        i2CWriteController.trigger_value(i2cDevice, i2cRegister, i2cPin)
+def restoreSwitchesState():
+    for key in switchDict:
+        setSwitchState(key, switchDict[key])
 
-i2CWriteController = i2c.I2CWriteController()
 mqttController = mqtt.MQTTController("home/main/#", onMQTTEvent)
+restoreSwitchesState()
 i2c.I2CReadController(inputDict, onInputEvent)
 
 while not 0: time.sleep(0.1)
