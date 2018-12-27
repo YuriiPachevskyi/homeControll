@@ -2,22 +2,10 @@ import time
 import settings
 import i2c_controller as i2c
 import mqtt_controller as mqtt
+import state_controller as state
 import json
 from ruamel import yaml
 from subprocess import call
-import threading
-
-class HassIoStateThread(threading.Thread):
-     def __init__(self):
-         super(HassIoStateThread, self).__init__()
-         self.address = "http://localhost:8123"
-
-     def run(self):
-         result = None
-
-         while result != 0 :
-             result = call(["curl", "-I", self.address])
-             time.sleep(3)
 
 switchDict = {}
 inputDict = {}
@@ -81,5 +69,5 @@ def saveSwitchState(id, state):
 
 mqttController = mqtt.MQTTController("home/main/#", onMQTTEvent)
 restoreSwitchesState()
-HassIoStateThread().start()
+state.StateThread().start()
 i2c.I2CReadController(inputDict, onInputEvent)
