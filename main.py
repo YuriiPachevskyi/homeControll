@@ -9,8 +9,8 @@ from subprocess import call
 
 switchDict = {}
 inputDict = {}
-inputs = json.load(open(settings.inputsConfFile))
-switches = yaml.safe_load(open(settings.switchesConfFile))
+inputs = json.load(open(settings.confInputsFile))
+switches = yaml.safe_load(open(settings.confSwitchesFile))
 i2CWriteController = i2c.I2CWriteController()
 
 for i in range(len(switches)):
@@ -62,8 +62,8 @@ def restoreSwitchesState():
     for key in switchDict:
         setSwitchState(key, switchDict[key])
 
-mqttController = mqtt.MQTTController("home/main/#", onMQTTEvent)
-state.UiStateUpdateThread("home/status/main/#", switchDict, mqttController).start()
-state.FileStateBackupThread("home/status/main/#", switchDict).start()
+mqttController = mqtt.MQTTController(settings.mqttMainPath, onMQTTEvent)
+state.UiStateUpdateThread(settings.mqttStatusPath, switchDict, mqttController).start()
+state.FileStateBackupThread(settings.mqttStatusPath, switchDict).start()
 restoreSwitchesState()
 i2c.I2CReadController(inputDict, onInputEvent).i2c_read()

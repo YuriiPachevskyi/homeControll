@@ -54,7 +54,7 @@ class FileStateBackupThread(threading.Thread):
 
     def saveSwitchState(self, id, state):
         stateChange = "s/state_" + id + ":.*/state_" + id + ": \"" + state + "\"/g"
-        call(["sed", "-i", stateChange, settings.switchesConfFile])
+        call(["sed", "-i", stateChange, settings.confSwitchesFile])
 
     def run(self):
         while True :
