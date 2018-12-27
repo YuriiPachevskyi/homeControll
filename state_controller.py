@@ -1,8 +1,8 @@
-import time
-import threading
-import settings
-import paho.mqtt.client as paho
 from subprocess import call
+import paho.mqtt.client
+import settings
+import threading
+import time
 
 class UiStateUpdateThread(threading.Thread):
     def __init__(self, path, switchDict, mqttController):
@@ -10,7 +10,7 @@ class UiStateUpdateThread(threading.Thread):
         self.mqttController = mqttController
         self.switchDict = switchDict
         self.path = path
-        self.client=paho.Client(path + "2")
+        self.client=paho.mqtt.client.Client(path + "2")
         self.client.on_message=self.on_message
         self.client.connect(settings.serverAddress)
         self.client.loop_start()
@@ -35,15 +35,15 @@ class FileStateBackupThread(threading.Thread):
     def __init__(self, path, switchDict):
         super(FileStateBackupThread, self).__init__()
         self.switchDict = switchDict
-        self.init_prevDict()
+        self.init_prev_dict()
         self.path = path
-        self.client=paho.Client(path)
+        self.client=paho.mqtt.client.Client(path)
         self.client.on_message=self.on_message
         self.client.connect(settings.serverAddress)
         self.client.loop_start()
         self.client.subscribe(path)
 
-    def init_prevDict(self):
+    def init_prev_dict(self):
         for key in self.switchDict:
             self.switchDictPrev[key] = self.switchDict[key]
 

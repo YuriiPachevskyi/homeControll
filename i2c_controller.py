@@ -1,6 +1,6 @@
-import time
 import settings
-import smbus2 as smbus
+import smbus2
+import time
 
 class I2CInputDevice:
     def __init__(self, onShort, onLong, onLongL):
@@ -20,7 +20,7 @@ class I2CInputDevice:
 class I2CController:
 
     def __init__(self):
-        self.busArray = [None, smbus.SMBus(1), smbus.SMBus(2)]
+        self.busArray = [None, smbus2.SMBus(1), smbus2.SMBus(2)]
 
 class I2CWriteController(I2CController):
 
