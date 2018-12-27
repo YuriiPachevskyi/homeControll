@@ -57,17 +57,13 @@ def setSwitchState(id, state):
     elif state == "OFF":
         i2CWriteController.set_disabled(i2cDevice, i2cRegister, i2cPin)
     mqttController.publish(id, state)
-    saveSwitchState(id, state)
 
 def restoreSwitchesState():
     for key in switchDict:
         setSwitchState(key, switchDict[key])
 
-def saveSwitchState(id, state):
-    stateChange = "s/state_" + str(id) + ":.*/state_" + str(id) + ": \"" + state + "\"/g"
-    call(["sed", "-i", stateChange, settings.switchesConfFile])
-
 mqttController = mqtt.MQTTController("home/main/#", onMQTTEvent)
+state.UiStateUpdateThread("home/status/main/#", switchDict, mqttController).start()
+state.FileStateBackupThread("home/status/main/#", switchDict).start()
 restoreSwitchesState()
-state.StateThread().start()
 i2c.I2CReadController(inputDict, onInputEvent)

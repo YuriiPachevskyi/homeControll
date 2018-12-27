@@ -1,15 +1,65 @@
 import time
 import threading
 import settings
+import paho.mqtt.client as paho
 from subprocess import call
 
-class StateThread(threading.Thread):
-     def __init__(self):
-         super(StateThread, self).__init__()
+class UiStateUpdateThread(threading.Thread):
+    def __init__(self, path, switchDict, mqttController):
+        super(UiStateUpdateThread, self).__init__()
+        self.mqttController = mqttController
+        self.switchDict = switchDict
+        self.path = path
+        self.client=paho.Client(path + "2")
+        self.client.on_message=self.on_message
+        self.client.connect(settings.serverAddress)
+        self.client.loop_start()
+        self.client.subscribe(path)
 
-     def run(self):
-         result = None
+    def on_message(self, client, userdata, message):
+        state = str(message.payload.decode("utf-8"))
+        swId = message.topic[-4:]
+        self.switchDict[swId] = state
 
-         while result != 0 :
-             result = call(["curl", "-I", settings.serverAddressAndPort])
-             time.sleep(3)
+    def run(self):
+        result = None
+
+        while result != 0 :
+            result = call(["curl", "-I", settings.serverAddressAndPort])
+            time.sleep(3)
+        for key in self.switchDict:
+            self.mqttController.publish(key, self.switchDict[key])
+
+class FileStateBackupThread(threading.Thread):
+    switchDictPrev = {}
+    def __init__(self, path, switchDict):
+        super(FileStateBackupThread, self).__init__()
+        self.switchDict = switchDict
+        self.init_prevDict()
+        self.path = path
+        self.client=paho.Client(path)
+        self.client.on_message=self.on_message
+        self.client.connect(settings.serverAddress)
+        self.client.loop_start()
+        self.client.subscribe(path)
+
+    def init_prevDict(self):
+        for key in self.switchDict:
+            self.switchDictPrev[key] = self.switchDict[key]
+
+    def on_message(self, client, userdata, message):
+        state = str(message.payload.decode("utf-8"))
+        swId = message.topic[-4:]
+        self.switchDict[swId] = state
+
+    def saveSwitchState(self, id, state):
+        stateChange = "s/state_" + id + ":.*/state_" + id + ": \"" + state + "\"/g"
+        call(["sed", "-i", stateChange, settings.switchesConfFile])
+
+    def run(self):
+        while True :
+            for key in self.switchDict:
+                if self.switchDict[key] != self.switchDictPrev[key]:
+                    self.saveSwitchState(key, self.switchDict[key])
+                    self.switchDictPrev[key] = self.switchDict[key]
+            time.sleep(10)
