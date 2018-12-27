@@ -62,4 +62,4 @@ class FileStateBackupThread(threading.Thread):
                 if self.switchDict[key] != self.switchDictPrev[key]:
                     self.saveSwitchState(key, self.switchDict[key])
                     self.switchDictPrev[key] = self.switchDict[key]
-            time.sleep(10)
+            time.sleep(5)

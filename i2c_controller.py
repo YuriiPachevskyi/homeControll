@@ -48,7 +48,6 @@ class I2CReadController(I2CController):
         I2CController.__init__(self)
         self.callback = callback
         self.init_inputs(inputsDict)
-        self.i2c_read()
 
     def init_inputs(self, inputsDict):
         for key in inputsDict:
