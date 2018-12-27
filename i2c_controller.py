@@ -8,13 +8,13 @@ class I2CInputDevice:
         self.onLong = onLong
         self.onLongL = onLongL
 
-    def get_on_short_id(self):
+    def onShortId(self):
         return self.onShort
 
-    def get_on_long_id(self):
+    def onLongId(self):
         return self.onLong
 
-    def get_on_longl_id(self):
+    def onLonglId(self):
         return self.onLongL
 
 class I2CController:

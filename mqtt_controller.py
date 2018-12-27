@@ -18,7 +18,6 @@ class MQTTController:
         state = str(message.payload.decode("utf-8"))
         swId = message.topic[-4:]
         self.callback(swId, state)
-        self.publish(swId, state)
 
     def publish(self, id, state):
         self.client.publish("home/status/main/" + id, state)
