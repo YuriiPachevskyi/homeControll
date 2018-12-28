@@ -19,7 +19,8 @@ class UiStateUpdateThread(threading.Thread):
     def on_message(self, client, userdata, message):
         state = str(message.payload.decode("utf-8"))
         swId = message.topic[-4:]
-        self.switchDict[swId] = state
+        if self.switchDict.has_key(swId):
+            self.switchDict[swId] = state
 
     def run(self):
         result = None
@@ -50,7 +51,8 @@ class FileStateBackupThread(threading.Thread):
     def on_message(self, client, userdata, message):
         state = str(message.payload.decode("utf-8"))
         swId = message.topic[-4:]
-        self.switchDict[swId] = state
+        if self.switchDict.has_key(swId):
+            self.switchDict[swId] = state
 
     def saveSwitchState(self, id, state):
         stateChange = "s/state_" + id + ":.*/state_" + id + ": \"" + state + "\"/g"
