@@ -15,39 +15,40 @@ i2CWriteController = i2c_controller.I2CWriteController()
 
 for i in range(len(switches)):
     key = switches[i]['command_topic'][-4:]
-    switchDict[key] = switches[i]["state_" + str(key)]
+    switchDict[key] = switches[i]["state_" + key]
 
 for i in range(len(inputs)):
     inputDict[inputs[i]["id"]] = i2c_controller.I2CInputDevice(inputs[i]["onShort"], inputs[i]["onLong"], inputs[i]["onLongLong"])
 
+def restoreSwitchesState():
+    for key in switchDict:
+        changeSwitchState(key, switchDict[key])
+
 def onMQTTEvent(id, state):
-    setSwitchState(id, state)
+    if id in switchDict:
+        changeSwitchState(id, state)
+    else:
+        print("onMQTTEvent not existing id = ", id)
 
 def onInputEvent(key, delay):
     prefix = str(key)[:3]
     pins = int(key[3:])
+    switchesIdList = None
     print("prefix", prefix, "pins", bin(pins)[2:].zfill(8), "delay", delay)
+
     for i in range(8):
         if pins & (1 << i):
             key = prefix + str(i)
             if delay < 4:
-                triggerState(inputDict[key].onShortId())
+                switchesIdList = inputDict[key].onShortId()
             elif delay < 9:
-                triggerState(inputDict[key].onLongId())
+                switchesIdList = inputDict[key].onLongId()
             else:
-                triggerState(inputDict[key].onLonglId())
+                switchesIdList = inputDict[key].onLonglId()
+    for id in switchesIdList:
+        changeSwitchState(str(id), "TRIGGER")
 
-def triggerState(switchesId):
-    for id in switchesId:
-        i2cDevice = int(str(id)[:1])
-        i2cRegister = int(str(id)[1:-1])
-        i2cPin = int(str(id)[-1:])
-        if i2CWriteController.trigger_value(i2cDevice, i2cRegister, i2cPin):
-            mqttController.publish(str(id), "OFF")
-        else:
-            mqttController.publish(str(id), "ON")
-
-def setSwitchState(id, state):
+def changeSwitchState(id, state):
     i2cDevice = int(id[:1])
     i2cRegister = int(id[1:-1])
     i2cPin = int(id[-1:])
@@ -56,11 +57,12 @@ def setSwitchState(id, state):
         i2CWriteController.set_enabled(i2cDevice, i2cRegister, i2cPin)
     elif state == "OFF":
         i2CWriteController.set_disabled(i2cDevice, i2cRegister, i2cPin)
+    elif state == "TRIGGER":
+        if i2CWriteController.trigger_value(i2cDevice, i2cRegister, i2cPin):
+            state = "OFF"
+        else:
+            state = "ON"
     mqttController.publish(id, state)
-
-def restoreSwitchesState():
-    for key in switchDict:
-        setSwitchState(key, switchDict[key])
 
 mqttController = mqtt_controller.MQTTController(settings.mqttMainPath, onMQTTEvent)
 state_controller.UiStateUpdateThread(settings.mqttStatusPath, switchDict, mqttController).start()
