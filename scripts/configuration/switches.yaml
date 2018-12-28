@@ -154,7 +154,7 @@
 
 - platform: mqtt
   name: "Bathroom Fan"
-  state_topic: "home/status/1337"
+  state_topic: "home/status/main/1337"
   command_topic: "home/main/1337"
   payload_on: "ON"
   payload_off: "OFF"
