@@ -24,6 +24,7 @@ utility_rooms_view:
     - group.bathroom
     - group.toilet
     - group.larder
+    - group.test
 
 kitchen_main_light:
   name: Kitchen Main Light
@@ -67,4 +68,17 @@ larder:
   name: Larder
   entities:
     - switch.larder_light
+    - switch.boiler_water_tap
+
+test:
+  name: test
+  entities:
+    - switch.test0
+    - switch.test1
+    - switch.test2
+    - switch.test3
+    - switch.test4
+    - switch.test5
+    - switch.test6
+    - switch.test7
 
