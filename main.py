@@ -25,6 +25,7 @@ def restoreSwitchesState():
         changeSwitchState(key, switchDict[key])
 
 def onMQTTEvent(id, state):
+    print("id", id, "state", state)
     if id in switchDict:
         changeSwitchState(id, state)
     else:
