@@ -1,0 +1,18 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Copy Data",
+            "type": "shell",
+            "command": "clear && scp *.py yuso@10.42.0.74:/home/yuso/work/controllService/ && echo Done &&  ssh -t yuso@10.42.0.74 sudo  python3 /home/yuso/work/controllService/main.py",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
+
+//&& scp -r scripts/configuration/* yuso@172.22.101.11:/usr/share/hassio/homeassistant 
