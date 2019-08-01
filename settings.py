@@ -1,5 +1,6 @@
 confInputsFile = '/usr/share/hassio/homeassistant/inputs.json'
 confSwitchesFile = '/usr/share/hassio/homeassistant/switches.yaml'
+confSwitchesStateFile = '/usr/share/hassio/homeassistant/switches_state.yaml'
 i2cMaxValue = 255
 i2cReadTimeout = 0.08
 mqttMainPath = "home/main/#"

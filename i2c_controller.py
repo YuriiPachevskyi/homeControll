@@ -20,7 +20,7 @@ class I2CInputDevice:
 class I2CController:
 
     def __init__(self):
-        self.busArray = [None, smbus2.SMBus(1), smbus2.SMBus(2)]
+        self.busArray = [None, None, smbus2.SMBus(2)]
 
 class I2CWriteController(I2CController):
 

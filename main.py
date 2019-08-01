@@ -10,7 +10,7 @@ import time
 switchDict = {}
 inputDict = {}
 inputs = json.load(open(settings.confInputsFile))
-switches = yaml.safe_load(open(settings.confSwitchesFile))
+switches = yaml.safe_load(open(settings.confSwitchesStateFile))
 i2CWriteController = i2c_controller.I2CWriteController()
 
 for i in range(len(switches)):
