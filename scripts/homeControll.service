@@ -1,6 +1,7 @@
 [Unit]
 Description=My Script Service
-After=multi-user.target
+After=dbus.service
+Wants=network.target
 
 [Service]
 Type=idle
