@@ -6,7 +6,6 @@
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
-  state_1320: "ON"
 
 - platform: mqtt
   name: "Kitchen Lighting"
@@ -16,7 +15,6 @@
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
-  state_1321: "ON"
 
 - platform: mqtt
   name: "Guest Zone Light"
@@ -26,7 +24,6 @@
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
-  state_1322: "ON"
 
 - platform: mqtt
   name: "Guest Zone Light Left"
@@ -36,7 +33,6 @@
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
-  state_1323: "ON"
 
 - platform: mqtt
   name: "Guest Zone Light Right"
@@ -46,7 +42,6 @@
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
-  state_1324: "ON"
 
 - platform: mqtt
   name: "Kitchen Venting"  
@@ -56,7 +51,6 @@
   payload_off: "OFF"     
   state_on: "ON"       
   state_off: "OFF"       
-  state_1325: "ON"
 
 - platform: mqtt
   name: "Kitchen Fan"
@@ -66,7 +60,6 @@
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
-  state_1326: "ON"
 
 - platform: mqtt
   name: "Kitchen Warm Floor"
@@ -76,170 +69,3 @@
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
-  state_1327: "ON"
-
-# Corridor
-- platform: mqtt
-  name: "Corridor Light"
-  state_topic: "home/status/main/1330"
-  command_topic: "home/main/1330"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1330: "ON"
-
-# Toilet
-- platform: mqtt
-  name: "Toilet Light"
-  state_topic: "home/status/main/1331"
-  command_topic: "home/main/1331"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1331: "ON"
-
-- platform: mqtt
-  name: "Toilet Fan"
-  state_topic: "home/status/main/1332"
-  command_topic: "home/main/1332"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1332: "ON"
-
-# Larder
-- platform: mqtt
-  name: "Larder Light"
-  state_topic: "home/status/main/1333"
-  command_topic: "home/main/1333"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1333: "ON"
-
-- platform: mqtt
-  name: "Boiler Water Tap"
-  state_topic: "home/status/main/1334"
-  command_topic: "home/main/1334"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1334: "ON"
-
-# Bathroom
-- platform: mqtt
-  name: "Bathroom Light"
-  state_topic: "home/status/main/1335"
-  command_topic: "home/main/1335"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1335: "ON"
-
-- platform: mqtt
-  name: "Bathroom Lighting"
-  state_topic: "home/status/main/1336"
-  command_topic: "home/main/1336"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1336: "ON"
-
-- platform: mqtt
-  name: "Bathroom Fan"
-  state_topic: "home/status/main/1337"
-  command_topic: "home/main/1337"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1337: "ON"
-
-# test
-- platform: mqtt
-  name: "test0"
-  state_topic: "home/status/main/1350"
-  command_topic: "home/main/1350"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1350: "ON"
-
-- platform: mqtt
-  name: "test1"
-  state_topic: "home/status/main/1351"
-  command_topic: "home/main/1351"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1351: "ON"
-
-- platform: mqtt
-  name: "test2"
-  state_topic: "home/status/main/1352"
-  command_topic: "home/main/1352"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1352: "ON"
-
-- platform: mqtt
-  name: "test3"
-  state_topic: "home/status/main/1353"
-  command_topic: "home/main/1353"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1353: "ON"
-
-- platform: mqtt
-  name: "test4"
-  state_topic: "home/status/main/1354"
-  command_topic: "home/main/1354"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1354: "ON"
-
-- platform: mqtt
-  name: "test5"
-  state_topic: "home/status/main/1355"
-  command_topic: "home/main/1355"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1355: "ON"
-
-- platform: mqtt
-  name: "test6"
-  state_topic: "home/status/main/1356"
-  command_topic: "home/main/1356"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1356: "ON"
-
-- platform: mqtt
-  name: "test7"
-  state_topic: "home/status/main/1357"
-  command_topic: "home/main/1357"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-  state_1357: "ON"
-

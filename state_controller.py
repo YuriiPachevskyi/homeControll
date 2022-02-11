@@ -28,6 +28,7 @@ class UiStateUpdateThread(threading.Thread):
         while result != 0 :
             result = call(["curl", "-I", settings.serverAddressAndPort])
             time.sleep(3)
+        time.sleep(15)
         for key in self.switchDict:
             self.mqttController.publish(key, self.switchDict[key])
 
