@@ -1,7 +1,7 @@
 - platform: mqtt
   name: "Kitchen Main"
-  state_topic: "home/status/main/1320"
-  command_topic: "home/main/1320"
+  state_topic: "home/status/main/2320"
+  command_topic: "home/main/2320"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
@@ -9,8 +9,8 @@
 
 - platform: mqtt
   name: "Kitchen Lighting"
-  state_topic: "home/status/main/1321"
-  command_topic: "home/main/1321"
+  state_topic: "home/status/main/2321"
+  command_topic: "home/main/2321"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
@@ -18,8 +18,8 @@
 
 - platform: mqtt
   name: "Guest Zone Light"
-  state_topic: "home/status/main/1322"
-  command_topic: "home/main/1322"
+  state_topic: "home/status/main/2322"
+  command_topic: "home/main/2322"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
@@ -27,8 +27,8 @@
 
 - platform: mqtt
   name: "Guest Zone Light Left"
-  state_topic: "home/status/main/1323"
-  command_topic: "home/main/1323"
+  state_topic: "home/status/main/2323"
+  command_topic: "home/main/2323"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
@@ -36,8 +36,8 @@
 
 - platform: mqtt
   name: "Guest Zone Light Right"
-  state_topic: "home/status/main/1324"
-  command_topic: "home/main/1324"
+  state_topic: "home/status/main/2324"
+  command_topic: "home/main/2324"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
@@ -45,8 +45,8 @@
 
 - platform: mqtt
   name: "Kitchen Venting"  
-  state_topic: "home/status/main/1325"
-  command_topic: "home/main/1325"
+  state_topic: "home/status/main/2325"
+  command_topic: "home/main/2325"
   payload_on: "ON"
   payload_off: "OFF"     
   state_on: "ON"       
@@ -54,8 +54,8 @@
 
 - platform: mqtt
   name: "Kitchen Fan"
-  state_topic: "home/status/main/1326"
-  command_topic: "home/main/1326"
+  state_topic: "home/status/main/2326"
+  command_topic: "home/main/2326"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
@@ -63,8 +63,8 @@
 
 - platform: mqtt
   name: "Kitchen Warm Floor"
-  state_topic: "home/status/main/1327"
-  command_topic: "home/main/1327"
+  state_topic: "home/status/main/2327"
+  command_topic: "home/main/2327"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"

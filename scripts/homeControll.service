@@ -5,6 +5,7 @@ Wants=network.target
 
 [Service]
 Type=idle
+ExecStartPre=/bin/sleep 3
 ExecStart=/usr/bin/python3 /home/yuso/homeControll/main.py
 
 [Install]

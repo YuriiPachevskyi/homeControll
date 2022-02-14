@@ -1,24 +1,24 @@
-- command_topic: "home/main/1320"
-  state_1320: "ON"
+- command_topic: "home/main/2320"
+  state_2320: "ON"
 
-- command_topic: "home/main/1321"
-  state_1321: "ON"
+- command_topic: "home/main/2321"
+  state_2321: "ON"
 
-- command_topic: "home/main/1322"
-  state_1322: "ON"
+- command_topic: "home/main/2322"
+  state_2322: "OFF"
 
-- command_topic: "home/main/1323"
-  state_1323: "OFF"
+- command_topic: "home/main/2323"
+  state_2323: "ON"
 
-- command_topic: "home/main/1324"
-  state_1324: "ON"
+- command_topic: "home/main/2324"
+  state_2324: "ON"
 
-- command_topic: "home/main/1325"
-  state_1325: "ON"
+- command_topic: "home/main/2325"
+  state_2325: "ON"
 
-- command_topic: "home/main/1326"
-  state_1326: "OFF"
+- command_topic: "home/main/2326"
+  state_2326: "OFF"
 
-- command_topic: "home/main/1327"
-  state_1327: "OFF"
+- command_topic: "home/main/2327"
+  state_2327: "OFF"
 
