@@ -1,5 +1,5 @@
 - platform: mqtt
-  name: "Kitchen Main"
+  name: "2320 Child bedroom main 1"
   state_topic: "home/status/main/2320"
   command_topic: "home/main/2320"
   payload_on: "ON"
@@ -8,7 +8,7 @@
   state_off: "OFF"
 
 - platform: mqtt
-  name: "Kitchen Lighting"
+  name: "2321 Child bedroot main 2"
   state_topic: "home/status/main/2321"
   command_topic: "home/main/2321"
   payload_on: "ON"
@@ -17,7 +17,7 @@
   state_off: "OFF"
 
 - platform: mqtt
-  name: "Guest Zone Light"
+  name: "2322 Bathroom mirror 1"
   state_topic: "home/status/main/2322"
   command_topic: "home/main/2322"
   payload_on: "ON"
@@ -26,7 +26,7 @@
   state_off: "OFF"
 
 - platform: mqtt
-  name: "Guest Zone Light Left"
+  name: "2323 Bathroom mirror 2"
   state_topic: "home/status/main/2323"
   command_topic: "home/main/2323"
   payload_on: "ON"
@@ -35,7 +35,7 @@
   state_off: "OFF"
 
 - platform: mqtt
-  name: "Guest Zone Light Right"
+  name: "2324 Toilet main light"
   state_topic: "home/status/main/2324"
   command_topic: "home/main/2324"
   payload_on: "ON"
@@ -44,7 +44,7 @@
   state_off: "OFF"
 
 - platform: mqtt
-  name: "Kitchen Venting"  
+  name: "2325 Bathroom main light"  
   state_topic: "home/status/main/2325"
   command_topic: "home/main/2325"
   payload_on: "ON"
@@ -53,7 +53,7 @@
   state_off: "OFF"       
 
 - platform: mqtt
-  name: "Kitchen Fan"
+  name: "2326 Coridor light 2"
   state_topic: "home/status/main/2326"
   command_topic: "home/main/2326"
   payload_on: "ON"
@@ -62,9 +62,155 @@
   state_off: "OFF"
 
 - platform: mqtt
-  name: "Kitchen Warm Floor"
+  name: "2327 Coridor light 1"
   state_topic: "home/status/main/2327"
   command_topic: "home/main/2327"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+
+- platform: mqtt
+  name: "2330 Empty switch"
+  state_topic: "home/status/main/2330"
+  command_topic: "home/main/2330"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2331 Bedroom working place light"
+  state_topic: "home/status/main/2331"
+  command_topic: "home/main/2331"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2332 Bedroom sleep zone 1"
+  state_topic: "home/status/main/2332"
+  command_topic: "home/main/2332"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2333 Bedroom sleep zone 2"
+  state_topic: "home/status/main/2333"
+  command_topic: "home/main/2333"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2334 Bedroom main light 1"
+  state_topic: "home/status/main/2334"
+  command_topic: "home/main/2334"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2335 Bedroom main light 2"
+  state_topic: "home/status/main/2335"
+  command_topic: "home/main/2335"
+  payload_on: "ON"
+  payload_off: "OFF"     
+  state_on: "ON"       
+  state_off: "OFF"       
+
+- platform: mqtt
+  name: "2336 Bedroom balcony working place"
+  state_topic: "home/status/main/2336"
+  command_topic: "home/main/2336"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2337 Bedroom balcony main"
+  state_topic: "home/status/main/2337"
+  command_topic: "home/main/2337"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+
+- platform: mqtt
+  name: "2340 Larder light"
+  state_topic: "home/status/main/2340"
+  command_topic: "home/main/2340"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2341 Toilet ventus"
+  state_topic: "home/status/main/2341"
+  command_topic: "home/main/2341"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2342 Empty switch"
+  state_topic: "home/status/main/2342"
+  command_topic: "home/main/2342"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2343 Empty switch"
+  state_topic: "home/status/main/2343"
+  command_topic: "home/main/2343"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2344 Waves power supply"
+  state_topic: "home/status/main/2344"
+  command_topic: "home/main/2344"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2345 Wave 1"
+  state_topic: "home/status/main/2345"
+  command_topic: "home/main/2345"
+  payload_on: "ON"
+  payload_off: "OFF"     
+  state_on: "ON"       
+  state_off: "OFF"       
+
+- platform: mqtt
+  name: "2346 Wave 2"
+  state_topic: "home/status/main/2346"
+  command_topic: "home/main/2346"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2347 Wave 3"
+  state_topic: "home/status/main/2347"
+  command_topic: "home/main/2347"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
