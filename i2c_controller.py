@@ -73,7 +73,12 @@ class I2CReadController(I2CController):
             for key in self.inputDict:
                 i2cDevice = int(key[:-2])
                 i2cRegister = int(key[1:])
-                modifiedPins = self.is_input_state_changed(self.inputDict[key], self.busArray[i2cDevice].read_byte(i2cRegister))
+                try:
+                    pinsState = self.busArray[i2cDevice].read_byte(i2cRegister)
+                except:
+                    print("Failed to read  i2cRegister: " + str(i2cRegister))
+                    continue
+                modifiedPins = self.is_input_state_changed(self.inputDict[key], pinsState)
 
                 if not modifiedPins:
                     if self.expanderState:
