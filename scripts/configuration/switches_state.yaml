@@ -1,127 +1,75 @@
 - command_topic: "home/main/2320"
-  state_2320: "OFF"
+  state_2320: "ON"
 
 - command_topic: "home/main/2321"
-  state_2321: "OFF"
+  state_2321: "ON"
 
 - command_topic: "home/main/2322"
-  state_2322: "OFF"
+  state_2322: "ON"
 
 - command_topic: "home/main/2323"
-  state_2323: "OFF"
+  state_2323: "ON"
 
 - command_topic: "home/main/2324"
-  state_2324: "OFF"
+  state_2324: "ON"
 
 - command_topic: "home/main/2325"
-  state_2325: "OFF"
+  state_2325: "ON"
 
 - command_topic: "home/main/2326"
-  state_2326: "OFF"
+  state_2326: "ON"
 
 - command_topic: "home/main/2327"
-  state_2327: "OFF"
+  state_2327: "ON"
 
 
 - command_topic: "home/main/2330"
-  state_2330: "OFF"
+  state_2330: "ON"
 
 - command_topic: "home/main/2331"
-  state_2331: "OFF"
+  state_2331: "ON"
 
 - command_topic: "home/main/2332"
-  state_2332: "OFF"
+  state_2332: "ON"
 
 - command_topic: "home/main/2333"
-  state_2333: "OFF"
+  state_2333: "ON"
 
 - command_topic: "home/main/2334"
-  state_2334: "OFF"
+  state_2334: "ON"
 
 - command_topic: "home/main/2335"
-  state_2335: "OFF"
+  state_2335: "ON"
 
 - command_topic: "home/main/2336"
-  state_2336: "OFF"
+  state_2336: "ON"
 
 - command_topic: "home/main/2337"
-  state_2337: "OFF"
+  state_2337: "ON"
 
 - command_topic: "home/main/2340"
-  state_2340: "OFF"
+  state_2340: "ON"
 
 - command_topic: "home/main/2341"
-  state_2341: "OFF"
+  state_2341: "ON"
 
 - command_topic: "home/main/2342"
-  state_2342: "OFF"
+  state_2342: "ON"
 
 - command_topic: "home/main/2343"
-  state_2343: "OFF"
+  state_2343: "ON"
 
 - command_topic: "home/main/2344"
-  state_2344: "OFF"
+  state_2344: "ON"
 
 - command_topic: "home/main/2345"
-  state_2345: "OFF"
+  state_2345: "ON"
 
 - command_topic: "home/main/2346"
-  state_2346: "OFF"
+  state_2346: "ON"
 
 - command_topic: "home/main/2347"
-  state_2347: "OFF"
-
-
-
-
-- command_topic: "home/main/2370"
-  state_2370: "ON"
-
-- command_topic: "home/main/2371"
-  state_2371: "ON"
-
-- command_topic: "home/main/2372"
-  state_2372: "ON"
-
-- command_topic: "home/main/2373"
-  state_2373: "ON"
-
-- command_topic: "home/main/2374"
-  state_2374: "ON"
-
-- command_topic: "home/main/2375"
-  state_2375: "ON"
-
-- command_topic: "home/main/2376"
-  state_2376: "ON"
-
-- command_topic: "home/main/2377"
-  state_2377: "ON"
-
-
-- command_topic: "home/main/2380"
-  state_2380: "ON"
-
-- command_topic: "home/main/2381"
-  state_2381: "ON"
-
-- command_topic: "home/main/2382"
-  state_2382: "ON"
-
-- command_topic: "home/main/2383"
-  state_2383: "ON"
-
-- command_topic: "home/main/2384"
-  state_2384: "ON"
-
-- command_topic: "home/main/2385"
-  state_2385: "ON"
-
-- command_topic: "home/main/2386"
-  state_2386: "ON"
-
-- command_topic: "home/main/2387"
-  state_2387: "ON"
+  state_2347: "ON"
 
 
 - command_topic: "home/main/2610"
@@ -147,4 +95,13 @@
 
 - command_topic: "home/main/2617"
   state_2617: "ON"
+
+- command_topic: "home/main/2381"
+  state_2381: "ON"
+
+- command_topic: "home/main/2382"
+  state_2382: "ON"
+
+- command_topic: "home/main/2383"
+  state_2383: "ON"
 
