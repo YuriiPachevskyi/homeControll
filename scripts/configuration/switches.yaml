@@ -215,3 +215,179 @@
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
+
+
+
+
+- platform: mqtt
+  name: "2370"
+  state_topic: "home/status/main/2370"
+  command_topic: "home/main/2370"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2371"
+  state_topic: "home/status/main/2371"
+  command_topic: "home/main/2371"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2372"
+  state_topic: "home/status/main/2372"
+  command_topic: "home/main/2372"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2373"
+  state_topic: "home/status/main/2373"
+  command_topic: "home/main/2373"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2374"
+  state_topic: "home/status/main/2374"
+  command_topic: "home/main/2374"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2375"
+  state_topic: "home/status/main/2375"
+  command_topic: "home/main/2375"
+  payload_on: "ON"
+  payload_off: "OFF"     
+  state_on: "ON"       
+  state_off: "OFF"       
+
+- platform: mqtt
+  name: "2376"
+  state_topic: "home/status/main/2376"
+  command_topic: "home/main/2376"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2377"
+  state_topic: "home/status/main/2377"
+  command_topic: "home/main/2377"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2381"
+  state_topic: "home/status/main/2381"
+  command_topic: "home/main/2381"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2382"
+  state_topic: "home/status/main/2382"
+  command_topic: "home/main/2382"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2383"
+  state_topic: "home/status/main/2383"
+  command_topic: "home/main/2383"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2610"
+  state_topic: "home/status/main/2610"
+  command_topic: "home/main/2610"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2611"
+  state_topic: "home/status/main/2611"
+  command_topic: "home/main/2611"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2612"
+  state_topic: "home/status/main/2612"
+  command_topic: "home/main/2612"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2613"
+  state_topic: "home/status/main/2613"
+  command_topic: "home/main/2613"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2614"
+  state_topic: "home/status/main/2614"
+  command_topic: "home/main/2614"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2615"
+  state_topic: "home/status/main/2615"
+  command_topic: "home/main/2615"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2616"
+  state_topic: "home/status/main/2616"
+  command_topic: "home/main/2616"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+- platform: mqtt
+  name: "2617"
+  state_topic: "home/status/main/2617"
+  command_topic: "home/main/2617"
+  payload_on: "ON"
+  payload_off: "OFF"
+  state_on: "ON"
+  state_off: "OFF"
+
+
