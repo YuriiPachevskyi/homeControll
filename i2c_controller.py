@@ -51,9 +51,17 @@ class I2CReadController(I2CController):
 
     def init_inputs(self, inputsDict):
         for key in inputsDict:
+           # self.clear_input_state(key)
             devRegKey = key[:-1]
             devRegPin = int(key[-1:])
             self.inputDict[devRegKey] = self.inputDict.get(devRegKey, 0) | (1 << devRegPin)
+
+    def clear_input_state(self, input_id):
+        i2cDevice = int(input_id[:1])
+        i2cRegister = int(input_id[1:-1])
+        i2cPin = int(input_id[-1:])
+        print("clear_input_state: id: ", input_id, " i2cRegister: ", i2cRegister, " i2cPin: ", i2cPin)
+        I2CWriteController.set_disabled(self, i2cDevice, i2cRegister, i2cPin)
 
     def is_input_state_changed(self, mask, value):
         return (value & mask) ^ mask
