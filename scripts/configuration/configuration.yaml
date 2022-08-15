@@ -12,7 +12,7 @@ scene: !include scenes.yaml
 switch: !include switches.yaml
 #group: !include groups.yaml
 
-mqtt:
-  broker: localhost
-  username: yurii
-  password: 032133522
+#mqtt:
+#  broker: localhost
+#  username: yurii
+#  password: 032133522
