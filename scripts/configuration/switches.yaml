@@ -1,308 +1,72 @@
 - platform: mqtt
-  name: "2320 Child bedroom main 1"
-  state_topic: "home/status/main/2320"
-  command_topic: "home/main/2320"
+  name: "1560"
+  state_topic: "home/status/main/1560"
+  command_topic: "home/main/1560"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
 
 - platform: mqtt
-  name: "2321 Child bedroot main 2"
-  state_topic: "home/status/main/2321"
-  command_topic: "home/main/2321"
+  name: "1561"
+  state_topic: "home/status/main/1561"
+  command_topic: "home/main/1561"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
 
 - platform: mqtt
-  name: "2322 Bathroom mirror 1"
-  state_topic: "home/status/main/2322"
-  command_topic: "home/main/2322"
+  name: "1562"
+  state_topic: "home/status/main/1562"
+  command_topic: "home/main/1562"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
 
 - platform: mqtt
-  name: "2323 Bathroom mirror 2"
-  state_topic: "home/status/main/2323"
-  command_topic: "home/main/2323"
+  name: "1313"
+  state_topic: "home/status/main/1313"
+  command_topic: "home/main/1563"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
 
 - platform: mqtt
-  name: "2324 Toilet main light"
-  state_topic: "home/status/main/2324"
-  command_topic: "home/main/2324"
+  name: "1564"
+  state_topic: "home/status/main/1564"
+  command_topic: "home/main/1564"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
 
 - platform: mqtt
-  name: "2325 Bathroom main light"  
-  state_topic: "home/status/main/2325"
-  command_topic: "home/main/2325"
+  name: "1565"  
+  state_topic: "home/status/main/1565"
+  command_topic: "home/main/1565"
   payload_on: "ON"
   payload_off: "OFF"     
   state_on: "ON"       
   state_off: "OFF"       
 
 - platform: mqtt
-  name: "2326 Coridor light 2"
-  state_topic: "home/status/main/2326"
-  command_topic: "home/main/2326"
+  name: "1566"
+  state_topic: "home/status/main/1566"
+  command_topic: "home/main/1566"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
 
 - platform: mqtt
-  name: "2327 Coridor light 1"
-  state_topic: "home/status/main/2327"
-  command_topic: "home/main/2327"
+  name: "1567"
+  state_topic: "home/status/main/1567"
+  command_topic: "home/main/1567"
   payload_on: "ON"
   payload_off: "OFF"
   state_on: "ON"
   state_off: "OFF"
-
-
-- platform: mqtt
-  name: "2330 Empty switch"
-  state_topic: "home/status/main/2330"
-  command_topic: "home/main/2330"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2331 Bedroom working place light"
-  state_topic: "home/status/main/2331"
-  command_topic: "home/main/2331"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2332 Bedroom sleep zone 1"
-  state_topic: "home/status/main/2332"
-  command_topic: "home/main/2332"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2333 Bedroom sleep zone 2"
-  state_topic: "home/status/main/2333"
-  command_topic: "home/main/2333"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2334 Bedroom main light 1"
-  state_topic: "home/status/main/2334"
-  command_topic: "home/main/2334"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2335 Bedroom main light 2"
-  state_topic: "home/status/main/2335"
-  command_topic: "home/main/2335"
-  payload_on: "ON"
-  payload_off: "OFF"     
-  state_on: "ON"       
-  state_off: "OFF"       
-
-- platform: mqtt
-  name: "2336 Bedroom balcony working place"
-  state_topic: "home/status/main/2336"
-  command_topic: "home/main/2336"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2337 Bedroom balcony main"
-  state_topic: "home/status/main/2337"
-  command_topic: "home/main/2337"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2341 Toilet ventus"
-  state_topic: "home/status/main/2341"
-  command_topic: "home/main/2341"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2342 Larder light"
-  state_topic: "home/status/main/2342"
-  command_topic: "home/main/2342"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2343 Empty switch"
-  state_topic: "home/status/main/2343"
-  command_topic: "home/main/2343"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2344 Waves power supply"
-  state_topic: "home/status/main/2344"
-  command_topic: "home/main/2344"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2345 Wave 1"
-  state_topic: "home/status/main/2345"
-  command_topic: "home/main/2345"
-  payload_on: "ON"
-  payload_off: "OFF"     
-  state_on: "ON"       
-  state_off: "OFF"       
-
-- platform: mqtt
-  name: "2346 Wave 2"
-  state_topic: "home/status/main/2346"
-  command_topic: "home/main/2346"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2347 Wave 3"
-  state_topic: "home/status/main/2347"
-  command_topic: "home/main/2347"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2381 Kitchen zone 2"
-  state_topic: "home/status/main/2381"
-  command_topic: "home/main/2381"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2382 Empty for kitchen light"
-  state_topic: "home/status/main/2382"
-  command_topic: "home/main/2382"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2383 Toilet mirror"
-  state_topic: "home/status/main/2383"
-  command_topic: "home/main/2383"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2610 Kitchen main1"
-  state_topic: "home/status/main/2610"
-  command_topic: "home/main/2610"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2611 Children balcony main"
-  state_topic: "home/status/main/2611"
-  command_topic: "home/main/2611"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2612 Children balcony work place"
-  state_topic: "home/status/main/2612"
-  command_topic: "home/main/2612"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2613 Kitchen zone 1"
-  state_topic: "home/status/main/2613"
-  command_topic: "home/main/2613"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2614 Kitchen main 2"
-  state_topic: "home/status/main/2614"
-  command_topic: "home/main/2614"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2615 Kitchen work place"
-  state_topic: "home/status/main/2615"
-  command_topic: "home/main/2615"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2616 Kitchen ventus"
-  state_topic: "home/status/main/2616"
-  command_topic: "home/main/2616"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
-- platform: mqtt
-  name: "2617 Children light"
-  state_topic: "home/status/main/2617"
-  command_topic: "home/main/2617"
-  payload_on: "ON"
-  payload_off: "OFF"
-  state_on: "ON"
-  state_off: "OFF"
-
 

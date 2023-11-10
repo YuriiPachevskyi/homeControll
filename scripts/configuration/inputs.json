@@ -1,190 +1,54 @@
  [
     {
-        "id": "2350",
-        "onShort": [2325],
+        "id": "1570",
+        "onShort": [1565],
         "onLong": [],
-        "onLongLong": [2323]
+        "onLongLong": [1563]
     },
     {
-        "id": "2351",
-        "onShort": [2322],
+        "id": "1571",
+        "onShort": [1562],
         "onLong": [],
-        "onLongLong": [2323]
+        "onLongLong": [1563]
 
     },
     {
-        "id": "2352",
-        "onShort": [2332],
-        "onLong": [2335],
-        "onLongLong": [2331]
+        "id": "1572",
+        "onShort": [1562],
+        "onLong": [1565],
+        "onLongLong": [1561]
 
     },
     {
-        "id": "2353",
-        "onShort": [2333],
-        "onLong": [2334],
-        "onLongLong": [2331]
+        "id": "1563",
+        "onShort": [1563],
+        "onLong": [1564],
+        "onLongLong": [1561]
 
     },
     {
-        "id": "2354",
-        "onShort": [2333],
-        "onLong": [2334],
-        "onLongLong": [2331]
+        "id": "1574",
+        "onShort": [1563],
+        "onLong": [1564],
+        "onLongLong": [1561]
 
     },
     {
-        "id": "2355",
-        "onShort": [2332],
-        "onLong": [2335],
-        "onLongLong": [2331]
+        "id": "1575",
+        "onShort": [1562],
+        "onLong": [1565],
+        "onLongLong": [1561]
     },
         {
-        "id": "2356",
-        "onShort": [2336],
-        "onLong": [2336],
-        "onLongLong": [2336]
+        "id": "1576",
+        "onShort": [1566],
+        "onLong": [1566],
+        "onLongLong": [1566]
     },
     {
-        "id": "2357",
-        "onShort": [2337],
-        "onLong": [2337],
-        "onLongLong": [2337]
-    },
-   {
-        "id": "2360",
-        "onShort": [2326],
-        "onLong": [],
-        "onLongLong": []
-    },
-    {
-        "id": "2361",
-        "onShort": [2327],
-        "onLong": [],
-        "onLongLong": [2325]
-
-    },
-    {
-        "id": "2362",
-        "onShort": [2334],
-        "onLong": [2333],
-        "onLongLong": [2336]
-
-    },
-    {
-        "id": "2363",
-        "onShort": [2335],
-        "onLong": [2332],
-        "onLongLong": [2337]
-
-    },
-    {
-        "id": "2364",
-        "onShort": [2342],
-        "onLong": [2342],
-        "onLongLong": []
-
-    },
-    {
-        "id": "2365",
-        "onShort": [2331],
-        "onLong": [2337],
-        "onLongLong": [2337]
-    },
-        {
-        "id": "2366",
-        "onShort": [2331],
-        "onLong": [2336],
-        "onLongLong": [2336]
-    },
-    {
-        "id": "2367",
-        "onShort": [2337],
-        "onLong": [],
-        "onLongLong": []
-    },
-
-
-  {
-        "id": "2370",
-        "onShort": [2612],
-        "onLong": [2320],
-        "onLongLong": [2617]
-    },
-    {
-        "id": "2371",
-        "onShort": [2611],
-        "onLong": [2321],
-        "onLongLong": [2617]
-
-    },
-    {
-        "id": "2372",
-        "onShort": [2610],
-        "onLong": [2381],
-        "onLongLong": [2615]
-
-    },
-    {
-        "id": "2373",
-        "onShort": [2614],
-        "onLong": [2613],
-        "onLongLong": []
-
-    },
-    {
-        "id": "2374",
-        "onShort": [2321],
-        "onLong": [2611],
-        "onLongLong": [2617]
-
-    },
-    {
-        "id": "2375",
-        "onShort": [2320],
-        "onLong": [2612],
-        "onLongLong": [2617]
-    },
-        {
-        "id": "2376",
-        "onShort": [2615],
-        "onLong": [2614],
-        "onLongLong": [2613]
-    },
-    {
-        "id": "2377",
-        "onShort": [2615],
-        "onLong": [2610],
-        "onLongLong": [2381]
-    },
-    {
-        "id": "2380",
-        "onShort": [2382],
-        "onLong": [],
-        "onLongLong": []
-    },
-    {
-        "id": "2384",
-        "onShort": [2613],
-        "onLong": [2614],
-        "onLongLong": [2615]
-    },
-    {
-        "id": "2385",
-        "onShort": [2381],
-        "onLong": [2610],
-        "onLongLong": [2615]
-    },
-    {
-        "id": "2386",
-        "onShort": [2383],
-        "onLong": [2383],
-        "onLongLong": [2341]
-    },
-    {
-        "id": "2387",
-        "onShort": [2324],
-        "onLong": [2324],
-        "onLongLong": [2341]
+        "id": "1577",
+        "onShort": [1567],
+        "onLong": [1567],
+        "onLongLong": [1567]
     }
 ]

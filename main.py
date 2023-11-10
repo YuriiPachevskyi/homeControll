@@ -1,4 +1,4 @@
-from ruamel import yaml
+from ruamel.yaml import YAML
 from subprocess import call
 import i2c_controller
 import json
@@ -7,10 +7,11 @@ import settings
 import state_controller
 import time
 
+yaml = YAML()
 switchDict = {}
 inputDict = {}
 inputs = json.load(open(settings.confInputsFile))
-switches = yaml.safe_load(open(settings.confSwitchesStateFile))
+switches = yaml.load(open(settings.confSwitchesStateFile))
 i2CWriteController = i2c_controller.I2CWriteController()
 
 for i in range(len(switches)):
@@ -19,10 +20,6 @@ for i in range(len(switches)):
 
 for i in range(len(inputs)):
     inputDict[inputs[i]["id"]] = i2c_controller.I2CInputDevice(inputs[i]["onShort"], inputs[i]["onLong"], inputs[i]["onLongLong"])
-
-def restoreSwitchesState():
-    for key in switchDict:
-        changeSwitchState(key, switchDict[key])
 
 def onMQTTEvent(id, state):
     print("id", id, "state", state)
@@ -68,5 +65,4 @@ def changeSwitchState(id, state):
 mqttController = mqtt_controller.MQTTController(settings.mqttMainPath, onMQTTEvent)
 state_controller.UiStateUpdateThread(settings.mqttStatusPath, switchDict, mqttController).start()
 state_controller.FileStateBackupThread(settings.mqttStatusPath, switchDict).start()
-restoreSwitchesState()
 i2c_controller.I2CReadController(inputDict, onInputEvent).i2c_read()
