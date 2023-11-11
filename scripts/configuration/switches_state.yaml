@@ -1,107 +1,24 @@
-- command_topic: "home/main/2320"
-  state_2320: "ON"
+- command_topic: "home/main/1560"
+  state_1560: "OFF"
 
-- command_topic: "home/main/2321"
-  state_2321: "ON"
+- command_topic: "home/main/1561"
+  state_1561: "OFF"
 
-- command_topic: "home/main/2322"
-  state_2322: "ON"
+- command_topic: "home/main/1562"
+  state_1562: "OFF"
 
-- command_topic: "home/main/2323"
-  state_2323: "ON"
+- command_topic: "home/main/1563"
+  state_1563: "OFF"
 
-- command_topic: "home/main/2324"
-  state_2324: "ON"
+- command_topic: "home/main/1564"
+  state_1564: "OFF"
 
-- command_topic: "home/main/2325"
-  state_2325: "ON"
+- command_topic: "home/main/1565"
+  state_1565: "OFF"
 
-- command_topic: "home/main/2326"
-  state_2326: "ON"
+- command_topic: "home/main/1566"
+  state_1566: "ON"
 
-- command_topic: "home/main/2327"
-  state_2327: "ON"
-
-
-- command_topic: "home/main/2330"
-  state_2330: "ON"
-
-- command_topic: "home/main/2331"
-  state_2331: "ON"
-
-- command_topic: "home/main/2332"
-  state_2332: "ON"
-
-- command_topic: "home/main/2333"
-  state_2333: "ON"
-
-- command_topic: "home/main/2334"
-  state_2334: "ON"
-
-- command_topic: "home/main/2335"
-  state_2335: "ON"
-
-- command_topic: "home/main/2336"
-  state_2336: "ON"
-
-- command_topic: "home/main/2337"
-  state_2337: "ON"
-
-- command_topic: "home/main/2340"
-  state_2340: "ON"
-
-- command_topic: "home/main/2341"
-  state_2341: "ON"
-
-- command_topic: "home/main/2342"
-  state_2342: "ON"
-
-- command_topic: "home/main/2343"
-  state_2343: "ON"
-
-- command_topic: "home/main/2344"
-  state_2344: "ON"
-
-- command_topic: "home/main/2345"
-  state_2345: "ON"
-
-- command_topic: "home/main/2346"
-  state_2346: "ON"
-
-- command_topic: "home/main/2347"
-  state_2347: "ON"
-
-
-- command_topic: "home/main/2610"
-  state_2610: "ON"
-
-- command_topic: "home/main/2611"
-  state_2611: "ON"
-
-- command_topic: "home/main/2612"
-  state_2612: "ON"
-
-- command_topic: "home/main/2613"
-  state_2613: "ON"
-
-- command_topic: "home/main/2614"
-  state_2614: "ON"
-
-- command_topic: "home/main/2615"
-  state_2615: "ON"
-
-- command_topic: "home/main/2616"
-  state_2616: "ON"
-
-- command_topic: "home/main/2617"
-  state_2617: "ON"
-
-- command_topic: "home/main/2381"
-  state_2381: "ON"
-
-- command_topic: "home/main/2382"
-  state_2382: "ON"
-
-- command_topic: "home/main/2383"
-  state_2383: "ON"
+- command_topic: "home/main/1567"
+  state_1567: "ON"
 

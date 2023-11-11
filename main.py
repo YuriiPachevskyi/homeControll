@@ -10,7 +10,7 @@ import time
 yaml = YAML()
 switchDict = {}
 inputDict = {}
-inputs = json.load(open(settings.confInputsFile))
+#inputs = json.load(open(settings.confInputsFile))
 switches = yaml.load(open(settings.confSwitchesStateFile))
 i2CWriteController = i2c_controller.I2CWriteController()
 
@@ -18,8 +18,8 @@ for i in range(len(switches)):
     key = switches[i]['command_topic'][-4:]
     switchDict[key] = switches[i]["state_" + key]
 
-for i in range(len(inputs)):
-    inputDict[inputs[i]["id"]] = i2c_controller.I2CInputDevice(inputs[i]["onShort"], inputs[i]["onLong"], inputs[i]["onLongLong"])
+#for i in range(len(inputs)):
+#    inputDict[inputs[i]["id"]] = i2c_controller.I2CInputDevice(inputs[i]["onShort"], inputs[i]["onLong"], inputs[i]["onLongLong"])
 
 def onMQTTEvent(id, state):
     print("id", id, "state", state)
