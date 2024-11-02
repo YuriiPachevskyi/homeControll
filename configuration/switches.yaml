@@ -1,0 +1,46 @@
+- switch:
+    name: "1560 Boiler ten 0.8 kWh"
+    state_topic: "home/status/main/1560"
+    command_topic: "home/main/1560"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1561 Boiler ten 1.2 kWh"
+    state_topic: "home/status/main/1561"
+    command_topic: "home/main/1561"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1562 Heating main"
+    state_topic: "home/status/main/1562"
+    command_topic: "home/main/1562"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1563 Heating ten 1.5 kWh"
+    state_topic: "home/status/main/1563"
+    command_topic: "home/main/1563"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1564 Heating ten 3 kWh"
+    state_topic: "home/status/main/1564"
+    command_topic: "home/main/1564"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"
+    state_off: "OFF"
+
+

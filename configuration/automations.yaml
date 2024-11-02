@@ -1,0 +1,92 @@
+- id: '1700242260035'
+  alias: Grid power above 600 W
+  description: ''
+  trigger:
+  - type: power
+    platform: device
+    device_id: 2397b905e80e4ecfa481cebbf8e37cb3
+    entity_id: e87476604f7365f729b7598353b66043
+    domain: sensor
+    above: 600
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  - type: power
+    platform: device
+    device_id: 2397b905e80e4ecfa481cebbf8e37cb3
+    entity_id: 4fb2889c1d52b62e2e3977160797850f
+    domain: sensor
+    above: 5300
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  - type: power
+    platform: device
+    device_id: 2397b905e80e4ecfa481cebbf8e37cb3
+    entity_id: f93685fbe5cd409521bbba519d42d199
+    domain: sensor
+    above: 600
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  - platform: state
+    entity_id:
+    - script.power_load_disable_device_duplicate
+    from:
+    to:
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 40
+  - platform: homeassistant
+    event: start
+  condition: []
+  action:
+  - action: script.power_load_disable_device_duplicate
+    data: {}
+  mode: single
+- id: '1711297405381'
+  alias: boiler 2.0 KWh 21:30 disable
+  description: ''
+  trigger:
+  - platform: time
+    at: '21:30:00'
+  condition: []
+  action:
+  - service: switch.turn_off
+    data: {}
+    target:
+      entity_id:
+      - switch.1560_boiler_ten_0_8_kwh
+      - switch.1561_boiler_ten_1_2_kwh
+      - switch.1562_heating_main
+      - switch.1563_heating_ten_1_5_kwh
+      - switch.1564_heating_ten_3_kwh
+  mode: single
+- id: '1728802522423'
+  alias: Turn off boiler ten 1.2 kWh when Heaing ten 3kWh On
+  description: ''
+  trigger:
+  - platform: state
+    entity_id:
+    - switch.1564_heating_ten_3_kwh
+    from: 'off'
+    to: 'on'
+  condition: []
+  action:
+  - action: switch.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - switch.1561_boiler_ten_1_2_kwh
+      - switch.1563_heating_ten_1_5_kwh
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.1562_heating_main
+  mode: single
