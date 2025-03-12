@@ -49,22 +49,22 @@
     data: {}
   mode: single
 - id: '1711297405381'
-  alias: boiler 2.0 KWh 21:30 disable
+  alias: 'boiler 2.0 KWh at 4: 00 AM enable'
   description: ''
-  trigger:
-  - platform: time
-    at: '21:30:00'
-  condition: []
-  action:
-  - service: switch.turn_off
-    data: {}
+  triggers:
+  - at: 04:40:00
+    trigger: time
+  conditions:
+  - condition: state
+    entity_id: switch.boiler_night_charge
+    state: 'on'
+  actions:
+  - action: switch.turn_on
     target:
       entity_id:
       - switch.1560_boiler_ten_0_8_kwh
       - switch.1561_boiler_ten_1_2_kwh
-      - switch.1562_heating_main
-      - switch.1563_heating_ten_1_5_kwh
-      - switch.1564_heating_ten_3_kwh
+    data: {}
   mode: single
 - id: '1728802522423'
   alias: Turn off boiler ten 1.2 kWh when Heaing ten 3kWh On
@@ -89,4 +89,28 @@
     data: {}
     target:
       entity_id: switch.1562_heating_main
+  mode: single
+- id: '1731862602452'
+  alias: Update switches state on startup
+  description: ''
+  triggers:
+  - trigger: homeassistant
+    event: start
+  conditions: []
+  actions:
+  - action: switch.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - switch.1562_heating_main
+      - switch.1561_boiler_ten_1_2_kwh
+      - switch.1563_heating_ten_1_5_kwh
+      - switch.1564_heating_ten_3_kwh
+      - switch.boiler_night_charge
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.1560_boiler_ten_0_8_kwh
   mode: single
