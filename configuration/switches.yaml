@@ -44,3 +44,11 @@
     state_off: "OFF"
 
 
+- switch:
+    name: "Boiler night charge"
+    state_topic: "home/status/main/1565"
+    command_topic: "home/main/1565"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"
+    state_off: "OFF"
