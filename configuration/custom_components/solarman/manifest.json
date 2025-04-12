@@ -1,12 +1,15 @@
 {
   "domain": "solarman",
   "name": "Solarman",
-  "codeowners": ["@StephanJoubert"],
+  "codeowners": ["@davidrapan"],
   "config_flow": true,
-  "dependencies": [],
-  "documentation": "https://github.com/StephanJoubert/home_assistant_solarman/blob/main/README.md",
+  "dependencies": ["network", "template", "dhcp"],
+  "documentation": "https://github.com/davidrapan/ha-solarman",
+  "integration_type": "device",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/StephanJoubert/home_assistant_solarman/issues",
-  "requirements": ["pyyaml","pysolarmanv5"],
-  "version": "1.0.0"
+  "issue_tracker": "https://github.com/davidrapan/ha-solarman/issues",
+  "loggers": ["pymodbus"],
+  "quality_scale": "custom",
+  "requirements": ["propcache", "aiofiles", "pyyaml", "pymodbus>=3.8.3"],
+  "version": "25.03.18"
 }

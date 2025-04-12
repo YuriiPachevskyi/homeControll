@@ -12,13 +12,129 @@
       "user": {
         "title": "Konfiguration der Verbindung zum Wechselrichter",
         "data": {
+          "name": "Gerätename",
+          "sn": "Seriennummer",
+          "host": "Host (IP-Adresse oder Hostname)",
+          "port": "Port (normalerweise 8899)",
+          "lookup_file": "Profil"
+        },
+        "data_description": {
           "name": "Prefix für alle Parameterwerte (nach Belieben zu ändern)",
-          "inverter_host": "Host (IP-Adresse oder Hostname)",
-          "inverter_serial": "Seriennummer des Geräts (über die Weboberfläche abrufbar)",
-          "inverter_port": "Port (normalerweise 8899)",
-          "mb_slaveid": "Modbus-Slave-ID (normalerweise 1)",
+          "sn": "Seriennummer des Geräts (über die Weboberfläche abrufbar)",
+          "host": "Der Hostname oder die IP-Adresse des Geräts, mit dem eine Verbindung hergestellt werden soll",
+          "port": "Der TCP-Port (8899) des Geräts, mit dem eine Verbindung hergestellt werden soll",
           "lookup_file": "YAML-Datei mit der Parameter-Definition"
+        },
+        "sections": {
+          "additional_options": {
+            "name": "Zusätzliche Optionen",
+            "data": {
+              "mod": "Skalierungsmodifikator",
+              "mppt": "Anzahl der MPPTs",
+              "phase": "Anzahl der Phasen",
+              "pack": "Anzahl Akkupacks",
+              "battery_nominal_voltage": "Nennspannung des Lithium-Ionen-Akkus",
+              "battery_life_cycle_rating": "Erwartete Lebensdauer der Lithium-Ionen-Batterie",
+              "mb_slave_id": "Modbus-Slave-ID (normalerweise 1)"
+            }
+          }
         }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen",
+      "invalid_host": "Ungültiger Hostname oder ungültige IP-Adresse",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "step": {
+      "init": {
+        "title": "Konfiguration der Verbindung zum Wechselrichter",
+        "data": {
+          "sn": "Seriennummer",
+          "host": "Host (IP-Adresse oder Hostname)",
+          "port": "Port (normalerweise 8899)",
+          "lookup_file": "Profil"
+        },
+        "data_description": {
+          "sn": "Seriennummer des Geräts (über die Weboberfläche abrufbar)",
+          "host": "Der Hostname oder die IP-Adresse des Geräts, mit dem eine Verbindung hergestellt werden soll",
+          "port": "Der TCP-Port (8899) des Geräts, mit dem eine Verbindung hergestellt werden soll",
+          "lookup_file": "YAML-Datei mit der Parameter-Definition"
+        },
+        "sections": {
+          "additional_options": {
+            "name": "Zusätzliche Optionen",
+            "data": {
+              "mod": "Skalierungsmodifikator",
+              "mppt": "Anzahl der MPPTs",
+              "phase": "Anzahl der Phasen",
+              "pack": "Anzahl Akkupacks",
+              "battery_nominal_voltage": "Nennspannung des Lithium-Ionen-Akkus",
+              "battery_life_cycle_rating": "Erwartete Lebensdauer der Lithium-Ionen-Batterie",
+              "mb_slave_id": "Modbus-Slave-ID (normalerweise 1)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "today_battery_charge": {
+        "name": "Heutige Batterieladung"
+      },
+      "today_battery_discharge": {
+        "name": "Heutige Batterieentladung"
+      },
+      "today_battery_life_cycles": {
+        "name": "Heutige Batterielebenszyklen"
+      },
+      "today_energy_export": {
+        "name": "Heutige Energieexport"
+      },
+      "today_energy_import": {
+        "name": "Heutige Energieimport"
+      },
+      "today_generation": {
+        "name": "Heutige Generation"
+      },
+      "today_load_consumption": {
+        "name": "Heutiger Lastverbrauch"
+      },
+      "today_losses": {
+        "name": "Heutigen Verluste"
+      },
+      "today_production": {
+        "name": "Heutige Produktion"
+      },
+      "total_battery_charge": {
+        "name": "Gesamt Batterieladung"
+      },
+      "total_battery_discharge": {
+        "name": "Gesamt Batterieentladung"
+      },
+      "total_battery_life_cycles": {
+        "name": "Gesamt Batterielebenszyklen"
+      },
+      "total_energy_export": {
+        "name": "Gesamt Energieexport"
+      },
+      "total_energy_import": {
+        "name": "Gesamt Energieimport"
+      },
+      "total_generation": {
+        "name": "Gesamt Generation"
+      },
+      "total_load_consumption": {
+        "name": "Gesamt Lastverbrauch"
+      },
+      "total_losses": {
+        "name": "Gesamt Verluste"
+      },
+      "total_production": {
+        "name": "Gesamt Produktion"
       }
     }
   }

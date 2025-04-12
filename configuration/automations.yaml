@@ -1,39 +1,27 @@
 - id: '1700242260035'
   alias: Grid power above 600 W
   description: ''
-  trigger:
-  - type: power
-    platform: device
-    device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-    entity_id: e87476604f7365f729b7598353b66043
-    domain: sensor
-    above: 600
+  triggers:
+  - type: powered
+    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+    entity_id: f92dd0042137a11a70c8b56bdd102329
+    domain: binary_sensor
+    trigger: device
     for:
       hours: 0
       minutes: 0
       seconds: 30
   - type: power
-    platform: device
-    device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-    entity_id: 4fb2889c1d52b62e2e3977160797850f
+    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+    entity_id: 0124cde1985f8caf83b525ca9de4902c
     domain: sensor
-    above: 5300
+    trigger: device
+    above: 300
     for:
       hours: 0
       minutes: 0
       seconds: 30
-  - type: power
-    platform: device
-    device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-    entity_id: f93685fbe5cd409521bbba519d42d199
-    domain: sensor
-    above: 600
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 30
-  - platform: state
-    entity_id:
+  - entity_id:
     - script.power_load_disable_device_duplicate
     from:
     to:
@@ -41,10 +29,11 @@
       hours: 0
       minutes: 0
       seconds: 40
-  - platform: homeassistant
-    event: start
-  condition: []
-  action:
+    trigger: state
+  - event: start
+    trigger: homeassistant
+  conditions: []
+  actions:
   - action: script.power_load_disable_device_duplicate
     data: {}
   mode: single

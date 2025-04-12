@@ -1,0 +1,141 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Zařízení je již nakonfigurováno"
+    },
+    "error": {
+      "cannot_connect": "Nepodařilo se připojit",
+      "invalid_host": "Neplatný název hostitele nebo IP adresa",
+      "unknown": "Neočekávaná chyba"
+    },
+    "step": {
+      "user": {
+        "title": "Konfigurace měniče",
+        "data": {
+          "name": "Název",
+          "sn": "Sériové číslo",
+          "host": "Hostitel nebo IP adresa",
+          "port": "Port",
+          "lookup_file": "Profil"
+        },
+        "data_description": {
+          "name": "Tento název bude mít předponu u všech senzorů (změňte, jak chcete)",
+          "sn": "Sériové číslo zařízení (z webového rozhraní)",
+          "host": "Název hostitele nebo IP adresa zařízení, ke kterému se chcete připojit",
+          "port": "TCP port (8899) zařízení, ke kterému se chcete připojit",
+          "lookup_file": "Soubor yaml obsahující definice parametrů měniče"
+        },
+        "sections": {
+          "additional_options": {
+            "name": "Další možnosti",
+            "data": {
+              "mod": "Modifikátor měřítka",
+              "mppt": "Počet MPPT",
+              "phase": "Počet fází",
+              "pack": "Počet bateriových sad",
+              "battery_nominal_voltage": "Jmenovité napětí lithium-iontové baterie",
+              "battery_life_cycle_rating": "Předpokládaná životnost lithium-iontové baterie",
+              "mb_slave_id": "Modbus Slave ID (obvykle 1)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "cannot_connect": "Nepodařilo se připojit",
+      "invalid_host": "Neplatný název hostitele nebo IP adresa",
+      "unknown": "Neočekávaná chyba"
+    },
+    "step": {
+      "init": {
+        "title": "Konfigurace měniče",
+        "data": {
+          "sn": "Sériové číslo",
+          "host": "Hostitel nebo IP adresa",
+          "port": "Port",
+          "lookup_file": "Profil"
+        },
+        "data_description": {
+          "sn": "Sériové číslo zařízení (z webového rozhraní)",
+          "host": "Název hostitele nebo IP adresa zařízení, ke kterému se chcete připojit",
+          "port": "TCP port (8899) zařízení, ke kterému se chcete připojit",
+          "lookup_file": "Soubor yaml obsahující definice parametrů měniče"
+        },
+        "sections": {
+          "additional_options": {
+            "name": "Další možnosti",
+            "data": {
+              "mod": "Modifikátor měřítka",
+              "mppt": "Počet MPPT",
+              "phase": "Počet fází",
+              "pack": "Počet bateriových sad",
+              "battery_nominal_voltage": "Jmenovité napětí lithium-iontové baterie",
+              "battery_life_cycle_rating": "Předpokládaná životnost lithium-iontové baterie",
+              "mb_slave_id": "Modbus Slave ID (obvykle 1)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "today_battery_charge": {
+        "name": "Dnešní nabití baterie"
+      },
+      "today_battery_discharge": {
+        "name": "Dnešní vybití baterie"
+      },
+      "today_battery_life_cycles": {
+        "name": "Dnešní počet cyklů baterie"
+      },
+      "today_energy_export": {
+        "name": "Dnešní export energie"
+      },
+      "today_energy_import": {
+        "name": "Dnešní import energie"
+      },
+      "today_generation": {
+        "name": "Dnešní generace"
+      },
+      "today_load_consumption": {
+        "name": "Dnešní spotřeba zátěže"
+      },
+      "today_losses": {
+        "name": "Dnešní ztráty"
+      },
+      "today_production": {
+        "name": "Dnešní produkce"
+      },
+      "total_battery_charge": {
+        "name": "Celkové nabití baterie"
+      },
+      "total_battery_discharge": {
+        "name": "Celkové vybití baterie"
+      },
+      "total_battery_life_cycles": {
+        "name": "Celkový počet cyklů baterie"
+      },
+      "total_energy_export": {
+        "name": "Celkový export energie"
+      },
+      "total_energy_import": {
+        "name": "Celkový import energie"
+      },
+      "total_generation": {
+        "name": "Celková generace"
+      },
+      "total_load_consumption": {
+        "name": "Celková spotřeba zátěže"
+      },
+      "total_losses": {
+        "name": "Celkové ztráty"
+      },
+      "total_production": {
+        "name": "Celková produkce"
+      }
+    }
+  }
+}
