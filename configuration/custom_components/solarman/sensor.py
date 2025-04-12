@@ -1,229 +1,224 @@
-
-################################################################################
-#   Solarman local interface.
-#
-#   This component can retrieve data from the solarman dongle using version 5
-#   of the protocol.
-#
-###############################################################################
+from __future__ import annotations
 
 import logging
-import re
-import voluptuous as vol
+
+from typing import Any
+
+from homeassistant.util import slugify
 from homeassistant.core import HomeAssistant
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
-from homeassistant.helpers.entity import Entity
+from homeassistant.const import EntityCategory
+from homeassistant.components.sensor import RestoreSensor, SensorEntity, SensorDeviceClass
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import *
-from .solarman import Inverter
-from .scanner import InverterScanner
+from .common import *
 from .services import *
+from .entity import SolarmanConfigEntry, create_entity, SolarmanEntity
 
 _LOGGER = logging.getLogger(__name__)
-_inverter_scanner = InverterScanner()
 
+_PLATFORM = get_current_file_name(__name__)
 
-def _do_setup_platform(hass: HomeAssistant, config, async_add_entities : AddEntitiesCallback):
-    _LOGGER.debug(f'sensor.py:async_setup_platform: {config}') 
-    
-    inverter_name = config.get(CONF_NAME)
-    inverter_host = config.get(CONF_INVERTER_HOST)
-    if inverter_host == "0.0.0.0":
-        inverter_host = _inverter_scanner.get_ipaddress()
-        
-   
-    inverter_port = config.get(CONF_INVERTER_PORT)
-    inverter_sn = config.get(CONF_INVERTER_SERIAL)
-    if inverter_sn == 0:
-        inverter_sn = _inverter_scanner.get_serialno()
-    
-    inverter_mb_slaveid = config.get(CONF_INVERTER_MB_SLAVEID)
-    if not inverter_mb_slaveid:
-        inverter_mb_slaveid = DEFAULT_INVERTER_MB_SLAVEID
-    lookup_file = config.get(CONF_LOOKUP_FILE)
-    path = hass.config.path('custom_components/solarman/inverter_definitions/')
+def _create_entity(coordinator, description, options):
+    if (name := description["name"]) and "Battery" in name and (additional := options.get(CONF_ADDITIONAL_OPTIONS, {})) is not None:
+        battery_nominal_voltage = additional.get(CONF_BATTERY_NOMINAL_VOLTAGE, DEFAULT_[CONF_BATTERY_NOMINAL_VOLTAGE])
+        battery_life_cycle_rating = additional.get(CONF_BATTERY_LIFE_CYCLE_RATING, DEFAULT_[CONF_BATTERY_LIFE_CYCLE_RATING])
+        if "registers" in description:
+            if name == "Battery":
+                return SolarmanBatterySensor(coordinator, description, battery_nominal_voltage, battery_life_cycle_rating)
+        else:
+            if name == "Battery State":
+                return SolarmanBatteryCustomSensor(coordinator, description, battery_nominal_voltage, battery_life_cycle_rating)
+            elif battery_nominal_voltage > 0 and battery_life_cycle_rating > 0 and name in ("Battery SOH", "Today Battery Life Cycles", "Total Battery Life Cycles"):
+                return SolarmanBatteryCustomSensor(coordinator, description, battery_nominal_voltage, battery_life_cycle_rating)
+            elif name == "Battery Capacity":
+                return SolarmanBatteryCapacitySensor(coordinator, description)
 
-    # Check input configuration.
-    if inverter_host is None:
-        raise vol.Invalid('configuration parameter [inverter_host] does not have a value')
-    if inverter_sn is None:
-        raise vol.Invalid('configuration parameter [inverter_serial] does not have a value')
+    if "persistent" in description:
+        return SolarmanPersistentSensor(coordinator, description)
 
-    inverter = Inverter(path, inverter_sn, inverter_host, inverter_port, inverter_mb_slaveid, lookup_file)
-    #  Prepare the sensor entities.
-    hass_sensors = []
-    for sensor in inverter.get_sensors():
-        try:
-            if "isstr" in sensor:
-                hass_sensors.append(SolarmanSensorText(inverter_name, inverter, sensor, inverter_sn))
-            else:
-                hass_sensors.append(SolarmanSensor(inverter_name, inverter, sensor, inverter_sn))
-        except BaseException as ex:
-            _LOGGER.error(f'Config error {ex} {sensor}')
-            raise
-    hass_sensors.append(SolarmanStatus(inverter_name, inverter, "status_lastUpdate", inverter_sn))
-    hass_sensors.append(SolarmanStatus(inverter_name, inverter, "status_connection", inverter_sn))
+    if "restore" in description or "ensure_increasing" in description:
+        return SolarmanRestoreSensor(coordinator, description)
 
-    _LOGGER.debug(f'sensor.py:_do_setup_platform: async_add_entities')
-    _LOGGER.debug(hass_sensors)
+    if "via_device" in description:
+        return SolarmanNestedSensor(coordinator, description)
 
-    async_add_entities(hass_sensors)
-    # Register the services with home assistant.    
-    register_services (hass, inverter)
-    
-    
-    
-    
-    
+    return SolarmanSensor(coordinator, description)
 
-# Set-up from configuration.yaml
-async def async_setup_platform(hass: HomeAssistant, config, async_add_entities : AddEntitiesCallback, discovery_info=None):
-    _LOGGER.debug(f'sensor.py:async_setup_platform: {config}') 
-    _do_setup_platform(hass, config, async_add_entities)
-       
-# Set-up from the entries in config-flow
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback):
-    _LOGGER.debug(f'sensor.py:async_setup_entry: {entry.options}') 
-    _do_setup_platform(hass, entry.options, async_add_entities)
+async def async_setup_entry(_: HomeAssistant, config_entry: SolarmanConfigEntry, async_add_entities: AddEntitiesCallback) -> bool:
+    _LOGGER.debug(f"async_setup_entry: {config_entry.options}")
 
+    coordinator = config_entry.runtime_data
+    descriptions = coordinator.device.profile.parser.get_entity_descriptions(_PLATFORM)
 
-#############################################################################################################
-# This is the Device seen by Home Assistant.
-#  It provides device_info to Home Assistant which allows grouping all the Entities under a single Device.
-#############################################################################################################
+    _LOGGER.debug(f"async_setup_entry: async_add_entities: {descriptions}")
 
-class SolarmanSensor():
-    """Solarman Device class."""
+    async_add_entities(create_entity(lambda x: _create_entity(coordinator, x, config_entry.options), d) for d in descriptions)
 
-    def __init__(self, id: str = None, device_name: str = None, model: str = None, manufacturer: str = None):
-        self.id = id
-        self.device_name = device_name
-        self.model = model
-        self.manufacturer = manufacturer
+    async_add_entities([create_entity(lambda _: SolarmanIntervalSensor(coordinator), None)])
+
+    return True
+
+async def async_unload_entry(_: HomeAssistant, config_entry: SolarmanConfigEntry) -> bool:
+    _LOGGER.debug(f"async_unload_entry: {config_entry.options}")
+
+    return True
+
+class SolarmanSensorEntity(SolarmanEntity, SensorEntity):
+    def __init__(self, coordinator, sensor):
+        super().__init__(coordinator, sensor)
+        if "state_class" in sensor and (state_class := sensor["state_class"]):
+            self._attr_state_class = state_class
+
+class SolarmanIntervalSensor(SolarmanSensorEntity):
+    def __init__(self, coordinator):
+        super().__init__(coordinator, {"key": "update_interval_sensor", "name": "Update Interval"})
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_native_unit_of_measurement = "s"
+        self._attr_state_class = "duration"
+        self._attr_icon = "mdi:update"
 
     @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.id)},
-            "name": self.device_name,
-            "model": self.model,
-            "manufacturer": self.manufacturer,
-        }
-
-    @property
-    def extra_state_attributes(self):
-        """Return the extra state attributes."""
-        return {
-            "id": self.id,
-            "integration": DOMAIN,
-        }
-
-
-#############################################################################################################
-# This is the entity seen by Home Assistant.
-#  It derives from the Entity class in HA and is suited for status values.
-#############################################################################################################
-
-class SolarmanStatus(SolarmanSensor, Entity):
-    def __init__(self, inverter_name, inverter, field_name, sn):
-        super().__init__(sn, inverter_name, inverter.lookup_file)
-        self._inverter_name = inverter_name
-        self.inverter = inverter
-        self._field_name = field_name
-        self.p_state = None
-        self.p_icon = 'mdi:magnify'
-        self._sn = sn
-        return
-
-    @property
-    def icon(self):
-        #  Return the icon of the sensor. """
-        return self.p_icon
-
-    @property
-    def name(self):
-        #  Return the name of the sensor.
-        return "{} {}".format(self._inverter_name, self._field_name)
-
-    @property
-    def unique_id(self):
-        # Return a unique_id based on the serial number
-        return "{}_{}_{}".format(self._inverter_name, self._sn, self._field_name)
-
-    @property
-    def state(self):
-        #  Return the state of the sensor.
-        return self.p_state
+    def available(self) -> bool:
+        return self._attr_native_value > 0
 
     def update(self):
-        self.p_state = getattr(self.inverter, self._field_name, None)
+        self.set_state(self.coordinator.device.state.updated_interval.total_seconds())
 
+class SolarmanSensor(SolarmanSensorEntity):
+    def __init__(self, coordinator, sensor):
+        super().__init__(coordinator, sensor)
+        self._sensor_ensure_increasing = "ensure_increasing" in sensor
 
-#############################################################################################################
-#  Entity displaying a text field read from the inverter
-#   Overrides the Status entity, supply the configured icon, and updates the inverter parameters
-#############################################################################################################
+class SolarmanNestedSensor(SolarmanSensorEntity):
+    def __init__(self, coordinator, sensor):
+        super().__init__(coordinator, sensor)
+        parent_device_info = self.coordinator.device.device_info.get(self.coordinator.device.config.serial)
+        device_serial_number, _ = self.coordinator.data[slugify(' '.join(filter(None, (sensor["group"], "serial", "number", "sensor"))))]
+        if not device_serial_number in self.coordinator.device.device_info:
+            self.coordinator.device.device_info[device_serial_number] = build_device_info(str(device_serial_number), None, None, parent_device_info["name"], None, None)
+            self.coordinator.device.device_info[device_serial_number]["via_device"] = (DOMAIN, str(self.coordinator.device.config.serial))
+            self.coordinator.device.device_info[device_serial_number]["manufacturer"] = parent_device_info["manufacturer"]
+            self.coordinator.device.device_info[device_serial_number]["model"] = None
+        self._attr_device_info = self.coordinator.device.device_info[device_serial_number]
+        self._attr_name.replace(f"{sensor["group"]} ", '')
 
-class SolarmanSensorText(SolarmanStatus):
-    def __init__(self, inverter_name, inverter, sensor, sn):
-        SolarmanStatus.__init__(self,inverter_name, inverter, sensor['name'], sn)
-        if 'icon' in sensor:
-            self.p_icon = sensor['icon']
-        else:
-            self.p_icon = ''
-        return
+class SolarmanRestoreSensor(SolarmanSensor, RestoreSensor):
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
 
+        if (last_sensor_data := await self.async_get_last_sensor_data()) is not None:
+            self._attr_native_value = last_sensor_data.native_value
+
+    def set_state(self, state, value = None) -> bool:
+        if self._sensor_ensure_increasing and self._attr_native_value and self._attr_native_value > state > 0:
+            return False
+        return super().set_state(state, value)
+
+class SolarmanPersistentSensor(SolarmanRestoreSensor):
+    @property
+    def available(self) -> bool:
+        return True
+
+class SolarmanBatterySensor(SolarmanSensor):
+    def __init__(self, coordinator, sensor, battery_nominal_voltage, battery_life_cycle_rating):
+        super().__init__(coordinator, sensor)
+        if battery_nominal_voltage > 0 and battery_life_cycle_rating > 0:
+            self._attr_extra_state_attributes = self._attr_extra_state_attributes | { "Nominal Voltage": battery_nominal_voltage, "Life Cycle Rating": battery_life_cycle_rating }
+
+class SolarmanBatteryCapacitySensor(SolarmanRestoreSensor):
+    def __init__(self, coordinator, sensor):
+        super().__init__(coordinator, sensor)
+        self._digits = sensor.get(DIGITS, DEFAULT_[DIGITS])
+        self._threshold = sensor.get("threshold", 200)
+        self._nstates = sensor.get("states", 1000)
+        self._states = []
+        self._temp = []
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if (state := await self.async_get_last_state()) and "states" in state.attributes:
+            self._attr_extra_state_attributes["states"] = self._states = state.attributes["states"]
 
     def update(self):
-    #  Update this sensor using the data.
-    #  Get the latest data and use it to update our sensor state.
-    #  Retrieve the sensor data from actual interface
-        self.inverter.update()
+        if (power := get_tuple(self.coordinator.data.get("battery_power_sensor"))) is not None and (is_charging := power < 0) is not None and (was_charging := (self._temp[-1][0] < 0) if len(self._temp) > 0 else is_charging) is not None:
+            if (power > -self._threshold and was_charging) or (power < self._threshold and not was_charging):
+                self._temp = []
+                return
+            if (soc := get_tuple(self.coordinator.data.get("battery_sensor"))) is not None and (tb := get_tuple(self.coordinator.data.get("total_battery_charge_sensor" if is_charging else "total_battery_discharge_sensor"))) is not None:
+                self._temp.append((power, soc, tb))
+                h = m = l = s = (soc, tb)
+                for i in reversed(self._temp):
+                    s = (i[1], i[2])
+                    if h[1] > m[1] > l[1] > s[1]:
+                        break
+                    if h[1] == s[1]:
+                        h = m = l = s
+                    if m[1] == h[1] or m[1] == s[1]:
+                        m = l = s
+                    if l[1] == m[1] or l[1] == s[1]:
+                        l = s
+                if h[1] > m[1] > l[1] > s[1] and (diff := abs(h[0] - l[0])) > 0 and (state := get_number((h[1] - l[1]) * (100 / diff), self._digits)):
+                    self._states.append(state)
+                    while len(self._states) > self._nstates:
+                        self._states.pop(0)
+                    self._attr_extra_state_attributes["states"] = self._states
+                    self._temp = [(power, soc, tb)]
+                    if (srtd := sorted(self._states)):
+                        self.set_state(get_number(sum(srtd) / len(srtd), self._digits))
 
-        val = self.inverter.get_current_val()
-        if val is not None:
-            if self._field_name in val:
-                self.p_state = val[self._field_name]
-            else:
-                uom = getattr(self, 'uom', None)
-                if uom and (re.match("\S+", uom)):
-                    self.p_state = None
-                _LOGGER.debug(f'No value recorded for {self._field_name}')
+class SolarmanBatteryCustomSensor(SolarmanSensor):
+    def __init__(self, coordinator, sensor, battery_nominal_voltage, battery_life_cycle_rating):
+        super().__init__(coordinator, sensor)
+        self._digits = sensor.get(DIGITS, DEFAULT_[DIGITS])
+        self._battery_nominal_voltage = battery_nominal_voltage
+        self._battery_life_cycle_rating = battery_life_cycle_rating
 
-
-#############################################################################################################
-#  Entity displaying a numeric field read from the inverter
-#   Overrides the Text sensor and supply the device class, last_reset and unit of measurement
-#############################################################################################################
-
-class SolarmanSensor(SolarmanSensorText):
-    def __init__(self, inverter_name, inverter, sensor, sn):
-        SolarmanSensorText.__init__(self, inverter_name, inverter, sensor, sn)
-        self._device_class = sensor['class']
-        if 'state_class' in sensor:
-            self._state_class = sensor['state_class']
-        else:
-            self._state_class = None
-        self.uom = sensor['uom']
-        return
-
-    @property
-    def device_class(self):
-        return self._device_class
-
-
-    @property
-    def extra_state_attributes(self):
-        if self._state_class:
-            return  {
-                'state_class': self._state_class
-            }
-        else:
-            return None
-
-    @property
-    def unit_of_measurement(self):
-        return self.uom
-
+    def update(self):
+        #super().update()
+        c = len(self.coordinator.data)
+        if c > 1 or (c == 1 and self._attr_key in self.coordinator.data):
+            match self._attr_key:
+                case "battery_soh_sensor":
+                    total_battery_charge = get_tuple(self.coordinator.data.get("total_battery_charge_sensor"))
+                    if total_battery_charge == 0:
+                        self.set_state(100)
+                        return
+                    battery_capacity = get_tuple(self.coordinator.data.get("battery_capacity_number"))
+                    battery_corrected_capacity = get_tuple(self.coordinator.data.get("battery_corrected_capacity_sensor"))
+                    if battery_capacity and battery_corrected_capacity:
+                        battery_capacity_5 = battery_capacity / 100 * 5
+                        if battery_capacity - battery_capacity_5 <= battery_corrected_capacity <= battery_capacity + battery_capacity_5:
+                            battery_capacity = battery_corrected_capacity
+                    if total_battery_charge and battery_capacity and self._battery_nominal_voltage and self._battery_life_cycle_rating:
+                        self.set_state(get_number(100 - total_battery_charge / get_battery_power_capacity(battery_capacity, self._battery_nominal_voltage) / (self._battery_life_cycle_rating * 0.05), self._digits))
+                case "battery_state_sensor":
+                    battery_power = get_tuple(self.coordinator.data.get("battery_power_sensor"))
+                    if battery_power:
+                        self.set_state("discharging" if battery_power > 50 else "charging" if battery_power < -50 else "idle")
+                case "today_battery_life_cycles_sensor":
+                    today_battery_charge = get_tuple(self.coordinator.data.get("today_battery_charge_sensor"))
+                    if today_battery_charge == 0:
+                        self.set_state(0)
+                        return
+                    battery_capacity = get_tuple(self.coordinator.data.get("battery_capacity_number"))
+                    battery_corrected_capacity = get_tuple(self.coordinator.data.get("battery_corrected_capacity_sensor"))
+                    if battery_capacity and battery_corrected_capacity:
+                        battery_capacity_5 = battery_capacity / 100 * 5
+                        if battery_capacity - battery_capacity_5 <= battery_corrected_capacity <= battery_capacity + battery_capacity_5:
+                            battery_capacity = battery_corrected_capacity
+                    if today_battery_charge and battery_capacity and self._battery_nominal_voltage:
+                        self.set_state(get_number(get_battery_cycles(today_battery_charge, battery_capacity, self._battery_nominal_voltage), self._digits))
+                case "total_battery_life_cycles_sensor":
+                    total_battery_charge = get_tuple(self.coordinator.data.get("total_battery_charge_sensor"))
+                    if total_battery_charge == 0:
+                        self.set_state(0)
+                        return
+                    battery_capacity = get_tuple(self.coordinator.data.get("battery_capacity_number"))
+                    battery_corrected_capacity = get_tuple(self.coordinator.data.get("battery_corrected_capacity_sensor"))
+                    if battery_capacity and battery_corrected_capacity:
+                        battery_capacity_5 = battery_capacity / 100 * 5
+                        if battery_capacity - battery_capacity_5 <= battery_corrected_capacity <= battery_capacity + battery_capacity_5:
+                            battery_capacity = battery_corrected_capacity
+                    if total_battery_charge and battery_capacity and self._battery_nominal_voltage:
+                        self.set_state(get_number(get_battery_cycles(total_battery_charge, battery_capacity, self._battery_nominal_voltage), self._digits))

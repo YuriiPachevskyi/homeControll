@@ -6,22 +6,16 @@ power_load_disable_device_duplicate:
       conditions:
       - type: is_power
         condition: device
-        device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-        entity_id: e87476604f7365f729b7598353b66043
+        device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+        entity_id: 0124cde1985f8caf83b525ca9de4902c
         domain: sensor
-        above: 600
+        above: 300
       - type: is_power
         condition: device
-        device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-        entity_id: 4fb2889c1d52b62e2e3977160797850f
+        device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+        entity_id: 1137f839c1669084980e509f404a44e2
         domain: sensor
-        above: 5300
-      - type: is_power
-        condition: device
-        device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-        entity_id: f93685fbe5cd409521bbba519d42d199
-        domain: sensor
-        above: 600
+        above: 300
     then:
     - if:
       - condition: and
@@ -89,10 +83,10 @@ power_load_disable_device_duplicate:
                   state: 'on'
                 - type: is_power
                   condition: device
-                  device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-                  entity_id: f93685fbe5cd409521bbba519d42d199
+                  device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+                  entity_id: 1137f839c1669084980e509f404a44e2
                   domain: sensor
-                  above: 600
+                  above: 300
               - condition: and
                 conditions:
                 - condition: state
@@ -121,10 +115,10 @@ power_load_disable_device_duplicate:
                     state: 'on'
                   - type: is_power
                     condition: device
-                    device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-                    entity_id: f93685fbe5cd409521bbba519d42d199
+                    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+                    entity_id: 1137f839c1669084980e509f404a44e2
                     domain: sensor
-                    above: 600
+                    above: 300
                 - condition: and
                   conditions:
                   - condition: state
@@ -146,16 +140,11 @@ power_load_disable_device_duplicate:
           conditions:
           - type: is_power
             condition: device
-            device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-            entity_id: f93685fbe5cd409521bbba519d42d199
+            device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+            entity_id: 0124cde1985f8caf83b525ca9de4902c
             domain: sensor
-            below: -900
-          - type: is_power
-            condition: device
-            device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-            entity_id: 4fb2889c1d52b62e2e3977160797850f
-            domain: sensor
-            below: 4400
+            above: -3
+            below: -400
           - condition: state
             entity_id: switch.1560_boiler_ten_0_8_kwh
             state: 'off'
@@ -163,14 +152,8 @@ power_load_disable_device_duplicate:
           conditions:
           - type: is_voltage
             condition: device
-            device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-            entity_id: a0321fc62b37aa425e1869d4e96cb217
-            domain: sensor
-            above: 370
-          - type: is_voltage
-            condition: device
-            device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-            entity_id: c146ff89a0c7d95a5df2221a59c2c474
+            device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+            entity_id: 9339fc88bd186c9bc0a97c5e33408300
             domain: sensor
             above: 370
           - condition: state
@@ -189,19 +172,10 @@ power_load_disable_device_duplicate:
             conditions:
             - type: is_power
               condition: device
-              device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-              entity_id: f93685fbe5cd409521bbba519d42d199
+              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+              entity_id: 0124cde1985f8caf83b525ca9de4902c
               domain: sensor
-              below: -1200
-            - type: is_power
-              condition: device
-              device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-              entity_id: 4fb2889c1d52b62e2e3977160797850f
-              domain: sensor
-              below: 4000
-            - condition: state
-              entity_id: switch.1564_heating_ten_3_kwh
-              state: 'off'
+              below: -600
             - condition: state
               entity_id: switch.1561_boiler_ten_1_2_kwh
               state: 'off'
@@ -209,25 +183,10 @@ power_load_disable_device_duplicate:
             conditions:
             - type: is_voltage
               condition: device
-              device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-              entity_id: a0321fc62b37aa425e1869d4e96cb217
+              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+              entity_id: 9339fc88bd186c9bc0a97c5e33408300
               domain: sensor
-              above: 370
-            - type: is_voltage
-              condition: device
-              device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-              entity_id: c146ff89a0c7d95a5df2221a59c2c474
-              domain: sensor
-              above: 370
-            - type: is_power
-              condition: device
-              device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-              entity_id: 4fb2889c1d52b62e2e3977160797850f
-              domain: sensor
-              below: 4000
-            - condition: state
-              entity_id: switch.1564_heating_ten_3_kwh
-              state: 'off'
+              above: 372
             - condition: state
               entity_id: switch.1561_boiler_ten_1_2_kwh
               state: 'off'
@@ -243,28 +202,16 @@ power_load_disable_device_duplicate:
             conditions:
             - type: is_battery_level
               condition: device
-              device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-              entity_id: b04e4003c451712994161a18c870d581
+              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+              entity_id: 4abddc77fd64d0e26b9ea3c917006591
               domain: sensor
-              above: 75
+              above: 80
             - type: is_voltage
               condition: device
-              device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-              entity_id: a0321fc62b37aa425e1869d4e96cb217
+              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+              entity_id: 9339fc88bd186c9bc0a97c5e33408300
               domain: sensor
-              above: 373
-            - type: is_voltage
-              condition: device
-              device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-              entity_id: c146ff89a0c7d95a5df2221a59c2c474
-              domain: sensor
-              above: 373
-            - type: is_power
-              condition: device
-              device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-              entity_id: 4fb2889c1d52b62e2e3977160797850f
-              domain: sensor
-              below: 4000
+              above: 372
             - condition: state
               entity_id: switch.1563_heating_ten_1_5_kwh
               state: 'off'
@@ -284,34 +231,16 @@ power_load_disable_device_duplicate:
               conditions:
               - type: is_battery_level
                 condition: device
-                device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-                entity_id: b04e4003c451712994161a18c870d581
+                device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+                entity_id: 4abddc77fd64d0e26b9ea3c917006591
                 domain: sensor
-                above: 75
+                above: 80
               - type: is_voltage
                 condition: device
-                device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-                entity_id: 9585fa63451416f5888ad465155aa8bd
+                device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+                entity_id: 9339fc88bd186c9bc0a97c5e33408300
                 domain: sensor
-                above: 190
-              - type: is_voltage
-                condition: device
-                device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-                entity_id: a0321fc62b37aa425e1869d4e96cb217
-                domain: sensor
-                above: 368
-              - type: is_voltage
-                condition: device
-                device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-                entity_id: c146ff89a0c7d95a5df2221a59c2c474
-                domain: sensor
-                above: 368
-              - type: is_power
-                condition: device
-                device_id: 2397b905e80e4ecfa481cebbf8e37cb3
-                entity_id: 4fb2889c1d52b62e2e3977160797850f
-                domain: sensor
-                below: 3500
+                above: 375
               - condition: state
                 entity_id: switch.1563_heating_ten_1_5_kwh
                 state: 'on'
