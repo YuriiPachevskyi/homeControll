@@ -1,0 +1,182 @@
+{
+  "entity": {
+    "number": {
+      "temp_hvac_mode_auto": {
+        "name": "Auto"
+      },
+      "temp_hvac_mode_cool": {
+        "name": "Cool"
+      },
+      "temp_hvac_mode_heat": {
+        "name": "Heat"
+      }
+    },
+    "select": {
+      "fan_hvac_mode": {
+        "name": "Fan speed",
+        "state": {
+          "auto": "Auto",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High"
+        }
+      }
+    }
+  },
+  "selector": {
+    "device_type": {
+      "options": {
+        "climate": "Air conditioner",
+        "generic": "Generic device"
+      }
+    },
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Cool",
+        "heat": "Heat",
+        "dry": "Dry",
+        "fan_only": "Fan only",
+        "off": "Off"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      }
+    },
+    "hvac_power_on": {
+      "options": {
+        "never": "Never",
+        "always": "Always",
+        "only_off": "Only if turned off (not recommended)"
+      }
+    },
+    "temp_power_on": {
+      "options": {
+        "never": "Never",
+        "always": "Always",
+        "only_off": "Only if turned off (not recommended)"
+      }
+    },
+    "fan_power_on": {
+      "options": {
+        "never": "Never",
+        "always": "Always",
+        "only_off": "Only if turned off (not recommended)"
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Device configuration",
+         "data": {
+            "device_type": "Device type"
+         }
+      },
+      "climate": {
+        "title": "Air conditioner configuration",
+        "data": {
+          "infrared_id": "Infrared hub ID",
+          "device_id": "Air conditioner ID",
+          "name": "Air conditioner name",
+          "temperature_sensor": "Temperature sensor",
+          "humidity_sensor": "Humidity sensor",
+          "min_temp": "Minimum temperature",
+          "max_temp": "Maximum temperature",
+          "temp_step": "Step temperature",
+          "hvac_modes": "Supported HVAC modes",
+          "fan_modes": "Supported FAN modes",
+          "temp_hvac_mode": "Default temperatures when setting HVAC mode",
+          "fan_hvac_mode": "Default fan speed when setting HVAC mode",
+          "extra_sensors": "Exposes the configured sensors"
+        },
+        "sections": {
+          "compatibility_options": {
+            "name": "Compatibility options",
+            "data": {
+              "hvac_power_on": "Force power on when setting HVAC mode",
+              "temp_power_on": "Force power on when setting temperature",
+              "fan_power_on": "Force power on when setting fan speed",
+              "dry_min_temp": "Set minimum temperature in dry mode",
+              "dry_min_fan": "Set minimum fan speed in dry mode"
+            }
+          }
+        }
+      },
+      "generic": {
+        "title": "Generic device configuration",
+        "data": {
+          "infrared_id": "ID hub infrarossi",
+          "device_id": "ID dispositivo",
+          "name": "Nome dispositivo"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "This device has already been configured.",
+      "connection": "Could not connect to device; check the log for more information."
+    },
+    "abort": {
+      "credentials": "Integration not configured or incorrect credentials."
+    }
+  },
+  "options": {
+    "step": {
+      "climate": {
+        "title": "Air conditioner configuration",
+        "data": {
+          "temperature_sensor": "Temperature sensor",
+          "humidity_sensor": "Humidity sensor",
+          "min_temp": "Minimum temperature",
+          "max_temp": "Maximum temperature",
+          "temp_step": "Step temperature",
+          "hvac_modes": "Supported HVAC modes",
+          "fan_modes": "Supported FAN modes",
+          "temp_hvac_mode": "Default temperatures when setting HVAC mode",
+          "fan_hvac_mode": "Default fan speed when setting HVAC mode",
+          "extra_sensors": "Exposes the configured sensors"
+        },
+        "sections": {
+          "compatibility_options": {
+            "name": "Compatibility options",
+            "data": {
+              "hvac_power_on": "Force power on when setting hvac mode",
+              "temp_power_on": "Force power on when setting temperature",
+              "fan_power_on": "Force power on when setting fan speed",
+              "dry_min_temp": "Set minimum temperature in dry mode",
+              "dry_min_fan": "Set minimum fan speed in dry mode"
+            }
+          }
+        }
+      }
+    },
+    "abort": {
+      "not_configurable": "Device not configurable!"
+    }
+  },
+  "exceptions": {
+    "climate_error_turn_on": {
+      "message": "Unable to turn on"
+    },
+    "climate_error_turn_off": {
+      "message": "Unable to turn off"
+    },
+    "climate_error_temperature": {
+      "message": "Unable to change temperature"
+    },
+    "climate_error_fan_mode": {
+      "message": "Unable to change fan mode"
+    },
+    "climate_error_hvac_mode": {
+      "message": "Unable to change hvac mode"
+    },
+    "device_error_send_command": {
+      "message": "Unable to send command"
+    }
+  }
+}

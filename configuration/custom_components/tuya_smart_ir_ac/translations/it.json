@@ -1,0 +1,182 @@
+{
+  "entity": {
+    "number": {
+      "temp_hvac_mode_auto": {
+        "name": "Auto"
+      },
+      "temp_hvac_mode_cool": {
+        "name": "Freddo"
+      },
+      "temp_hvac_mode_heat": {
+        "name": "Caldo"
+      }
+    },
+    "select": {
+      "fan_hvac_mode": {
+        "name": "Velocità ventola",
+        "state": {
+          "auto": "Auto",
+          "low": "Basso",
+          "medium": "Medio",
+          "high": "Alto"
+        }
+      }
+    }
+  },
+  "selector": {
+    "device_type": {
+      "options": {
+        "climate": "Climatizzatore d'aria",
+        "generic": "Dispositivo generico"
+      }
+    },
+    "hvac_modes": {
+      "options": {
+        "auto": "Auto",
+        "cool": "Freddo",
+        "heat": "Caldo",
+        "dry": "Deumidificazione",
+        "fan_only": "Solo ventilatore",
+        "off": "Spento"
+      }
+    },
+    "fan_modes": {
+      "options": {
+        "auto": "Auto",
+        "low": "Basso",
+        "medium": "Medio",
+        "high": "Alto"
+      }
+    },
+    "hvac_power_on": {
+      "options": {
+        "never": "Mai",
+        "always": "Sempre",
+        "only_off": "Solo se spento (non consigliato)"
+      }
+    },
+    "temp_power_on": {
+      "options": {
+        "never": "Mai",
+        "always": "Sempre",
+        "only_off": "Solo se spento (non consigliato)"
+      }
+    },
+    "fan_power_on": {
+      "options": {
+        "never": "Mai",
+        "always": "Sempre",
+        "only_off": "Solo se spento (non consigliato)"
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurazione dispositivo",
+         "data": {
+            "device_type": "Tipo dispositivo"
+         }
+      },
+      "climate": {
+        "title": "Configurazione climatizzatore d'aria",
+        "data": {
+          "infrared_id": "ID hub infrarossi",
+          "device_id": "ID climatizzatore",
+          "name": "Nome climatizzatore",
+          "temperature_sensor": "Sensore temperatura",
+          "humidity_sensor": "Sensore umidità",
+          "min_temp": "Temperatura minima",
+          "max_temp": "Temperatura massima",
+          "temp_step": "Temperatura step",
+          "hvac_modes": "Modalità HVAC supportate",
+          "fan_modes": "Modalità FAN supportate",
+          "temp_hvac_mode": "Temperature di default quando si imposta la modalità HVAC",
+          "fan_hvac_mode": "Velocità ventola di default quando si imposta la modalità HVAC",
+          "extra_sensors": "Espone i sensori configurati"
+        },
+        "sections": {
+          "compatibility_options": {
+            "name": "Opzioni di compatibilità",
+            "data": {
+              "hvac_power_on": "Forza l'accensione quando si imposta la modalità HVAC",
+              "temp_power_on": "Forza l'accensione quando si imposta la temperatura",
+              "fan_power_on": "Forza l'accensione quando si imposta la velocità della ventola",
+              "dry_min_temp": "Imposta temperatura minima in modalità deumidificazione",
+              "dry_min_fan": "Imposta ventola al minimo in modalità deumidificazione"
+            }
+          }
+        }
+      },
+      "generic": {
+        "title": "Configurazione dispositivo generico",
+        "data": {
+          "infrared_id": "ID hub infrarossi",
+          "device_id": "ID dispositivo",
+          "name": "Nome dispositivo"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Questo dispositivo è già stato configurato.",
+      "connection": "Impossibile connettersi al dispositivo; controlla il log per maggiori informazioni."
+    },
+    "abort": {
+      "credentials": "Integrazione non configurata o credenziali errate."
+    }
+  },
+  "options": {
+    "step": {
+      "climate": {
+        "title": "Configurazione climatizzatore d'aria",
+        "data": {
+          "temperature_sensor": "Sensore temperatura",
+          "humidity_sensor": "Sensore umidità",
+          "min_temp": "Temperatura minima",
+          "max_temp": "Temperatura massima",
+          "temp_step": "Temperatura step",
+          "hvac_modes": "Modalità HVAC supportate",
+          "fan_modes": "Modalità FAN supportate",
+          "temp_hvac_mode": "Temperature di default quando si imposta la modalità HVAC",
+          "fan_hvac_mode": "Velocità ventola di default quando si imposta la modalità HVAC",
+          "extra_sensors": "Espone i sensori configurati"
+        },
+        "sections": {
+          "compatibility_options": {
+            "name": "Opzioni di compatibilità",
+            "data": {
+              "hvac_power_on": "Forza l'accensione quando si imposta la modalità HVAC",
+              "temp_power_on": "Forza l'accensione quando si imposta la temperatura",
+              "fan_power_on": "Forza l'accensione quando si imposta la velocità della ventola",
+              "dry_min_temp": "Imposta temperatura minima in modalità deumidificazione",
+              "dry_min_fan": "Imposta ventola al minimo in modalità deumidificazione"
+            }
+          }
+        }
+      }
+    },
+    "abort": {
+      "not_configurable": "Dispositivo non configurabile!"
+    }
+  },
+  "exceptions": {
+    "climate_error_turn_on": {
+      "message": "Impossibile accendere"
+    },
+    "climate_error_turn_off": {
+      "message": "Impossibile spegnere"
+    },
+    "climate_error_temperature": {
+      "message": "Impossibile cambiare la temperatura"
+    },
+    "climate_error_fan_mode": {
+      "message": "Impossibile cambiare la velocità della ventola"
+    },
+    "climate_error_hvac_mode": {
+      "message": "Impossibile cambiare la modalità"
+    },
+    "device_error_send_command": {
+      "message": "Impossibile inviare il comando"
+    }
+  }
+}
