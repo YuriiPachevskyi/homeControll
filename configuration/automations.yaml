@@ -22,7 +22,7 @@
       minutes: 0
       seconds: 30
   - entity_id:
-    - script.power_load_disable_device_duplicate
+    - script.power_load_disable_device_duplicate_2
     from:
     to:
     for:
@@ -34,7 +34,7 @@
     trigger: homeassistant
   conditions: []
   actions:
-  - action: script.power_load_disable_device_duplicate
+  - action: script.power_load_disable_device_duplicate_2
     data: {}
   mode: single
 - id: '1711297405381'
@@ -54,30 +54,6 @@
       - switch.1560_boiler_ten_0_8_kwh
       - switch.1561_boiler_ten_1_2_kwh
     data: {}
-  mode: single
-- id: '1728802522423'
-  alias: Turn off boiler ten 1.2 kWh when Heaing ten 3kWh On
-  description: ''
-  trigger:
-  - platform: state
-    entity_id:
-    - switch.1564_heating_ten_3_kwh
-    from: 'off'
-    to: 'on'
-  condition: []
-  action:
-  - action: switch.turn_off
-    metadata: {}
-    data: {}
-    target:
-      entity_id:
-      - switch.1561_boiler_ten_1_2_kwh
-      - switch.1563_heating_ten_1_5_kwh
-  - action: switch.turn_on
-    metadata: {}
-    data: {}
-    target:
-      entity_id: switch.1562_heating_main
   mode: single
 - id: '1731862602452'
   alias: Update switches state on startup
@@ -102,4 +78,20 @@
     data: {}
     target:
       entity_id: switch.1560_boiler_ten_0_8_kwh
+  mode: single
+- id: '1746509513994'
+  alias: Restart "Grid power above 600 W"
+  description: ''
+  triggers:
+  - trigger: time
+    at: 07:30:00
+  - trigger: time
+    at: '18:00:00'
+  conditions: []
+  actions:
+  - action: automation.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: automation.grid_power_above_600_w
   mode: single

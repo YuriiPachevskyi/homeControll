@@ -1,0 +1,19 @@
+{
+  "domain": "ssh",
+  "name": "SSH",
+  "codeowners": [
+    "@zhbjsh"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/zhbjsh/homeassistant-ssh",
+  "homekit": {},
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/zhbjsh/homeassistant-ssh/issues",
+  "requirements": [
+    "ssh-terminal-manager==1.1.6"
+  ],
+  "ssdp": [],
+  "version": "1.2.1",
+  "zeroconf": []
+}

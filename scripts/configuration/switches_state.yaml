@@ -1,5 +1,5 @@
 - command_topic: "home/main/1560"
-  state_1560: "OFF"
+  state_1560: "ON"
 
 - command_topic: "home/main/1561"
   state_1561: "OFF"
