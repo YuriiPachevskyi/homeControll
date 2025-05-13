@@ -43,7 +43,6 @@
     state_on: "ON"
     state_off: "OFF"
 
-
 - switch:
     name: "Boiler night charge"
     state_topic: "home/status/main/1565"
@@ -52,3 +51,11 @@
     payload_off: "OFF"     
     state_on: "ON"
     state_off: "OFF"
+
+- switch:
+    name: "Heating enabled"
+    state_topic: "home/status/main/1566"
+    command_topic: "home/main/1566"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"

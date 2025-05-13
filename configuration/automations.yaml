@@ -1,5 +1,5 @@
 - id: '1700242260035'
-  alias: Grid power above 600 W
+  alias: '"Grid power above 600 W"'
   description: ''
   triggers:
   - type: powered
@@ -22,7 +22,7 @@
       minutes: 0
       seconds: 30
   - entity_id:
-    - script.power_load_disable_device_duplicate_2
+    - script.power_load_disable_device_duplicate
     from:
     to:
     for:
@@ -34,7 +34,7 @@
     trigger: homeassistant
   conditions: []
   actions:
-  - action: script.power_load_disable_device_duplicate_2
+  - action: script.power_load_disable_device_duplicate
     data: {}
   mode: single
 - id: '1711297405381'
@@ -73,20 +73,46 @@
       - switch.1563_heating_ten_1_5_kwh
       - switch.1564_heating_ten_3_kwh
       - switch.boiler_night_charge
-  - action: switch.turn_on
+      - switch.1560_boiler_ten_0_8_kwh
+      - switch.heating_enabled
+  - action: automation.turn_on
     metadata: {}
     data: {}
     target:
-      entity_id: switch.1560_boiler_ten_0_8_kwh
+      entity_id: automation.grid_power_above_600_w
   mode: single
 - id: '1746509513994'
-  alias: Restart "Grid power above 600 W"
+  alias: '"Grid power above 600 W" restart'
   description: ''
   triggers:
   - trigger: time
     at: 07:30:00
   - trigger: time
     at: '18:00:00'
+  - trigger: time
+    at: '20:00:00'
+  conditions: []
+  actions:
+  - action: automation.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: automation.grid_power_above_600_w
+  mode: single
+- id: '1750746853731'
+  alias: '"Grid power above 600 W" enable for powerful sun'
+  description: ''
+  triggers:
+  - type: power
+    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+    entity_id: 0124cde1985f8caf83b525ca9de4902c
+    domain: sensor
+    trigger: device
+    below: -3800
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
   conditions: []
   actions:
   - action: automation.turn_on

@@ -7,18 +7,23 @@ from typing import Any
 
 from ssh_terminal_manager import (
     DEFAULT_ADD_HOST_KEYS,
+    DEFAULT_ALLOW_TURN_OFF,
+    DEFAULT_COMMAND_TIMEOUT,
+    DEFAULT_DISCONNECT_MODE,
     DEFAULT_INVOKE_SHELL,
     DEFAULT_LOAD_SYSTEM_HOST_KEYS,
     DEFAULT_PORT,
+    AuthenticationError,
     Collection,
-    CommandLoopError,
-    InvalidSensorError,
+    CommandError,
+    ConnectError,
+    ExecutionError,
+    HostKeyUnknownError,
     NameKeyError,
     OfflineError,
-    SSHAuthenticationError,
-    SSHConnectError,
-    SSHHostKeyUnknownError,
+    SensorError,
     SSHManager,
+    SSHTerminal,
     default_collections,
 )
 import voluptuous as vol
@@ -100,6 +105,7 @@ from .const import (
     CONF_LOAD_SYSTEM_HOST_KEYS,
     CONF_OPTIONS,
     CONF_PATTERN,
+    CONF_POWER_BUTTON,
     CONF_REMOVE_CUSTOM_COMMANDS,
     CONF_RESET_COMMANDS,
     CONF_RESET_DEFAULT_COMMANDS,
@@ -113,6 +119,7 @@ from .const import (
     CONF_TIMEOUT_SET,
     CONF_UPDATE_INTERVAL,
     DEFAULT_HOST_KEYS_FILENAME,
+    DEFAULT_POWER_BUTTON,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
 )
@@ -342,6 +349,7 @@ CONFIG_FLOW_NAME_SCHEMA = vol.Schema(
 OPTIONS_FLOW_INIT_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_ALLOW_TURN_OFF): BooleanSelector(),
+        vol.Required(CONF_POWER_BUTTON): BooleanSelector(),
         vol.Required(CONF_DISCONNECT_MODE): BooleanSelector(),
         vol.Required(CONF_UPDATE_INTERVAL): int,
         vol.Required(CONF_COMMAND_TIMEOUT): int,
@@ -442,6 +450,8 @@ class OptionsFlow(config_entries.OptionsFlow):
             for command in old_custom_collection.sensor_commands:
                 collection.add_sensor_command(command)
 
+        collection.check()
+
         self._data = {
             **self._data,
             CONF_ACTION_COMMANDS: [
@@ -467,13 +477,13 @@ class OptionsFlow(config_entries.OptionsFlow):
                 self._data = self.validate_init(user_input)
             except NameKeyError:
                 errors["base"] = "name_key_error"
-            except CommandLoopError as exc:
-                errors["base"] = "command_loop_error"
-                placeholders["details"] = f"({exc.details})"
-            except InvalidSensorError as exc:
-                errors["base"] = "invalid_sensor_error"
+            except CommandError as exc:
+                errors["base"] = "command_error"
+                placeholders["details"] = f"({exc.details})" if exc.details else ""
+            except SensorError as exc:
+                errors["base"] = "sensor_error"
                 placeholders["key"] = exc.key
-                placeholders["details"] = f"({exc.details})"
+                placeholders["details"] = f"({exc.details})" if exc.details else ""
             except Exception:
                 self.logger.exception("Unexpected exception")
                 errors["base"] = "unknown"
@@ -499,15 +509,31 @@ class OptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the reset commands step."""
+        errors: dict[str, str] = {}
+        placeholders: dict[str, str] = {}
         if user_input is not None:
-            self.reset_commands(
-                user_input[CONF_RESET_DEFAULT_COMMANDS],
-                user_input[CONF_REMOVE_CUSTOM_COMMANDS],
-            )
-            return self.async_create_entry(title="", data=self._data)
+            try:
+                self.reset_commands(
+                    user_input[CONF_RESET_DEFAULT_COMMANDS],
+                    user_input[CONF_REMOVE_CUSTOM_COMMANDS],
+                )
+            except CommandError as exc:
+                errors["base"] = "command_error"
+                placeholders["details"] = f"({exc.details})" if exc.details else ""
+            except SensorError as exc:
+                errors["base"] = "sensor_error"
+                placeholders["key"] = exc.key
+                placeholders["details"] = f"({exc.details})" if exc.details else ""
+            except Exception:
+                self.logger.exception("Unexpected exception")
+                errors["base"] = "unknown"
+            else:
+                return self.async_create_entry(title="", data=self._data)
 
         return self.async_show_form(
             step_id="reset_commands",
+            errors=errors,
+            description_placeholders=placeholders,
             data_schema=self.add_suggested_values_to_schema(
                 OPTIONS_FLOW_RESET_COMMANDS_SCHEMA,
                 {
@@ -522,7 +548,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for SSH."""
 
     VERSION = 2
-    MINOR_VERSION = 1
+    MINOR_VERSION = 2
     logger = _LOGGER
     domain = DOMAIN
     _existing_entry: ConfigEntry | None = None
@@ -568,10 +594,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get options from manager."""
         converter = Converter(self.hass)
         return {
-            CONF_ALLOW_TURN_OFF: manager.allow_turn_off,
-            CONF_DISCONNECT_MODE: manager.disconnect_mode,
+            CONF_ALLOW_TURN_OFF: DEFAULT_ALLOW_TURN_OFF,
+            CONF_POWER_BUTTON: DEFAULT_POWER_BUTTON,
+            CONF_DISCONNECT_MODE: DEFAULT_DISCONNECT_MODE,
             CONF_UPDATE_INTERVAL: DEFAULT_UPDATE_INTERVAL,
-            CONF_COMMAND_TIMEOUT: manager.command_timeout,
+            CONF_COMMAND_TIMEOUT: DEFAULT_COMMAND_TIMEOUT,
             CONF_ACTION_COMMANDS: [
                 converter.get_action_command_config(command)
                 for command in manager.action_commands
@@ -584,7 +611,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_validate_user(self, data: dict) -> tuple[dict, dict]:
         """Validate the config user input."""
-        manager = SSHManager(
+        terminal = SSHTerminal(
             data[CONF_HOST],
             port=data[CONF_PORT],
             username=data.get(CONF_USERNAME),
@@ -594,6 +621,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             add_host_keys=data[CONF_ADD_HOST_KEYS],
             load_system_host_keys=data[CONF_LOAD_SYSTEM_HOST_KEYS],
             invoke_shell=data[CONF_INVOKE_SHELL],
+        )
+
+        manager = SSHManager(
+            terminal,
             collection=(
                 getattr(default_collections, key)
                 if (key := data[CONF_DEFAULT_COMMANDS]) != "none"
@@ -605,7 +636,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         await manager.async_load_host_keys()
 
         async with manager:
-            await manager.async_update_state(raise_errors=True)
+            await manager.async_update()
 
         data = {
             **data,
@@ -676,14 +707,17 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except OfflineError as exc:
                 errors["base"] = "offline_error"
                 placeholders["host"] = exc.host
-            except SSHHostKeyUnknownError as exc:
-                errors["base"] = "ssh_host_key_unknown_error"
+            except HostKeyUnknownError as exc:
+                errors["base"] = "host_key_unknown_error"
                 placeholders["host"] = exc.host
-            except SSHAuthenticationError as exc:
-                errors["base"] = "ssh_authentication_error"
+            except AuthenticationError as exc:
+                errors["base"] = "authentication_error"
                 placeholders["details"] = f"({exc.details})" if exc.details else ""
-            except SSHConnectError as exc:
-                errors["base"] = "ssh_connect_error"
+            except ConnectError as exc:
+                errors["base"] = "connect_error"
+                placeholders["details"] = f"({exc.details})" if exc.details else ""
+            except ExecutionError as exc:
+                errors["base"] = "execution_error"
                 placeholders["details"] = f"({exc.details})" if exc.details else ""
             except Exception:
                 self.logger.exception("Unexpected exception")

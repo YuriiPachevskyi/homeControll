@@ -21,14 +21,9 @@ _PLATFORM = get_current_file_name(__name__)
 async def async_setup_entry(_: HomeAssistant, config_entry: SolarmanConfigEntry, async_add_entities: AddEntitiesCallback) -> bool:
     _LOGGER.debug(f"async_setup_entry: {config_entry.options}")
 
-    coordinator = config_entry.runtime_data
-    descriptions = coordinator.device.profile.parser.get_entity_descriptions(_PLATFORM)
+    async_add_entities(create_entity(lambda x: SolarmanBinarySensorEntity(config_entry.runtime_data, x), d) for d in postprocess_descriptions(config_entry.runtime_data, _PLATFORM))
 
-    _LOGGER.debug(f"async_setup_entry: async_add_entities: {descriptions}")
-
-    async_add_entities(create_entity(lambda x: SolarmanBinarySensorEntity(coordinator, x), d) for d in descriptions)
-
-    async_add_entities([create_entity(lambda _: SolarmanConnectionSensor(coordinator), None)])
+    async_add_entities([create_entity(lambda _: SolarmanConnectionSensor(config_entry.runtime_data), None)])
 
     return True
 
@@ -53,16 +48,16 @@ class SolarmanConnectionSensor(SolarmanBinarySensorEntity):
         super().__init__(coordinator, {"key": "connection_binary_sensor", "name": "Connection"})
         self._attr_device_class = BinarySensorDeviceClass.CONNECTIVITY 
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_state = -1
 
     @property
     def available(self) -> bool:
-        return True
+        return self._attr_state is not None
 
     @property
     def is_on(self) -> bool | None:
-        return self._attr_state > 0 if self._attr_state is not None else False
+        return self._attr_state > 0
 
     def update(self):
         self.set_state(self.coordinator.device.state.value)
-        self._attr_extra_state_attributes["updated"] = self.coordinator.device.state.updated.strftime("%m/%d/%Y, %H:%M:%S")
-        # Maybe set the timestamp using HA's datetime format???
+        self._attr_extra_state_attributes["updated"] = self.coordinator.device.state.updated.timestamp()

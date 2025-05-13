@@ -1,0 +1,72 @@
+climate:
+  presets:
+    - t_eco: 1
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 0
+      t_super: 0
+      preset: eco
+    - t_eco: 0
+      t_fan_mute: 1
+      t_power: 1
+      preset: mute
+    - t_eco: 1
+      t_fan_mute: 1
+      t_power: 1
+      t_sleep: 0
+      t_super: 0
+      preset: eco_mute
+    - t_eco: 0
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 0
+      t_super: 1
+      preset: super
+    - t_eco: 0
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 1
+      t_super: 0
+      preset: sleep_1
+    - t_eco: 0
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 2
+      t_super: 0
+      preset: sleep_2
+    - t_eco: 0
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 3
+      t_super: 0
+      preset: sleep_3
+    - t_eco: 0
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 4
+      t_super: 0
+      preset: sleep_4
+    - t_eco: 1
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 1
+      t_super: 0
+      preset: eco_sleep_1
+    - t_eco: 1
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 2
+      t_super: 0
+      preset: eco_sleep_2
+    - t_eco: 1
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 3
+      t_super: 0
+      preset: eco_sleep_3
+    - t_eco: 1
+      t_fan_mute: 0
+      t_power: 1
+      t_sleep: 4
+      t_super: 0
+      preset: eco_sleep_4

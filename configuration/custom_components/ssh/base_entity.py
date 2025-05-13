@@ -63,14 +63,20 @@ class BaseEntity(CoordinatorEntity):
     def entity_registry_enabled_default(self) -> bool:
         return self._attributes.get(CONF_ENTITY_REGISTRY_ENABLED_DEFAULT, True)
 
+    @property
+    def available(self) -> bool:
+        return self._manager.can_execute
+
     def _handle_manager_state_change(self, state: State) -> None:
         self.schedule_update_ha_state()
 
     async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
         self._manager.state.on_change.subscribe(self._handle_manager_state_change)
 
     async def async_will_remove_from_hass(self) -> None:
         self._manager.state.on_change.unsubscribe(self._handle_manager_state_change)
+        await super().async_will_remove_from_hass()
 
 
 class BaseActionEntity(BaseEntity):
@@ -92,12 +98,6 @@ class BaseActionEntity(BaseEntity):
     def name(self) -> str | None:
         return self._command.name
 
-    @property
-    def available(self) -> bool:
-        if self._manager.state.error:
-            return False
-        return self._manager.is_up
-
 
 class BaseSensorEntity(BaseEntity):
     _category = "sensor"
@@ -118,12 +118,6 @@ class BaseSensorEntity(BaseEntity):
     def name(self) -> str | None:
         return self._sensor.name
 
-    @property
-    def available(self) -> bool:
-        if self._manager.state.error:
-            return False
-        return self._manager.is_up
-
     def _handle_sensor_update(self, sensor: Sensor) -> None:
         self.schedule_update_ha_state()
 
@@ -132,5 +126,5 @@ class BaseSensorEntity(BaseEntity):
         self._sensor.on_update.subscribe(self._handle_sensor_update)
 
     async def async_will_remove_from_hass(self) -> None:
-        await super().async_will_remove_from_hass()
         self._sensor.on_update.unsubscribe(self._handle_sensor_update)
+        await super().async_will_remove_from_hass()

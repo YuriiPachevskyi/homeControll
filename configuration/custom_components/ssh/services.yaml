@@ -63,6 +63,28 @@ poll_sensor:
         - sensor
         - switch
         - text
+        - update
+
+set_value:
+  name: Set value
+  description: Set the value of one or more controllable sensors.
+  target:
+    device:
+    entity:
+      integration: ssh
+      domain:
+        - number
+        - select
+        - switch
+        - text
+        - update
+  fields:
+    values:
+      name: Values
+      description: Values in the same order as the target entities.
+      required: true
+      selector:
+        object:
 
 turn_on:
   name: Turn on

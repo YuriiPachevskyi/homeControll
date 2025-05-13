@@ -1,0 +1,37 @@
+set_value:
+  target:
+    entity:
+      integration: connectlife
+      domain: sensor
+  fields:
+    value:
+      required: true
+      selector:
+        number:
+set_action:
+  target:
+    device:
+      integration: connectlife
+  fields:
+    action:
+      required: true
+      selector:
+        select:
+          translation_key: actions
+          options:
+            - "1"
+            - "2"
+            - "3"
+            - "4"
+update:
+  target:
+    device:
+      integration: connectlife
+  fields:
+    data:
+      required: true
+      example: |
+        Delay_start_status: 1
+        Delay_start_time: 4
+      selector:
+        object:

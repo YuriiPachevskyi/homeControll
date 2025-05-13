@@ -6,13 +6,14 @@
             "reconf_successful": "再設定に成功しました"
         },
         "error": {
+            "authentication_error": "Authentication failed {details}",
+            "connect_error": "Connection failed {details}",
+            "execution_error": "Execution failed {details}",
+            "host_key_unknown_error": "Host key of {host} is unknown",
             "mac_address_invalid_error": "MACアドレスが無効です",
             "name_exists_error": "名前はすでに存在します",
             "offline_error": "ホスト {host} はオフラインです",
             "permission_error": "ホスト鍵ファイルにアクセスするための権限がありません",
-            "ssh_authentication_error": "SSHの認証に失敗しました {details}",
-            "ssh_connect_error": "SSHの接続に失敗しました {details}",
-            "ssh_host_key_unknown_error": "{host} のSSHホスト鍵が不明です",
             "unknown": "予期せぬエラー"
         },
         "step": {
@@ -52,8 +53,8 @@
     },
     "options": {
         "error": {
-            "command_loop_error": "コマンドのループが検出されました {details}",
-            "invalid_sensor_error": "センサー {key} は無効です {details}",
+            "command_error": "Command error {details}",
+            "sensor_error": "Sensor error: {key} {details}",
             "name_key_error": "名前とキーが定義されていません",
             "unknown": "予期せぬエラー"
         },
@@ -63,7 +64,8 @@
                     "action_commands": "アクションコマンド",
                     "allow_turn_off": "デバイスの電源オフを許可する",
                     "command_timeout": "コマンドのタイムアウト",
-                    "disconnect_mode": "コマンドの間に切断する（実験的）",
+                    "disconnect_mode": "コマンドの間に切断する",
+                    "power_button": "Use power button instead of switch",
                     "reset_commands": "コマンドをリセットする",
                     "sensor_commands": "センサーコマンド",
                     "update_interval": "更新間隔"
@@ -75,7 +77,7 @@
                   "reset_default_commands": "デフォルトのコマンドをリセットする",
                   "remove_custom_commands": "すべてのカスタムコマンドを削除する"
                 }
-              }
+            }
         }
     }
 }

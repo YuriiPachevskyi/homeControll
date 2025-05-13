@@ -21,12 +21,7 @@ _PLATFORM = get_current_file_name(__name__)
 async def async_setup_entry(_: HomeAssistant, config_entry: SolarmanConfigEntry, async_add_entities: AddEntitiesCallback) -> bool:
     _LOGGER.debug(f"async_setup_entry: {config_entry.options}")
 
-    coordinator = config_entry.runtime_data
-    descriptions = coordinator.device.profile.parser.get_entity_descriptions(_PLATFORM)
-
-    _LOGGER.debug(f"async_setup_entry: async_add_entities: {descriptions}")
-
-    async_add_entities(create_entity(lambda x: SolarmanButtonEntity(coordinator, x), d) for d in descriptions)
+    async_add_entities(create_entity(lambda x: SolarmanButtonEntity(config_entry.runtime_data, x), d) for d in postprocess_descriptions(config_entry.runtime_data, _PLATFORM))
 
     return True
 
@@ -51,7 +46,7 @@ class SolarmanButtonEntity(SolarmanWritableEntity, ButtonEntity):
 
     def _to_native_value(self, value: int) -> int:
         if self._value_bit:
-            return (self._attr_native_value & ~(1 << self._value_bit)) | (value << self._value_bit) 
+            return (self._get_attr_native_value & ~(1 << self._value_bit)) | (value << self._value_bit) 
         return value
 
     async def async_press(self) -> None:

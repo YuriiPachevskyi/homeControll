@@ -8,10 +8,11 @@ from socket import getaddrinfo, herror, gaierror, timeout
 
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.selector import selector
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
-from homeassistant.data_entry_flow import section
+from homeassistant.data_entry_flow import section, AbortFlow
+from homeassistant.helpers import config_validation as cv, device_registry as dr
+from homeassistant.helpers.selector import selector
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from .const import *
 from .common import *
@@ -37,10 +38,10 @@ OPTS_SCHEMA = {
     vol.Required(CONF_ADDITIONAL_OPTIONS): section(
         vol.Schema(
             {
-                vol.Optional(CONF_MOD, default = DEFAULT_[CONF_MOD], description = {SUGGESTED_VALUE: DEFAULT_[CONF_MOD]}): bool,
+                vol.Optional(CONF_MOD, default = DEFAULT_[CONF_MOD], description = {SUGGESTED_VALUE: DEFAULT_[CONF_MOD]}): vol.All(vol.Coerce(int), vol.Range(min = 0, max = 2)),
                 vol.Optional(CONF_MPPT, default = DEFAULT_[CONF_MPPT], description = {SUGGESTED_VALUE: DEFAULT_[CONF_MPPT]}): vol.All(vol.Coerce(int), vol.Range(min = 1, max = 12)),
                 vol.Optional(CONF_PHASE, default = DEFAULT_[CONF_PHASE], description = {SUGGESTED_VALUE: DEFAULT_[CONF_PHASE]}): vol.All(vol.Coerce(int), vol.Range(min = 1, max = 3)),
-                vol.Optional(CONF_PACK, default = DEFAULT_[CONF_PACK], description = {SUGGESTED_VALUE: DEFAULT_[CONF_PACK]}): vol.All(vol.Coerce(int), vol.Range(min = -1, max = 12)),
+                vol.Optional(CONF_PACK, default = DEFAULT_[CONF_PACK], description = {SUGGESTED_VALUE: DEFAULT_[CONF_PACK]}): vol.All(vol.Coerce(int), vol.Range(min = -1, max = 20)),
                 vol.Optional(CONF_BATTERY_NOMINAL_VOLTAGE, default = DEFAULT_[CONF_BATTERY_NOMINAL_VOLTAGE], description = {SUGGESTED_VALUE: DEFAULT_[CONF_BATTERY_NOMINAL_VOLTAGE]}): cv.positive_int,
                 vol.Optional(CONF_BATTERY_LIFE_CYCLE_RATING, default = DEFAULT_[CONF_BATTERY_LIFE_CYCLE_RATING], description = {SUGGESTED_VALUE: DEFAULT_[CONF_BATTERY_LIFE_CYCLE_RATING]}): cv.positive_int,
                 vol.Optional(CONF_MB_SLAVE_ID, default = DEFAULT_[CONF_MB_SLAVE_ID], description = {SUGGESTED_VALUE: DEFAULT_[CONF_MB_SLAVE_ID]}): cv.positive_int
@@ -68,7 +69,7 @@ def validate_connection(user_input: dict[str, Any], errors: dict) -> dict[str, A
     except (gaierror, timeout):
         errors["base"] = "cannot_connect"
     except Exception as e:
-        _LOGGER.exception(f"validate_connection: {format_exception(e)}")
+        _LOGGER.exception(f"validate_connection: {e!r}")
         errors["base"] = "unknown"
     else:
         _LOGGER.debug(f"validate_connection: validation passed: {user_input}")
@@ -89,8 +90,20 @@ def remove_defaults(user_input: dict[str, Any]):
     return user_input
 
 class ConfigFlowHandler(ConfigFlow, domain = DOMAIN):
-    MINOR_VERSION = 8
-    VERSION = 1
+    MINOR_VERSION = 0
+    VERSION = 2
+
+    async def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
+        _LOGGER.debug(f"ConfigFlowHandler.async_step_dhcp: {discovery_info}")
+        if (device := dr.async_get(self.hass).async_get_device(connections = {(dr.CONNECTION_NETWORK_MAC, dr.format_mac(discovery_info.macaddress))})) is not None:
+            for entry in self._async_current_entries():
+                if entry.entry_id in device.config_entries and entry.options.get(CONF_HOST) != discovery_info.ip:
+                    self.hass.config_entries.async_update_entry(entry, options = entry.options | {CONF_HOST: discovery_info.ip})
+                    self.hass.async_create_task(self.hass.config_entries.async_reload(entry.entry_id))
+                    return self.async_abort(reason = "already_configured")
+        self._async_abort_entries_match({ CONF_HOST: discovery_info.ip })
+        await self._async_handle_discovery_without_unique_id()
+        return await self.async_step_user()
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         _LOGGER.debug(f"ConfigFlowHandler.async_step_user: {user_input}")
@@ -107,10 +120,14 @@ class ConfigFlowHandler(ConfigFlow, domain = DOMAIN):
                         continue
                 for i in range(0, 1000):
                     try:
-                        self._async_abort_entries_match({ CONF_NAME: (name := ' '.join(filter(None, (DEFAULT_[CONF_NAME], None if not i else str(i if i != 1 else 2))))) })
+                        for entry in self._async_current_entries(include_ignore = False):
+                            if entry.title == (name := ' '.join(filter(None, (DEFAULT_[CONF_NAME], None if not i else str(i if i != 1 else 2))))):
+                                raise AbortFlow("already_configured")
                         break
                     except:
                         continue
+                else:
+                    name = None
             return self.async_show_form(step_id = "user", data_schema = self.add_suggested_values_to_schema(await data_schema(self.hass, DATA_SCHEMA | OPTS_SCHEMA), {CONF_NAME: name, CONF_HOST: ip}))
 
         errors = {}
@@ -118,7 +135,7 @@ class ConfigFlowHandler(ConfigFlow, domain = DOMAIN):
         if validate_connection(user_input, errors):
             await self.async_set_unique_id(None)
             self._abort_if_unique_id_configured() #self._abort_if_unique_id_configured(updates={CONF_HOST: url.host})
-            return self.async_create_entry(title = user_input[CONF_NAME], data = filter_by_keys(user_input, DATA_SCHEMA), options = remove_defaults(filter_by_keys(user_input, OPTS_SCHEMA)))
+            return self.async_create_entry(title = user_input[CONF_NAME], data = {}, options = remove_defaults(filter_by_keys(user_input, OPTS_SCHEMA)))
 
         _LOGGER.debug(f"ConfigFlowHandler.async_step_user: connection validation failed: {user_input}")
 
@@ -143,7 +160,7 @@ class OptionsFlowHandler(OptionsFlow):
         errors = {}
 
         if validate_connection(user_input, errors):
-            return self.async_create_entry(title = self.entry.data[CONF_NAME], data = remove_defaults(user_input))
+            return self.async_create_entry(data = remove_defaults(user_input))
 
         _LOGGER.debug(f"OptionsFlowHandler.async_step_init: connection validation failed: {user_input}")
 

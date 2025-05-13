@@ -31,7 +31,7 @@ def migrate_unique_ids(config_entry: SolarmanConfigEntry, entity_entry: Registry
     entity_name = entity_entry.original_name if entity_entry.has_entity_name or not entity_entry.original_name else entity_entry.original_name.replace(config_entry.runtime_data.device.config.name, '').strip()
 
     if entity_entry.unique_id != (unique_id := slugify('_'.join(filter(None, (config_entry.entry_id, entity_name, split_entity_id(entity_entry.entity_id)[0]))))):
-        _LOGGER.debug("Migrating unique_id for %s entity from [%s] to [%s]", entity_entry.entity_id, entity_entry.unique_id, unique_id)
+        _LOGGER.debug(f"Migrating unique_id for {entity_entry.entity_id} entity from '{entity_entry.unique_id}' to '{unique_id}]'")
         return { "new_unique_id": entity_entry.unique_id.replace(entity_entry.unique_id, unique_id) }
 
     return None
@@ -40,16 +40,11 @@ def create_entity(creator, description):
     try:
         entity = creator(description)
 
-        if description is not None and (nlookup := description.get("name_lookup")) is not None and (prefix := entity.coordinator.data.get(nlookup)) is not None:
-            description["name"] = replace_first(description["name"], get_tuple(prefix))
-            description["key"] = entity_key(description)
-            entity = creator(description)
-
         entity.update()
 
         return entity
-    except BaseException as e:
-        _LOGGER.error(f"Configuring {description} failed. [{format_exception(e)}]")
+    except Exception as e:
+        _LOGGER.error(f"Configuring {description} failed. [{e!r}]")
         raise
 
 class SolarmanCoordinatorEntity(CoordinatorEntity[Coordinator]):
@@ -57,7 +52,7 @@ class SolarmanCoordinatorEntity(CoordinatorEntity[Coordinator]):
         super().__init__(coordinator)
         self._attr_device_info = self.coordinator.device.device_info.get(self.coordinator.device.config.config_entry.entry_id)
         self._attr_state: StateType = STATE_UNKNOWN
-        self._attr_native_value: StateType | str | date | datetime | time | float | Decimal = None
+        self._attr_native_value: StateType | str | date | datetime | time | float | Decimal | None = None
         self._attr_extra_state_attributes: dict[str, Any] = {}
         self._attr_value: None = None
 
@@ -143,18 +138,31 @@ class SolarmanWritableEntity(SolarmanEntity):
 
         self.code = get_code(sensor, "write", FUNCTION_CODE.WRITE_MULTIPLE_REGISTERS)
         self.register = min(self.registers) if len(self.registers) > 0 else None
+        self.maxint = 0xFFFFFFFF if len(self.registers) > 2 else 0xFFFF
+
+    @property
+    def _get_attr_native_value(self):
+        if self._attr_native_value is None:
+            raise RuntimeError(
+                f"{self.name}: Cannot write value when _attr_native_value is None. "
+                "This likely means the entity has not received data from the device"
+            )
+        return self._attr_native_value
 
     async def write(self, value, state = None) -> None:
         #self.coordinator.device.check(self._write_lock)
-        if isinstance(value, int):
-            if value > 0xFFFF:
-                value = list(split_p16b(value))
-            if len(self.registers) > 1:
-                value = ensure_list(value)
-        if isinstance(value, list):
-            while len(self.registers) > len(value):
-                value.insert(0, 0)
-        if await self.coordinator.device.exe(self.code, address = self.register, registers = value) > 0 and state is not None:
+        data = value
+        if isinstance(data, int):
+            if data < 0:
+                data = data + self.maxint
+            if data > 0xFFFF:
+                data = list(split_p16b(data))
+            if len(self.registers) > 1 or self.code > FUNCTION_CODE.WRITE_SINGLE_REGISTER:
+                data = ensure_list(data)
+        if isinstance(data, list):
+            while len(self.registers) > len(data):
+                data.insert(0, 0)
+        if await self.coordinator.device.execute(self.code, self.register, data = data) > 0 and state is not None:
             self.set_state(state, value)
             self.async_write_ha_state()
             #await self.entity_description.update_fn(self.coordinator., int(value))

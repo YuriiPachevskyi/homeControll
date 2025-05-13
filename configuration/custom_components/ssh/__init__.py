@@ -11,6 +11,7 @@ from ssh_terminal_manager import (
     CommandOutput,
     SensorKey,
     SSHManager,
+    SSHTerminal,
 )
 import voluptuous as vol
 
@@ -33,6 +34,7 @@ from homeassistant.core import (
     HomeAssistant,
     ServiceCall,
     ServiceResponse,
+    ServiceValidationError,
     SupportsResponse,
 )
 from homeassistant.helpers import device_registry as dr, entity_platform
@@ -41,7 +43,7 @@ from homeassistant.helpers.service import (
     async_extract_entities,
 )
 
-from .base_entity import BaseActionEntity, BaseEntity, BaseSensorEntity
+from .base_entity import BaseSensorEntity
 from .const import (
     CONF_ALLOW_TURN_OFF,
     CONF_COMMAND_TIMEOUT,
@@ -52,15 +54,18 @@ from .const import (
     CONF_KEY,
     CONF_KEY_FILENAME,
     CONF_LOAD_SYSTEM_HOST_KEYS,
+    CONF_POWER_BUTTON,
     CONF_SENSOR_COMMANDS,
     CONF_SENSORS,
     CONF_SEPARATOR,
     CONF_UPDATE_INTERVAL,
+    CONF_VALUES,
     DOMAIN,
     SERVICE_EXECUTE_COMMAND,
     SERVICE_POLL_SENSOR,
     SERVICE_RESTART,
     SERVICE_RUN_ACTION,
+    SERVICE_SET_VALUE,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
 )
@@ -68,12 +73,9 @@ from .converter import Converter
 from .coordinator import SensorCommandCoordinator, StateCoordinator
 from .entry_data import EntryData
 from .helpers import (
-    get_child_add_handler,
-    get_child_remove_handler,
     get_command_renderer,
     get_device_info,
     get_device_sensor_update_handler,
-    get_value_renderer,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -93,6 +95,7 @@ DEVICE_SENSOR_KEYS = [
     SensorKey.MACHINE_TYPE,
     SensorKey.OS_NAME,
     SensorKey.OS_VERSION,
+    SensorKey.OS_RELEASE,
     SensorKey.DEVICE_NAME,
     SensorKey.DEVICE_MODEL,
     SensorKey.MANUFACTURER,
@@ -119,6 +122,13 @@ RUN_ACTION_SCHEMA = vol.Schema(
         vol.Optional(CONF_VARIABLES): dict,
         vol.Optional(ATTR_DEVICE_ID): list,
         vol.Optional(ATTR_ENTITY_ID): list,
+    }
+)
+
+SET_VALUE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_VALUES): list,
+        vol.Required(ATTR_ENTITY_ID): list,
     }
 )
 
@@ -158,6 +168,17 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry):
             entry, data=new_data, options=new_options, minor_version=1, version=2
         )
 
+    if entry.version == 2:
+        new_data = {**entry.data}
+        new_options = {**entry.options}
+
+        if entry.minor_version < 2:
+            new_options[CONF_POWER_BUTTON] = True
+
+        hass.config_entries.async_update_entry(
+            entry, data=new_data, options=new_options, minor_version=2, version=2
+        )
+
     _LOGGER.debug(
         "Migration to configuration version %s.%s successful",
         entry.version,
@@ -172,9 +193,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data = entry.data
     options = entry.options
 
-    manager = SSHManager(
+    terminal = SSHTerminal(
         data[CONF_HOST],
-        name=data[CONF_NAME],
         port=data[CONF_PORT],
         username=data.get(CONF_USERNAME),
         password=data.get(CONF_PASSWORD),
@@ -182,14 +202,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         host_keys_filename=data.get(CONF_HOST_KEYS_FILENAME),
         load_system_host_keys=data[CONF_LOAD_SYSTEM_HOST_KEYS],
         invoke_shell=data[CONF_INVOKE_SHELL],
-        allow_turn_off=options[CONF_ALLOW_TURN_OFF],
+    )
+
+    manager = SSHManager(
+        terminal,
+        name=data[CONF_NAME],
         command_timeout=options[CONF_COMMAND_TIMEOUT],
+        allow_turn_off=options[CONF_ALLOW_TURN_OFF],
         disconnect_mode=options[CONF_DISCONNECT_MODE],
+        mac_address=data[CONF_MAC],
         collection=Converter(hass).get_collection(options),
         logger=_LOGGER,
     )
-
-    manager.set_mac_address(data[CONF_MAC])
 
     await manager.async_load_host_keys()
 
@@ -218,11 +242,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, platforms):
         hass.data[entry.domain].pop(entry.entry_id)
-
-        for coordinator in entry_data.coordinators:
-            await coordinator.async_shutdown()
-
-        await entry_data.manager.async_close()
+        await entry_data.async_shutdown()
 
     return unload_ok
 
@@ -261,10 +281,6 @@ async def async_initialize_entry(
     hass.data[entry.domain][entry.entry_id] = entry_data
 
     await state_coordinator.async_config_entry_first_refresh()
-
-    if manager.disconnect_mode:
-        for coordinator in command_coordinators:
-            await coordinator.async_config_entry_first_refresh()
 
     device_registry = dr.async_get(hass)
     entry_data.device_entry = device_registry.async_get_or_create(
@@ -382,12 +398,45 @@ def async_register_services(hass: HomeAssistant, domain: str):
         ]
         selected_entities = await async_extract_entities(hass, entities, call)
         sensor_keys = [entity.key for entity in selected_entities]
-        sensors = await entry_data.manager.async_poll_sensors(sensor_keys)
+        sensors, errors = await entry_data.manager.async_poll_sensors(
+            sensor_keys,
+            raise_errors=False,
+        )
         return [
             {
                 "entity_id": entity.entity_id,
                 "entity_name": entity.name,
-                "success": sensors[i].value is not None,
+                "success": (error := errors[i]) is None,
+                **({"error": str(error)} if error else {}),
+            }
+            for i, entity in enumerate(selected_entities)
+        ]
+
+    @get_response
+    async def set_value(entry_data: EntryData, call: ServiceCall) -> list[dict]:
+        values = call.data[CONF_VALUES]
+        entities = [
+            entity
+            for platform in entity_platform.async_get_platforms(hass, domain)
+            for entity in platform.entities.values()
+            if isinstance(entity, BaseSensorEntity)
+            and entity.coordinator == entry_data.state_coordinator
+        ]
+        selected_entities = await async_extract_entities(hass, entities, call)
+        if len(selected_entities) > len(values):
+            raise ServiceValidationError("Not all values provided")
+        sensor_keys = [entity.key for entity in selected_entities]
+        sensors, errors = await entry_data.manager.async_set_sensor_values(
+            sensor_keys,
+            values,
+            raise_errors=False,
+        )
+        return [
+            {
+                "entity_id": entity.entity_id,
+                "entity_name": entity.name,
+                "success": (error := errors[i]) is None,
+                **({"error": str(error)} if error else {}),
             }
             for i, entity in enumerate(selected_entities)
         ]
@@ -428,6 +477,14 @@ def async_register_services(hass: HomeAssistant, domain: str):
         SERVICE_POLL_SENSOR,
         poll_sensor,
         None,
+        SupportsResponse.OPTIONAL,
+    )
+
+    hass.services.async_register(
+        domain,
+        SERVICE_SET_VALUE,
+        set_value,
+        SET_VALUE_SCHEMA,
         SupportsResponse.OPTIONAL,
     )
 

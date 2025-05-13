@@ -1,13 +1,13 @@
 power_load_disable_device_duplicate:
-  alias: Power load. Disable device.
+  alias: Power load. Disable device CASCADE WORK
   sequence:
   - if:
     - condition: or
       conditions:
       - type: is_power
         condition: device
-        device_id: f6c638d30b7111c48069aa655490cd8a
-        entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
+        device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+        entity_id: 1137f839c1669084980e509f404a44e2
         domain: sensor
         above: 600
       - type: is_power
@@ -16,6 +16,12 @@ power_load_disable_device_duplicate:
         entity_id: 0124cde1985f8caf83b525ca9de4902c
         domain: sensor
         above: 600
+      - type: is_power
+        condition: device
+        device_id: f6c638d30b7111c48069aa655490cd8a
+        entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
+        domain: sensor
+        above: 2500
     then:
     - if:
       - condition: and
@@ -29,18 +35,6 @@ power_load_disable_device_duplicate:
         - condition: state
           entity_id: switch.1563_heating_ten_1_5_kwh
           state: 'on'
-        - type: is_power
-          condition: device
-          device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-          entity_id: 0124cde1985f8caf83b525ca9de4902c
-          domain: sensor
-          above: 1200
-        - type: is_power
-          condition: device
-          device_id: f6c638d30b7111c48069aa655490cd8a
-          entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-          domain: sensor
-          above: 200
       then:
       - data: {}
         target:
@@ -56,18 +50,6 @@ power_load_disable_device_duplicate:
           - condition: state
             entity_id: switch.1564_heating_ten_3_kwh
             state: 'on'
-          - type: is_power
-            condition: device
-            device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-            entity_id: 0124cde1985f8caf83b525ca9de4902c
-            domain: sensor
-            above: 1200
-          - type: is_power
-            condition: device
-            device_id: f6c638d30b7111c48069aa655490cd8a
-            entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-            domain: sensor
-            above: 200
         then:
         - data: {}
           target:
@@ -89,18 +71,6 @@ power_load_disable_device_duplicate:
             - condition: state
               entity_id: switch.1563_heating_ten_1_5_kwh
               state: 'on'
-            - type: is_power
-              condition: device
-              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-              entity_id: 0124cde1985f8caf83b525ca9de4902c
-              domain: sensor
-              above: 1200
-            - type: is_power
-              condition: device
-              device_id: f6c638d30b7111c48069aa655490cd8a
-              entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-              domain: sensor
-              above: 200
           then:
           - data: {}
             target:
@@ -110,19 +80,9 @@ power_load_disable_device_duplicate:
             action: switch.turn_off
           else:
           - if:
-            - condition: or
-              conditions:
-              - condition: and
-                conditions:
-                - condition: state
-                  entity_id: switch.1561_boiler_ten_1_2_kwh
-                  state: 'on'
-                - type: is_power
-                  condition: device
-                  device_id: f6c638d30b7111c48069aa655490cd8a
-                  entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-                  domain: sensor
-                  above: 600
+            - condition: state
+              entity_id: switch.1561_boiler_ten_1_2_kwh
+              state: 'on'
             then:
             - data: {}
               target:
@@ -134,19 +94,9 @@ power_load_disable_device_duplicate:
               action: switch.turn_on
             else:
             - if:
-              - condition: or
-                conditions:
-                - condition: and
-                  conditions:
-                  - condition: state
-                    entity_id: switch.1560_boiler_ten_0_8_kwh
-                    state: 'on'
-                  - type: is_power
-                    condition: device
-                    device_id: f6c638d30b7111c48069aa655490cd8a
-                    entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-                    domain: sensor
-                    above: 600
+              - condition: state
+                entity_id: switch.1560_boiler_ten_0_8_kwh
+                state: 'on'
               then:
               - action: switch.turn_off
                 target:
@@ -154,20 +104,21 @@ power_load_disable_device_duplicate:
                 data: {}
     else:
     - if:
-      - condition: or
+      - condition: and
         conditions:
-        - condition: and
-          conditions:
-          - type: is_power
-            condition: device
-            device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-            entity_id: 0124cde1985f8caf83b525ca9de4902c
-            domain: sensor
-            below: -800
-          - condition: state
-            entity_id: switch.1560_boiler_ten_0_8_kwh
-            state: 'off'
-        - condition: and
+        - condition: state
+          entity_id: switch.1560_boiler_ten_0_8_kwh
+          state: 'off'
+        - condition: time
+          after: 09:00:00
+          before: '17:00:00'
+        - type: is_power
+          condition: device
+          device_id: f6c638d30b7111c48069aa655490cd8a
+          entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
+          domain: sensor
+          below: 2500
+        - condition: or
           conditions:
           - type: is_voltage
             condition: device
@@ -175,31 +126,12 @@ power_load_disable_device_duplicate:
             entity_id: 9339fc88bd186c9bc0a97c5e33408300
             domain: sensor
             above: 365
-          - condition: state
-            entity_id: switch.1560_boiler_ten_0_8_kwh
-            state: 'off'
-        - condition: and
-          conditions:
           - type: is_power
             condition: device
-            device_id: f6c638d30b7111c48069aa655490cd8a
-            entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
+            device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+            entity_id: 0124cde1985f8caf83b525ca9de4902c
             domain: sensor
-            below: -800
-          - condition: state
-            entity_id: switch.1560_boiler_ten_0_8_kwh
-            state: 'off'
-        - condition: and
-          conditions:
-          - type: is_voltage
-            condition: device
-            device_id: f6c638d30b7111c48069aa655490cd8a
-            entity_id: 3836aaef5495726a7509ee2fe16175d9
-            domain: sensor
-            above: 365
-          - condition: state
-            entity_id: switch.1560_boiler_ten_0_8_kwh
-            state: 'off'
+            below: -1500
       then:
       - data: {}
         target:
@@ -207,20 +139,24 @@ power_load_disable_device_duplicate:
         action: switch.turn_on
       else:
       - if:
-        - condition: or
+        - condition: and
           conditions:
-          - condition: and
-            conditions:
-            - type: is_power
-              condition: device
-              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-              entity_id: 0124cde1985f8caf83b525ca9de4902c
-              domain: sensor
-              below: -1200
-            - condition: state
-              entity_id: switch.1561_boiler_ten_1_2_kwh
-              state: 'off'
-          - condition: and
+          - condition: state
+            entity_id: switch.1560_boiler_ten_0_8_kwh
+            state: 'on'
+          - condition: state
+            entity_id: switch.1561_boiler_ten_1_2_kwh
+            state: 'off'
+          - condition: time
+            after: 09:30:00
+            before: '17:00:00'
+          - type: is_power
+            condition: device
+            device_id: f6c638d30b7111c48069aa655490cd8a
+            entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
+            domain: sensor
+            below: 2500
+          - condition: or
             conditions:
             - type: is_voltage
               condition: device
@@ -228,31 +164,12 @@ power_load_disable_device_duplicate:
               entity_id: 9339fc88bd186c9bc0a97c5e33408300
               domain: sensor
               above: 365
-            - condition: state
-              entity_id: switch.1561_boiler_ten_1_2_kwh
-              state: 'off'
-          - condition: and
-            conditions:
             - type: is_power
               condition: device
-              device_id: f6c638d30b7111c48069aa655490cd8a
-              entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
+              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+              entity_id: 0124cde1985f8caf83b525ca9de4902c
               domain: sensor
-              below: -1200
-            - condition: state
-              entity_id: switch.1561_boiler_ten_1_2_kwh
-              state: 'off'
-          - condition: and
-            conditions:
-            - type: is_voltage
-              condition: device
-              device_id: f6c638d30b7111c48069aa655490cd8a
-              entity_id: 3836aaef5495726a7509ee2fe16175d9
-              domain: sensor
-              above: 365
-            - condition: state
-              entity_id: switch.1561_boiler_ten_1_2_kwh
-              state: 'off'
+              below: -1500
         then:
         - data: {}
           target:
@@ -261,52 +178,26 @@ power_load_disable_device_duplicate:
           action: switch.turn_on
         else:
         - if:
-          - condition: or
+          - condition: and
             conditions:
-            - condition: and
-              conditions:
-              - type: is_power
-                condition: device
-                device_id: f6c638d30b7111c48069aa655490cd8a
-                entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-                domain: sensor
-                below: -1500
-              - condition: state
-                entity_id: switch.1563_heating_ten_1_5_kwh
-                state: 'off'
-            - condition: and
-              conditions:
-              - type: is_voltage
-                condition: device
-                device_id: f6c638d30b7111c48069aa655490cd8a
-                entity_id: 3836aaef5495726a7509ee2fe16175d9
-                domain: sensor
-                above: 365
-              - condition: state
-                entity_id: switch.1563_heating_ten_1_5_kwh
-                state: 'off'
-            - condition: and
-              conditions:
-              - type: is_power
-                condition: device
-                device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-                entity_id: 0124cde1985f8caf83b525ca9de4902c
-                domain: sensor
-                below: -1500
-              - condition: state
-                entity_id: switch.1563_heating_ten_1_5_kwh
-                state: 'off'
-            - condition: and
-              conditions:
-              - type: is_voltage
-                condition: device
-                device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-                entity_id: 9339fc88bd186c9bc0a97c5e33408300
-                domain: sensor
-                above: 365
-              - condition: state
-                entity_id: switch.1563_heating_ten_1_5_kwh
-                state: 'off'
+            - type: is_voltage
+              condition: device
+              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+              entity_id: 9339fc88bd186c9bc0a97c5e33408300
+              domain: sensor
+              above: 370
+            - condition: state
+              entity_id: switch.heating_enabled
+              state: 'on'
+            - condition: state
+              entity_id: switch.1563_heating_ten_1_5_kwh
+              state: 'off'
+            - type: is_power
+              condition: device
+              device_id: f6c638d30b7111c48069aa655490cd8a
+              entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
+              domain: sensor
+              above: -1500
           then:
           - data: {}
             target:
@@ -316,64 +207,29 @@ power_load_disable_device_duplicate:
             action: switch.turn_on
           else:
           - if:
-            - condition: or
+            - condition: and
               conditions:
-              - condition: and
-                conditions:
-                - type: is_power
-                  condition: device
-                  device_id: f6c638d30b7111c48069aa655490cd8a
-                  entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-                  domain: sensor
-                  below: -1500
-                - condition: state
-                  entity_id: switch.1563_heating_ten_1_5_kwh
-                  state: 'on'
-                - condition: state
-                  entity_id: switch.1564_heating_ten_3_kwh
-                  state: 'off'
-              - condition: and
-                conditions:
-                - type: is_power
-                  condition: device
-                  device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-                  entity_id: 0124cde1985f8caf83b525ca9de4902c
-                  domain: sensor
-                  below: -1500
-                - condition: state
-                  entity_id: switch.1563_heating_ten_1_5_kwh
-                  state: 'on'
-                - condition: state
-                  entity_id: switch.1564_heating_ten_3_kwh
-                  state: 'off'
-              - condition: and
-                conditions:
-                - type: is_voltage
-                  condition: device
-                  device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-                  entity_id: 9339fc88bd186c9bc0a97c5e33408300
-                  domain: sensor
-                  above: 365
-                - condition: state
-                  entity_id: switch.1563_heating_ten_1_5_kwh
-                  state: 'on'
-                - condition: state
-                  entity_id: switch.1564_heating_ten_3_kwh
-                  state: 'off'
-              - condition: and
-                conditions:
-                - type: is_voltage
-                  condition: device
-                  device_id: f6c638d30b7111c48069aa655490cd8a
-                  entity_id: 3836aaef5495726a7509ee2fe16175d9
-                  domain: sensor
-                  above: 365
-                - condition: state
-                  entity_id: switch.1563_heating_ten_1_5_kwh
-                  state: 'on'
-                - condition: state
-                  entity_id: switch.1564_heating_ten_3_kwh
-                  state: 'off'
+              - type: is_voltage
+                condition: device
+                device_id: f6c638d30b7111c48069aa655490cd8a
+                entity_id: 3836aaef5495726a7509ee2fe16175d9
+                domain: sensor
+                above: 370
+              - type: is_power
+                condition: device
+                device_id: f6c638d30b7111c48069aa655490cd8a
+                entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
+                domain: sensor
+                above: -1500
+              - condition: state
+                entity_id: switch.heating_enabled
+                state: 'on'
+              - condition: state
+                entity_id: switch.1563_heating_ten_1_5_kwh
+                state: 'on'
+              - condition: state
+                entity_id: switch.1564_heating_ten_3_kwh
+                state: 'off'
             then:
             - data: {}
               target:
@@ -644,25 +500,31 @@ power_load_disable_device_duplicate_2:
                   entity_id: 0124cde1985f8caf83b525ca9de4902c
                   domain: sensor
                   below: -1600
+              - condition: state
+                entity_id: switch.heating_enabled
+                state: 'on'
             - condition: and
               conditions:
               - condition: state
                 entity_id: switch.1563_heating_ten_1_5_kwh
                 state: 'off'
-              - condition: or
+              - condition: and
                 conditions:
                 - type: is_voltage
                   condition: device
                   device_id: f6c638d30b7111c48069aa655490cd8a
                   entity_id: 3836aaef5495726a7509ee2fe16175d9
                   domain: sensor
-                  above: 365
+                  above: 375
                 - type: is_voltage
                   condition: device
                   device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
                   entity_id: 9339fc88bd186c9bc0a97c5e33408300
                   domain: sensor
-                  above: 365
+                  above: 375
+              - condition: state
+                entity_id: switch.heating_enabled
+                state: 'on'
           then:
           - data: {}
             target:
@@ -676,20 +538,23 @@ power_load_disable_device_duplicate_2:
               conditions:
               - condition: and
                 conditions:
-                - condition: or
+                - condition: and
                   conditions:
-                  - type: is_voltage
-                    condition: device
-                    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-                    entity_id: 9339fc88bd186c9bc0a97c5e33408300
-                    domain: sensor
-                    above: 365
                   - type: is_voltage
                     condition: device
                     device_id: f6c638d30b7111c48069aa655490cd8a
                     entity_id: 3836aaef5495726a7509ee2fe16175d9
                     domain: sensor
-                    above: 365
+                    above: 375
+                  - type: is_voltage
+                    condition: device
+                    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+                    entity_id: 9339fc88bd186c9bc0a97c5e33408300
+                    domain: sensor
+                    above: 375
+                - condition: state
+                  entity_id: switch.heating_enabled
+                  state: 'on'
                 - condition: state
                   entity_id: switch.1563_heating_ten_1_5_kwh
                   state: 'on'
@@ -712,6 +577,9 @@ power_load_disable_device_duplicate_2:
                     entity_id: 0124cde1985f8caf83b525ca9de4902c
                     domain: sensor
                     below: -1600
+                - condition: state
+                  entity_id: switch.heating_enabled
+                  state: 'on'
                 - condition: state
                   entity_id: switch.1563_heating_ten_1_5_kwh
                   state: 'on'

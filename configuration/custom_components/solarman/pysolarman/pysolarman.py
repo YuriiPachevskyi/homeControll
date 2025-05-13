@@ -1,18 +1,20 @@
 import time
 import types
-import errno
 import struct
 import logging
 import asyncio
 
-from multiprocessing import synchronize
 from multiprocessing import Event
 from random import randrange
+from functools import wraps
 
+from .umodbus.functions import FUNCTION_CODES
 from .umodbus.exceptions import error_code_to_exception_map
 from .umodbus.client.serial.redundancy_check import get_crc
 from .umodbus.client.serial import rtu
 from .umodbus.client import tcp
+
+from ..common import retry, throttle, create_task, format
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -35,36 +37,53 @@ PROTOCOL.PLACEHOLDER4 = bytes.fromhex("000000000000000000000000") # delivery|pow
 PROTOCOL.START = bytes.fromhex("A5")
 PROTOCOL.END = bytes.fromhex("15")
 
+def log_call(prefix: str):
+    def decorator(f):
+        @wraps(f)
+        async def wrapper(*args, **kwargs):
+            _LOGGER.debug(f"[{args[0].host}] {prefix}{f': {format(args[1])}' if len(args) > 1 else ''}")
+            return await f(*args, **kwargs)
+        return wrapper
+    return decorator
+
+def log_return(prefix: str):
+    def decorator(f):
+        @wraps(f)
+        async def wrapper(*args, **kwargs):
+            r = await f(*args, **kwargs)
+            _LOGGER.debug(f"[{args[0].host}] {prefix}: {format(r)}")
+            return r
+        return wrapper
+    return decorator
+
 class FrameError(Exception):
     """Frame Validation Error"""
 
-class NoSocketAvailableError(Exception):
-    """No Socket Available Error"""
-
 class Solarman:
-    def __init__(self, address, port, transport, serial, slave, timeout):
-        self.address = address
+    def __init__(self, host: str, port: int | str, transport: str, serial: int, slave: int, timeout: int):
+        self.host = host
         self.port = port
         self.transport = transport
         self.serial = serial
         self.slave = slave
         self.timeout = timeout
 
-        self.open_task: asyncio.Task = None
-        self.reader_task: asyncio.Task = None
-        self.reader: asyncio.StreamReader = None
-        self.writer: asyncio.StreamWriter = None
-        self.data_queue = asyncio.Queue(maxsize = 1)
-        self.data_wanted_ev: synchronize.Event = Event()
+        self._keeper: asyncio.Task | None = None
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+        self._semaphore = asyncio.Semaphore(1)
+        self._data_queue = asyncio.Queue(maxsize = 1)
+        self._data_event = Event()
+        self._last_frame: bytes | None = None
 
     @staticmethod
     def _get_response_code(code: int) -> int:
         return code - 0x30
 
     @staticmethod
-    def _calculate_checksum(data: bytes) -> int:
+    def _calculate_checksum(frame: bytes) -> int:
         checksum = 0
-        for d in data:
+        for d in frame:
             checksum += d & 0xFF
         return int(checksum & 0xFF)
 
@@ -89,17 +108,15 @@ class Solarman:
     def transport(self, value: str) -> None:
         self._transport = value
         if value == "tcp":
-            self._lookup = rtu.function_code_to_function_map
             self._get_response = self._parse_adu_from_rtu_response
             self._handle_frame = self._handle_protocol_frame
         else:
-            self._lookup = tcp.function_code_to_function_map
             self._get_response = self._parse_adu_from_tcp_response
             self._handle_frame = None
 
     @property
     def connected(self):
-        return self.reader_task and not self.reader_task.done()
+        return self._keeper and not self._keeper.done()
 
     @property
     def sequence_number(self) -> int:
@@ -114,22 +131,22 @@ class Solarman:
             + seq
             + self.serial_bytes)
 
-    def _protocol_trailer(self, data: bytes) -> bytearray:
-        return bytearray(struct.pack("<B", self._calculate_checksum(data[1:])) + PROTOCOL.END)
+    def _protocol_trailer(self, frame: bytes) -> bytearray:
+        return bytearray(struct.pack("<B", self._calculate_checksum(frame[1:])) + PROTOCOL.END)
 
     def _received_frame_is_valid(self, frame: bytes) -> bool:
         if not frame.startswith(PROTOCOL.START):
-            _LOGGER.debug("[%s] PROTOCOL_MISMATCH: %s", self.serial, frame.hex(" "))
+            _LOGGER.debug(f"[{self.host}] PROTOCOL_MISMATCH: {frame.hex(" ")}")
             return False
         if frame[5] != self._sequence_number:
             if frame[4] == PROTOCOL.CONTROL_CODE.REQUEST and len(frame) > 6 and (f := int.from_bytes(frame[5:6], "big") == len(frame[6:])) and (int.from_bytes(frame[8:9], "big") == len(frame[9:]) if len(frame) > 9 else f):
-                _LOGGER.debug("[%s] TCP_DETECTED: %s", self.serial, frame.hex(" "))
+                _LOGGER.debug(f"[{self.host}] TCP_DETECTED: %s", self.host, frame.hex(" "))
                 self.transport = "modbus_tcp"
                 return True
-            _LOGGER.debug("[%s] SEQ_MISMATCH: %s", self.serial, frame.hex(" "))
+            _LOGGER.debug(f"[{self.host}] SEQ_MISMATCH: {frame.hex(" ")}")
             return False
         if not frame.endswith(PROTOCOL.END):
-            _LOGGER.debug("[%s] PROTOCOL_MISMATCH: %s", self.serial, frame.hex(" "))
+            _LOGGER.debug(f"[{self.host}] PROTOCOL_MISMATCH: {frame.hex(" ")}")
             return False
         return True
 
@@ -140,27 +157,26 @@ class Solarman:
             do_continue = False
             # Maybe do_continue = True for CONTROL_CODE.DATA|INFO|REPORT and thus process packets in the future?
             control_name = [i for i in PROTOCOL.CONTROL_CODE.__dict__ if PROTOCOL.CONTROL_CODE.__dict__[i] == frame[4]][0]
-            _LOGGER.debug("[%s] PROTOCOL_%s: %s", self.serial, control_name, frame.hex(" "))
+            _LOGGER.debug(f"[{self.host}] PROTOCOL_{control_name} RECV: {frame.hex(" ")}")
             response_frame = self._protocol_header(10, self._get_response_code(frame[4]), frame[5:7]) + bytearray(PROTOCOL.PLACEHOLDER1 # Frame Type
                 + PROTOCOL.STATUS
                 + struct.pack("<I", int(time.time()))
                 + PROTOCOL.PLACEHOLDER3) # Offset?
             response_frame[5] = (response_frame[5] + 1) & 0xFF
             response_frame += self._protocol_trailer(response_frame)
-            _LOGGER.debug("[%s] PROTOCOL_%s RESP: %s", self.serial, control_name, response_frame.hex(" "))
+            _LOGGER.debug(f"[{self.host}] PROTOCOL_{control_name} SENT: {response_frame.hex(" ")}")
         return do_continue, response_frame
 
     async def _write(self, data: bytes) -> None:
         try:
-            self.writer.write(data)
-            await self.writer.drain()
+            self._writer.write(data)
+            await self._writer.drain()
+        except AttributeError as e:
+            raise ConnectionError("Connection is closed") from e
+        except OSError as e:
+            raise TimeoutError("Peer is unreachable") from e
         except Exception as e:
-            match e:
-                case AttributeError():
-                    raise NoSocketAvailableError("Connection already closed") from e
-                case OSError() if e.errno == errno.EHOSTUNREACH:
-                    raise TimeoutError from e
-            _LOGGER.exception("[%s] Write error: %s", self.serial, e)
+            raise e
 
     async def _handle_protocol_frame(self, frame):
         if (do_continue := self._received_frame_is_valid(frame)):
@@ -169,90 +185,83 @@ class Solarman:
                 await self._write(response_frame)
         return do_continue
 
-    async def _conn_keeper(self) -> None:
+    async def _keeper_loop(self) -> None:
         while True:
             try:
-                data = await self.reader.read(1024)
+                data = await self._reader.read(1024)
             except ConnectionResetError:
-                _LOGGER.debug("[%s] Connection is reset by the peer. Will try to restart the connection", self.serial)
+                _LOGGER.debug(f"[{self.host}] Connection is reset by the peer. Will try to restart the connection")
                 break
             if data == b"":
-                _LOGGER.debug("[%s] Connection closed by the remote. Will try to restart the connection", self.serial)
+                _LOGGER.debug(f"[{self.host}] Connection closed. Will try to restart the connection")
                 break
             if self._handle_frame is not None and not await self._handle_frame(data):
                 # Skip...
                 continue
-            if not self.data_wanted_ev.is_set():
-                _LOGGER.debug("[%s] Data received but nobody waits for it... Discarded", self.serial)
+            if not self._data_event.is_set():
+                _LOGGER.debug(f"[{self.host}] Data received too late")
                 continue
-            if not self.data_queue.empty():
-                _ = self.data_queue.get_nowait()
-            self.data_queue.put_nowait(data)
-            self.data_wanted_ev.clear()
-        self.reader_task = None
-        self.reader = None
-        self.writer = None
-        self._open()
+            if not self._data_queue.empty():
+                _ = self._data_queue.get_nowait()
+            self._data_queue.put_nowait(data)
+            self._data_event.clear()
+        self._keeper = create_task(self._open_connection())
 
+    @throttle(0.2)
     async def _open_connection(self) -> None:
         try:
-            if self.reader_task:
-                self.reader_task.cancel()
-            self.reader, self.writer = await asyncio.wait_for(asyncio.open_connection(self.address, self.port), self.timeout)
-            self.reader_task = asyncio.get_running_loop().create_task(self._conn_keeper(), name = "ConnKeeper")
-            if self.data_wanted_ev.is_set():
-                _LOGGER.debug("[%s] Successful reconnection! Data expected. Will retry the last request", self.serial)
+            self._reader, self._writer = await asyncio.wait_for(asyncio.open_connection(self.host, self.port), self.timeout)
+            self._keeper = create_task(self._keeper_loop())
+            if self._data_event.is_set():
+                _LOGGER.debug(f"[{self.host}] Successful reconnection! Data expected. Will retry the last request")
                 await self._write(self._last_frame)
             else:
-                _LOGGER.debug("[%s] Successful connection!", self.serial)
-            self.open_task = None
+                _LOGGER.debug(f"[{self.host}] Successful connection!")
         except Exception as e:
-            if self.data_wanted_ev.is_set():
-                _LOGGER.debug(f"[{self.serial}] {e!r}")
-                await self._open_connection()
-            else:
-                raise NoSocketAvailableError(f"Cannot open connection to {self.address}") from e
-
-    def _open(self):
-        if not self.connected:
-            if self.open_task:
-                self.open_task.cancel()
-            self.open_task = asyncio.get_running_loop().create_task(self._open_connection(), name = "OpenKeeper")
+            if self._last_frame is None:
+                raise ConnectionError("Cannot open connection") from e
+            await self._open_connection()
 
     async def _close(self) -> None:
-        if self.writer:
+        if self._writer:
             try:
                 await self._write(b"")
-            except (NoSocketAvailableError, TimeoutError, ConnectionResetError) as e:
-                _LOGGER.debug(f"[{self.serial}] {e} can be during closing ignored")
-            finally:
-                try:
-                    self.writer.close()
-                    await self.writer.wait_closed()
-                except (AttributeError, OSError) as e: # OSError happens when is host unreachable
-                    _LOGGER.debug(f"[{self.serial}] {e} can be during closing ignored")
-                self.writer = None
+            except (ConnectionError, TimeoutError) as e:
+                _LOGGER.debug(f"[{self.host}] {e!r} can be during closing ignored")
 
+            try:
+                self._writer.close()
+                await self._writer.wait_closed()
+            except (AttributeError, OSError) as e: # OSError happens when is host unreachable
+                _LOGGER.debug(f"[{self.host}] {e!r} can be during closing ignored")
+
+            self._writer = None
+
+        self._reader = None
+
+    @throttle(0.1)
+    @log_call("SENT")
+    @log_return("RECV")
     async def _send_receive_frame(self, frame: bytes) -> bytes:
-        await self.open()
-        _LOGGER.debug("[%s] SENT: %s", self.serial, frame.hex(" "))
-        self.data_wanted_ev.set()
+        if not self._writer:
+            if not self.connected:
+                self._keeper = create_task(self._open_connection())
+            await self._keeper
+
+        self._data_event.set()
         self._last_frame = frame
+
         try:
             await self._write(frame)
             while True:
                 try:
-                    response_frame = await asyncio.wait_for(self.data_queue.get(), self.timeout)
-                    _LOGGER.debug("[%s] RECD: %s", self.serial, response_frame.hex(" "))
-                    return response_frame
+                    return await asyncio.wait_for(self._data_queue.get(), self.timeout * 3 - 1)
                 except TimeoutError:
-                    _LOGGER.debug("[%s] Peer not responding. Closing connection", self.serial)
                     await self._close()
-                    continue
         finally:
-            self.data_wanted_ev.clear()
+            self._data_event.clear()
 
-    async def _parse_adu_from_rtu_response(self, frame: bytes) -> tuple[int, int, bytes]:
+    async def _parse_adu_from_rtu_response(self, code: int, address: int, **kwargs) -> list[int]:
         async def _get_rtu_response(frame: bytes) -> bytes:
             request_frame = self._protocol_header(15 + len(frame),
                 PROTOCOL.CONTROL_CODE.REQUEST,
@@ -262,58 +271,55 @@ class Solarman:
                 + PROTOCOL.PLACEHOLDER4 # delivery|poweron|offset time
                 + frame)
             return await self._send_receive_frame(request_frame + self._protocol_trailer(request_frame))
-        response_frame = await _get_rtu_response(frame)
+        req = rtu.function_code_to_function_map[code](self.slave, address, **kwargs)
+        res = await _get_rtu_response(req)
         if self.serial_bytes == PROTOCOL.PLACEHOLDER3:
-            self.serial = response_frame[7:11]
-            _LOGGER.debug("[%s] SERIAL_SET: %s", self.serial, response_frame.hex(" "))
-            response_frame = await _get_rtu_response(frame)
-        if response_frame[4] != self._get_response_code(PROTOCOL.CONTROL_CODE.REQUEST):
-            raise FrameError("Incorrect control code")
-        if response_frame[5] != self._sequence_number:
+            self.serial = res[7:11]
+            _LOGGER.debug(f"[{self.host}] SERIAL_SET: {self.serial}")
+            res = await _get_rtu_response(req)
+        if res[4] != self._get_response_code(PROTOCOL.CONTROL_CODE.REQUEST):
+            raise FrameError("Invalid control code")
+        if res[5] != self._sequence_number:
             raise FrameError("Invalid sequence number")
-        if response_frame[11:12] != PROTOCOL.FRAME_TYPE:
-            raise FrameError("Invalid frame type")
-        if response_frame[-2] != self._calculate_checksum(response_frame[1:-2]):
+        if res[11:12] != PROTOCOL.FRAME_TYPE:
+            _LOGGER.debug(f"[{self.host}] UNEXPECTED_FRAME_TYPE: {int.from_bytes(res[11:12])}")
+        if res[-2] != self._calculate_checksum(res[1:-2]):
             raise FrameError("Invalid checksum")
-        adu = response_frame[25:-2]
-        if len(adu) < 5: # Short version of modbus exception (undocumented)
-            if len (adu) > 0 and (err := error_code_to_exception_map.get(adu[0])):
-                raise FrameError(f"Modbus exception: {err.__name__}")
-            raise FrameError(f"Invalid modbus frame")
-        if adu.endswith(PROTOCOL.PLACEHOLDER2) and get_crc(adu[:-4]) == adu[-4:-2]: # Double CRC (XXXX0000) correction
-            adu = adu[:-2]
-        return adu[0], adu[1], rtu.parse_response_adu(adu, frame)
+        res = res[25:-2]
+        if len(res) < 5: # Short version of modbus exception (undocumented)
+            if len (res) > 0 and (modbusError := error_code_to_exception_map.get(res[0])):
+                raise modbusError()
+            raise FrameError("Invalid modbus frame")
+        if res.endswith(PROTOCOL.PLACEHOLDER2) and get_crc(res[:-4]) == res[-4:-2]: # Double CRC (XXXX0000) correction
+            res = res[:-2]
+        return rtu.parse_response_adu(res, req)
 
-    async def _parse_adu_from_tcp_response(self, frame: bytes) -> tuple[int, int, bytes]:
-        adu = await self._send_receive_frame(frame)
-        if 8 <= len(adu) <= 10: # Incomplete response frame correction
-            adu = adu[:5] + b'\x06' + adu[6:] + (frame[len(adu):10] if len(frame) > 12 else (b'\x00' * (10 - len(adu)))) + b'\x00\x01'
-        return adu[6], adu[7], tcp.parse_response_adu(adu, frame)
+    async def _parse_adu_from_tcp_response(self, code: int, address: int, **kwargs) -> list[int]:
+        req = tcp.function_code_to_function_map[code](self.slave, address, **kwargs)
+        res = await self._send_receive_frame(req)
+        if 8 <= len(res) <= 10: # Incomplete response correction
+            res = res[:5] + b'\x06' + res[6:] + (req[len(res):10] if len(req) > 12 else (b'\x00' * (10 - len(res)))) + b'\x00\x01'
+        return tcp.parse_response_adu(res, req)
 
-    async def execute(self, code, **kwargs):
-        if code in self._lookup:
-            if "registers" in kwargs and not isinstance(kwargs["registers"], list):
-                kwargs["registers"] = [kwargs["registers"]]
-            elif "bits" in kwargs and not isinstance(kwargs["bits"], list):
-                kwargs["bits"] = [kwargs["bits"]]
-            _, _, pdu = await self._get_response(self._lookup.get(code)(slave_id = self.slave, starting_address = kwargs["address"], argument = kwargs["count"] if "count" in kwargs else kwargs["registers"]))
-            _LOGGER.debug("[%s] PDU: %s", self.serial, pdu)
-            return pdu
-        raise Exception("[%s] Used invalid modbus function code %d", self.serial, code)
+    @retry()
+    async def get_response(self, code: int, address: int, **kwargs) -> list[int]:
+        return await self._get_response(code, address, **kwargs)
 
-    async def open(self):
-        self._open()
-        if self.open_task is not None:
-            await self.open_task
+    @log_return("DATA")
+    async def execute(self, code: int, address: int, **kwargs) -> list[int]:
+        if code not in FUNCTION_CODES:
+            raise Exception(f"Invalid modbus function code {code:02}")
 
+        async with asyncio.timeout(self.timeout * 6):
+            async with self._semaphore:
+                return await self.get_response(code, address, **kwargs)
+
+    @log_call("Closing connection")
     async def close(self) -> None:
-        try:
-            if self.open_task:
-                self.open_task.cancel()
-            if self.reader_task:
-                self.reader_task.cancel()
+        async with self._semaphore:
+            if self.connected:
+                self._keeper.cancel()
+
+            self._keeper = None
+
             await self._close()
-        finally:
-            self.open_task = None
-            self.reader_task = None
-            self.reader = None

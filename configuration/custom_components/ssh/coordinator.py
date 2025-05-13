@@ -2,15 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import timedelta
-from time import time
 from typing import TYPE_CHECKING, Any
 
 from ssh_terminal_manager import (
-    CommandError,
+    AuthenticationError,
     CommandOutput,
+    ConnectError,
+    ExecutionError,
+    OfflineError,
     SensorCommand,
-    SSHAuthenticationError,
-    SSHHostKeyUnknownError,
+    SensorError,
     SSHManager,
 )
 
@@ -21,8 +22,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 if TYPE_CHECKING:
     from .entry_data import EntryData
 
-FAST_UPDATE_INTERVAL = 2
-FAST_UPDATE_MAXIMUM = 60
+FAST_UPDATE_INTERVAL = timedelta(seconds=1)
 
 
 class BaseCoordinator(DataUpdateCoordinator):
@@ -45,30 +45,28 @@ class BaseCoordinator(DataUpdateCoordinator):
         self.start()
 
     @property
-    def _coordinators(self) -> list[BaseCoordinator]:
+    def _entry_data(self) -> EntryData:
         entry = self.config_entry
-        entry_data: EntryData = self.hass.data[entry.domain][entry.entry_id]
-        return entry_data.coordinators
+        return self.hass.data[entry.domain][entry.entry_id]
 
-    def start(self):
+    def start(self) -> None:
         """Add listener to keep updating without entities."""
-        if not self._listeners:
+        if not self._remove_listener:
             self._remove_listener = self.async_add_listener(lambda: None)
 
-    def stop(self):
+    def stop(self) -> None:
         """Remove listener to stop updating."""
-        if self._listeners:
+        if self._remove_listener:
             self._remove_listener()
+            self._remove_listener = None
 
-    def stop_all(self) -> None:
-        """Stop all coordinators."""
-        for coordinator in self._coordinators:
-            coordinator.stop()
+    async def async_shutdown(self) -> None:
+        """Stop and shutdown."""
+        self.stop()
+        await super().async_shutdown()
 
 
 class StateCoordinator(BaseCoordinator):
-    _fast_update: tuple[float, Callable[[None], bool]] | None = None
-
     def __init__(
         self,
         hass: HomeAssistant,
@@ -85,58 +83,65 @@ class StateCoordinator(BaseCoordinator):
 
     async def _async_update_data(self) -> None:
         try:
-            await self._manager.async_update_state()
-        except (SSHAuthenticationError, SSHHostKeyUnknownError) as exc:
-            self.stop_all()
+            await self._manager.async_update(once=True, test=True)
+        except AuthenticationError as exc:
             raise ConfigEntryAuthFailed(exc) from exc
+        except (OfflineError, ConnectError, ExecutionError):
+            pass
         except Exception as exc:
             raise UpdateFailed(f"Exception updating {self.name}: {exc}") from exc
 
-        if self._fast_update is None:
-            return
-
-        start_time, complete = self._fast_update
-
-        if complete() or time() - start_time > FAST_UPDATE_MAXIMUM:
-            self._fast_update = None
+        if self._manager.state.request:
+            self.update_interval = FAST_UPDATE_INTERVAL
+        else:
             self.update_interval = self._regular_update_interval
 
-    async def _async_start_fast_update(self, complete: Callable[[None], bool]) -> None:
-        self._fast_update = time(), complete
-        self.update_interval = timedelta(seconds=FAST_UPDATE_INTERVAL)
+    async def async_turn_on(self) -> None:
+        """Turn on."""
+        try:
+            await self._manager.async_turn_on()
+        except ValueError as exc:
+            raise ServiceValidationError(exc) from exc
+
         await self.async_request_refresh()
 
-    async def async_turn_on(self) -> None:
-        """Turn on.
-
-        Start fast update until the device is up.
-        """
-        await self._async_start_fast_update(lambda: self._manager.is_up)
-        await self._manager.async_turn_on()
-
     async def async_turn_off(self) -> CommandOutput:
-        """Turn off.
+        """Turn off."""
+        try:
+            output = await self._manager.async_turn_off()
+        except (PermissionError, KeyError) as exc:
+            raise ServiceValidationError(exc) from exc
+        except AuthenticationError as exc:
+            raise ConfigEntryAuthFailed(exc) from exc
+        except (ConnectError, ExecutionError) as exc:
+            raise HomeAssistantError(exc) from exc
 
-        Start fast update until the device is down.
-        """
-        await self._async_start_fast_update(lambda: self._manager.is_down)
-        return await self._manager.async_turn_off()
+        await self.async_request_refresh()
+        return output
 
     async def async_restart(self) -> CommandOutput:
-        """Restart.
+        """Restart."""
+        try:
+            output = await self._manager.async_restart()
+        except KeyError as exc:
+            raise ServiceValidationError(exc) from exc
+        except AuthenticationError as exc:
+            raise ConfigEntryAuthFailed(exc) from exc
+        except (ConnectError, ExecutionError) as exc:
+            raise HomeAssistantError(exc) from exc
 
-        Start fast update until the device is down.
-        """
-        await self._async_start_fast_update(lambda: self._manager.is_down)
-        return await self._manager.async_restart()
+        await self.async_request_refresh()
+        return output
 
     async def async_set_sensor_value(self, key: str, value: Any) -> None:
         """Set sensor value."""
         try:
-            await self._manager.async_set_sensor_value(key, value, raise_errors=True)
-        except (TypeError, ValueError) as exc:
+            await self._manager.async_set_sensor_value(key, value)
+        except (KeyError, SensorError, TypeError, ValueError) as exc:
             raise ServiceValidationError(exc) from exc
-        except CommandError as exc:
+        except AuthenticationError as exc:
+            raise ConfigEntryAuthFailed(exc) from exc
+        except (ConnectError, ExecutionError) as exc:
             raise HomeAssistantError(exc) from exc
 
 
@@ -156,17 +161,13 @@ class SensorCommandCoordinator(BaseCoordinator):
         self._command = command
 
     async def _async_update_data(self) -> None:
-        if not self._manager.is_up:
+        if not self._manager.can_execute:
             return
         try:
             await self._manager.async_execute_command(self._command)
-        except CommandError as exc:
-            cause = exc.__cause__
-            if isinstance(cause, (SSHAuthenticationError, SSHHostKeyUnknownError)):
-                self.stop_all()
-                raise ConfigEntryAuthFailed(exc) from exc
-        except (SSHAuthenticationError, SSHHostKeyUnknownError) as exc:
-            self.stop_all()
+        except AuthenticationError as exc:
             raise ConfigEntryAuthFailed(exc) from exc
+        except (ConnectError, ExecutionError):
+            pass
         except Exception as exc:
             raise UpdateFailed(f"Exception updating {self.name}: {exc}") from exc

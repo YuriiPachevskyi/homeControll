@@ -27,18 +27,24 @@ class Coordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._counter = count(0, int(self._update_interval_seconds))
 
     async def async_shutdown(self) -> None:
-        _LOGGER.debug("async_shutdown")
         await super().async_shutdown()
-        await self.device.shutdown()
+        try:
+            await self.device.shutdown()
+        except Exception as e:
+            _LOGGER.exception(f"Unexpected error shutting down {self.name}")
 
     async def _async_setup(self) -> None:
-        _LOGGER.debug("_async_setup")
         await super()._async_setup()
-        await self.device.load()
+        try:
+            await self.device.setup()
+        except TimeoutError:
+            raise
+        except Exception as e:
+            raise UpdateFailed(strepr(e)) from e
 
     async def async_config_entry_first_refresh(self) -> None:
         await super().async_config_entry_first_refresh()
-        device_info = build_device_info(self.device.config.config_entry.entry_id, str(self.device.modbus.serial), self.device.endpoint.mac, self.device.endpoint.host, self.device.profile.info, self.name)
+        device_info = build_device_info(self.device.config.config_entry.entry_id, str(self.device.modbus.serial), self.device.endpoint.mac, self.device.endpoint.host, self.device.profile.info, self.device.config.name)
         self.device.device_info[self.device.config.config_entry.entry_id] = device_info
         _LOGGER.debug(device_info)
 
@@ -49,4 +55,4 @@ class Coordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._counter = count(0, int(self._update_interval_seconds))
             if isinstance(e, TimeoutError):
                 raise
-            raise UpdateFailed(e) from e
+            raise UpdateFailed(strepr(e)) from e

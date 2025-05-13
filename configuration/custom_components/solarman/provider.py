@@ -9,7 +9,6 @@ from propcache import cached_property
 from collections.abc import Awaitable, Callable
 from ipaddress import IPv4Address, AddressValueError
 
-from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 
@@ -26,10 +25,6 @@ class ConfigurationProvider:
     config_entry: ConfigEntry
 
     @cached_property
-    def _data(self):
-        return self.config_entry.data
-
-    @cached_property
     def _options(self):
         return self.config_entry.options
 
@@ -39,7 +34,7 @@ class ConfigurationProvider:
 
     @cached_property
     def name(self):
-        return protected(self._data.get(CONF_NAME), "Configuration parameter [name] does not have a value")
+        return protected(self.config_entry.title, "Configuration parameter [title] does not have a value")
 
     @cached_property
     def host(self):
@@ -68,30 +63,30 @@ class ConfigurationProvider:
 @dataclass
 class EndPointProvider:
     config: ConfigurationProvider
-    mac: str = ""
-    serial: int = 0
+    mac = ""
+    serial = 0
 
     def __getattr__(self, attr: str) -> Any:
         return getattr(self.config, attr)
 
     @cached_property
-    def address(self):
-        return self.host
+    def host(self):
+        return self.config.host
 
     @cached_property
     def connection(self):
-        return self.address, self.port, self.transport, self.serial, self.mb_slave_id, TIMINGS_TIMEOUT
+        return self.host, self.port, self.transport, self.serial, self.mb_slave_id, TIMINGS_INTERVAL
 
     @cached_property
-    def ipaddress(self):
+    def ip(self):
         try:
             return IPv4Address(self.host)
         except AddressValueError:
             return IPv4Address(socket.gethostbyname(self.host))    
 
-    async def discover(self, ping_only = False):
-        if self.ipaddress.is_private and (discover := await Discovery(self.hass, self.address).discover(ping_only)):
-            if (device := discover.get((s := next(iter([k for k, v in discover.items() if v["ip"] == str(self.ipaddress)]), None)))) is not None:
+    async def discover(self):
+        if self.ip.is_private and (discover := await Discovery(self.hass).discover(str(self.ip))):
+            if (device := discover.get((s := next(iter([k for k, v in discover.items() if v["ip"] == str(self.ip)]), None)))) is not None:
                 self.host = device["ip"]
                 self.mac = device["mac"]
                 self.serial = s
@@ -101,8 +96,8 @@ class EndPointProvider:
 class ProfileProvider:
     config: ConfigurationProvider
     endpoint: EndPointProvider
-    parser: ParameterParser = None
-    info: dict[str, str] = None
+    parser: ParameterParser | None = None
+    info: dict[str, str] | None = None
 
     def __getattr__(self, attr: str) -> Any:
         return getattr(self.config, attr)
@@ -112,11 +107,11 @@ class ProfileProvider:
         return not self.filename or self.filename in AUTODETECTION_REDIRECT
 
     @cached_property
-    def attributes(self) -> str:
-        return {ATTR_[k]: int(self._additional_options.get(k, DEFAULT_[k])) for k in ATTR_}
+    def parameters(self) -> str:
+        return {PARAM_[k]: int(self._additional_options.get(k, DEFAULT_[k])) for k in PARAM_}
 
     async def resolve(self, request: Callable[[], Awaitable[None]] | None = None):
         _LOGGER.debug(f"Device autodetection is {"enabled" if self.auto and request else f"disabled. Selected profile: {self.filename}"}")
-        if (f := await lookup_profile(request, self.attributes) if self.auto and request else self.filename) and f != DEFAULT_[CONF_LOOKUP_FILE] and (n := process_profile(f)) and (p := await yaml_open(self.config.directory + n)):
-            self.parser = ParameterParser(p, self.attributes)
-            self.info = (unwrap(p["info"], "model", self.attributes[ATTR_[CONF_MOD]]) if "info" in p else {}) | {"filename": f}
+        if (f := await lookup_profile(request, self.parameters) if self.auto and request else self.filename) and f != DEFAULT_[CONF_LOOKUP_FILE] and (n := process_profile(f, self.parameters)) and (p := await yaml_open(self.config.directory + n)):
+            self.parser = ParameterParser(p, self.parameters)
+            self.info = (unwrap(p["info"], "model", self.parameters[PARAM_[CONF_MOD]]) if "info" in p else {}) | {"filename": f}

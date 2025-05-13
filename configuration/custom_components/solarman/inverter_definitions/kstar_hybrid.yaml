@@ -74,7 +74,6 @@ parameters:
         uom: "W"
         rule: 1
         digits: 0
-        registers: [3024, 3025]
         sensors:
           - signed:
             registers: [3024]
@@ -141,6 +140,8 @@ parameters:
         icon: "mdi:solar-power"
         validation:
           min: 0.1
+          dev: 100
+          invalidate_all: 2
 
   - group: Power Grid
     items:
@@ -549,7 +550,6 @@ parameters:
         rule: 1
         digits: 1
         scale: 0.1
-        registers: [3109, 3036, 3294, 3116, 3147, 3301]
         uint: enforce
         sensors:
           - registers: [3109]
@@ -572,21 +572,6 @@ parameters:
         rule: 3
         digits: 1
         scale: 0.1
-        registers:
-          [
-            3115,
-            3114,
-            3042,
-            3041,
-            3293,
-            3292,
-            3122,
-            3121,
-            3153,
-            3152,
-            3300,
-            3299,
-          ]
         uint: enforce
         sensors:
           - registers: [3115, 3114]
@@ -1029,7 +1014,6 @@ parameters:
         state_class: "measurement"
         uom: "W"
         rule: 2
-        registers: [3100, 3104, 3108]
         sensors:
           - signed:
             registers: [3100]
@@ -1152,7 +1136,6 @@ parameters:
         state_class: "measurement"
         uom: "W"
         rule: 2
-        registers: [3126, 3130, 3134]
         sensors:
           - signed:
             registers: [3126]
@@ -1168,7 +1151,6 @@ parameters:
         uom: "W"
         rule: 1
         digits: 0
-        registers: [3024, 3025, 3065, 3126, 3130, 3134]
         uint: enforce
         sensors:
           - signed:
@@ -1283,7 +1265,6 @@ parameters:
         state_class: "measurement"
         uom: "W"
         rule: 1
-        registers: [3137, 3140, 3143]
         sensors:
           - registers: [3137]
           - registers: [3140]
@@ -1320,7 +1301,6 @@ parameters:
         state_class: "measurement"
         uom: "W"
         rule: 1
-        registers: [3144, 3145, 3146]
         sensors:
           - registers: [3144]
           - registers: [3145]

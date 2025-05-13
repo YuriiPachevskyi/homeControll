@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .base_entity import BaseActionEntity, BaseEntity
+from .const import CONF_POWER_BUTTON
 from .entry_data import EntryData
 
 
@@ -21,12 +22,11 @@ async def async_setup_entry(
     """Set up the button platform."""
     entry_data: EntryData = hass.data[entry.domain][entry.entry_id]
     entities = await async_get_entities(hass, entry_data)
-    async_add_entities(
-        [
-            *entities,
-            PowerEntity(entry_data),
-        ]
-    )
+
+    if entry.options[CONF_POWER_BUTTON]:
+        entities.append(PowerEntity(entry_data))
+
+    async_add_entities(entities)
 
 
 async def async_get_entities(
@@ -53,8 +53,8 @@ class Entity(BaseActionEntity, ButtonEntity):
     async def async_press(self) -> None:
         if self.key == ActionKey.RESTART:
             await self.coordinator.async_restart()
-            return
-        await self._manager.async_run_action(self.key)
+        else:
+            await self._manager.async_run_action(self.key)
 
 
 class PowerEntity(BaseEntity, ButtonEntity):
@@ -67,19 +67,10 @@ class PowerEntity(BaseEntity, ButtonEntity):
 
     @property
     def available(self) -> bool:
-        if self._manager.is_down:
-            return True
-        if (
-            self._manager.is_up
-            and self._manager.allow_turn_off
-            and ActionKey.TURN_OFF in self._manager.action_commands_by_key
-        ):
-            return True
-        return False
+        return self._manager.can_turn_on or self._manager.can_turn_off
 
     async def async_press(self) -> None:
-        if self._manager.is_down:
+        if not self._manager.state.online:
             await self.coordinator.async_turn_on()
-
-        elif self._manager.is_up:
+        else:
             await self.coordinator.async_turn_off()

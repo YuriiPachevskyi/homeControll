@@ -33,6 +33,21 @@ def get_value_renderer(hass: HomeAssistant, value_template: str) -> Callable:
 def get_device_info(manager: SSHManager) -> dict:
     convert = InformationConverter().convert
 
+    def get_total_memory() -> str | None:
+        sensor = manager.sensors_by_key.get(SensorKey.TOTAL_MEMORY)
+
+        if not (sensor and sensor.last_known_value and sensor.unit):
+            return None
+
+        unit = "GB"
+        value = convert(sensor.last_known_value, sensor.unit, unit)
+
+        if value < 1:
+            unit = "MB"
+            value = convert(sensor.last_known_value, sensor.unit, unit)
+
+        return f"{round(value)} {unit} RAM"
+
     def get_hw_version() -> str | None:
         machine_type = manager.machine_type
         cpu_cores = manager.cpu_cores
@@ -44,21 +59,18 @@ def get_device_info(manager: SSHManager) -> dict:
             if cpu_cores
             else cpu_name
         )
-        total_memory = (
-            f"{round(convert(sensor.last_known_value, sensor.unit, 'GB'))} GB RAM"
-            if (sensor := manager.sensors_by_key.get(SensorKey.TOTAL_MEMORY))
-            and sensor.last_known_value
-            and sensor.unit
-            else None
-        )
+        total_memory = get_total_memory()
         items = [item for item in (cpu_info, machine_type, total_memory) if item]
         return ", ".join(items) if items else None
 
     def get_sw_version() -> str | None:
         os_name = manager.os_name
         os_version = manager.os_version
+        os_release = manager.os_release
         return (
-            f"{os_name} {os_version}"
+            os_release
+            if os_release
+            else f"{os_name} {os_version}"
             if os_name and os_version
             else os_name or os_version
         )

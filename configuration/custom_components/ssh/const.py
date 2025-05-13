@@ -4,6 +4,7 @@ DOMAIN = "ssh"
 
 DEFAULT_HOST_KEYS_FILENAME = "known_hosts"
 DEFAULT_UPDATE_INTERVAL = 30
+DEFAULT_POWER_BUTTON = False
 
 CONF_ACTION_COMMANDS = "action_commands"
 CONF_ADD_HOST_KEYS = "add_host_keys"
@@ -23,6 +24,7 @@ CONF_LATEST = "latest"
 CONF_LOAD_SYSTEM_HOST_KEYS = "load_system_host_keys"
 CONF_OPTIONS = "options"
 CONF_PATTERN = "pattern"
+CONF_POWER_BUTTON = "power_button"
 CONF_REMOVE_CUSTOM_COMMANDS = "remove_custom_commands"
 CONF_RESET_COMMANDS = "reset_commands"
 CONF_RESET_DEFAULT_COMMANDS = "reset_default_commands"
@@ -35,10 +37,12 @@ CONF_TIMEOUT_OFF = "timeout_off"
 CONF_TIMEOUT_ON = "timeout_on"
 CONF_TIMEOUT_SET = "timeout_set"
 CONF_UPDATE_INTERVAL = "update_interval"
+CONF_VALUES = "values"
 
 SERVICE_EXECUTE_COMMAND = "execute_command"
 SERVICE_POLL_SENSOR = "poll_sensor"
 SERVICE_RESTART = "restart"
 SERVICE_RUN_ACTION = "run_action"
+SERVICE_SET_VALUE = "set_value"
 SERVICE_TURN_OFF = "turn_off"
 SERVICE_TURN_ON = "turn_on"

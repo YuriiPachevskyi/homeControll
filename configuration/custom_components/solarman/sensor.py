@@ -48,14 +48,9 @@ def _create_entity(coordinator, description, options):
 async def async_setup_entry(_: HomeAssistant, config_entry: SolarmanConfigEntry, async_add_entities: AddEntitiesCallback) -> bool:
     _LOGGER.debug(f"async_setup_entry: {config_entry.options}")
 
-    coordinator = config_entry.runtime_data
-    descriptions = coordinator.device.profile.parser.get_entity_descriptions(_PLATFORM)
+    async_add_entities(create_entity(lambda x: _create_entity(config_entry.runtime_data, x, config_entry.options), d) for d in postprocess_descriptions(config_entry.runtime_data, _PLATFORM))
 
-    _LOGGER.debug(f"async_setup_entry: async_add_entities: {descriptions}")
-
-    async_add_entities(create_entity(lambda x: _create_entity(coordinator, x, config_entry.options), d) for d in descriptions)
-
-    async_add_entities([create_entity(lambda _: SolarmanIntervalSensor(coordinator), None)])
+    async_add_entities([create_entity(lambda _: SolarmanIntervalSensor(config_entry.runtime_data), None)])
 
     return True
 
@@ -77,10 +72,11 @@ class SolarmanIntervalSensor(SolarmanSensorEntity):
         self._attr_native_unit_of_measurement = "s"
         self._attr_state_class = "duration"
         self._attr_icon = "mdi:update"
+        self._attr_native_value = 0
 
     @property
     def available(self) -> bool:
-        return self._attr_native_value > 0
+        return self._attr_native_value is not None
 
     def update(self):
         self.set_state(self.coordinator.device.state.updated_interval.total_seconds())
