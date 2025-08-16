@@ -1,0 +1,306 @@
+- switch:
+    name: "1320 Child bedroom main 1"
+    state_topic: "home/status/main/1320"
+    command_topic: "home/main/1320"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1321 Child bedroot main 2"
+    state_topic: "home/status/main/1321"
+    command_topic: "home/main/1321"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1322 Bathroom mirror 1"
+    state_topic: "home/status/main/1322"
+    command_topic: "home/main/1322"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1323 Bathroom mirror 2"
+    state_topic: "home/status/main/1323"
+    command_topic: "home/main/1323"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1324 Toilet main light"
+    state_topic: "home/status/main/1324"
+    command_topic: "home/main/1324"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1325 Bathroom main light"  
+    state_topic: "home/status/main/1325"
+    command_topic: "home/main/1325"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"       
+    state_off: "OFF"       
+
+- switch:
+    name: "1326 Coridor light 2"
+    state_topic: "home/status/main/1326"
+    command_topic: "home/main/1326"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1327 Coridor light 1"
+    state_topic: "home/status/main/1327"
+    command_topic: "home/main/1327"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1330 Empty switch:"
+    state_topic: "home/status/main/1330"
+    command_topic: "home/main/1330"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1331 Bedroom working place light"
+    state_topic: "home/status/main/1331"
+    command_topic: "home/main/1331"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1332 Bedroom sleep zone 1"
+    state_topic: "home/status/main/1332"
+    command_topic: "home/main/1332"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1333 Bedroom sleep zone 2"
+    state_topic: "home/status/main/1333"
+    command_topic: "home/main/1333"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1334 Bedroom main light 1"
+    state_topic: "home/status/main/1334"
+    command_topic: "home/main/1334"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1335 Bedroom main light 2"
+    state_topic: "home/status/main/1335"
+    command_topic: "home/main/1335"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"       
+    state_off: "OFF"       
+
+- switch:
+    name: "1336 Bedroom balcony working place"
+    state_topic: "home/status/main/1336"
+    command_topic: "home/main/1336"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1337 Bedroom balcony main"
+    state_topic: "home/status/main/1337"
+    command_topic: "home/main/1337"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1341 Toilet ventus"
+    state_topic: "home/status/main/1341"
+    command_topic: "home/main/1341"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1342 Larder light"
+    state_topic: "home/status/main/1342"
+    command_topic: "home/main/1342"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1343 Empty switch:"
+    state_topic: "home/status/main/1343"
+    command_topic: "home/main/1343"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1344 Waves power supply"
+    state_topic: "home/status/main/1344"
+    command_topic: "home/main/1344"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1345 Wave 1"
+    state_topic: "home/status/main/1345"
+    command_topic: "home/main/1345"
+    payload_on: "ON"
+    payload_off: "OFF"     
+    state_on: "ON"       
+    state_off: "OFF"       
+
+- switch:
+    name: "1346 Wave 2"
+    state_topic: "home/status/main/1346"
+    command_topic: "home/main/1346"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1347 Wave 3"
+    state_topic: "home/status/main/1347"
+    command_topic: "home/main/1347"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1381 Kitchen zone 2"
+    state_topic: "home/status/main/1381"
+    command_topic: "home/main/1381"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1382 Empty for kitchen light"
+    state_topic: "home/status/main/1382"
+    command_topic: "home/main/1382"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1383 Toilet mirror"
+    state_topic: "home/status/main/1383"
+    command_topic: "home/main/1383"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1610 Kitchen main1"
+    state_topic: "home/status/main/1610"
+    command_topic: "home/main/1610"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1611 Children balcony main"
+    state_topic: "home/status/main/1611"
+    command_topic: "home/main/1611"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1612 Children balcony work place"
+    state_topic: "home/status/main/1612"
+    command_topic: "home/main/1612"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1613 Kitchen zone 1"
+    state_topic: "home/status/main/1613"
+    command_topic: "home/main/1613"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1614 Kitchen main 2"
+    state_topic: "home/status/main/1614"
+    command_topic: "home/main/1614"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1615 Kitchen work place"
+    state_topic: "home/status/main/1615"
+    command_topic: "home/main/1615"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1616 Kitchen ventus"
+    state_topic: "home/status/main/1616"
+    command_topic: "home/main/1616"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+
+- switch:
+    name: "1617 Children light"
+    state_topic: "home/status/main/1617"
+    command_topic: "home/main/1617"
+    payload_on: "ON"
+    payload_off: "OFF"
+    state_on: "ON"
+    state_off: "OFF"
+

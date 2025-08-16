@@ -20,7 +20,7 @@ class I2CInputDevice:
 class I2CController:
 
     def __init__(self):
-        self.busArray = [None, None, smbus2.SMBus(2)]
+        self.busArray = [None, smbus2.SMBus(1)]
 
 class I2CWriteController(I2CController):
 
@@ -28,14 +28,17 @@ class I2CWriteController(I2CController):
         I2CController.__init__(self)
 
     def set_enabled(self, i2cDevice, register, pin):
+        print("set_enabled: i2cDevice: ", i2cDevice, " register: ", register, " pin: ", pin)
         value = self.busArray[i2cDevice].read_byte(register) & ~(1 << pin)
         self.busArray[i2cDevice].write_byte(register, value)
 
     def set_disabled(self, i2cDevice, register, pin):
+        print("set_disabled: i2cDevice: ", i2cDevice, " register: ", register, " pin: ", pin)
         value = self.busArray[i2cDevice].read_byte(register) | (1 << pin)
         self.busArray[i2cDevice].write_byte(register, value)
 
     def trigger_value(self, i2cDevice, register, pin):
+        print("trigger_value: i2cDevice: ", i2cDevice, " register: ", register, " pin: ", pin)
         value = self.busArray[i2cDevice].read_byte(register) ^ (1 << pin)
         self.busArray[i2cDevice].write_byte(register, value)
         return value & (1 << pin)
@@ -85,6 +88,7 @@ class I2CReadController(I2CController):
                     pinsState = self.busArray[i2cDevice].read_byte(i2cRegister)
                 except:
                     print("Failed to read  i2cRegister: " + str(i2cRegister))
+                    print("Failed to read  i2cDevice: " + str(i2cDevice))
                     continue
                 modifiedPins = self.is_input_state_changed(self.inputDict[key], pinsState)
 
