@@ -2,36 +2,21 @@
 
 from collections.abc import Callable
 from string import digits, hexdigits
-from typing import Final, NamedTuple
+from typing import Any, Final, NamedTuple
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from bleak.uuids import normalize_uuid_str
 
-from custom_components.bms_ble.const import (
-    ATTR_BATTERY_CHARGING,
-    ATTR_BATTERY_LEVEL,
-    ATTR_CURRENT,
-    ATTR_CYCLE_CAP,
-    ATTR_CYCLE_CHRG,
-    ATTR_CYCLES,
-    ATTR_DELTA_VOLTAGE,
-    ATTR_POWER,
-    ATTR_RUNTIME,
-    ATTR_TEMPERATURE,
-    ATTR_VOLTAGE,
-    KEY_CELL_VOLTAGE,
-)
-
-from .basebms import BaseBMS, BMSsample
+from .basebms import BaseBMS, BMSsample, BMSvalue, MatcherPattern
 
 
 class BMS(BaseBMS):
     """Offgridtec LiFePO4 Smart Pro type A and type B BMS implementation."""
 
-    IDX_NAME: Final = 0
-    IDX_LEN: Final = 1
-    IDX_FCT: Final = 2
+    _IDX_NAME: Final = 0
+    _IDX_LEN: Final = 1
+    _IDX_FCT: Final = 2
     # magic crypt sequence of length 16
     _CRYPT_SEQ: Final[list[int]] = [2, 5, 4, 3, 1, 4, 1, 6, 8, 3, 7, 2, 5, 8, 9, 3]
 
@@ -40,9 +25,9 @@ class BMS(BaseBMS):
         reg: int
         value: int
 
-    def __init__(self, ble_device: BLEDevice, reconnect: bool = False) -> None:
+    def __init__(self, ble_device: BLEDevice, keep_alive: bool = True) -> None:
         """Intialize private BMS members."""
-        super().__init__(__name__, ble_device, reconnect)
+        super().__init__(ble_device, keep_alive)
         self._type: str = (
             self.name[9]
             if len(self.name) >= 10 and set(self.name[10:]).issubset(digits)
@@ -60,34 +45,35 @@ class BMS(BaseBMS):
             self.name[10:],
             self._key,
         )
+        self._exp_reply: int = 0x0
         self._response: BMS._Response = BMS._Response(False, 0, 0)
-        self._REGISTERS: dict[int, tuple[str, int, Callable[[int], int | float]]]
+        self._REGISTERS: dict[int, tuple[BMSvalue, int, Callable[[int], Any]]]
         if self._type == "A":
             self._REGISTERS = {
                 # SOC (State of Charge)
-                2: (ATTR_BATTERY_LEVEL, 1, lambda x: x),
-                4: (ATTR_CYCLE_CHRG, 3, lambda x: float(x) / 1000),
-                8: (ATTR_VOLTAGE, 2, lambda x: float(x) / 1000),
+                2: ("battery_level", 1, lambda x: x),
+                4: ("cycle_charge", 3, lambda x: x / 1000),
+                8: ("voltage", 2, lambda x: x / 1000),
                 # MOS temperature
-                12: (ATTR_TEMPERATURE, 2, lambda x: round(float(x) * 0.1 - 273.15, 1)),
+                12: ("temperature", 2, lambda x: round(x * 0.1 - 273.15, 1)),
                 # 3rd byte of current is 0 (should be 1 as for B version)
-                16: (ATTR_CURRENT, 3, lambda x: float(x) / 100),
-                24: (ATTR_RUNTIME, 2, lambda x: int(x * 60)),
-                44: (ATTR_CYCLES, 2, lambda x: x),
+                16: ("current", 3, lambda x: x / 100),
+                24: ("runtime", 2, lambda x: x * 60),
+                44: ("cycles", 2, lambda x: x),
                 # Type A batteries have no cell voltage registers
             }
             self._HEADER = "+RAA"
         elif self._type == "B":
             self._REGISTERS = {
                 # MOS temperature
-                8: (ATTR_TEMPERATURE, 2, lambda x: round(float(x) * 0.1 - 273.15, 1)),
-                9: (ATTR_VOLTAGE, 2, lambda x: float(x) / 1000),
-                10: (ATTR_CURRENT, 3, lambda x: float(x) / 1000),
+                8: ("temperature", 2, lambda x: round(x * 0.1 - 273.15, 1)),
+                9: ("voltage", 2, lambda x: x / 1000),
+                10: ("current", 3, lambda x: x / 1000),
                 # SOC (State of Charge)
-                13: (ATTR_BATTERY_LEVEL, 1, lambda x: x),
-                15: (ATTR_CYCLE_CHRG, 3, lambda x: float(x) / 1000),
-                18: (ATTR_RUNTIME, 2, lambda x: int(x * 60)),
-                23: (ATTR_CYCLES, 2, lambda x: x),
+                13: ("battery_level", 1, lambda x: x),
+                15: ("cycle_charge", 3, lambda x: x / 1000),
+                18: ("runtime", 2, lambda x: x * 60),
+                23: ("cycles", 2, lambda x: x),
             }
             # add cell voltage registers, note: need to be last!
             self._HEADER = "+R16"
@@ -96,7 +82,7 @@ class BMS(BaseBMS):
             self._log.exception("unkown device type '%c'", self._type)
 
     @staticmethod
-    def matcher_dict_list() -> list[dict]:
+    def matcher_dict_list() -> list[MatcherPattern]:
         """Return a list of Bluetooth matchers."""
         return [
             {
@@ -127,9 +113,9 @@ class BMS(BaseBMS):
         return "fff6"
 
     @staticmethod
-    def _calc_values() -> frozenset[str]:
+    def _calc_values() -> frozenset[BMSvalue]:
         return frozenset(
-            {ATTR_CYCLE_CAP, ATTR_POWER, ATTR_BATTERY_CHARGING, ATTR_DELTA_VOLTAGE}
+            {"cycle_capacity", "power", "battery_charging", "delta_voltage"}
         )
 
     def _notification_handler(
@@ -144,6 +130,11 @@ class BMS(BaseBMS):
             self._log.debug("response data is invalid")
             return
 
+        if self._response.reg not in (-1, self._exp_reply):
+            self._log.debug("wrong register response")
+            return
+
+        self._exp_reply = -1
         self._data_event.set()
 
     def _ogt_response(self, resp: bytearray) -> _Response:
@@ -186,34 +177,37 @@ class BMS(BaseBMS):
         result: BMSsample = {}
 
         for reg in list(self._REGISTERS):
+            self._exp_reply = reg
             await self._await_reply(
-                data=self._ogt_command(reg, self._REGISTERS[reg][BMS.IDX_LEN])
+                data=self._ogt_command(reg, self._REGISTERS[reg][BMS._IDX_LEN])
             )
             if self._response.reg < 0:
                 raise TimeoutError
 
             name, _length, func = self._REGISTERS[self._response.reg]
-            value: int | float = func(self._response.value)
+            result[name] = func(self._response.value)
             self._log.debug(
                 "decoded data: reg: %s (#%i), raw: %i, value: %f",
                 name,
                 reg,
                 self._response.value,
-                value,
+                result.get(name),
             )
-            result[name] = value
 
         # read cell voltages for type B battery
         if self._type == "B":
             for cell_reg in range(16):
+                self._exp_reply = 63 - cell_reg
                 await self._await_reply(data=self._ogt_command(63 - cell_reg, 2))
                 if self._response.reg < 0:
                     self._log.debug("cell count: %i", cell_reg)
                     break
-                result[f"{KEY_CELL_VOLTAGE}{cell_reg}"] = self._response.value / 1000
+                result.setdefault("cell_voltages", []).append(
+                    self._response.value / 1000
+                )
 
         # remove remaining runtime if battery is charging
-        if result.get(ATTR_RUNTIME) == 0xFFFF * 60:
-            del result[ATTR_RUNTIME]
+        if result.get("runtime") == 0xFFFF * 60:
+            del result["runtime"]
 
         return result

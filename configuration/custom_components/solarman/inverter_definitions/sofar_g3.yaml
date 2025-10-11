@@ -281,6 +281,8 @@ parameters:
         class: "power"
         state_class: "measurement"
         uom: "W"
+        # Reverse the original value to match standard behavior like the other inverters
+        #scale: -10
         scale: 10
         rule: 2
         registers: [0x0606]
@@ -314,7 +316,8 @@ parameters:
         scale: 10
         uint: enforce
         sensors:
-          - signed:
+          - operator: subtract
+            signed:
             registers: [0x0606]
           - registers: [0x0586]
           - registers: [0x0589]
@@ -326,6 +329,8 @@ parameters:
         class: "power"
         state_class: "measurement"
         uom: "W"
+        # Reverse the original value to match standard behavior like the other inverters
+        #scale: -10
         scale: 10
         rule: 2
         registers: [0x0488]
@@ -452,6 +457,9 @@ parameters:
         rule: 3
         registers: [0x0685, 0x0684]
         icon: "mdi:solar-power"
+        validation:
+          dev: 100
+          invalidate_all:
 
       - name: "Total Production"
         class: "energy"
@@ -687,6 +695,8 @@ parameters:
             value: "Off-Grid"
           - key: 6
             value: "Generator"
+          - key: 7
+            value: "Export Priority"
 
       - name: "Passive: Grid power"
         pack: 1

@@ -12,6 +12,9 @@ from homeassistant.const import (  # noqa: F401  # pylint: disable=unused-import
 
 BMS_TYPES: Final[list[str]] = [
     "abc_bms",
+    "ant_bms",
+    "ant_leg_bms",
+    "braunpwr_bms",
     "cbtpwr_bms",
     "cbtpwr_vb_bms",
     "daly_bms",
@@ -20,15 +23,19 @@ BMS_TYPES: Final[list[str]] = [
     "ej_bms",
     "jbd_bms",
     "jikong_bms",
+    "neey_bms",  # active balancer
     "ogt_bms",
+    "pro_bms",
     "redodo_bms",
     "renogy_bms",
+    "renogy_pro_bms",
     "seplos_bms",
     "seplos_v2_bms",
     "roypow_bms",
     "tdt_bms",
-    "dpwrcore_bms",  # only name filter
+    "dpwrcore_bms",  # **vvv** only name filter **vvv**
     "felicity_bms",
+    "tianpwr_bms",
 ]  # available BMS types
 DOMAIN: Final[str] = "bms_ble"
 LOGGER: Final[logging.Logger] = logging.getLogger(__package__)
@@ -45,16 +52,7 @@ ATTR_DELTA_VOLTAGE: Final[str] = "delta_voltage"  # [V]
 ATTR_LQ: Final[str] = "link_quality"  # [%]
 ATTR_POWER: Final[str] = "power"  # [W]
 ATTR_PROBLEM: Final[str] = "problem"  # [bool]
+ATTR_PROBLEM_CODE: Final[str] = "problem_code"  # [int]
 ATTR_RSSI: Final[str] = "rssi"  # [dBm]
 ATTR_RUNTIME: Final[str] = "runtime"  # [s]
 ATTR_TEMP_SENSORS: Final[str] = "temperature_sensors"  # [°C]
-
-# temporary dictionary keys (do not change)
-KEY_CELL_COUNT: Final[str] = "cell_count"  # [#]
-KEY_CELL_VOLTAGE: Final[str] = "cell#"  # [V]
-KEY_DESIGN_CAP: Final[str] = "design_capacity"  # [Ah]
-KEY_PACK: Final[str] = "pack"  # prefix for pack sensors
-KEY_PACK_COUNT: Final[str] = "pack_count"  # [#]
-KEY_PROBLEM: Final[str] = "problem_code"  # [#]
-KEY_TEMP_SENS: Final[str] = "temp_sensors"  # [#]
-KEY_TEMP_VALUE: Final[str] = "temp#"  # [°C]

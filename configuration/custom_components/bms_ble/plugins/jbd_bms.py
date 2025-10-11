@@ -1,31 +1,12 @@
 """Module to support JBD Smart BMS."""
 
-from collections.abc import Callable
 from typing import Final
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 from bleak.uuids import normalize_uuid_str
 
-from custom_components.bms_ble.const import (
-    ATTR_BATTERY_CHARGING,
-    ATTR_BATTERY_LEVEL,
-    ATTR_CURRENT,
-    ATTR_CYCLE_CAP,
-    ATTR_CYCLE_CHRG,
-    ATTR_CYCLES,
-    ATTR_DELTA_VOLTAGE,
-    ATTR_POWER,
-    ATTR_RUNTIME,
-    ATTR_TEMPERATURE,
-    ATTR_VOLTAGE,
-    KEY_CELL_VOLTAGE,
-    KEY_PROBLEM,
-    KEY_TEMP_SENS,
-    KEY_TEMP_VALUE,
-)
-
-from .basebms import BaseBMS, BMSsample
+from .basebms import BaseBMS, BMSdp, BMSsample, BMSvalue, MatcherPattern
 
 
 class BMS(BaseBMS):
@@ -36,30 +17,31 @@ class BMS(BaseBMS):
     TAIL: Final[int] = 0x77  # tail for command
     INFO_LEN: Final[int] = 7  # minimum frame size
     BASIC_INFO: Final[int] = 23  # basic info data length
-    _FIELDS: Final[list[tuple[str, int, int, bool, Callable[[int], int | float]]]] = [
-        (KEY_TEMP_SENS, 26, 1, False, lambda x: x),  # count is not limited
-        (ATTR_VOLTAGE, 4, 2, False, lambda x: float(x / 100)),
-        (ATTR_CURRENT, 6, 2, True, lambda x: float(x / 100)),
-        (ATTR_BATTERY_LEVEL, 23, 1, False, lambda x: x),
-        (ATTR_CYCLE_CHRG, 8, 2, False, lambda x: float(x / 100)),
-        (ATTR_CYCLES, 12, 2, False, lambda x: x),
-        (KEY_PROBLEM, 20, 2, False, lambda x: x),
-    ]  # general protocol v4
+    _FIELDS: Final[tuple[BMSdp, ...]] = (
+        BMSdp("temp_sensors", 26, 1, False, lambda x: x),  # count is not limited
+        BMSdp("voltage", 4, 2, False, lambda x: x / 100),
+        BMSdp("current", 6, 2, True, lambda x: x / 100),
+        BMSdp("battery_level", 23, 1, False, lambda x: x),
+        BMSdp("cycle_charge", 8, 2, False, lambda x: x / 100),
+        BMSdp("cycles", 12, 2, False, lambda x: x),
+        BMSdp("problem_code", 20, 2, False, lambda x: x),
+    )  # general protocol v4
 
-    def __init__(self, ble_device: BLEDevice, reconnect: bool = False) -> None:
+    def __init__(self, ble_device: BLEDevice, keep_alive: bool = True) -> None:
         """Intialize private BMS members."""
-        super().__init__(__name__, ble_device, reconnect)
+        super().__init__(ble_device, keep_alive)
+        self._valid_reply: int = 0x00
         self._data_final: bytearray = bytearray()
 
     @staticmethod
-    def matcher_dict_list() -> list[dict]:
+    def matcher_dict_list() -> list[MatcherPattern]:
         """Provide BluetoothMatcher definition."""
         return [
-            {
-                "local_name": pattern,
-                "service_uuid": BMS.uuid_services()[0],
-                "connectable": True,
-            }
+            MatcherPattern(
+                local_name=pattern,
+                service_uuid=BMS.uuid_services()[0],
+                connectable=True,
+            )
             for pattern in (
                 "JBD-*",
                 "SP0?S*",
@@ -73,19 +55,26 @@ class BMS(BaseBMS):
                 "121?0*",  # Eleksol, Ultimatron
                 "12200*",
                 "12300*",
+                "SBL-*",  # SBL
                 "LT40AH",  # LionTron
                 "PKT*",  # Perfektium
                 "gokwh*",
                 "OGR-*",  # OGRPHY
+                "DWC*",  # Vatrer
+                "DXD*",  # Vatrer
+                "xiaoxiang*",  # xiaoxiang BMS
+                "AL12-*",  # Aolithium
+                "BS20*",  # BasenGreen
+                "BT  LP*",  # LANPWR
             )
         ] + [
-            {
-                "service_uuid": BMS.uuid_services()[0],
-                "manufacturer_id": m_id,
-                "connectable": True,
-            }
-            for m_id in (0x7B, 0x3E70, 0xC1A4)
-            # SBL, LISMART1240LX/LISMART1255LX,
+            MatcherPattern(
+                service_uuid=BMS.uuid_services()[0],
+                manufacturer_id=m_id,
+                connectable=True,
+            )
+            for m_id in (0x0211, 0x3E70, 0xC1A4)
+            # Liontron, LISMART1240LX/LISMART1255LX,
             # LionTron XL19110253 / EPOCH batteries 12.8V 460Ah - 12460A-H
         ]
 
@@ -110,15 +99,15 @@ class BMS(BaseBMS):
         return "ff02"
 
     @staticmethod
-    def _calc_values() -> frozenset[str]:
+    def _calc_values() -> frozenset[BMSvalue]:
         return frozenset(
             {
-                ATTR_POWER,
-                ATTR_BATTERY_CHARGING,
-                ATTR_CYCLE_CAP,
-                ATTR_RUNTIME,
-                ATTR_DELTA_VOLTAGE,
-                ATTR_TEMPERATURE,
+                "power",
+                "battery_charging",
+                "cycle_capacity",
+                "runtime",
+                "delta_voltage",
+                "temperature",
             }
         )
 
@@ -166,6 +155,10 @@ class BMS(BaseBMS):
         if len(self._data) != BMS.INFO_LEN + self._data[3]:
             self._log.debug("wrong data length (%i): %s", len(self._data), self._data)
 
+        if self._data[1] != self._valid_reply:
+            self._log.debug("unexpected response (type 0x%X)", self._data[1])
+            return
+
         self._data_final = self._data
         self._data_event.set()
 
@@ -181,46 +174,29 @@ class BMS(BaseBMS):
         frame.extend([*BMS._crc(frame[2:4]).to_bytes(2, "big"), BMS.TAIL])
         return bytes(frame)
 
-    @staticmethod
-    def _decode_data(data: bytearray) -> BMSsample:
-        result: BMSsample = {
-            key: func(
-                int.from_bytes(data[idx : idx + size], byteorder="big", signed=sign)
-            )
-            for key, idx, size, sign, func in BMS._FIELDS
-        }
-
-        # calculate average temperature
-        result |= {
-            f"{KEY_TEMP_VALUE}{(idx-27)>>1}": (
-                (int.from_bytes(data[idx : idx + 2], byteorder="big") - 2731) / 10
-            )
-            for idx in range(27, 27 + int(result[KEY_TEMP_SENS]) * 2, 2)
-        }
-
-        return result
-
-    @staticmethod
-    def _cell_voltages(data: bytearray) -> dict[str, float]:
-        return {
-            f"{KEY_CELL_VOLTAGE}{idx}": float(
-                int.from_bytes(
-                    data[4 + idx * 2 : 4 + idx * 2 + 2], byteorder="big", signed=False
-                )
-            )
-            / 1000
-            for idx in range(int(data[3] / 2))
-        }
+    async def _await_cmd_resp(self, cmd: int) -> None:
+        msg: Final[bytes] = BMS._cmd(bytes([cmd]))
+        self._valid_reply = msg[2]
+        await self._await_reply(msg)
+        self._valid_reply = 0x00
 
     async def _async_update(self) -> BMSsample:
         """Update battery status information."""
         data: BMSsample = {}
-        for cmd, dec_fct in (
-            (BMS._cmd(b"\x03"), BMS._decode_data),
-            (BMS._cmd(b"\x04"), BMS._cell_voltages),
-        ):
-            await self._await_reply(cmd)
+        await self._await_cmd_resp(0x03)
+        data = BMS._decode_data(BMS._FIELDS, self._data_final)
+        data["temp_values"] = BMS._temp_values(
+            self._data_final,
+            values=data.get("temp_sensors", 0),
+            start=27,
+            signed=False,
+            offset=2731,
+            divider=10,
+        )
 
-            data.update(dec_fct(self._data_final))
+        await self._await_cmd_resp(0x04)
+        data["cell_voltages"] = BMS._cell_voltages(
+            self._data_final, cells=self._data_final[3] // 2, start=4, byteorder="big"
+        )
 
         return data

@@ -4,21 +4,21 @@ import os
 import ast
 import time
 import yaml
-import logging
 import asyncio
 import aiofiles
-
 import voluptuous as vol
 
-from typing import Any
 from functools import wraps
+from logging import getLogger
+from typing import Any, Iterable
+from aiohttp import ClientSession, ClientError, ContentTypeError
 
-from homeassistant.util import slugify
+from homeassistant.util import slugify as _slugify
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo, format_mac
 
 from .const import *
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 def retry(ignore: tuple = ()):
     def decorator(f):
@@ -45,10 +45,39 @@ def throttle(delay: float = 1):
         return wrapper
     return decorator
 
+async def request(url: str, **kwargs: Any):
+    try:
+        async with ClientSession(trust_env = kwargs.get("trust_env", False)) as s:
+            method = s.post if kwargs.get("data") or kwargs.get("json") else s.get
+            async with method(url, **kwargs) as r:
+                match r.content_type:
+                    case "text/plain" | "text/html" | "text/xml":
+                        return await r.text()
+                    case "application/json":
+                        return await r.json()
+                    case _:
+                        raise ContentTypeError(r.request_info, r.history, status = r.status, message = "Attempt to decode unexpected mimetype", headers = r.headers)
+    except ClientError as e:
+        raise e
+
+def logger_set_data(enable: bool, port: int):
+    return {
+        "server_a": f",5406.deviceaccess.host,{port},TCP" if enable else ",,,TCP",
+        "cnmo_ip_a": "",
+        "cnmo_ds_a": "5406.deviceaccess.host" if enable else "",
+        "cnmo_pt_a": str(port) if enable else "",
+        "cnmo_tp_a": "TCP",
+        "server_b": ",,,TCP",
+        "cnmo_ip_b": "",
+        "cnmo_ds_b": "",
+        "cnmo_pt_b": "",
+        "cnmo_tp_b": "TCP"
+    }
+
 async def async_execute(x):
     return await asyncio.get_running_loop().run_in_executor(None, x)
 
-def create_task(coro, *, name=None, context=None):
+def create_task(coro, *, name = None, context = None):
     return asyncio.get_running_loop().create_task(coro, name = name, context = context)
 
 def protected(value, error):
@@ -65,7 +94,7 @@ async def async_listdir(path, prefix = ""):
 def to_dict(*keys: list):
     return {k: k for k in keys}
 
-def filter_by_keys(source: dict, keys: dict | list) -> dict:
+def filter_by_keys(source: dict, keys: dict | list):
     return {k: source[k] for k in source.keys() if k in keys}
 
 def bulk_inherit(target: dict, source: dict, *keys: list):
@@ -99,16 +128,23 @@ def create_request(code, start, end):
     return { REQUEST_CODE: code, REQUEST_START: start, REQUEST_END: end, REQUEST_COUNT: end - start + 1 }
 
 async def lookup_profile(request, parameters):
-    if (response := await request("?", create_request(*AUTODETECTION_REQUEST_DEYE))) and (device_type := get_addr_value(response, *AUTODETECTION_DEVICE_DEYE)):
-        f, m, c = next(iter([AUTODETECTION_DEYE[i] for i in AUTODETECTION_DEYE if device_type in i]))
-        if (t := get_addr_value(response, *AUTODETECTION_TYPE_DEYE)) and device_type in AUTODETECTION_DEYE_P1[0]:
-            parameters[PARAM_[CONF_PHASE]] = min(1 if t <= 2 or t == 8 else 3, parameters[PARAM_[CONF_PHASE]])
-        if (v := get_addr_value(response, AUTODETECTION_CODE_DEYE, c)) and (t := (v & 0x0F00) // 0x100) and (p := v & 0x000F) and (t := 2 if t > 12 else t) and (p := 3 if p > 3 else p):
-            parameters[PARAM_[CONF_MOD]], parameters[PARAM_[CONF_MPPT]], parameters[PARAM_[CONF_PHASE]] = max(m, parameters[PARAM_[CONF_MOD]]), min(t, parameters[PARAM_[CONF_MPPT]]), min(p, parameters[PARAM_[CONF_PHASE]])
-        if device_type in (*AUTODETECTION_DEYE_4P3[0], *AUTODETECTION_DEYE_1P3[0]) and (response := await request("?", create_request(*AUTODETECTION_BATTERY_REQUEST_DEYE))) and (p := get_addr_value(response, *AUTODETECTION_BATTERY_NUMBER_DEYE)) is not None:
-            parameters[PARAM_[CONF_PACK]] = p if parameters[PARAM_[CONF_PACK]] == DEFAULT_[CONF_PACK] else min(p, parameters[PARAM_[CONF_PACK]])
-        return f
-    raise Exception("Unable to read Device Type at address 0x0000")
+    if (response := await request(requests = create_request(*AUTODETECTION_REQUEST_DEYE))) and (device_type := get_addr_value(response, *AUTODETECTION_DEVICE_DEYE)):
+        try:
+            f, m, c = next(iter([AUTODETECTION_DEYE[i] for i in AUTODETECTION_DEYE if device_type in i]))
+            if (t := get_addr_value(response, *AUTODETECTION_TYPE_DEYE)) and device_type in AUTODETECTION_DEYE_P1[0]:
+                parameters[PARAM_[CONF_PHASE]] = min(1 if t <= 2 or t == 8 else 3, parameters[PARAM_[CONF_PHASE]])
+            if (v := get_addr_value(response, AUTODETECTION_CODE_DEYE, c)) and (t := (v & 0x0F00) // 0x100) and (p := v & 0x000F) and (t := 2 if t > 12 else t) and (p := 3 if p > 3 else p):
+                parameters[PARAM_[CONF_MOD]], parameters[PARAM_[CONF_MPPT]], parameters[PARAM_[CONF_PHASE]] = max(m, parameters[PARAM_[CONF_MOD]]), min(t, parameters[PARAM_[CONF_MPPT]]), min(p, parameters[PARAM_[CONF_PHASE]])
+            try:
+                if device_type in (*AUTODETECTION_DEYE_4P3[0], *AUTODETECTION_DEYE_1P3[0]) and (response := await request(requests = create_request(*AUTODETECTION_BATTERY_REQUEST_DEYE))) and (p := get_addr_value(response, *AUTODETECTION_BATTERY_NUMBER_DEYE)) is not None:
+                    parameters[PARAM_[CONF_PACK]] = p if parameters[PARAM_[CONF_PACK]] == DEFAULT_[CONF_PACK] else min(p, parameters[PARAM_[CONF_PACK]])
+            except:
+                _LOGGER.debug(f"Unable to read Number of Battery packs. Continuing with the configured value", exc_info = True)
+                pass
+            return f
+        except StopIteration:
+            raise Exception(f"Unknown Device Type: {device_type}")
+    raise Exception("Unable to read Device Type")
 
 def process_profile(filename, parameters):
     if filename in PROFILE_REDIRECT and (r := PROFILE_REDIRECT[filename]):
@@ -124,6 +160,9 @@ def process_profile(filename, parameters):
 async def yaml_open(file):
     async with aiofiles.open(file) as f:
         return yaml.safe_load(await f.read())
+
+def build_configuration_url(host: str):
+    return f"http://{host}/config_hide.html"
 
 def build_device_info(entry_id, serial, mac, host, info, name):
     device_info = DeviceInfo()
@@ -141,7 +180,7 @@ def build_device_info(entry_id, serial, mac, host, info, name):
 
     device_info["identifiers"] = ({(DOMAIN, entry_id)} if entry_id else set()) | ({(DOMAIN, serial)} if serial else set())
     device_info["connections"] = {(CONNECTION_NETWORK_MAC, format_mac(mac))} if mac else set()
-    device_info["configuration_url"] = f"http://{host}/config_hide.html" if host else None
+    device_info["configuration_url"] = build_configuration_url(host) if host else None
     device_info["serial_number"] = serial if serial else None
     device_info["manufacturer"] = manufacturer
     device_info["model"] = model
@@ -164,10 +203,10 @@ def group_when(iterable, predicate):
         i += 1
     yield iterable[x:size]
 
-def format(value):
+def format(value: Any):
     return value if not isinstance(value, (bytes, bytearray)) else value.hex(" ")
 
-def strepr(value):
+def strepr(value: Any):
     return s if (s := str(value)) else repr(value)
 
 def unwrap(source: dict, key: Any, mod: int = 0):
@@ -175,8 +214,11 @@ def unwrap(source: dict, key: Any, mod: int = 0):
         source[key] = c[mod] if mod < len(c) else c[-1]
     return source
 
+def slugify(*items: Iterable[str | None], separator: str = "_"):
+    return _slugify(separator.join(filter(None, items)), separator = separator)
+
 def entity_key(object: dict):
-    return slugify('_'.join(filter(None, (object["name"], object["platform"]))))
+    return slugify(object["name"], object["platform"])
 
 def preprocess_descriptions(item, group, table, code, parameters):
     def modify(source: dict):
@@ -244,6 +286,10 @@ def postprocess_descriptions(coordinator, platform):
                 if not_enabled(sensor):
                     sensors.remove(sensor)
 
+        # Temporary location of fix for latest HA changes regarding default precision behavior
+        if description["platform"] == "sensor" and (description.get("class") or description.get("device_class")) in ("energy", "energy_storage") and (description.get("suggested_unit_of_measurement") or description.get("unit_of_measurement") or description.get("uom")) == "kWh":
+            description["suggested_display_precision"] = 1
+
         yield description
 
 def get_code(item, type, default = None):
@@ -276,9 +322,7 @@ def get_or_def(o, k, d):
     return o.get(k, d) or d
 
 def from_bit_index(value):
-    if isinstance(value, list):
-        return sum(1 << i for i in value)
-    return 1 << value
+    return 1 << value if not isinstance(value, list) else sum(1 << i for i in value)
 
 def lookup_value(value, dictionary):
     default = dictionary[0]["value"]
@@ -286,7 +330,7 @@ def lookup_value(value, dictionary):
     for o in dictionary:
         key = from_bit_index(o["bit"]) if "bit" in o else o["key"]
 
-        if o.get("mode") == "single" and value & key == key:
+        if o.get("mode") == "|" and value & key == key:
             key = value
     
         if "default" in o or key == "default":

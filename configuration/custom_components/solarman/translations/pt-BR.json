@@ -1,11 +1,14 @@
 {
   "config": {
     "abort": {
-      "already_configured": "O dispositivo já está configurado"
+      "already_configured": "O dispositivo já está configurado",
+      "already_configured_device": "O dispositivo já está configurado",
+      "already_in_progress": "O fluxo de configuração já está em andamento"
     },
     "error": {
       "cannot_connect": "Falhou ao conectar",
       "invalid_host": "Nome de host ou endereço IP inválido",
+      "timeout_connect": "Tempo limite para estabelecer conexão",
       "unknown": "Erro inesperado"
     },
     "step": {
@@ -15,7 +18,7 @@
           "name": "Nome do dispositivo",
           "host": "Host (ip ou nome do host)",
           "port": "Porta (geralmente 8899)",
-          "transport": "Transport protocol",
+          "transport": "Protocolo de transporte",
           "lookup_file": "Perfil"
         },
         "data_description": {
@@ -45,6 +48,7 @@
     "error": {
       "cannot_connect": "Falhou ao conectar",
       "invalid_host": "Nome de host ou endereço IP inválido",
+      "timeout_connect": "Tempo limite para estabelecer conexão",
       "unknown": "Erro inesperado"
     },
     "step": {
@@ -53,7 +57,7 @@
         "data": {
           "host": "Host (ip ou nome do host)",
           "port": "Porta (geralmente 8899)",
-          "transport": "Transport protocol",
+          "transport": "Protocolo de transporte",
           "lookup_file": "Perfil"
         },
         "data_description": {
@@ -83,6 +87,7 @@
       "options": {
         "tcp": "TCP",
         "udp": "UDP",
+        "modbus_rtu": "Modbus RTU",
         "modbus_tcp": "Modbus TCP"
       } 
     }

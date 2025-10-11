@@ -1,4 +1,6 @@
-from datetime import timedelta as td
+from re import compile
+from datetime import timedelta
+from aiohttp import BasicAuth, FormData
 
 DOMAIN = "solarman"
 
@@ -10,6 +12,8 @@ PORT_ANY = 0
 DISCOVERY_PORT = 48899
 DISCOVERY_TIMEOUT = .5
 DISCOVERY_MESSAGE = ["WIFIKIT-214028-READ".encode(), "HF-A11ASSISTHREAD".encode()]
+DISCOVERY_INTERVAL = timedelta(minutes = 15)
+DISCOVERY_CACHE = timedelta(seconds = 10)
 
 COMPONENTS_DIRECTORY = "custom_components"
 
@@ -31,6 +35,14 @@ CONF_BATTERY_LIFE_CYCLE_RATING = "battery_life_cycle_rating"
 CONF_MB_SLAVE_ID = "mb_slave_id"
 
 OLD_ = { "name": "name", "serial": "inverter_serial", "sn": "serial", "sn": "sn", CONF_HOST: "inverter_host", CONF_PORT: "inverter_port" }
+
+LOGGER_AUTH = BasicAuth("admin", "admin")
+LOGGER_SET = "hide_set_edit.html"
+LOGGER_CMD = "do_cmd.html"
+LOGGER_SUCCESS = "success.html"
+LOGGER_RESTART = "restart.html"
+LOGGER_RESTART_DATA = FormData({"HF_PROCESS_CMD": "RESTART"})
+LOGGER_REGEX = {"server": compile("var server_[a|b].?=.?\"(.*)\";"), "ap": compile("var apsta_mode.?=.?\"(.*)\";")}
 
 SUGGESTED_VALUE = "suggested_value"
 UPDATE_INTERVAL = "update_interval"
@@ -77,7 +89,7 @@ AUTODETECTION_BATTERY_REGISTERS_DEYE = (0x2712, 0x2712)
 AUTODETECTION_BATTERY_REQUEST_DEYE = (AUTODETECTION_CODE_DEYE, *AUTODETECTION_BATTERY_REGISTERS_DEYE)
 AUTODETECTION_BATTERY_NUMBER_DEYE = (AUTODETECTION_CODE_DEYE, AUTODETECTION_BATTERY_REGISTERS_DEYE[0])
 
-PROFILE_REDIRECT = { "sofar_hyd3k-6k-es.yaml": "sofar_wifikit.yaml:mod=1", "hyd-zss-hp-3k-6k.yaml": "sofar_g3.yaml:pack=1", "solis_1p8k-5g.yaml": "solis_1p-5g.yaml", "solis_3p-4g+.yaml": "solis_3p-4g.yaml", "sofar_hyd-es.yaml": "sofar_wifikit.yaml:mod=1", "sofar_tlx-g3.yaml": "sofar_g3.yaml", "zcs_azzurro-1ph-tl-v3.yaml": "sofar_lsw3.yaml:mppt=1&l=1", "zcs_azzurro-hyd-zss-hp.yaml": "sofar_g3.yaml:pack=1", "zcs_azzurro-ktl-v3.yaml": "sofar_g3.yaml", "pylontech_Force-H.yaml": "pylontech_force.yaml:mod=1" }
+PROFILE_REDIRECT = { "sofar_wifikit.yaml": "sofar_hybrid.yaml", "sofar_hyd-es.yaml": "sofar_hybrid.yaml:mod=1", "sofar_hyd3k-6k-es.yaml": "sofar_hybrid.yaml:mod=1", "hyd-zss-hp-3k-6k.yaml": "sofar_g3.yaml:pack=1", "solis_1p8k-5g.yaml": "solis_1p-5g.yaml", "solis_3p-4g+.yaml": "solis_3p-4g.yaml", "sofar_tlx-g3.yaml": "sofar_g3.yaml", "sofar_lsw3.yaml": "sofar_string.yaml", "zcs_azzurro-1ph-tl-v3.yaml": "sofar_string.yaml:mppt=1&l=1", "zcs_azzurro-hyd-zss-hp.yaml": "sofar_g3.yaml:pack=1", "zcs_azzurro-ktl-v3.yaml": "sofar_g3.yaml", "pylontech_Force-H.yaml": "pylontech_force.yaml:mod=1" }
 
 PARAM_ = { CONF_MOD: CONF_MOD, CONF_MPPT: CONF_MPPT, CONF_PHASE: "l", CONF_PACK: CONF_PACK }
 
@@ -93,7 +105,7 @@ PARAM_ = { CONF_MOD: CONF_MOD, CONF_MPPT: CONF_MPPT, CONF_PHASE: "l", CONF_PACK:
 #
 TIMINGS_INTERVAL = 5
 TIMINGS_INTERVAL_SCALE = 1
-TIMINGS_UPDATE_INTERVAL = td(seconds = TIMINGS_INTERVAL * TIMINGS_INTERVAL_SCALE)
+TIMINGS_UPDATE_INTERVAL = timedelta(seconds = TIMINGS_INTERVAL * TIMINGS_INTERVAL_SCALE)
 
 REQUEST_UPDATE_INTERVAL = UPDATE_INTERVAL
 REQUEST_MIN_SPAN = "min_span"
@@ -107,6 +119,7 @@ REQUEST_COUNT = "count"
 SERVICES_PARAM_DEVICE = "device"
 SERVICES_PARAM_ADDRESS = "address"
 SERVICES_PARAM_COUNT = "count"
+SERVICES_PARAM_QUANTITY = "quantity"
 SERVICES_PARAM_VALUE = "value"
 SERVICES_PARAM_VALUES = "values"
 

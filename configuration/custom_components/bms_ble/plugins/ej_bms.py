@@ -1,30 +1,13 @@
 """Module to support E&J Technology BMS."""
 
-from collections.abc import Callable
 from enum import IntEnum
 from string import hexdigits
-from typing import Final
+from typing import Final, Literal
 
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.device import BLEDevice
 
-from custom_components.bms_ble.const import (
-    ATTR_BATTERY_CHARGING,
-    ATTR_BATTERY_LEVEL,
-    ATTR_CURRENT,
-    ATTR_CYCLE_CAP,
-    ATTR_CYCLE_CHRG,
-    ATTR_CYCLES,
-    ATTR_DELTA_VOLTAGE,
-    ATTR_POWER,
-    ATTR_RUNTIME,
-    ATTR_TEMPERATURE,
-    ATTR_VOLTAGE,
-    KEY_CELL_VOLTAGE,
-    KEY_PROBLEM,
-)
-
-from .basebms import BaseBMS, BMSsample
+from .basebms import BaseBMS, BMSdp, BMSsample, BMSvalue, MatcherPattern
 
 
 class Cmd(IntEnum):
@@ -38,34 +21,62 @@ class BMS(BaseBMS):
     """E&J Technology BMS implementation."""
 
     _BT_MODULE_MSG: Final[bytes] = bytes([0x41, 0x54, 0x0D, 0x0A])  # BLE module message
+    _IGNORE_CRC: Final[str] = "libattU"
     _HEAD: Final[bytes] = b"\x3a"
     _TAIL: Final[bytes] = b"\x7e"
     _MAX_CELLS: Final[int] = 16
-    _FIELDS: Final[list[tuple[str, Cmd, int, int, Callable[[int], int | float]]]] = [
-        (ATTR_CURRENT, Cmd.RT, 89, 8, lambda x: float((x >> 16) - (x & 0xFFFF)) / 100),
-        (ATTR_BATTERY_LEVEL, Cmd.RT, 123, 2, lambda x: x),
-        (ATTR_CYCLE_CHRG, Cmd.CAP, 15, 4, lambda x: float(x) / 10),
-        (ATTR_TEMPERATURE, Cmd.RT, 97, 2, lambda x: x - 40),  # only 1st sensor relevant
-        (ATTR_CYCLES, Cmd.RT, 115, 4, lambda x: x),
-        (KEY_PROBLEM, Cmd.RT, 105, 4, lambda x: x & 0x0FFC),  # mask status bits
-    ]
+    _FIELDS: Final[tuple[BMSdp, ...]] = (
+        BMSdp(
+            "current", 89, 8, False, lambda x: ((x >> 16) - (x & 0xFFFF)) / 100, Cmd.RT
+        ),
+        BMSdp("battery_level", 123, 2, False, lambda x: x, Cmd.RT),
+        BMSdp("cycle_charge", 15, 4, False, lambda x: x / 10, Cmd.CAP),
+        BMSdp(
+            "temperature", 97, 2, False, lambda x: x - 40, Cmd.RT
+        ),  # only 1st sensor relevant
+        BMSdp("cycles", 115, 4, False, lambda x: x, Cmd.RT),
+        BMSdp(
+            "problem_code", 105, 4, False, lambda x: x & 0x0FFC, Cmd.RT
+        ),  # mask status bits
+    )
 
-    def __init__(self, ble_device: BLEDevice, reconnect: bool = False) -> None:
+    def __init__(self, ble_device: BLEDevice, keep_alive: bool = True) -> None:
         """Initialize BMS."""
-        super().__init__(__name__, ble_device, reconnect)
+        super().__init__(ble_device, keep_alive)
         self._data_final: bytearray = bytearray()
 
     @staticmethod
-    def matcher_dict_list() -> list[dict]:
+    def matcher_dict_list() -> list[MatcherPattern]:
         """Provide BluetoothMatcher definition."""
-        return [  # Fliteboard, Electronix battery
-            {"local_name": "libatt*", "manufacturer_id": 21320, "connectable": True},
-            {"local_name": "LT-*", "manufacturer_id": 33384, "connectable": True},
-            {"local_name": "SV12V*", "manufacturer_id": 33384, "connectable": True},
-        ] + [  # Lithtech Energy (2x), Volthium
-            {"local_name": pattern, "connectable": True}
-            for pattern in ("L-12V???AH-*", "LT-12V-*", "V-12V???Ah-*")
-        ]
+        return (
+            [  # Lithtech Energy (2x), Volthium
+                MatcherPattern(local_name=pattern, connectable=True)
+                for pattern in ("L-12V???AH-*", "LT-12V-*", "V-12V???Ah-*")
+            ]
+            + [  # Fliteboard, Electronix battery
+                {
+                    "local_name": "libatt*",
+                    "manufacturer_id": 21320,
+                    "connectable": True,
+                },
+                {"local_name": "SV12V*", "manufacturer_id": 33384, "connectable": True},
+            ]
+            + [  # LiTime
+                MatcherPattern(  # LiTime based on ser#
+                    local_name="LT-12???BG-A0[0-6]*",
+                    manufacturer_id=m_id,
+                    connectable=True,
+                )
+                for m_id in (33384, 22618)
+            ]
+            + [  # LiTime based on ser#
+                {
+                    "local_name": "LT-24???B-A00[0-2]*",
+                    "manufacturer_id": 22618,
+                    "connectable": True,
+                }
+            ]
+        )
 
     @staticmethod
     def device_info() -> dict[str, str]:
@@ -88,15 +99,15 @@ class BMS(BaseBMS):
         return "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
 
     @staticmethod
-    def _calc_values() -> frozenset[str]:
+    def _calc_values() -> frozenset[BMSvalue]:
         return frozenset(
             {
-                ATTR_BATTERY_CHARGING,
-                ATTR_CYCLE_CAP,
-                ATTR_DELTA_VOLTAGE,
-                ATTR_POWER,
-                ATTR_RUNTIME,
-                ATTR_VOLTAGE,
+                "battery_charging",
+                "cycle_capacity",
+                "delta_voltage",
+                "power",
+                "runtime",
+                "voltage",
             }
         )  # calculate further values from BMS provided set ones
 
@@ -150,7 +161,10 @@ class BMS(BaseBMS):
             self._data.clear()
             return
 
-        if (crc := BMS._crc(self._data[1:-3])) != int(self._data[-3:-1], 16):
+        if not self.name.startswith(BMS._IGNORE_CRC) and (
+            crc := BMS._crc(self._data[1:-3])
+        ) != int(self._data[-3:-1], 16):
+            # libattU firmware uses no CRC, so we ignore it
             self._log.debug(
                 "invalid checksum 0x%X != 0x%X", int(self._data[-3:-1], 16), crc
             )
@@ -172,14 +186,30 @@ class BMS(BaseBMS):
         return (sum(data) ^ 0xFF) & 0xFF
 
     @staticmethod
-    def _cell_voltages(data: bytearray) -> dict[str, float]:
+    def _cell_voltages(
+        data: bytearray,
+        *,
+        cells: int,
+        start: int,
+        size: int = 2,
+        byteorder: Literal["little", "big"] = "big",
+        divider: int = 1000,
+    ) -> list[float]:
         """Return cell voltages from status message."""
-        return {
-            f"{KEY_CELL_VOLTAGE}{idx}": int(data[25 + 4 * idx : 25 + 4 * idx + 4], 16)
-            / 1000
-            for idx in range(BMS._MAX_CELLS)
-            if int(data[25 + 4 * idx : 25 + 4 * idx + 4], 16)
-        }
+        return [
+            (value / divider)
+            for idx in range(cells)
+            if (value := int(data[start + size * idx : start + size * (idx + 1)], 16))
+        ]
+
+    @staticmethod
+    def _conv_data(data: dict[int, bytearray]) -> BMSsample:
+        result: BMSsample = {}
+        for field in BMS._FIELDS:
+            result[field.key] = field.fct(
+                int(data[field.idx][field.pos : field.pos + field.size], 16)
+            )
+        return result
 
     async def _async_update(self) -> BMSsample:
         """Update battery status information."""
@@ -201,7 +231,8 @@ class BMS(BaseBMS):
         ):
             return {}
 
-        return {
-            key: func(int(raw_data[cmd.value][idx : idx + size], 16))
-            for key, cmd, idx, size, func in BMS._FIELDS
-        } | self._cell_voltages(raw_data[Cmd.RT])
+        return self._conv_data(raw_data) | {
+            "cell_voltages": BMS._cell_voltages(
+                raw_data[Cmd.RT], cells=BMS._MAX_CELLS, start=25, size=4
+            )
+        }

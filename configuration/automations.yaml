@@ -121,3 +121,15 @@
     target:
       entity_id: automation.grid_power_above_600_w
   mode: single
+- id: '1751604168979'
+  alias: Turn on Conditioner
+  description: ''
+  triggers: []
+  conditions: []
+  actions:
+  - action: climate.toggle
+    metadata: {}
+    data: {}
+    target:
+      entity_id: climate.rozdilnii_konditsioner
+  mode: single

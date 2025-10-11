@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import re
 import bisect
-import logging
 
+from logging import getLogger
 from datetime import datetime
 
 from .const import *
 from .common import *
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 class ParameterParser:
-    def __init__(self, profile, parameters):
+    def __init__(self):
         self._update_interval = DEFAULT_[UPDATE_INTERVAL]
         self._is_single_code = DEFAULT_[IS_SINGLE_CODE]
         self._code = DEFAULT_[REGISTERS_CODE]
@@ -20,11 +20,20 @@ class ParameterParser:
         self._max_size = DEFAULT_[REGISTERS_MAX_SIZE]
         self._digits = DEFAULT_[DIGITS]
         self._requests = None
-        self._last_result = {}
+        self._previous_result = {}
         self._result = {}
 
-        if "default" in profile:
-            default = profile["default"]
+        self.info: dict[str, str] = {}
+
+    async def init(self, path: str, filename: str, parameters: dict):
+        profile = await yaml_open(path + filename)
+
+        if "info" in profile:
+            self.info = unwrap(profile["info"], "model", parameters[PARAM_[CONF_MOD]])
+        
+        self.info |= {"filename": filename}
+
+        if "default" in profile and (default := profile["default"]):
             if REQUEST_UPDATE_INTERVAL in default:
                 self._update_interval = default[REQUEST_UPDATE_INTERVAL]
             if REQUEST_CODE in default:
@@ -40,7 +49,7 @@ class ParameterParser:
             _LOGGER.debug("Fine control of request sets is enabled!")
             self._requests = profile["requests"]
 
-        _LOGGER.debug(f"{'Defaults' if 'default' in profile else 'Stock values'} for update_interval: {self._update_interval}, code: {self._code}, min_span: {self._min_span}, max_size: {self._max_size}, digits: {self._digits}, parameters: {parameters}")
+        _LOGGER.debug(f"{filename} w/ {'defaults' if 'default' in profile else 'stock values'} for update_interval: {self._update_interval}, code: {self._code}, min_span: {self._min_span}, max_size: {self._max_size}, digits: {self._digits}, parameters: {parameters}")
 
         table = {r: get_request_code(pr) for pr in profile["requests"] for r in range(pr[REQUEST_START], pr[REQUEST_END] + 1)} if "requests" in profile and not "requests_fine_control" in profile else {}
 
@@ -54,6 +63,8 @@ class ParameterParser:
 
         self._lambda = lambda x, y, z: l(x[1], y[1]) or y[1] - z[1] >= self._max_size
         self._lambda_code_aware = lambda x, y, z: x[0] != y[0] or self._lambda(x, y, z)
+
+        return self
 
     def is_valid(self, parameters):
         return "name" in parameters and "rule" in parameters # and "registers" in parameters
@@ -76,7 +87,7 @@ class ParameterParser:
     def get_entity_descriptions(self, platform: str):
         return [i for i in self._items if self.is_valid(i) and self.is_enabled(i) and not "attribute" in i and i.get("platform") == platform]
 
-    def schedule_requests(self, runtime = 0):
+    def schedule_requests(self, runtime):
         self._result = {}
 
         if self._requests:
@@ -100,7 +111,7 @@ class ParameterParser:
         return [create_request(self._code if self._is_single_code else r[0][0], r[0][1], r[-1][1]) for r in groups]
 
     def reset(self):
-        self._last_result = {}
+        self._previous_result = {}
 
     def in_range(self, key, value, rule):
         if ((min := rule.get("min")) is not None and value < min) or ((max := rule.get("max")) is not None and value > max):
@@ -111,20 +122,22 @@ class ParameterParser:
 
     def do_validate(self, key, value, rule):
         invalid = 0
+        previous_value = None
 
         if ((min := rule.get("min")) is not None and min > value) or ((max := rule.get("max")) is not None and max < value):
-            _LOGGER.debug(f"{key}: {value} validation failed. Conditions: {rule}")
             invalid = 1
 
         if dev := rule.get("dev"):
-            if value and (last_value := self._last_result.get(key)) is not None and abs(value - last_value) > dev:
-                _LOGGER.debug(f"{key}: {value} validation failed, last value: {last_value}. Conditions: {rule}")
+            if value and (previous_value := self._previous_result.get(key)) is not None and abs(value - previous_value) > dev:
                 invalid |= 2
-            else:
-                self._last_result[key] = value
+            elif not invalid:
+                self._previous_result[key] = value
 
-        if invalid > 0 and "invalidate_all" in rule and ((inv := rule.get("invalidate_all")) is None or invalid & inv):
-            raise ValueError(f"Invalidate complete dataset. {key}: {value} validation failed. Conditions: {rule}")
+        if invalid > 0 and (message := f"{key} validation failed, triggered by state: {value}{'' if previous_value is None else f' ({previous_value})'} with conditions: {rule}"):
+            if "invalidate_all" in rule and ((inv := rule.get("invalidate_all")) is None or invalid & inv):
+                raise ValueError(f"Invalidate complete dataset - {message}")
+            else:
+                _LOGGER.debug(message)
 
         return invalid == 0
 
@@ -159,7 +172,7 @@ class ParameterParser:
                             case 10:
                                 self.try_parse_raw(data, i)
                     except Exception as e:
-                        _LOGGER.error(f"ParameterParser.try_parse: data: {data}, definition: {i} [{e!r}]")
+                        _LOGGER.error(f"ParameterParser.try_parse: data: {data}, definition: {i} [{strepr(e)}]")
                         raise
 
         return self._result
@@ -282,7 +295,7 @@ class ParameterParser:
         key = definition["key"]
 
         if "lookup" in definition:
-            self.set_state(key, lookup_value(value, definition["lookup"]), int(value))
+            self.set_state(key, lookup_value(value, definition["lookup"]), int(value) if len(definition["registers"]) == 1 else list(split_p16b(value)))
             return
 
         if (validation := definition.get("validation")) is not None and not self.do_validate(key, value, validation):
@@ -397,7 +410,7 @@ class ParameterParser:
                 value = datetime.strptime(value, DATETIME_FORMAT)
             self.set_state(definition["key"], value)
         except Exception as e:
-            _LOGGER.debug(f"ParameterParser.try_parse_datetime: data: {data}, definition: {definition} [{e!r}]")
+            _LOGGER.debug(f"ParameterParser.try_parse_datetime: data: {data}, definition: {definition} [{strepr(e)}]")
 
     def try_parse_time(self, data, definition):
         code = get_code(definition, "read")

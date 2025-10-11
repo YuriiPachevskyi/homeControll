@@ -1,33 +1,30 @@
 from __future__ import annotations
 
-import logging
-
-from typing import Any
+from logging import getLogger
 
 from homeassistant.core import HomeAssistant
 from homeassistant.const import EntityCategory
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
 
 from .const import *
 from .common import *
 from .services import *
-from .entity import SolarmanConfigEntry, create_entity, SolarmanEntity
+from .entity import SolarmanEntity, Coordinator
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = getLogger(__name__)
 
 _PLATFORM = get_current_file_name(__name__)
 
-async def async_setup_entry(_: HomeAssistant, config_entry: SolarmanConfigEntry, async_add_entities: AddEntitiesCallback) -> bool:
+async def async_setup_entry(_: HomeAssistant, config_entry: ConfigEntry[Coordinator], async_add_entities: AddEntitiesCallback) -> bool:
     _LOGGER.debug(f"async_setup_entry: {config_entry.options}")
 
-    async_add_entities(create_entity(lambda x: SolarmanBinarySensorEntity(config_entry.runtime_data, x), d) for d in postprocess_descriptions(config_entry.runtime_data, _PLATFORM))
-
-    async_add_entities([create_entity(lambda _: SolarmanConnectionSensor(config_entry.runtime_data), None)])
+    async_add_entities([SolarmanConnectionSensor(config_entry.runtime_data)] + [SolarmanBinarySensorEntity(config_entry.runtime_data, d).init() for d in postprocess_descriptions(config_entry.runtime_data, _PLATFORM)])
 
     return True
 
-async def async_unload_entry(_: HomeAssistant, config_entry: SolarmanConfigEntry) -> bool:
+async def async_unload_entry(_: HomeAssistant, config_entry: ConfigEntry[Coordinator]) -> bool:
     _LOGGER.debug(f"async_unload_entry: {config_entry.options}")
 
     return True
@@ -60,4 +57,4 @@ class SolarmanConnectionSensor(SolarmanBinarySensorEntity):
 
     def update(self):
         self.set_state(self.coordinator.device.state.value)
-        self._attr_extra_state_attributes["updated"] = self.coordinator.device.state.updated.timestamp()
+        self._attr_extra_state_attributes["timestamp"] = self.coordinator.device.state.updated.timestamp()

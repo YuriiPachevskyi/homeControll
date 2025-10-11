@@ -31,17 +31,16 @@ class BTBmsCoordinator(DataUpdateCoordinator[BMSsample]):
         config_entry: ConfigEntry,
     ) -> None:
         """Initialize BMS data coordinator."""
-        assert ble_device.name is not None
         super().__init__(
             hass=hass,
             logger=LOGGER,
-            name=ble_device.name,
+            name=config_entry.title,
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
             always_update=False,  # only update when sensor value has changed
             config_entry=config_entry,
         )
         self._device: Final[BaseBMS] = bms_device
-        self._link_q = deque([False], maxlen=100)  # track BMS update issues
+        self._link_q: deque[bool] = deque([False], maxlen=100)  # track BMS update issues
         self._mac: Final[str] = ble_device.address
         self._stale: bool = False  # indicates no BMS response for significant time
 
@@ -93,7 +92,7 @@ class BTBmsCoordinator(DataUpdateCoordinator[BMSsample]):
     def link_quality(self) -> int:
         """Gives the precentage of successful BMS reads out of the last 100 attempts."""
 
-        return int(self._link_q.count(True) * 100 / len(self._link_q))
+        return self._link_q.count(True) * 100 // len(self._link_q)
 
     async def async_shutdown(self) -> None:
         """Shutdown coordinator and any connection."""
@@ -110,7 +109,7 @@ class BTBmsCoordinator(DataUpdateCoordinator[BMSsample]):
             and list(self._link_q)[-10:] == [False] * 10
         ):
             LOGGER.error(
-                "%s: BMS went silent, triggering reconnect%s!",
+                "%s: BMS is stale, triggering reconnect%s!",
                 self.name,
                 self._rssi_msg(),
             )
@@ -124,7 +123,7 @@ class BTBmsCoordinator(DataUpdateCoordinator[BMSsample]):
         LOGGER.debug("%s: BMS data update", self.name)
 
         if self._device_stale():
-            await self._device.disconnect()
+            await self._device.disconnect(reset=True)
 
         start: Final[float] = monotonic()
         try:

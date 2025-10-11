@@ -1,17 +1,13 @@
 from __future__ import annotations
 
-import logging
-
 from typing import Any
 from decimal import Decimal
+from logging import getLogger
 from datetime import date, datetime, time
 
-from homeassistant.util import slugify
-from homeassistant.core import split_entity_id, callback
+from homeassistant.core import callback
 from homeassistant.const import EntityCategory, STATE_UNKNOWN, CONF_FRIENDLY_NAME
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import EntityDescription
-from homeassistant.helpers.entity_registry import RegistryEntry
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.typing import UNDEFINED, StateType, UndefinedType
 
@@ -21,36 +17,14 @@ from .services import *
 from .coordinator import Coordinator
 from .pysolarman.umodbus.functions import FUNCTION_CODE
 
-_LOGGER = logging.getLogger(__name__)
-
-type SolarmanConfigEntry = ConfigEntry[Coordinator]
-
-@callback
-def migrate_unique_ids(config_entry: SolarmanConfigEntry, entity_entry: RegistryEntry) -> dict[str, Any] | None:
-
-    entity_name = entity_entry.original_name if entity_entry.has_entity_name or not entity_entry.original_name else entity_entry.original_name.replace(config_entry.runtime_data.device.config.name, '').strip()
-
-    if entity_entry.unique_id != (unique_id := slugify('_'.join(filter(None, (config_entry.entry_id, entity_name, split_entity_id(entity_entry.entity_id)[0]))))):
-        _LOGGER.debug(f"Migrating unique_id for {entity_entry.entity_id} entity from '{entity_entry.unique_id}' to '{unique_id}]'")
-        return { "new_unique_id": entity_entry.unique_id.replace(entity_entry.unique_id, unique_id) }
-
-    return None
-
-def create_entity(creator, description):
-    try:
-        entity = creator(description)
-
-        entity.update()
-
-        return entity
-    except Exception as e:
-        _LOGGER.error(f"Configuring {description} failed. [{e!r}]")
-        raise
+_LOGGER = getLogger(__name__)
 
 class SolarmanCoordinatorEntity(CoordinatorEntity[Coordinator]):
+    _attr_has_entity_name = True
+
     def __init__(self, coordinator: Coordinator):
         super().__init__(coordinator)
-        self._attr_device_info = self.coordinator.device.device_info.get(self.coordinator.device.config.config_entry.entry_id)
+        self._attr_device_info = self.coordinator.device.info.get(self.coordinator.config_entry.entry_id)
         self._attr_state: StateType = STATE_UNKNOWN
         self._attr_native_value: StateType | str | date | datetime | time | float | Decimal | None = None
         self._attr_extra_state_attributes: dict[str, Any] = {}
@@ -69,6 +43,13 @@ class SolarmanCoordinatorEntity(CoordinatorEntity[Coordinator]):
         self.update()
         self.async_write_ha_state()
 
+    def init(self):
+        try:
+            self.update()
+        except Exception as e:
+            _LOGGER.exception(f"{self._attr_name} initialization failed. [{strepr(e)}]")
+        return self
+
     def set_state(self, state, value = None) -> bool:
         self._attr_native_value = self._attr_state = state
         if value is not None:
@@ -83,15 +64,14 @@ class SolarmanCoordinatorEntity(CoordinatorEntity[Coordinator]):
                 self._attr_extra_state_attributes[self.attributes[attr].replace(f"{self._attr_name} ", "")] = get_tuple(self.coordinator.data.get(attr))
 
 class SolarmanEntity(SolarmanCoordinatorEntity):
-    def __init__(self, coordinator, sensor):
+    def __init__(self, coordinator, sensor: dict):
         super().__init__(coordinator)
 
         self._attr_key = sensor["key"]
         self._attr_name = sensor["name"]
-        self._attr_has_entity_name = True
         self._attr_device_class = sensor.get("class") or sensor.get("device_class")
         self._attr_translation_key = sensor.get("translation_key") or slugify(self._attr_name)
-        self._attr_unique_id = slugify('_'.join(filter(None, (self.coordinator.device.config.config_entry.entry_id, self._attr_key))))
+        self._attr_unique_id = slugify(self.coordinator.config_entry.entry_id, self._attr_key)
         self._attr_entity_category = sensor.get("category") or sensor.get("entity_category")
         self._attr_entity_registry_enabled_default = not "disabled" in sensor
         self._attr_entity_registry_visible_default = not "hidden" in sensor
@@ -100,6 +80,10 @@ class SolarmanEntity(SolarmanCoordinatorEntity):
 
         if (unit_of_measurement := sensor.get("uom") or sensor.get("unit_of_measurement")):
             self._attr_native_unit_of_measurement = unit_of_measurement
+        if (suggested_unit_of_measurement := sensor.get("suggested_unit_of_measurement")):
+            self._attr_suggested_unit_of_measurement = suggested_unit_of_measurement
+        if (suggested_display_precision := sensor.get("suggested_display_precision")):
+            self._attr_suggested_display_precision = suggested_display_precision
         if (options := sensor.get("options")):
             self._attr_options = options
             self._attr_extra_state_attributes = self._attr_extra_state_attributes | { "options": options }
@@ -112,12 +96,12 @@ class SolarmanEntity(SolarmanCoordinatorEntity):
         if description := sensor.get("description"):
             self._attr_extra_state_attributes = self._attr_extra_state_attributes | { "description": description }
 
-        self.attributes = {slugify('_'.join(filter(None, (x, "sensor")))): x for x in attrs} if (attrs := sensor.get("attributes")) is not None else None
+        self.attributes = {slugify(x, "sensor"): x for x in attrs} if (attrs := sensor.get("attributes")) is not None else None
         self.registers = sensor.get("registers")
 
     def _friendly_name_internal(self) -> str | None:
         name = self.name if self.name is not UNDEFINED else None
-        if self.platform and (name_translation_key := self._name_translation_key) and (n := self.platform.platform_translations.get(name_translation_key)):
+        if hasattr(self, "platform_data") and self.platform_data and (name_translation_key := self._name_translation_key) and (n := self.platform_data.platform_translations.get(name_translation_key)):
             name = self._substitute_name_placeholders(n)
         elif self._attr_friendly_name:
             name = self._attr_friendly_name

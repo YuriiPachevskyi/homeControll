@@ -553,6 +553,9 @@ parameters:
         rule: 1
         registers: [0x006C]
         icon: "mdi:solar-power"
+        validation:
+          dev: 100
+          invalidate_all:
 
       - name: "Total Production"
         class: "energy"
@@ -674,6 +677,7 @@ parameters:
 
       - name: "Battery Capacity"
         description: Estimates capacity of the battery during (dis)charging
+        class: energy_storage
         state_class: measurement
         uom: "kWh"
         rule: 0
@@ -1153,12 +1157,13 @@ parameters:
         uom: "W"
         rule: 1
         registers: [0x00CE]
-        configurable:
-          mode: box
         range:
           min: 0
+          max: 65535
+        configurable:
+          min: -20
           max: 500
-        icon: "mdi:transmission-tower-import"
+        icon: "mdi:transmission-tower"
 
       - name: "Battery Equalization Cycle"
         platform: number
@@ -1721,7 +1726,7 @@ parameters:
           - key: 0x00FF
             value: "Week"
           - bit: 0
-            mode: single
+            mode: "|"
             value: "Enabled"
 
       - name: "Program 1 Time"
@@ -2308,9 +2313,25 @@ parameters:
         rule: 1
         registers: [0x0146]
         lookup:
-          - key: 0x0000
+          - key: 0
             value: Disabled
           - bit: 0
             value: Enabled
           - bit: [0, 13]
             value: Generator
+
+      - name: AC Coupling
+        description: Couple inverters and batteries using AC lines
+        platform: "select"
+        rule: 1
+        registers: [0x0146]
+        lookup:
+          - bit: 0
+            mode: "|"
+            value: Disabled
+          - bit: 6
+            mode: "|"
+            value: Grid
+          - bit: 7
+            mode: "|"
+            value: Load

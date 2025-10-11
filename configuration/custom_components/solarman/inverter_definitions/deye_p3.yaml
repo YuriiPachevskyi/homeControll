@@ -280,8 +280,11 @@ parameters:
         registers: [0x0068]
         range:
           min: 0
+          max: 65535
+        configurable:
+          min: -20
           max: 500
-        icon: "mdi:transmission-tower-import"
+        icon: "mdi:transmission-tower"
 
       - name: "Battery Equalization Cycle"
         platform: number
@@ -889,7 +892,7 @@ parameters:
           - key: 0x00FF
             value: "Week"
           - bit: 0
-            mode: single
+            mode: "|"
             value: "Enabled"
 
       - name: Program 1 Time
@@ -1805,6 +1808,9 @@ parameters:
         rule: 1
         registers: [0x0211]
         icon: "mdi:solar-power"
+        validation:
+          dev: 100
+          invalidate_all: 2
 
       - name: "Total Production"
         class: "energy"
@@ -2020,10 +2026,10 @@ parameters:
             value: Problem
 
   - group: Battery
+    update_interval: 5
     items:
       # Battery - The temperature of battery 1
       - name: "Battery Temperature"
-        update_interval: 5
         class: "temperature"
         state_class: "measurement"
         uom: "°C"
@@ -2097,6 +2103,7 @@ parameters:
       # Battery - Capacity
       - name: "Battery Capacity"
         description: Estimates capacity of the battery during (dis)charging
+        class: energy_storage
         state_class: measurement
         uom: "kWh"
         rule: 0
