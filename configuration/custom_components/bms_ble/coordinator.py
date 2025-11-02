@@ -5,6 +5,8 @@ from datetime import timedelta
 from time import monotonic
 from typing import Final
 
+from aiobmsble import BMSInfo, BMSSample
+from aiobmsble.basebms import BaseBMS
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakError
 from habluetooth import BluetoothServiceInfoBleak
@@ -17,10 +19,9 @@ from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceIn
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN, LOGGER, UPDATE_INTERVAL
-from .plugins.basebms import BaseBMS, BMSsample
 
 
-class BTBmsCoordinator(DataUpdateCoordinator[BMSsample]):
+class BTBmsCoordinator(DataUpdateCoordinator[BMSSample]):
     """Update coordinator for a battery management system."""
 
     def __init__(
@@ -40,7 +41,9 @@ class BTBmsCoordinator(DataUpdateCoordinator[BMSsample]):
             config_entry=config_entry,
         )
         self._device: Final[BaseBMS] = bms_device
-        self._link_q: deque[bool] = deque([False], maxlen=100)  # track BMS update issues
+        self._link_q: deque[bool] = deque(
+            [False], maxlen=100
+        )  # track BMS update issues
         self._mac: Final[str] = ble_device.address
         self._stale: bool = False  # indicates no BMS response for significant time
 
@@ -48,7 +51,7 @@ class BTBmsCoordinator(DataUpdateCoordinator[BMSsample]):
             "Initializing coordinator for %s (%s) as %s",
             self.name,
             self._mac,
-            bms_device.device_id(),
+            bms_device.bms_id(),
         )
 
         if service_info := async_last_service_info(
@@ -56,19 +59,9 @@ class BTBmsCoordinator(DataUpdateCoordinator[BMSsample]):
         ):
             LOGGER.debug("%s: advertisement: %s", self.name, service_info.as_dict())
 
-        # retrieve device information
-        device_info: Final[dict[str, str]] = self._device.device_info()
         self.device_info = DeviceInfo(
-            identifiers={
-                (DOMAIN, self._mac),
-                (BLUETOOTH_DOMAIN, self._mac),
-            },
+            identifiers={(DOMAIN, self._mac), (BLUETOOTH_DOMAIN, self._mac)},
             connections={(CONNECTION_BLUETOOTH, self._mac)},
-            name=self.name,
-            configuration_url=None,
-            # properties used in GUI:
-            manufacturer=device_info.get("manufacturer"),
-            model=device_info.get("model"),
         )
 
     @property
@@ -117,7 +110,22 @@ class BTBmsCoordinator(DataUpdateCoordinator[BMSsample]):
 
         return self._stale
 
-    async def _async_update_data(self) -> BMSsample:
+    async def _async_setup(self) -> None:
+        bms_info: Final[BMSInfo] = await self._device.device_info()
+        self.device_info.update(
+            DeviceInfo(
+                name=bms_info.get("name") or self.name,
+                manufacturer=bms_info.get("manufacturer")
+                or self._device.INFO["default_manufacturer"],
+                model=bms_info.get("model") or self._device.INFO["default_model"],
+                sw_version=bms_info.get("sw_version") or bms_info.get("fw_version"),
+                hw_version=bms_info.get("hw_version"),
+                model_id=bms_info.get("model_id"),
+                serial_number=bms_info.get("serial_number"),
+            )
+        )
+
+    async def _async_update_data(self) -> BMSSample:
         """Return the latest data from the device."""
 
         LOGGER.debug("%s: BMS data update", self.name)

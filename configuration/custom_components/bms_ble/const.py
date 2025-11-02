@@ -3,53 +3,23 @@
 import logging
 from typing import Final
 
-from homeassistant.const import (  # noqa: F401  # pylint: disable=unused-import
-    ATTR_BATTERY_CHARGING,
-    ATTR_BATTERY_LEVEL,
-    ATTR_TEMPERATURE,
-    ATTR_VOLTAGE,
-)
-
-BMS_TYPES: Final[list[str]] = [
-    "abc_bms",
-    "ant_bms",
-    "ant_leg_bms",
-    "braunpwr_bms",
-    "cbtpwr_bms",
-    "cbtpwr_vb_bms",
-    "daly_bms",
-    "ecoworthy_bms",
-    "ective_bms",
-    "ej_bms",
-    "jbd_bms",
-    "jikong_bms",
-    "neey_bms",  # active balancer
-    "ogt_bms",
-    "pro_bms",
-    "redodo_bms",
-    "renogy_bms",
-    "renogy_pro_bms",
-    "seplos_bms",
-    "seplos_v2_bms",
-    "roypow_bms",
-    "tdt_bms",
-    "dpwrcore_bms",  # **vvv** only name filter **vvv**
-    "felicity_bms",
-    "tianpwr_bms",
-]  # available BMS types
 DOMAIN: Final[str] = "bms_ble"
 LOGGER: Final[logging.Logger] = logging.getLogger(__package__)
 UPDATE_INTERVAL: Final[int] = 30  # [s]
 
 # attributes (do not change)
+BINARY_SENSORS: Final[int] = 2
+SENSORS: Final[int] = 11
 ATTR_BALANCE_CUR: Final[str] = "balance_current"  # [A]
 ATTR_CELL_VOLTAGES: Final[str] = "cell_voltages"  # [V]
 ATTR_CURRENT: Final[str] = "current"  # [A]
 ATTR_CYCLE_CAP: Final[str] = "cycle_capacity"  # [Wh]
 ATTR_CYCLE_CHRG: Final[str] = "cycle_charge"  # [Ah]
 ATTR_CYCLES: Final[str] = "cycles"  # [#]
-ATTR_DELTA_VOLTAGE: Final[str] = "delta_voltage"  # [V]
+ATTR_DELTA_VOLTAGE: Final[str] = "delta_cell_voltage"  # [V]
 ATTR_LQ: Final[str] = "link_quality"  # [%]
+ATTR_MAX_VOLTAGE: Final[str] = "max_cell_voltage"  # [V]
+ATTR_MIN_VOLTAGE: Final[str] = "min_cell_voltage"  # [V]
 ATTR_POWER: Final[str] = "power"  # [W]
 ATTR_PROBLEM: Final[str] = "problem"  # [bool]
 ATTR_PROBLEM_CODE: Final[str] = "problem_code"  # [int]

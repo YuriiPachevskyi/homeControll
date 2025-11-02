@@ -37,24 +37,6 @@
   - action: script.power_load_disable_device_duplicate
     data: {}
   mode: single
-- id: '1711297405381'
-  alias: 'boiler 2.0 KWh at 4: 00 AM enable'
-  description: ''
-  triggers:
-  - at: 04:40:00
-    trigger: time
-  conditions:
-  - condition: state
-    entity_id: switch.boiler_night_charge
-    state: 'on'
-  actions:
-  - action: switch.turn_on
-    target:
-      entity_id:
-      - switch.1560_boiler_ten_0_8_kwh
-      - switch.1561_boiler_ten_1_2_kwh
-    data: {}
-  mode: single
 - id: '1731862602452'
   alias: Update switches state on startup
   description: ''
@@ -74,12 +56,18 @@
       - switch.1564_heating_ten_3_kwh
       - switch.boiler_night_charge
       - switch.1560_boiler_ten_0_8_kwh
-      - switch.heating_enabled
   - action: automation.turn_on
     metadata: {}
     data: {}
     target:
       entity_id: automation.grid_power_above_600_w
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - switch.heating_enabled
+      - switch.boiler_night_charge
   mode: single
 - id: '1746509513994'
   alias: '"Grid power above 600 W" restart'
@@ -120,16 +108,4 @@
     data: {}
     target:
       entity_id: automation.grid_power_above_600_w
-  mode: single
-- id: '1751604168979'
-  alias: Turn on Conditioner
-  description: ''
-  triggers: []
-  conditions: []
-  actions:
-  - action: climate.toggle
-    metadata: {}
-    data: {}
-    target:
-      entity_id: climate.rozdilnii_konditsioner
   mode: single

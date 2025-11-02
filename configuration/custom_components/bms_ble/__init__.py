@@ -78,16 +78,18 @@ async def async_migrate_entry(
     hass: HomeAssistant, config_entry: BTBmsConfigEntry
 ) -> bool:
     """Migrate old entry."""
+    _latest_version: Final[int] = 2
 
-    if config_entry.version > 1:
+    if config_entry.version > _latest_version:
         # This means the user has downgraded from a future version
         LOGGER.debug("Cannot downgrade from version %s", config_entry.version)
         return False
 
-    LOGGER.debug("Migrating from version %s", config_entry.version)
+    LOGGER.debug("Migrating from version %s.%s", config_entry.version, config_entry.minor_version)
 
     if config_entry.version == 0:
-        bms_type = config_entry.data["type"]
+        bms_type: str = str(config_entry.data["type"])
+        new: dict[str, str] = {}
         if bms_type == "OGTBms":
             new = {"type": "custom_components.bms_ble.plugins.ogt_bms"}
         elif bms_type == "DalyBms":
@@ -103,6 +105,13 @@ async def async_migrate_entry(
 
         hass.config_entries.async_update_entry(
             config_entry, data=new, minor_version=0, version=1
+        )
+
+    if config_entry.version == 1:
+        bms_type = str(config_entry.data["type"])
+        new = {"type": f"aiobmsble.bms.{bms_type.rsplit(".", 1)[-1]}"}
+        hass.config_entries.async_update_entry(
+            config_entry, data=new, minor_version=0, version=2
         )
 
     LOGGER.debug(
@@ -123,15 +132,21 @@ def migrate_sensor_entities(
     entities: Final[er.EntityRegistryItems] = ent_reg.entities
 
     for entry in entities.get_entries_for_config_entry_id(config_entry.entry_id):
-        if entry.unique_id.startswith(f"{DOMAIN}-"):
+        unique_id: str = entry.unique_id
+        # update entries from wrong old format using no domain prefix
+        if not entry.unique_id.startswith(f"{DOMAIN}-"):
+            unique_id = f"{DOMAIN}-{format_mac(config_entry.unique_id)}-{unique_id.split('-')[-1]}"
+        # rename delta_voltage sensor to be consistent with min/max cell voltage sensor
+        if unique_id.endswith("-delta_voltage"):
+            unique_id = unique_id.removesuffix("-delta_voltage") + "-delta_cell_voltage"
+
+        if unique_id == entry.unique_id:
             continue
-        new_unique_id: str = (
-            f"{DOMAIN}-{format_mac(config_entry.unique_id)}-{entry.unique_id.split('-')[-1]}"
-        )
+
         LOGGER.debug(
             "migrating %s with old unique_id '%s' to new '%s'",
             entry.entity_id,
             entry.unique_id,
-            new_unique_id,
+            unique_id,
         )
-        ent_reg.async_update_entity(entry.entity_id, new_unique_id=new_unique_id)
+        ent_reg.async_update_entity(entry.entity_id, new_unique_id=unique_id)

@@ -3,7 +3,8 @@
 from collections.abc import Callable
 from typing import Final, cast
 
-from custom_components.bms_ble.plugins.basebms import BMSpackvalue, BMSsample
+from aiobmsble import BMSpackvalue, BMSSample
+
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.components.sensor.const import SensorDeviceClass, SensorStateClass
 from homeassistant.const import (
@@ -32,6 +33,8 @@ from .const import (
     ATTR_CYCLES,
     ATTR_DELTA_VOLTAGE,
     ATTR_LQ,
+    ATTR_MAX_VOLTAGE,
+    ATTR_MIN_VOLTAGE,
     ATTR_POWER,
     ATTR_RSSI,
     ATTR_RUNTIME,
@@ -46,12 +49,12 @@ PARALLEL_UPDATES = 0
 class BmsEntityDescription(SensorEntityDescription, frozen_or_thawed=True):
     """Describes BMS sensor entity."""
 
-    value_fn: Callable[[BMSsample], float | int | None]
-    attr_fn: Callable[[BMSsample], dict[str, list[int | float]]] | None = None
+    value_fn: Callable[[BMSSample], float | int | None]
+    attr_fn: Callable[[BMSSample], dict[str, list[int | float]]] | None = None
 
 
 def _attr_pack(
-    data: BMSsample, key: BMSpackvalue, default: list[int | float]
+    data: BMSSample, key: BMSpackvalue, default: list[int | float]
 ) -> dict[str, list[int | float]]:
     """Return a dictionary with the given key and default value."""
     return (
@@ -152,7 +155,7 @@ SENSOR_TYPES: Final[list[BmsEntityDescription]] = [
     BmsEntityDescription(
         key=ATTR_DELTA_VOLTAGE,
         translation_key=ATTR_DELTA_VOLTAGE,
-        name="Delta voltage",
+        name="Delta cell voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.VOLTAGE,
@@ -162,6 +165,42 @@ SENSOR_TYPES: Final[list[BmsEntityDescription]] = [
         attr_fn=lambda data: (
             {"cell_voltages": data.get("cell_voltages", [])}
             if "cell_voltages" in data
+            else {}
+        ),
+    ),
+    BmsEntityDescription(
+        key=ATTR_MAX_VOLTAGE,
+        translation_key=ATTR_MAX_VOLTAGE,
+        name="Maximal cell voltage",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=3,
+        value_fn=lambda data: (
+            max(cells) if (cells := data.get("cell_voltages", [])) else None
+        ),
+        attr_fn=lambda data: (
+            {"cell_number": cells.index(max(cells))}
+            if (cells := data.get("cell_voltages", []))
+            else {}
+        ),
+    ),
+    BmsEntityDescription(
+        key=ATTR_MIN_VOLTAGE,
+        translation_key=ATTR_MIN_VOLTAGE,
+        name="Minimal cell voltage",
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.VOLTAGE,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=3,
+        value_fn=lambda data: (
+            min(cells) if (cells := data.get("cell_voltages", [])) else None
+        ),
+        attr_fn=lambda data: (
+            {"cell_number": cells.index(min(cells))}
+            if (cells := data.get("cell_voltages", []))
             else {}
         ),
     ),
