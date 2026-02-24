@@ -54,20 +54,21 @@
       - switch.1561_boiler_ten_1_2_kwh
       - switch.1563_heating_ten_1_5_kwh
       - switch.1564_heating_ten_3_kwh
-      - switch.boiler_night_charge
       - switch.1560_boiler_ten_0_8_kwh
   - action: automation.turn_on
     metadata: {}
     data: {}
     target:
       entity_id: automation.grid_power_above_600_w
-  - action: switch.turn_on
+  - action: input_boolean.turn_on
     metadata: {}
     data: {}
     target:
       entity_id:
-      - switch.heating_enabled
-      - switch.boiler_night_charge
+      - input_boolean.my_flag3
+      - input_boolean.my_flag4
+      - input_boolean.my_flag2
+    enabled: false
   mode: single
 - id: '1746509513994'
   alias: '"Grid power above 600 W" restart'
@@ -77,8 +78,6 @@
     at: 07:30:00
   - trigger: time
     at: '18:00:00'
-  - trigger: time
-    at: '20:00:00'
   conditions: []
   actions:
   - action: automation.turn_on
@@ -86,6 +85,11 @@
     data: {}
     target:
       entity_id: automation.grid_power_above_600_w
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.boiler_night_charge
   mode: single
 - id: '1750746853731'
   alias: '"Grid power above 600 W" enable for powerful sun'
@@ -108,4 +112,103 @@
     data: {}
     target:
       entity_id: automation.grid_power_above_600_w
+  mode: single
+- id: '1765279087359'
+  alias: Boiler night charge
+  description: ''
+  triggers:
+  - trigger: time
+    at: '23:30:00'
+    enabled: false
+  - trigger: time
+    at: 00:30:00
+    enabled: true
+  - trigger: time
+    at: 01:30:00
+    enabled: true
+  - trigger: time
+    at: 02:30:00
+  - trigger: time
+    at: 03:30:00
+  - trigger: time
+    at: 04:30:00
+  - trigger: time
+    at: 05:30:00
+  conditions:
+  - condition: and
+    conditions:
+    - condition: state
+      entity_id: input_boolean.my_flag3
+      state:
+      - 'on'
+    - type: is_powered
+      condition: device
+      device_id: f6c638d30b7111c48069aa655490cd8a
+      entity_id: 896ca39ef0b07128ebb845a4562bee48
+      domain: binary_sensor
+    - type: is_power
+      condition: device
+      device_id: f6c638d30b7111c48069aa655490cd8a
+      entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
+      domain: sensor
+      above: -900
+  actions:
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id:
+      - switch.1560_boiler_ten_0_8_kwh
+      - switch.1561_boiler_ten_1_2_kwh
+  mode: single
+- id: '1771933250878'
+  alias: Grid OFF
+  description: ''
+  triggers:
+  - type: not_powered
+    device_id: f6c638d30b7111c48069aa655490cd8a
+    entity_id: 896ca39ef0b07128ebb845a4562bee48
+    domain: binary_sensor
+    trigger: device
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 30
+  conditions:
+  - condition: time
+    after: 08:00:00
+    before: '17:00:00'
+  actions:
+  - device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+    domain: select
+    entity_id: be99766bc5a323663a8296bb0f4642ac
+    type: select_option
+    option: Both
+  - device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+    domain: number
+    entity_id: ee6d83fa2f25f67aa541615ce351af23
+    type: set_value
+    value: 100
+  mode: single
+- id: '1771933657163'
+  alias: Grid ON
+  description: ''
+  triggers:
+  - type: powered
+    device_id: f6c638d30b7111c48069aa655490cd8a
+    entity_id: 896ca39ef0b07128ebb845a4562bee48
+    domain: binary_sensor
+    trigger: device
+  conditions: []
+  actions:
+  - device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+    domain: select
+    entity_id: be99766bc5a323663a8296bb0f4642ac
+    type: select_option
+    option: Disabled
+  - device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+    domain: number
+    entity_id: ee6d83fa2f25f67aa541615ce351af23
+    type: set_value
+    value: 30
   mode: single

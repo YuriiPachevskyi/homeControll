@@ -5,6 +5,20 @@ automation: !include automations.yaml
 script: !include scripts.yaml
 mqtt: !include switches.yaml
 
+input_boolean:
+  my_flag1:
+    name: Air conditioning cooling
+    icon: mdi:toggle-switch
+  my_flag2:
+    name: Air conditioning heating
+    icon: mdi:toggle-switch
+  my_flag3:
+    name: Boiler night charge
+    icon: mdi:toggle-switch
+  my_flag4:
+    name: Heating enabled
+    icon: mdi:toggle-switch
+
 shell_command:
   bizon_suspend: echo vfnhjc | ssh -tt yurii@192.168.150.4 'sudo -S systemctl suspend -i'
   bizon_reboot: echo vfnhjc | ssh -tt yurii@192.168.150.4 'sudo reboot'
