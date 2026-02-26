@@ -1,37 +1,9 @@
 - id: '1700242260035'
-  alias: '"Grid power above 600 W"'
+  alias: Grid power above 600 W
   description: ''
   triggers:
-  - type: powered
-    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-    entity_id: f92dd0042137a11a70c8b56bdd102329
-    domain: binary_sensor
-    trigger: device
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 30
-  - type: power
-    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-    entity_id: 0124cde1985f8caf83b525ca9de4902c
-    domain: sensor
-    trigger: device
-    above: 300
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 30
-  - entity_id:
-    - script.power_load_disable_device_duplicate
-    from:
-    to:
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 40
-    trigger: state
-  - event: start
-    trigger: homeassistant
+  - trigger: time_pattern
+    seconds: /40
   conditions: []
   actions:
   - action: script.power_load_disable_device_duplicate
@@ -55,46 +27,15 @@
       - switch.1563_heating_ten_1_5_kwh
       - switch.1564_heating_ten_3_kwh
       - switch.1560_boiler_ten_0_8_kwh
-  - action: automation.turn_on
-    metadata: {}
-    data: {}
-    target:
-      entity_id: automation.grid_power_above_600_w
-  - action: input_boolean.turn_on
-    metadata: {}
-    data: {}
-    target:
-      entity_id:
-      - input_boolean.my_flag3
-      - input_boolean.my_flag4
-      - input_boolean.my_flag2
-    enabled: false
   mode: single
 - id: '1746509513994'
-  alias: '"Grid power above 600 W" restart'
+  alias: Grid power above 600 W restart
   description: ''
   triggers:
-  - trigger: time
-    at: 07:30:00
-  - trigger: time
-    at: '18:00:00'
-  conditions: []
-  actions:
-  - action: automation.turn_on
-    metadata: {}
-    data: {}
-    target:
-      entity_id: automation.grid_power_above_600_w
-  - action: switch.turn_on
-    metadata: {}
-    data: {}
-    target:
-      entity_id: switch.boiler_night_charge
-  mode: single
-- id: '1750746853731'
-  alias: '"Grid power above 600 W" enable for powerful sun'
-  description: ''
-  triggers:
+  - at: 07:30:00
+    trigger: time
+  - at: '18:00:00'
+    trigger: time
   - type: power
     device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
     entity_id: 0124cde1985f8caf83b525ca9de4902c
@@ -107,11 +48,9 @@
       seconds: 0
   conditions: []
   actions:
-  - action: automation.turn_on
-    metadata: {}
-    data: {}
-    target:
+  - target:
       entity_id: automation.grid_power_above_600_w
+    action: automation.turn_on
   mode: single
 - id: '1765279087359'
   alias: Boiler night charge
@@ -161,54 +100,165 @@
       - switch.1560_boiler_ten_0_8_kwh
       - switch.1561_boiler_ten_1_2_kwh
   mode: single
-- id: '1771933250878'
-  alias: Grid OFF
+- id: '1772115229688'
+  alias: Deye 5KW 1 Sync Discharge SOC
   description: ''
   triggers:
-  - type: not_powered
-    device_id: f6c638d30b7111c48069aa655490cd8a
-    entity_id: 896ca39ef0b07128ebb845a4562bee48
-    domain: binary_sensor
-    trigger: device
+  - entity_id:
+    - input_number.1_discharge_level_deye_5kw
+    trigger: state
     for:
       hours: 0
-      minutes: 1
-      seconds: 30
-  conditions:
-  - condition: time
-    after: 08:00:00
-    before: '17:00:00'
+      minutes: 0
+      seconds: 5
   actions:
-  - device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-    domain: select
-    entity_id: be99766bc5a323663a8296bb0f4642ac
-    type: select_option
-    option: Both
-  - device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-    domain: number
-    entity_id: ee6d83fa2f25f67aa541615ce351af23
-    type: set_value
-    value: 100
-  mode: single
-- id: '1771933657163'
-  alias: Grid ON
+  - target:
+      entity_id:
+      - number.deye_5kw_program_1_soc
+      - number.deye_5kw_program_2_soc
+      - number.deye_5kw_program_3_soc
+    data:
+      value: '{{ trigger.to_state.state | float }}'
+    action: number.set_value
+  mode: restart
+- id: '1772117076109'
+  alias: Deye 5KW 2 Sync Discharge SOC
   description: ''
   triggers:
-  - type: powered
-    device_id: f6c638d30b7111c48069aa655490cd8a
-    entity_id: 896ca39ef0b07128ebb845a4562bee48
-    domain: binary_sensor
-    trigger: device
+  - entity_id:
+    - input_number.2_discharge_level_deye_5kw
+    trigger: state
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+  actions:
+  - target:
+      entity_id:
+      - number.deye_5kw_program_4_soc
+      - number.deye_5kw_program_5_soc
+      - number.deye_5kw_program_6_soc
+    data:
+      value: '{{ trigger.to_state.state | float }}'
+    action: number.set_value
+  mode: restart
+- id: '1772117138521'
+  alias: Deye 6KW 1 Sync Discharge SOC
+  description: ''
+  triggers:
+  - entity_id:
+    - input_number.1_discharge_level_deye_6kw
+    trigger: state
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+  actions:
+  - target:
+      entity_id:
+      - number.deye_6kw_program_1_soc
+      - number.deye_6kw_program_2_soc
+      - number.deye_6kw_program_3_soc
+    data:
+      value: '{{ trigger.to_state.state | float }}'
+    action: number.set_value
+  mode: restart
+- id: '1772117236813'
+  alias: Deye 6KW 2 Sync Discharge SOC
+  description: ''
+  triggers:
+  - entity_id:
+    - input_number.2_discharge_level_deye_6kw
+    trigger: state
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+  actions:
+  - target:
+      entity_id:
+      - number.deye_6kw_program_4_soc
+      - number.deye_6kw_program_5_soc
+      - number.deye_6kw_program_6_soc
+    data:
+      value: '{{ trigger.to_state.state | float }}'
+    action: number.set_value
+  mode: restart
+- id: '1772123844222'
+  alias: Deye 6KW Sync Battery power
+  description: ''
+  triggers:
+  - entity_id:
+    - input_number.battery_power_deye_6kw
+    trigger: state
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
   conditions: []
   actions:
-  - device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-    domain: select
-    entity_id: be99766bc5a323663a8296bb0f4642ac
-    type: select_option
-    option: Disabled
-  - device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-    domain: number
-    entity_id: ee6d83fa2f25f67aa541615ce351af23
-    type: set_value
-    value: 30
+  - target:
+      entity_id:
+      - number.deye_6kw_program_1_power
+      - number.deye_6kw_program_2_power
+      - number.deye_6kw_program_3_power
+      - number.deye_6kw_program_4_power
+      - number.deye_6kw_program_5_power
+      - number.deye_6kw_program_6_power
+    data:
+      value: '{{ trigger.to_state.state | float }}'
+    action: number.set_value
+  mode: restart
+- id: '1772123893351'
+  alias: Deye 5KW Sync Battery power
+  description: ''
+  triggers:
+  - entity_id: input_number.battery_power_deye_5kw
+    for: 00:00:05
+    trigger: state
+  conditions: []
+  actions:
+  - target:
+      entity_id:
+      - number.deye_5kw_program_2_power
+      - number.deye_5kw_program_4_power
+      - number.deye_5kw_program_5_power
+      - number.deye_5kw_program_6_power
+    data:
+      value: '{{ trigger.to_state.state | float }}'
+    action: number.set_value
+  - target:
+      entity_id:
+      - number.deye_5kw_program_1_power
+      - number.deye_5kw_program_3_power
+    data:
+      value: '{{ (trigger.to_state.state | float) * 0.5 }}'
+    action: number.set_value
+  mode: restart
+- id: '1772136257055'
+  alias: Peak Shaving Time Control (self-healing)
+  description: ''
+  triggers:
+  - minutes: /5
+    trigger: time_pattern
+  - event: start
+    trigger: homeassistant
+  actions:
+  - choose:
+    - conditions:
+      - condition: time
+        after: 07:00:00
+        before: '17:30:00'
+      sequence:
+      - target:
+          entity_id: switch.deye_5kw_grid_peak_shaving
+        action: switch.turn_off
+    - conditions:
+      - condition: time
+        after: '17:30:00'
+      sequence:
+      - target:
+          entity_id: switch.deye_5kw_grid_peak_shaving
+        action: switch.turn_on
+        data: {}
   mode: single
