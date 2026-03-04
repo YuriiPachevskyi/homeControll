@@ -5,6 +5,9 @@ automation: !include automations.yaml
 script: !include scripts.yaml
 mqtt: !include switches.yaml
 
+homeassistant:
+  packages: !include_dir_named packages
+
 input_boolean:
   my_flag1:
     name: Air conditioning cooling

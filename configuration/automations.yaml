@@ -3,7 +3,7 @@
   description: ''
   triggers:
   - trigger: time_pattern
-    seconds: /40
+    minutes: /1
   conditions: []
   actions:
   - action: script.power_load_disable_device_duplicate
@@ -28,237 +28,248 @@
       - switch.1564_heating_ten_3_kwh
       - switch.1560_boiler_ten_0_8_kwh
   mode: single
-- id: '1746509513994'
-  alias: Grid power above 600 W restart
-  description: ''
+- id: '1772123844222'
+  alias: Deye Power Sync (Unified)
   triggers:
-  - at: 07:30:00
-    trigger: time
-  - at: '18:00:00'
-    trigger: time
-  - type: power
-    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-    entity_id: 0124cde1985f8caf83b525ca9de4902c
-    domain: sensor
-    trigger: device
-    below: -3800
-    for:
-      hours: 0
-      minutes: 5
-      seconds: 0
-  conditions: []
+  - entity_id:
+    - input_number.battery_power_deye_5kw
+    - input_number.battery_power_deye_6kw
+    - input_number.charge_power_deye_6kw
+    for: 00:00:05
+    trigger: state
   actions:
-  - target:
-      entity_id: automation.grid_power_above_600_w
-    action: automation.turn_on
-  mode: single
-- id: '1765279087359'
-  alias: Boiler night charge
-  description: ''
-  triggers:
-  - trigger: time
-    at: '23:30:00'
-    enabled: false
-  - trigger: time
-    at: 00:30:00
-    enabled: true
-  - trigger: time
-    at: 01:30:00
-    enabled: true
-  - trigger: time
-    at: 02:30:00
-  - trigger: time
-    at: 03:30:00
-  - trigger: time
-    at: 04:30:00
-  - trigger: time
-    at: 05:30:00
-  conditions:
-  - condition: and
-    conditions:
-    - condition: state
-      entity_id: input_boolean.my_flag3
-      state:
-      - 'on'
-    - type: is_powered
-      condition: device
-      device_id: f6c638d30b7111c48069aa655490cd8a
-      entity_id: 896ca39ef0b07128ebb845a4562bee48
-      domain: binary_sensor
-    - type: is_power
-      condition: device
-      device_id: f6c638d30b7111c48069aa655490cd8a
-      entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-      domain: sensor
-      above: -900
-  actions:
-  - action: switch.turn_on
-    metadata: {}
-    data: {}
-    target:
-      entity_id:
-      - switch.1560_boiler_ten_0_8_kwh
-      - switch.1561_boiler_ten_1_2_kwh
-  mode: single
-- id: '1772115229688'
-  alias: Deye 5KW 1 Sync Discharge SOC
+  - variables:
+      val: '{{ trigger.to_state.state | float }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.battery_power_deye_5kw''
+          }}'
+      sequence:
+      - target:
+          entity_id:
+          - number.deye_5kw_program_2_power
+        data:
+          value: '{{ val | round(0) }}'
+        action: number.set_value
+      - target:
+          entity_id:
+          - number.deye_5kw_program_1_power
+          - number.deye_5kw_program_3_power
+        data:
+          value: '{{ (val * 0.8) | round(0) }}'
+        action: number.set_value
+      - target:
+          entity_id:
+          - number.deye_5kw_program_4_power
+          - number.deye_5kw_program_5_power
+          - number.deye_5kw_program_6_power
+        data:
+          value: '{{ 0 }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.battery_power_deye_6kw''
+          }}'
+      sequence:
+      - target:
+          entity_id:
+          - number.deye_6kw_program_1_power
+          - number.deye_6kw_program_2_power
+          - number.deye_6kw_program_3_power
+          - number.deye_6kw_program_4_power
+          - number.deye_6kw_program_5_power
+          - number.deye_6kw_program_6_power
+        data:
+          value: '{{ val | round(0) }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.charge_power_deye_6kw''
+          }}'
+      sequence:
+      - target:
+          entity_id:
+          - number.deye_6kw_battery_max_charging_current
+        data:
+          value: '{{ val | round(0) }}'
+        action: number.set_value
+  mode: restart
+- id: '1772141612089'
+  alias: Deye SOC Sync (Unified)
   description: ''
   triggers:
   - entity_id:
     - input_number.1_discharge_level_deye_5kw
-    trigger: state
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 5
-  actions:
-  - target:
-      entity_id:
-      - number.deye_5kw_program_1_soc
-      - number.deye_5kw_program_2_soc
-      - number.deye_5kw_program_3_soc
-    data:
-      value: '{{ trigger.to_state.state | float }}'
-    action: number.set_value
-  mode: restart
-- id: '1772117076109'
-  alias: Deye 5KW 2 Sync Discharge SOC
-  description: ''
-  triggers:
-  - entity_id:
     - input_number.2_discharge_level_deye_5kw
-    trigger: state
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 5
-  actions:
-  - target:
-      entity_id:
-      - number.deye_5kw_program_4_soc
-      - number.deye_5kw_program_5_soc
-      - number.deye_5kw_program_6_soc
-    data:
-      value: '{{ trigger.to_state.state | float }}'
-    action: number.set_value
-  mode: restart
-- id: '1772117138521'
-  alias: Deye 6KW 1 Sync Discharge SOC
-  description: ''
-  triggers:
-  - entity_id:
     - input_number.1_discharge_level_deye_6kw
-    trigger: state
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 5
-  actions:
-  - target:
-      entity_id:
-      - number.deye_6kw_program_1_soc
-      - number.deye_6kw_program_2_soc
-      - number.deye_6kw_program_3_soc
-    data:
-      value: '{{ trigger.to_state.state | float }}'
-    action: number.set_value
-  mode: restart
-- id: '1772117236813'
-  alias: Deye 6KW 2 Sync Discharge SOC
-  description: ''
-  triggers:
-  - entity_id:
     - input_number.2_discharge_level_deye_6kw
-    trigger: state
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 5
-  actions:
-  - target:
-      entity_id:
-      - number.deye_6kw_program_4_soc
-      - number.deye_6kw_program_5_soc
-      - number.deye_6kw_program_6_soc
-    data:
-      value: '{{ trigger.to_state.state | float }}'
-    action: number.set_value
-  mode: restart
-- id: '1772123844222'
-  alias: Deye 6KW Sync Battery power
-  description: ''
-  triggers:
-  - entity_id:
-    - input_number.battery_power_deye_6kw
-    trigger: state
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 5
-  conditions: []
-  actions:
-  - target:
-      entity_id:
-      - number.deye_6kw_program_1_power
-      - number.deye_6kw_program_2_power
-      - number.deye_6kw_program_3_power
-      - number.deye_6kw_program_4_power
-      - number.deye_6kw_program_5_power
-      - number.deye_6kw_program_6_power
-    data:
-      value: '{{ trigger.to_state.state | float }}'
-    action: number.set_value
-  mode: restart
-- id: '1772123893351'
-  alias: Deye 5KW Sync Battery power
-  description: ''
-  triggers:
-  - entity_id: input_number.battery_power_deye_5kw
     for: 00:00:05
     trigger: state
-  conditions: []
   actions:
-  - target:
-      entity_id:
-      - number.deye_5kw_program_2_power
-      - number.deye_5kw_program_4_power
-      - number.deye_5kw_program_5_power
-      - number.deye_5kw_program_6_power
-    data:
-      value: '{{ trigger.to_state.state | float }}'
-    action: number.set_value
-  - target:
-      entity_id:
-      - number.deye_5kw_program_1_power
-      - number.deye_5kw_program_3_power
-    data:
-      value: '{{ (trigger.to_state.state | float) * 0.5 }}'
-    action: number.set_value
+  - variables:
+      val: '{{ trigger.to_state.state | float }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_5kw''
+          }}'
+      sequence:
+      - target:
+          entity_id:
+          - number.deye_5kw_program_1_soc
+          - number.deye_5kw_program_2_soc
+          - number.deye_5kw_program_3_soc
+        data:
+          value: '{{ val }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.2_discharge_level_deye_5kw''
+          }}'
+      sequence:
+      - target:
+          entity_id:
+          - number.deye_5kw_program_4_soc
+          - number.deye_5kw_program_5_soc
+          - number.deye_5kw_program_6_soc
+        data:
+          value: '{{ val }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_6kw''
+          }}'
+      sequence:
+      - target:
+          entity_id:
+          - number.deye_6kw_program_1_soc
+          - number.deye_6kw_program_2_soc
+          - number.deye_6kw_program_3_soc
+        data:
+          value: '{{ val }}'
+        action: number.set_value
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.2_discharge_level_deye_6kw''
+          }}'
+      sequence:
+      - target:
+          entity_id:
+          - number.deye_6kw_program_4_soc
+          - number.deye_6kw_program_5_soc
+          - number.deye_6kw_program_6_soc
+        data:
+          value: '{{ val }}'
+        action: number.set_value
   mode: restart
-- id: '1772136257055'
-  alias: Peak Shaving Time Control (self-healing)
-  description: ''
+- id: '1772480869891'
+  alias: Deye Morning Control (Ultra Safe)
+  description: Peak shaving + charge logic + scheduler control
   triggers:
-  - minutes: /5
-    trigger: time_pattern
-  - event: start
-    trigger: homeassistant
+  - trigger: time
+    at: 07:30:00
+    id: t_0730
+  - trigger: time
+    at: '10:00:00'
+    id: t_1000
+  - trigger: time
+    at: '18:00:00'
+    id: t_1800
+  - trigger: time_pattern
+    minutes: /10
+    id: periodic
+  - trigger: state
+    entity_id: binary_sensor.deye_6kw_grid
+    id: grid_change
+  - trigger: homeassistant
+    event: start
+    id: ha_start
   actions:
   - choose:
     - conditions:
-      - condition: time
-        after: 07:00:00
-        before: '17:30:00'
+      - condition: template
+        value_template: '{{ not grid_on }}'
       sequence:
-      - target:
-          entity_id: switch.deye_5kw_grid_peak_shaving
-        action: switch.turn_off
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.charge_power_deye_6kw
+        data:
+          value: 75
+      - stop: Grid lost emergency
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''t_0730'' }}'
+      sequence:
+      - action: automation.turn_on
+        target:
+          entity_id: automation.grid_power_above_600_w
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id == ''t_1800'' }}'
+      sequence:
+      - action: automation.turn_on
+        target:
+          entity_id: automation.grid_power_above_600_w
+  - choose:
     - conditions:
       - condition: time
-        after: '17:30:00'
+        after: 07:30:00
+        before: '18:00:00'
       sequence:
-      - target:
+      - action: switch.turn_off
+        target:
           entity_id: switch.deye_5kw_grid_peak_shaving
-        action: switch.turn_on
-        data: {}
+    default:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.deye_5kw_grid_peak_shaving
+  - choose:
+    - conditions:
+      - condition: time
+        after: 07:30:00
+        before: '10:00:00'
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.charge_power_deye_6kw
+        data:
+          value: 0
+  mode: restart
+  variables:
+    grid_on: '{{ is_state(''binary_sensor.deye_6kw_grid'', ''on'') }}'
+- id: '1772625520676'
+  alias: Disable Conditioner
+  description: ''
+  triggers:
+  - type: power
+    device_id: f6c638d30b7111c48069aa655490cd8a
+    entity_id: 36cd23ff94ab4e4209b9802e394dcd3a
+    domain: sensor
+    trigger: device
+    above: 1000
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  conditions:
+  - condition: device
+    device_id: be55afc0f88f5ce38043ce63a5d08b6f
+    domain: climate
+    entity_id: e453c4793221ab7afa46754f7ff861f4
+    type: is_hvac_mode
+    hvac_mode: heat
+  - condition: device
+    device_id: be55afc0f88f5ce38043ce63a5d08b6f
+    domain: climate
+    entity_id: e453c4793221ab7afa46754f7ff861f4
+    type: is_hvac_mode
+    hvac_mode: cool
+  actions:
+  - device_id: be55afc0f88f5ce38043ce63a5d08b6f
+    domain: climate
+    entity_id: e453c4793221ab7afa46754f7ff861f4
+    type: set_hvac_mode
+    hvac_mode: 'off'
   mode: single
