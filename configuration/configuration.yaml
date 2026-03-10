@@ -21,6 +21,9 @@ input_boolean:
   my_flag4:
     name: Heating enabled
     icon: mdi:toggle-switch
+  my_flag5:
+    name: At home
+    icon: mdi:toggle-switch
 
 shell_command:
   bizon_suspend: echo vfnhjc | ssh -tt yurii@192.168.150.4 'sudo -S systemctl suspend -i'

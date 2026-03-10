@@ -3,7 +3,7 @@
   description: ''
   triggers:
   - trigger: time_pattern
-    minutes: /1
+    seconds: /40
   conditions: []
   actions:
   - action: script.power_load_disable_device_duplicate
@@ -30,6 +30,7 @@
   mode: single
 - id: '1772123844222'
   alias: Deye Power Sync (Unified)
+  description: ''
   triggers:
   - entity_id:
     - input_number.battery_power_deye_5kw
@@ -57,11 +58,16 @@
           - number.deye_5kw_program_1_power
           - number.deye_5kw_program_3_power
         data:
-          value: '{{ (val * 0.8) | round(0) }}'
+          value: '{{ (val * 0.9) | round(0) }}'
         action: number.set_value
       - target:
           entity_id:
           - number.deye_5kw_program_4_power
+        data:
+          value: '{{ (val * 0.8) | round(0) }}'
+        action: number.set_value
+      - target:
+          entity_id:
           - number.deye_5kw_program_5_power
           - number.deye_5kw_program_6_power
         data:
@@ -120,6 +126,7 @@
           - number.deye_5kw_program_1_soc
           - number.deye_5kw_program_2_soc
           - number.deye_5kw_program_3_soc
+          - number.deye_5kw_program_4_soc
         data:
           value: '{{ val }}'
         action: number.set_value
@@ -130,7 +137,6 @@
       sequence:
       - target:
           entity_id:
-          - number.deye_5kw_program_4_soc
           - number.deye_5kw_program_5_soc
           - number.deye_5kw_program_6_soc
         data:
@@ -168,13 +174,13 @@
   description: Peak shaving + charge logic + scheduler control
   triggers:
   - trigger: time
-    at: 07:30:00
-    id: t_0730
+    at: 07:00:00
+    id: t_0700
   - trigger: time
     at: '10:00:00'
     id: t_1000
   - trigger: time
-    at: '18:00:00'
+    at: '20:00:00'
     id: t_1800
   - trigger: time_pattern
     minutes: /10
@@ -200,27 +206,44 @@
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ trigger.id == ''t_0730'' }}'
+        value_template: '{{ trigger.id == ''t_0700'' }}'
       sequence:
       - action: automation.turn_on
         target:
           entity_id: automation.grid_power_above_600_w
+        data: {}
+      - action: input_number.set_value
+        metadata: {}
+        data:
+          value: 35
+        target:
+          entity_id: input_number.1_discharge_level_deye_5kw
     - conditions:
       - condition: template
         value_template: '{{ trigger.id == ''t_1800'' }}'
       sequence:
       - action: automation.turn_on
         target:
-          entity_id: automation.grid_power_above_600_w
+          entity_id:
+          - automation.grid_power_above_600_w
+          - automation.disable_conditioner
+        data: {}
+      - action: input_number.set_value
+        metadata: {}
+        data:
+          value: 2000
+        target:
+          entity_id: input_number.battery_power_deye_6kw
   - choose:
     - conditions:
       - condition: time
-        after: 07:30:00
-        before: '18:00:00'
+        after: 07:00:00
+        before: '20:00:00'
       sequence:
       - action: switch.turn_off
         target:
           entity_id: switch.deye_5kw_grid_peak_shaving
+        data: {}
     default:
     - action: switch.turn_on
       target:
@@ -228,7 +251,7 @@
   - choose:
     - conditions:
       - condition: time
-        after: 07:30:00
+        after: 07:00:00
         before: '10:00:00'
       sequence:
       - action: input_number.set_value
@@ -236,6 +259,8 @@
           entity_id: input_number.charge_power_deye_6kw
         data:
           value: 0
+    - conditions: []
+      sequence: []
   mode: restart
   variables:
     grid_on: '{{ is_state(''binary_sensor.deye_6kw_grid'', ''on'') }}'
@@ -245,10 +270,10 @@
   triggers:
   - type: power
     device_id: f6c638d30b7111c48069aa655490cd8a
-    entity_id: 36cd23ff94ab4e4209b9802e394dcd3a
+    entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
     domain: sensor
     trigger: device
-    above: 1000
+    above: 300
     for:
       hours: 0
       minutes: 10
