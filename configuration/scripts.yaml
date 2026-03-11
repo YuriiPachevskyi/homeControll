@@ -9,7 +9,7 @@ power_load_disable_device_duplicate:
         device_id: f6c638d30b7111c48069aa655490cd8a
         entity_id: 2a7890bbd223fafe420a3ed792187ddd
         domain: sensor
-        above: 300
+        above: 500
       - type: is_power
         condition: device
         device_id: f6c638d30b7111c48069aa655490cd8a
@@ -158,24 +158,16 @@ power_load_disable_device_duplicate:
           device_id: f6c638d30b7111c48069aa655490cd8a
           entity_id: c6b0e6863527cff0f2a4a1a5b0ae23cc
           domain: sensor
-          below: 98
+          below: 99
         - condition: or
           conditions:
-          - type: is_power
-            condition: device
-            device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-            entity_id: 7a81724199b50ca52edb0f7f533bf6e9
-            domain: sensor
-            below: -3500
-          - type: is_power
-            condition: device
-            device_id: f6c638d30b7111c48069aa655490cd8a
-            entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-            domain: sensor
-            below: -3500
           - condition: state
             entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
             state: 'on'
+          - condition: state
+            entity_id: binary_sensor.battery_charge_and_export_power_limit
+            state:
+            - 'on'
       then:
       - action: input_number.set_value
         metadata: {}
@@ -198,18 +190,10 @@ power_load_disable_device_duplicate:
             below: 95
           - condition: or
             conditions:
-            - type: is_power
-              condition: device
-              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-              entity_id: 7a81724199b50ca52edb0f7f533bf6e9
-              domain: sensor
-              below: -3500
-            - type: is_power
-              condition: device
-              device_id: f6c638d30b7111c48069aa655490cd8a
-              entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-              domain: sensor
-              below: -3500
+            - condition: state
+              entity_id: binary_sensor.battery_charge_and_export_power_limit
+              state:
+              - 'on'
             - condition: state
               entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
               state: 'on'
@@ -231,26 +215,6 @@ power_load_disable_device_duplicate:
               conditions:
               - condition: and
                 conditions:
-                - condition: or
-                  conditions:
-                  - type: is_power
-                    condition: device
-                    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-                    entity_id: 7a81724199b50ca52edb0f7f533bf6e9
-                    domain: sensor
-                    below: -3700
-                  - type: is_power
-                    condition: device
-                    device_id: f6c638d30b7111c48069aa655490cd8a
-                    entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-                    domain: sensor
-                    below: -3700
-                - condition: state
-                  entity_id: input_boolean.my_flag5
-                  state:
-                  - 'on'
-              - condition: and
-                conditions:
                 - type: is_power
                   condition: device
                   device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
@@ -263,6 +227,10 @@ power_load_disable_device_duplicate:
                   device_id: f6c638d30b7111c48069aa655490cd8a
                   entity_id: 896ca39ef0b07128ebb845a4562bee48
                   domain: binary_sensor
+              - condition: state
+                entity_id: binary_sensor.battery_charge_and_export_power_limit
+                state:
+                - 'on'
               - condition: state
                 entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
                 state: 'on'
@@ -286,26 +254,6 @@ power_load_disable_device_duplicate:
                 conditions:
                 - condition: and
                   conditions:
-                  - condition: or
-                    conditions:
-                    - type: is_power
-                      condition: device
-                      device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-                      entity_id: 7a81724199b50ca52edb0f7f533bf6e9
-                      domain: sensor
-                      below: -3700
-                    - type: is_power
-                      condition: device
-                      device_id: f6c638d30b7111c48069aa655490cd8a
-                      entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-                      domain: sensor
-                      below: -3700
-                  - condition: state
-                    entity_id: input_boolean.my_flag5
-                    state:
-                    - 'on'
-                - condition: and
-                  conditions:
                   - type: is_power
                     condition: device
                     device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
@@ -318,6 +266,10 @@ power_load_disable_device_duplicate:
                     device_id: f6c638d30b7111c48069aa655490cd8a
                     entity_id: 896ca39ef0b07128ebb845a4562bee48
                     domain: binary_sensor
+                - condition: state
+                  entity_id: binary_sensor.battery_charge_and_export_power_limit
+                  state:
+                  - 'on'
                 - condition: state
                   entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
                   state: 'on'
@@ -334,58 +286,35 @@ power_load_disable_device_duplicate:
                 entity_id: switch.1560_boiler_ten_0_8_kwh
             else:
             - if:
-              - condition: or
+              - condition: and
                 conditions:
-                - condition: and
+                - condition: state
+                  entity_id: input_boolean.my_flag2
+                  state:
+                  - 'on'
+                - condition: state
+                  entity_id: switch.1560_boiler_ten_0_8_kwh
+                  state:
+                  - 'on'
+                - condition: state
+                  entity_id: switch.1561_boiler_ten_1_2_kwh
+                  state: 'on'
+                  enabled: true
+                - type: is_battery_level
+                  condition: device
+                  device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+                  entity_id: 4abddc77fd64d0e26b9ea3c917006591
+                  domain: sensor
+                  above: 99
+                - condition: or
                   conditions:
                   - condition: state
-                    entity_id: input_boolean.my_flag2
+                    entity_id: binary_sensor.battery_charge_and_export_power_limit
                     state:
                     - 'on'
-                  - condition: state
-                    entity_id: switch.1560_boiler_ten_0_8_kwh
-                    state:
-                    - 'on'
-                  - condition: state
-                    entity_id: switch.1561_boiler_ten_1_2_kwh
-                    state: 'on'
-                    enabled: true
-                  - type: is_battery_level
-                    condition: device
-                    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-                    entity_id: 4abddc77fd64d0e26b9ea3c917006591
-                    domain: sensor
-                    above: 99
                   - condition: state
                     entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
                     state: 'on'
-                - condition: and
-                  conditions:
-                  - condition: state
-                    entity_id: input_boolean.my_flag2
-                    state:
-                    - 'on'
-                  - condition: state
-                    entity_id: switch.1560_boiler_ten_0_8_kwh
-                    state:
-                    - 'on'
-                  - condition: state
-                    entity_id: switch.1561_boiler_ten_1_2_kwh
-                    state: 'on'
-                    enabled: true
-                  - type: is_battery_level
-                    condition: device
-                    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-                    entity_id: 4abddc77fd64d0e26b9ea3c917006591
-                    domain: sensor
-                    above: 99
-                  - type: is_power
-                    condition: device
-                    device_id: f6c638d30b7111c48069aa655490cd8a
-                    entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
-                    domain: sensor
-                    below: -3700
-                  enabled: false
               then:
               - device_id: be55afc0f88f5ce38043ce63a5d08b6f
                 domain: climate

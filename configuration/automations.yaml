@@ -3,7 +3,7 @@
   description: ''
   triggers:
   - trigger: time_pattern
-    seconds: /40
+    seconds: /45
   conditions: []
   actions:
   - action: script.power_load_disable_device_duplicate
@@ -49,16 +49,11 @@
       sequence:
       - target:
           entity_id:
-          - number.deye_5kw_program_2_power
-        data:
-          value: '{{ val | round(0) }}'
-        action: number.set_value
-      - target:
-          entity_id:
           - number.deye_5kw_program_1_power
+          - number.deye_5kw_program_2_power
           - number.deye_5kw_program_3_power
         data:
-          value: '{{ (val * 0.9) | round(0) }}'
+          value: '{{ val | round(0) }}'
         action: number.set_value
       - target:
           entity_id:
@@ -174,14 +169,14 @@
   description: Peak shaving + charge logic + scheduler control
   triggers:
   - trigger: time
-    at: 07:00:00
-    id: t_0700
+    at: input_datetime.selling_start_time
+    id: start_sell
   - trigger: time
     at: '10:00:00'
     id: t_1000
   - trigger: time
-    at: '20:00:00'
-    id: t_1800
+    at: input_datetime.selling_stop_time
+    id: stop_sell
   - trigger: time_pattern
     minutes: /10
     id: periodic
@@ -206,21 +201,20 @@
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ trigger.id == ''t_0700'' }}'
+        value_template: '{{ trigger.id == ''start_sell'' }}'
       sequence:
       - action: automation.turn_on
         target:
           entity_id: automation.grid_power_above_600_w
         data: {}
       - action: input_number.set_value
-        metadata: {}
         data:
           value: 35
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
     - conditions:
       - condition: template
-        value_template: '{{ trigger.id == ''t_1800'' }}'
+        value_template: '{{ trigger.id == ''stop_sell'' }}'
       sequence:
       - action: automation.turn_on
         target:
@@ -229,16 +223,27 @@
           - automation.disable_conditioner
         data: {}
       - action: input_number.set_value
-        metadata: {}
         data:
           value: 2000
         target:
           entity_id: input_number.battery_power_deye_6kw
+      - action: input_number.set_value
+        data:
+          value: 40
+        target:
+          entity_id:
+          - input_number.1_discharge_level_deye_6kw
+      - action: input_number.set_value
+        data:
+          value: 30
+        target:
+          entity_id:
+          - input_number.2_discharge_level_deye_6kw
   - choose:
     - conditions:
       - condition: time
-        after: 07:00:00
-        before: '20:00:00'
+        after: input_datetime.selling_start_time
+        before: input_datetime.selling_stop_time
       sequence:
       - action: switch.turn_off
         target:
@@ -247,11 +252,14 @@
     default:
     - action: switch.turn_on
       target:
-        entity_id: switch.deye_5kw_grid_peak_shaving
+        entity_id:
+        - switch.deye_5kw_grid_peak_shaving
+        - switch.deye_6kw_grid_peak_shaving
+      data: {}
   - choose:
     - conditions:
       - condition: time
-        after: 07:00:00
+        after: input_datetime.selling_start_time
         before: '10:00:00'
       sequence:
       - action: input_number.set_value
@@ -259,11 +267,9 @@
           entity_id: input_number.charge_power_deye_6kw
         data:
           value: 0
-    - conditions: []
-      sequence: []
-  mode: restart
   variables:
     grid_on: '{{ is_state(''binary_sensor.deye_6kw_grid'', ''on'') }}'
+  mode: restart
 - id: '1772625520676'
   alias: Disable Conditioner
   description: ''

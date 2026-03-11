@@ -21,9 +21,17 @@ input_boolean:
   my_flag4:
     name: Heating enabled
     icon: mdi:toggle-switch
-  my_flag5:
-    name: At home
-    icon: mdi:toggle-switch
+
+input_datetime:
+  selling_start_time:
+    name: Selling Start Time
+    has_date: false
+    has_time: true
+
+  selling_stop_time:
+    name: Selling Stop Time
+    has_date: false
+    has_time: true
 
 shell_command:
   bizon_suspend: echo vfnhjc | ssh -tt yurii@192.168.150.4 'sudo -S systemctl suspend -i'
