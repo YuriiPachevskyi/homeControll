@@ -152,7 +152,7 @@ power_load_disable_device_duplicate:
         conditions:
         - condition: numeric_state
           entity_id: input_number.charge_power_deye_6kw
-          below: 1
+          below: 20
         - type: is_battery_level
           condition: device
           device_id: f6c638d30b7111c48069aa655490cd8a
@@ -181,22 +181,22 @@ power_load_disable_device_duplicate:
           conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
-            below: 21
+            below: 40
           - type: is_battery_level
             condition: device
             device_id: f6c638d30b7111c48069aa655490cd8a
             entity_id: c6b0e6863527cff0f2a4a1a5b0ae23cc
             domain: sensor
-            below: 95
+            below: 99
           - condition: or
             conditions:
+            - condition: state
+              entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
+              state: 'on'
             - condition: state
               entity_id: binary_sensor.battery_charge_and_export_power_limit
               state:
               - 'on'
-            - condition: state
-              entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
-              state: 'on'
         then:
         - action: input_number.set_value
           metadata: {}
@@ -396,8 +396,25 @@ power_load_disable_device_duplicate:
                     target:
                       entity_id: switch.1563_heating_ten_1_5_kwh
                     action: switch.turn_off
+                enabled: false
+    - if:
+      - condition: and
+        conditions:
+        - condition: state
+          entity_id: input_boolean.my_flag2
+          state:
+          - 'on'
+        - condition: numeric_state
+          entity_id: binary_sensor.battery_charge_and_export_power_limit
+          below: 3
+      then:
+      - device_id: be55afc0f88f5ce38043ce63a5d08b6f
+        domain: climate
+        entity_id: e453c4793221ab7afa46754f7ff861f4
+        type: set_hvac_mode
+        hvac_mode: heat
+      enabled: false
   icon: mdi:solar-power-variant-outline
-  mode: restart
   description: ''
 bizon_suspend_2:
   sequence:
