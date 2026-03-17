@@ -44,6 +44,12 @@ power_load_disable_device_duplicate:
             entity_id: 0124cde1985f8caf83b525ca9de4902c
             domain: sensor
             above: 400
+          - type: is_power
+            condition: device
+            device_id: f6c638d30b7111c48069aa655490cd8a
+            entity_id: 2a7890bbd223fafe420a3ed792187ddd
+            domain: sensor
+            above: 400
       then:
       - data: {}
         target:
@@ -72,6 +78,12 @@ power_load_disable_device_duplicate:
               condition: device
               device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
               entity_id: 0124cde1985f8caf83b525ca9de4902c
+              domain: sensor
+              above: 400
+            - type: is_power
+              condition: device
+              device_id: f6c638d30b7111c48069aa655490cd8a
+              entity_id: 2a7890bbd223fafe420a3ed792187ddd
               domain: sensor
               above: 400
         then:
