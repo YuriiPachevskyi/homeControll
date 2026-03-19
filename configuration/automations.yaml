@@ -149,7 +149,7 @@
     at: input_datetime.selling_stop_time
     id: stop_sell
   - trigger: time_pattern
-    minutes: /10
+    minutes: /30
     id: periodic
   - trigger: state
     entity_id: binary_sensor.deye_6kw_grid
