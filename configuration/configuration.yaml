@@ -8,6 +8,18 @@ mqtt: !include switches.yaml
 homeassistant:
   packages: !include_dir_named packages
 
+sensor:
+  - platform: integration
+    source: sensor.deye_5kw_power_losses
+    name: deye_5kw_energy_losses
+    unit_prefix: k
+    method: trapezoidal
+
+utility_meter:
+  deye_5_losses_daily:
+    source: sensor.deye_5kw_energy_losses
+    cycle: daily
+
 input_boolean:
   my_flag1:
     name: Air conditioning cooling
