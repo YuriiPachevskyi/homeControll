@@ -57,6 +57,12 @@ power_load_disable_device_duplicate:
               entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
               domain: sensor
               above: 900
+            - type: is_battery_level
+              condition: device
+              device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+              entity_id: 4abddc77fd64d0e26b9ea3c917006591
+              domain: sensor
+              below: 97
           then:
           - action: input_number.set_value
             metadata: {}
@@ -77,6 +83,12 @@ power_load_disable_device_duplicate:
                 entity_id: 208069ecbf43d1c4d2a5d5d78c319f87
                 domain: sensor
                 above: 900
+              - type: is_battery_level
+                condition: device
+                device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
+                entity_id: 4abddc77fd64d0e26b9ea3c917006591
+                domain: sensor
+                below: 97
             then:
             - action: input_number.set_value
               metadata: {}
@@ -127,11 +139,20 @@ power_load_disable_device_duplicate:
           conditions:
           - condition: state
             entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
-            state: 'on'
+            state:
+            - 'on'
+            for:
+              hours: 0
+              minutes: 0
+              seconds: 30
           - condition: state
             entity_id: binary_sensor.battery_charge_and_export_power_limit
             state:
             - 'on'
+            for:
+              hours: 0
+              minutes: 0
+              seconds: 30
       then:
       - action: input_number.set_value
         metadata: {}
@@ -156,11 +177,20 @@ power_load_disable_device_duplicate:
             conditions:
             - condition: state
               entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
-              state: 'on'
+              state:
+              - 'on'
+              for:
+                hours: 0
+                minutes: 0
+                seconds: 30
             - condition: state
               entity_id: binary_sensor.battery_charge_and_export_power_limit
               state:
               - 'on'
+              for:
+                hours: 0
+                minutes: 0
+                seconds: 30
         then:
         - action: input_number.set_value
           metadata: {}
@@ -192,12 +222,21 @@ power_load_disable_device_duplicate:
                   entity_id: 896ca39ef0b07128ebb845a4562bee48
                   domain: binary_sensor
               - condition: state
+                entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
+                state:
+                - 'on'
+                for:
+                  hours: 0
+                  minutes: 0
+                  seconds: 30
+              - condition: state
                 entity_id: binary_sensor.battery_charge_and_export_power_limit
                 state:
                 - 'on'
-              - condition: state
-                entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
-                state: 'on'
+                for:
+                  hours: 0
+                  minutes: 0
+                  seconds: 30
           then:
           - data: {}
             target:
@@ -230,13 +269,26 @@ power_load_disable_device_duplicate:
                     device_id: f6c638d30b7111c48069aa655490cd8a
                     entity_id: 896ca39ef0b07128ebb845a4562bee48
                     domain: binary_sensor
+                    for:
+                      hours: 0
+                      minutes: 0
+                      seconds: 30
                 - condition: state
                   entity_id: binary_sensor.battery_charge_and_export_power_limit
                   state:
                   - 'on'
+                  for:
+                    hours: 0
+                    minutes: 0
+                    seconds: 30
                 - condition: state
                   entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
-                  state: 'on'
+                  state:
+                  - 'on'
+                  for:
+                    hours: 0
+                    minutes: 0
+                    seconds: 30
             then:
             - data: {}
               target:
@@ -276,9 +328,18 @@ power_load_disable_device_duplicate:
                     entity_id: binary_sensor.battery_charge_and_export_power_limit
                     state:
                     - 'on'
+                    for:
+                      hours: 0
+                      minutes: 0
+                      seconds: 30
                   - condition: state
                     entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
-                    state: 'on'
+                    state:
+                    - 'on'
+                    for:
+                      hours: 0
+                      minutes: 0
+                      seconds: 30
               then:
               - device_id: be55afc0f88f5ce38043ce63a5d08b6f
                 domain: climate
