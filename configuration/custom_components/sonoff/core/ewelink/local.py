@@ -82,9 +82,11 @@ class XRegistryLocal(XRegistryBase):
         state_change: ServiceStateChange,
     ):
         """Step 1. Receive change event from zeroconf."""
-        # accept: eWeLink_1000xxxxxx.local.
-        # skip: ihost-1001xxxxxx.local.
-        if state_change == ServiceStateChange.Removed or not name.startswith("eWeLink"):
+        if state_change == ServiceStateChange.Removed:
+            return
+        # accept: eWeLink_1000xxxxxx and eWelink_1000xxxxxx (from uiid 104)
+        # skip: ihost-1001xxxxxx, zbbridgeu-100xxxxxxx, zbbridgeu-100xxxxxxx-wlan0
+        if not name.lower().startswith("ewelink"):
             return
 
         asyncio.create_task(self._handler2(zeroconf, service_type, name))
@@ -138,7 +140,7 @@ class XRegistryLocal(XRegistryBase):
         if data.get("encrypt"):
             msg["data"] = raw
             msg["iv"] = data["iv"]
-        else:
+        elif raw:  # no data field from zbbridgeu
             msg["params"] = json.loads(raw)
 
         self.dispatcher_send(SIGNAL_UPDATE, msg)
@@ -265,7 +267,8 @@ class XRegistryLocal(XRegistryBase):
     @staticmethod
     def decrypt_msg(msg: dict, devicekey: str = None) -> dict:
         # Fix Sonoff SPM-Main empty message {'seq': ***, 'data': '', 'iv': '***'}
-        if msg["data"] == "":
+        # Fix Sonoff ZbBridge-U without any message
+        if not msg.get("data"):
             return {}
 
         data = decrypt(msg, devicekey)

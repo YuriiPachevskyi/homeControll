@@ -39,6 +39,7 @@ DEVICE_CLASSES = {
     "battery_voltage": SensorDeviceClass.VOLTAGE,
     "cpu_temperature": SensorDeviceClass.TEMPERATURE,
     "current": SensorDeviceClass.CURRENT,
+    "current_supply": SensorDeviceClass.CURRENT,
     "humidity": SensorDeviceClass.HUMIDITY,
     "outdoor_temp": SensorDeviceClass.TEMPERATURE,
     "power": SensorDeviceClass.POWER,
@@ -54,6 +55,7 @@ UNITS = {
     "battery_voltage": UnitOfElectricPotential.VOLT,
     "cpu_temperature": UnitOfTemperature.CELSIUS,
     "current": UnitOfElectricCurrent.AMPERE,
+    "current_supply": UnitOfElectricCurrent.AMPERE,
     "humidity": PERCENTAGE,
     "outdoor_temp": UnitOfTemperature.CELSIUS,
     "power": UnitOfPower.WATT,
@@ -123,11 +125,12 @@ class XSensor(XEntity, SensorEntity):
                 value = round(value, self.round or None)
 
         if self.state_class == SensorStateClass.TOTAL_INCREASING:
-            if not isinstance(value, (int, float)) or (
-                isinstance(self.native_value, (int, float))
-                and value <= self.native_value
+            if (
+                value is not None
+                and self.native_value is not None
+                and -0.1 <= value - self.native_value <= 0
             ):
-                return
+                return  # skip small value decreasing
 
         if self.report_ts is not None:
             ts = time.time()
@@ -188,7 +191,7 @@ class XHumidityTH(XSensor):
             XSensor.set_state(self)
 
 
-class XEnergySensor(XEntity, SensorEntity):
+class XCloudEnergy(XEntity, SensorEntity):
     get_params = None
     next_ts = 0
 
@@ -243,9 +246,9 @@ class XEnergySensor(XEntity, SensorEntity):
             self.next_ts = ts + self.report_dt
 
 
-class XEnergySensorDualR3(XEnergySensor, SensorEntity):
+class XCloudEnergyDualR3(XCloudEnergy, SensorEntity):
     def __init__(self, ewelink: XRegistry, device: dict):
-        XEnergySensor.__init__(self, ewelink, device)
+        XCloudEnergy.__init__(self, ewelink, device)
         device.setdefault("active_energy", []).append(self.uid)
 
     @staticmethod
@@ -261,20 +264,20 @@ class XEnergySensorDualR3(XEnergySensor, SensorEntity):
             return None
 
     def can_update(self) -> bool:
-        if XEnergySensor.can_update(self):
+        if XCloudEnergy.can_update(self):
             # Allow only one sensor update at a time
             return self.device["active_energy"][0] == self.uid
         return False
 
     async def get_update(self) -> bool:
-        if await XEnergySensor.get_update(self):
+        if await XCloudEnergy.get_update(self):
             active = self.device["active_energy"]
             active.append(active.pop(0))
             return True
         return False
 
 
-class XEnergySensorPOWR3(XEnergySensor, SensorEntity):
+class XCloudEnergyPOWR3(XCloudEnergy, SensorEntity):
     @staticmethod
     def decode_energy(value: str) -> Optional[list]:
         try:
@@ -415,15 +418,31 @@ class XButtonKey(XButtonBase):
 class XButtonLocalKey(XButtonBase):
     params = {"localKeyPass"}
 
+    def __init__(self, ewelink: XRegistry, device: dict):
+        super().__init__(ewelink, device)
+        self.last_seq = None
+
     def set_state(self, params: dict):
+        if seq := self.device.get("local_seq"):
+            # Skip clicks from first local message, because it's just device discovery
+            if self.last_seq is None:
+                self.last_seq = seq
+
         # skip multiple clicks (from cloud and local)
         if self._attr_native_value:
             return
 
         # cloud click: {'localKeyPass': {'outlet': 0, 'key': 0}}
+        if len(params) == 1:
+            pass
         # local click: {'triggerType': 11, 'localKeyPass': {'outlet': 0, 'key': 0}}
         # local trash: {'triggerType': 0, 'localKeyPass': {'outlet': 0, 'key': 0}}
-        if not len(params) == 1 and not params.get("triggerType"):
+        elif params.get("triggerType"):
+            # Fix duplicates from mDNS https://github.com/AlexxIT/SonoffLAN/issues/1769
+            if seq == self.last_seq:
+                return
+            self.last_seq = seq
+        else:
             return
 
         # MINI-2GS https://github.com/AlexxIT/SonoffLAN/issues/1694

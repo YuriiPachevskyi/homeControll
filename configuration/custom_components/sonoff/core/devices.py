@@ -57,10 +57,10 @@ from ..sensor import (
     XButtonKey,
     XButtonLocalKey,
     XCPUTemperature,
+    XCloudEnergy,
+    XCloudEnergyDualR3,
+    XCloudEnergyPOWR3,
     XConnection,
-    XEnergySensor,
-    XEnergySensorDualR3,
-    XEnergySensorPOWR3,
     XEnergyTotal,
     XHexVoltageTRVZB,
     XHumCorrection,
@@ -178,13 +178,6 @@ EnergyYear = spec(
     XEnergyTotal, param="yearKwh", uid="energy_year", multiply=0.01, round=2
 )
 
-EnergyPOW = spec(
-    XEnergySensor,
-    param="hundredDaysKwhData",
-    uid="energy",
-    get_params={"hundredDaysKwh": "get"},
-)
-
 # backward compatibility for unique_id
 DoorLock = spec(XBinarySensor, param="lock", uid="", default_class="door")
 
@@ -203,7 +196,12 @@ DEVICES = {
         LED,
         RSSI,
         spec(XSensor, param="power"),
-        EnergyPOW,
+        spec(
+            XCloudEnergy,
+            param="hundredDaysKwhData",
+            uid="energy",
+            get_params={"hundredDaysKwh": "get"},
+        ),
     ],
     6: SPEC_SWITCH,
     # Sonoff T1 2CH
@@ -253,7 +251,12 @@ DEVICES = {
         spec(XSensor, param="current"),
         spec(XSensor, param="power"),
         spec(XSensor, param="voltage"),
-        EnergyPOW,
+        spec(
+            XCloudEnergy,
+            param="hundredDaysKwhData",
+            uid="energy",
+            get_params={"hundredDaysKwh": "get"},
+        ),
         XStartup,
     ],
     # https://github.com/AlexxIT/SonoffLAN/issues/985
@@ -310,13 +313,13 @@ DEVICES = {
         Power1,
         Power2,
         spec(
-            XEnergySensorDualR3,
+            XCloudEnergyDualR3,
             param="kwhHistories_00",
             uid="energy_1",
             get_params={"getKwh_00": 2},
         ),
         spec(
-            XEnergySensorDualR3,
+            XCloudEnergyDualR3,
             param="kwhHistories_01",
             uid="energy_2",
             get_params={"getKwh_01": 2},
@@ -349,25 +352,25 @@ DEVICES = {
         Power3,
         Power4,
         spec(
-            XEnergySensorDualR3,
+            XCloudEnergyDualR3,
             param="kwhHistories_00",
             uid="energy_1",
             get_params={"getKwh_00": 2},
         ),
         spec(
-            XEnergySensorDualR3,
+            XCloudEnergyDualR3,
             param="kwhHistories_01",
             uid="energy_2",
             get_params={"getKwh_01": 2},
         ),
         spec(
-            XEnergySensorDualR3,
+            XCloudEnergyDualR3,
             param="kwhHistories_02",
             uid="energy_3",
             get_params={"getKwh_02": 2},
         ),
         spec(
-            XEnergySensorDualR3,
+            XCloudEnergyDualR3,
             param="kwhHistories_03",
             uid="energy_4",
             get_params={"getKwh_03": 2},
@@ -443,7 +446,12 @@ DEVICES = {
         spec(XSensor, param="current"),
         spec(XSensor, param="power"),
         spec(XSensor, param="voltage"),
-        EnergyPOW,
+        spec(
+            XCloudEnergy,
+            param="hundredDaysKwhData",
+            uid="energy",
+            get_params={"hundredDaysKwh": "get"},
+        ),
     ],
     # Sonoff POWR3
     # S60TPF, https://github.com/AlexxIT/SonoffLAN/issues/1514
@@ -455,9 +463,17 @@ DEVICES = {
         spec(XSensor100, param="current"),
         spec(XSensor100, param="power"),
         spec(XSensor100, param="voltage"),
-        spec(XSensor100, param="supplyPower", uid="power_supply"),
         EnergyDay,
         EnergyMonth,
+        spec(
+            XCloudEnergyPOWR3,
+            param="hoursKwhData",
+            uid="energy",
+            get_params={"getHoursKwh": {"start": 0, "end": 24 * 30 - 1}},
+        ),
+        # only for POWCT
+        spec(XSensor100, param="supplyCurrent", uid="current_supply"),
+        spec(XSensor100, param="supplyPower", uid="power_supply"),
         spec(
             XEnergyTotal,
             param="dayPowerSupply",
@@ -471,12 +487,6 @@ DEVICES = {
             uid="energy_month_supply",
             multiply=0.01,
             round=2,
-        ),
-        spec(
-            XEnergySensorPOWR3,
-            param="hoursKwhData",
-            uid="energy",
-            get_params={"getHoursKwh": {"start": 0, "end": 24 * 30 - 1}},
         ),
     ],
     # NSPanel Pro, https://github.com/AlexxIT/SonoffLAN/issues/984
@@ -748,12 +758,15 @@ def get_spec(device: dict) -> list:
         classes = [XCoverDualR3, XFanDualR3] + classes
 
     # NSPanel Climate disable without switch configuration
-    if uiid in [133] and not device["params"].get("HMI_ATCDevice"):
+    if uiid == 133 and not device["params"].get("HMI_ATCDevice"):
         classes = [cls for cls in classes if XClimateNS not in cls.__bases__]
 
     # SNZB-06P has no battery
-    if uiid in [2026] and not device["params"].get("battery"):
+    if uiid == 2026 and not device["params"].get("battery"):
         classes = [cls for cls in classes if cls != Battery]
+
+    if uiid == 190 and "supplyPower" not in device["params"]:
+        classes = [cls for cls in classes if cls.uid is None or "supply" not in cls.uid]
 
     if "device_class" in device:
         classes = get_custom_spec(classes, device["device_class"])
