@@ -50,7 +50,7 @@ power_load_disable_device_duplicate:
             conditions:
             - condition: numeric_state
               entity_id: input_number.charge_power_deye_6kw
-              above: 39
+              above: 1.75
             - type: is_power
               condition: device
               device_id: f6c638d30b7111c48069aa655490cd8a
@@ -67,7 +67,7 @@ power_load_disable_device_duplicate:
           - action: input_number.set_value
             metadata: {}
             data:
-              value: 20
+              value: 1
             target:
               entity_id: input_number.charge_power_deye_6kw
           else:
@@ -76,7 +76,7 @@ power_load_disable_device_duplicate:
               conditions:
               - condition: numeric_state
                 entity_id: input_number.charge_power_deye_6kw
-                above: 19
+                above: 0.5
               - type: is_power
                 condition: device
                 device_id: f6c638d30b7111c48069aa655490cd8a
@@ -128,7 +128,7 @@ power_load_disable_device_duplicate:
         conditions:
         - condition: numeric_state
           entity_id: input_number.charge_power_deye_6kw
-          below: 20
+          below: 1
         - type: is_battery_level
           condition: device
           device_id: f6c638d30b7111c48069aa655490cd8a
@@ -157,7 +157,7 @@ power_load_disable_device_duplicate:
       - action: input_number.set_value
         metadata: {}
         data:
-          value: 20
+          value: 1
         target:
           entity_id: input_number.charge_power_deye_6kw
       else:
@@ -166,7 +166,7 @@ power_load_disable_device_duplicate:
           conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
-            below: 40
+            below: 2
           - type: is_battery_level
             condition: device
             device_id: f6c638d30b7111c48069aa655490cd8a
@@ -195,7 +195,7 @@ power_load_disable_device_duplicate:
         - action: input_number.set_value
           metadata: {}
           data:
-            value: 40
+            value: 2
           target:
             entity_id: input_number.charge_power_deye_6kw
         else:

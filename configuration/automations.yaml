@@ -73,11 +73,16 @@
         value_template: '{{ trigger.entity_id == ''input_number.charge_power_deye_6kw''
           }}'
       sequence:
+      - variables:
+          voltage: 51
+          power_kw: '{{ states(''input_number.charge_power_deye_6kw'') | float(0)
+            }}'
+          current: '{{ (power_kw * 1000 / voltage) | round(0) }}'
       - target:
           entity_id:
           - number.deye_6kw_battery_max_charging_current
         data:
-          value: '{{ val | round(0) }}'
+          value: '{{ current }}'
         action: number.set_value
   mode: queued
   max: 3
@@ -172,7 +177,7 @@
         target:
           entity_id: input_number.charge_power_deye_6kw
         data:
-          value: 75
+          value: 4
       - stop: Grid lost emergency
   - choose:
     - conditions:
@@ -188,7 +193,7 @@
         data: {}
       - action: input_number.set_value
         data:
-          value: 40
+          value: 35
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
     - conditions:
