@@ -1,9 +1,7 @@
 from pathlib import Path
 
 home = str(Path.home())
-confInputsFile = '/home/yurii/homeControll/scripts/configuration/inputs.json'
-confSwitchesFile = '/home/yurii/homeControll/switches.yaml'
-confSwitchesStateFile = '/home/yurii/docker/homeControll/scripts/configuration/switches_state.yaml'
+confSwitchesFile = '/home/yurii/docker/homeControll/configuration/switches.yaml'
 i2cMaxValue = 255
 i2cReadTimeout = 0.08
 mqttMainPath = "home/main/#"

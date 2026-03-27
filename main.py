@@ -1,25 +1,25 @@
 from ruamel.yaml import YAML
 from subprocess import call
 import i2c_controller
-import json
 import mqtt_controller
 import settings
-import state_controller
 import time
+from datetime import datetime
+import builtins
 
 yaml = YAML()
 switchDict = {}
 inputDict = {}
-#inputs = json.load(open(settings.confInputsFile))
-switches = yaml.load(open(settings.confSwitchesStateFile))
+switches = yaml.load(open(settings.confSwitchesFile))
 i2CWriteController = i2c_controller.I2CWriteController()
 
-for i in range(len(switches)):
-    key = switches[i]['command_topic'][-4:]
-    switchDict[key] = switches[i]["state_" + key]
+def print(*args, **kwargs):
+    builtins.print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), *args, **kwargs, flush=True)
 
-#for i in range(len(inputs)):
-#    inputDict[inputs[i]["id"]] = i2c_controller.I2CInputDevice(inputs[i]["onShort"], inputs[i]["onLong"], inputs[i]["onLongLong"])
+for item in switches:
+    sw = item["switch"]
+    key = sw["command_topic"].split("/")[-1]
+    switchDict[key] = sw["state_off"]
 
 def onMQTTEvent(id, state):
     print("id", id, "state", state)
@@ -63,6 +63,4 @@ def changeSwitchState(id, state):
     mqttController.publish(id, state)
 
 mqttController = mqtt_controller.MQTTController(settings.mqttMainPath, onMQTTEvent)
-state_controller.UiStateUpdateThread(settings.mqttStatusPath, switchDict, mqttController).start()
-state_controller.FileStateBackupThread(settings.mqttStatusPath, switchDict).start()
 i2c_controller.I2CReadController(inputDict, onInputEvent).i2c_read()
