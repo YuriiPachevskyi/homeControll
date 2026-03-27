@@ -308,25 +308,6 @@
   alias: Grid power
   description: ''
   triggers:
-  - type: powered
-    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-    entity_id: f92dd0042137a11a70c8b56bdd102329
-    domain: binary_sensor
-    trigger: device
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 30
-  - type: power
-    device_id: 8c2a1798adbb65abd52f2ee5becc2a5a
-    entity_id: 0124cde1985f8caf83b525ca9de4902c
-    domain: sensor
-    trigger: device
-    above: 300
-    for:
-      hours: 0
-      minutes: 0
-      seconds: 30
   - entity_id:
     - script.power_load_disable_device_duplicate
     from:
