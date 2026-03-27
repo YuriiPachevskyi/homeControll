@@ -21,10 +21,14 @@ class I2CController:
         return I2CController._shared_buses[bus_idx]
 
     def _parse_id(self, input_id):
-        device = int(input_id[0])
-        register = int(input_id[1:-1])
-        pin = int(input_id[-1])
-        return device, register, pin
+        try:
+            device = int(input_id[0])
+            register = int(input_id[1:-1])
+            pin = int(input_id[-1])
+            return device, register, pin
+        except (ValueError, IndexError):
+            logger.error("Invalid ID format in configuration: %s. Expected [Bus][Register][Pin]", input_id)
+            return None, None, None
 
 class I2CWriteController(I2CController):
     def __init__(self):
@@ -65,6 +69,8 @@ class I2CReadController(I2CController):
     def init_inputs(self, inputsDict):
         for key in inputsDict:
             device, register, pin = self._parse_id(key)
+            if device is None:
+                continue  # Skip invalid entries logged by _parse_id
             reg_key = f"{device}:{register}"
             self.inputDict[reg_key] = self.inputDict.get(reg_key, 0) | (1 << pin)
 

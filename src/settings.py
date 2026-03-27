@@ -3,6 +3,7 @@ import os
 
 home = str(Path.home())
 confSwitchesFile = os.getenv('CONFIG_PATH', '/home/yurii/docker/homeControll/configuration/switches.yaml')
+confInputsFile = os.getenv('INPUTS_PATH', '/home/yurii/docker/homeControll/configuration/inputs.json')
 
 # Timings in seconds
 DEBOUNCE_TIME = 0.05    # Ignore pulses shorter than 50ms (noise)

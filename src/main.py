@@ -1,3 +1,5 @@
+import json
+import os
 from ruamel.yaml import YAML
 import i2c_controller
 import mqtt_controller
@@ -22,14 +24,16 @@ for item in switches:
     key = sw["command_topic"].split("/")[-1]
     switchDict[key] = sw["state_off"]
 
-for item in switches:
-    if "input" in item:
-        inp = item["input"]
-        inputDict[str(inp["id"])] = I2CInputDevice(
-            onShort=inp.get("onShort", []),
-            onLong=inp.get("onLong", []),
-            onLongL=inp.get("onLongL", [])
-        )
+# Load input devices mapping from JSON file
+if os.path.exists(settings.confInputsFile):
+    with open(settings.confInputsFile, 'r') as f:
+        inputs_data = json.load(f)
+        for inp in inputs_data:
+            inputDict[str(inp["id"])] = I2CInputDevice(
+                onShort=[str(x) for x in inp.get("onShort", [])],
+                onLong=[str(x) for x in inp.get("onLong", [])],
+                onLongL=[str(x) for x in inp.get("onLongLong", [])]
+            )
 
 def onMQTTEvent(id, state):
     logger.info("MQTT Event id=%s state=%s", id, state)
@@ -63,6 +67,9 @@ def onInputEvent(key, delay):
                 sw_list = inputDict[input_key].onLonglId()
 
             for sw_id in sw_list:
+                if str(sw_id) not in switchDict:
+                    logger.error("Input %s refers to non-existent switch ID: %s", input_key, sw_id)
+                    continue
                 changeSwitchState(str(sw_id), "TRIGGER")
 
 def parse_switch_id(sw_id):
@@ -90,7 +97,10 @@ def changeSwitchState(id, state):
 mqttController = mqtt_controller.MQTTController(settings.mqttMainPath, onMQTTEvent)
 
 try:
-    i2c_reader = i2c_controller.I2CReadController(inputDict, onInputEvent)
-    i2c_reader.i2c_read()
+    if inputDict:
+        i2c_reader = i2c_controller.I2CReadController(inputDict, onInputEvent)
+        i2c_reader.i2c_read()
+    else:
+        logger.warning("No inputs configured in %s. I2C monitoring skipped.", settings.confInputsFile)
 except KeyboardInterrupt:
     logger.info("Stopping homeControll...")
