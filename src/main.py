@@ -2,6 +2,7 @@ import json
 import os
 import signal
 import sys
+import time
 from ruamel.yaml import YAML
 import i2c_controller
 import mqtt_controller
@@ -106,5 +107,12 @@ try:
         i2c_reader.i2c_read()
     else:
         logger.warning("No inputs configured in %s. I2C monitoring skipped.", settings.confInputsFile)
-except KeyboardInterrupt:
-    logger.info("Stopping homeControll...")
+        # Keep the main thread alive to allow MQTT controller to work
+        while True:
+            time.sleep(1)
+except (KeyboardInterrupt, SystemExit):
+    logger.info("Application shutdown requested.")
+except Exception as e:
+    logger.error("Unexpected error in main loop: %s", e, exc_info=True)
+finally:
+    mqttController.stop()
