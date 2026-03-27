@@ -20,7 +20,8 @@ class I2CController:
                 return None
         return I2CController._shared_buses[bus_idx]
 
-    def _parse_id(self, input_id):
+    @staticmethod
+    def _parse_id(input_id):
         try:
             device = int(input_id[0])
             register = int(input_id[1:-1])
@@ -103,6 +104,11 @@ class I2CReadController(I2CController):
                     bus = self._get_bus(i2cDevice)
                     if not bus: continue
                     pinsState = bus.read_byte(i2cRegister)
+                except RemoteIOError:
+                    # Specific hardware error, often recoverable after a short wait
+                    logger.warning("I2C Remote I/O Error on bus %s. Retrying...", i2cDevice)
+                    time.sleep(0.1)
+                    continue
                 except OSError as e:
                     logger.error("I2C Error on bus %s, reg %s: %s", i2cDevice, i2cRegister, e)
                     continue

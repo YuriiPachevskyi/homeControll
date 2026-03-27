@@ -1,5 +1,7 @@
 import json
 import os
+import signal
+import sys
 from ruamel.yaml import YAML
 import i2c_controller
 import mqtt_controller
@@ -72,15 +74,8 @@ def onInputEvent(key, delay):
                     continue
                 changeSwitchState(str(sw_id), "TRIGGER")
 
-def parse_switch_id(sw_id):
-    try:
-        return int(sw_id[0]), int(sw_id[1:-1]), int(sw_id[-1])
-    except (ValueError, IndexError):
-        logger.error("Invalid ID format: %s", sw_id)
-        return None, None, None
-
 def changeSwitchState(id, state):
-    i2cDevice, i2cRegister, i2cPin = parse_switch_id(id)
+    i2cDevice, i2cRegister, i2cPin = i2CWriteController._parse_id(id)
     if i2cDevice is None: return
 
     if state == "ON":
@@ -93,6 +88,15 @@ def changeSwitchState(id, state):
         else:
             state = "ON"
     mqttController.publish(id, state)
+
+# Cleanup handler for production environment
+def signal_handler(sig, frame):
+    logger.info("Termination signal received. Cleaning up...")
+    mqttController.stop()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 mqttController = mqtt_controller.MQTTController(settings.mqttMainPath, onMQTTEvent)
 
