@@ -53,9 +53,11 @@ def onInputEvent(key, delay):
                 continue
 
             sw_list = []
-            if delay < settings.SHORT_PRESS_TICKS:
+            if delay < settings.DEBOUNCE_TIME:
+                continue  # Ignore physical contact bounce
+            elif delay < settings.SHORT_PRESS_TIME:
                 sw_list = inputDict[input_key].onShortId()
-            elif delay < settings.LONG_PRESS_TICKS:
+            elif delay < settings.LONG_PRESS_TIME:
                 sw_list = inputDict[input_key].onLongId()
             else:
                 sw_list = inputDict[input_key].onLonglId()

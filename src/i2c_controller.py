@@ -7,6 +7,7 @@ from models import I2CInputDevice
 logger = logging.getLogger(__name__)
 
 class I2CController:
+    # Shared bus handles across all controller instances
     _shared_buses = {}
 
     def _get_bus(self, bus_idx):
@@ -81,7 +82,9 @@ class I2CReadController(I2CController):
             if key.startswith(targetKey + ":"):
                 keyForNotify = key
         if keyForNotify:
-            self.callback(keyForNotify, self.expanderState[keyForNotify])
+            start_time = self.expanderState[keyForNotify]
+            duration = time.time() - start_time
+            self.callback(keyForNotify, duration)
             self.expanderState.pop(keyForNotify, None)
 
     def i2c_read(self):
@@ -104,5 +107,6 @@ class I2CReadController(I2CController):
                         self.try_to_notify(key)
                 else:
                     exStKey = f"{key}:{modifiedPins}"
-                    self.expanderState[exStKey] = self.expanderState.get(exStKey, 0) + 1
+                    if exStKey not in self.expanderState:
+                        self.expanderState[exStKey] = time.time()
             time.sleep(settings.i2cReadTimeout)
