@@ -1,5 +1,4 @@
 from ruamel.yaml import YAML
-from subprocess import call
 import i2c_controller
 import mqtt_controller
 import settings
@@ -7,14 +6,15 @@ import time
 from datetime import datetime
 import builtins
 
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
 yaml = YAML()
 switchDict = {}
 inputDict = {}
 switches = yaml.load(open(settings.confSwitchesFile))
 i2CWriteController = i2c_controller.I2CWriteController()
-
-def print(*args, **kwargs):
-    builtins.print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"), *args, **kwargs, flush=True)
 
 for item in switches:
     sw = item["switch"]
@@ -22,17 +22,17 @@ for item in switches:
     switchDict[key] = sw["state_off"]
 
 def onMQTTEvent(id, state):
-    print("id", id, "state", state)
+    logger.info("MQTT Event id=%s state=%s", id, state)
     if id in switchDict:
         changeSwitchState(id, state)
     else:
-        print("onMQTTEvent not existing id = ", id)
+        logger.warning("onMQTTEvent: id %s not existing", id)
 
 def onInputEvent(key, delay):
     prefix = str(key)[:3]
     pins = int(key[3:])
     switchesIdList = None
-    print("prefix", prefix, "pins", bin(pins)[2:].zfill(8), "delay", delay)
+    logger.info("Input Event prefix=%s pins=%s delay=%s", prefix, bin(pins)[2:].zfill(8), delay)
 
     for i in range(8):
         if pins & (1 << i):
@@ -64,3 +64,4 @@ def changeSwitchState(id, state):
 
 mqttController = mqtt_controller.MQTTController(settings.mqttMainPath, onMQTTEvent)
 i2c_controller.I2CReadController(inputDict, onInputEvent).i2c_read()
+

@@ -1,58 +1,50 @@
-import settings
 import smbus2
 import time
+import logging
+import settings
+from models import I2CInputDevice
 
-class I2CInputDevice:
-    def __init__(self, onShort, onLong, onLongL):
-        self.onShort = onShort
-        self.onLong = onLong
-        self.onLongL = onLongL
-
-    def onShortId(self):
-        return self.onShort
-
-    def onLongId(self):
-        return self.onLong
-
-    def onLonglId(self):
-        return self.onLongL
+logger = logging.getLogger(__name__)
 
 class I2CController:
-
     def __init__(self):
         self.busArray = [None, smbus2.SMBus(1)]
-        smbus2.SMBus(1).read_byte(0x38)
+        try:
+            smbus2.SMBus(1).read_byte(0x38)
+        except Exception as e:
+            logger.warning("I2C bus init failed: %s", e)
 
 class I2CWriteController(I2CController):
-
     def __init__(self):
-        I2CController.__init__(self)
+        super().__init__()
 
     def set_enabled(self, i2cDevice, register, pin):
         value = self.busArray[i2cDevice].read_byte(register) & ~(1 << pin)
         self.busArray[i2cDevice].write_byte(register, value)
+        logger.info("Set ENABLED: device=%s register=%s pin=%s", i2cDevice, register, pin)
 
     def set_disabled(self, i2cDevice, register, pin):
         value = self.busArray[i2cDevice].read_byte(register) | (1 << pin)
         self.busArray[i2cDevice].write_byte(register, value)
+        logger.info("Set DISABLED: device=%s register=%s pin=%s", i2cDevice, register, pin)
 
     def trigger_value(self, i2cDevice, register, pin):
         value = self.busArray[i2cDevice].read_byte(register) ^ (1 << pin)
         self.busArray[i2cDevice].write_byte(register, value)
-        return value & (1 << pin)
+        result = bool(value & (1 << pin))
+        logger.info("Triggered: device=%s register=%s pin=%s -> %s", i2cDevice, register, pin, result)
+        return result
 
 class I2CReadController(I2CController):
-    expanderState = {}
-    inputDict = {}
-
     def __init__(self, inputsDict, callback):
-        I2CController.__init__(self)
+        super().__init__()
         self.callback = callback
+        self.inputDict = {}
+        self.expanderState = {}
         self.init_inputs(inputsDict)
 
     def init_inputs(self, inputsDict):
         for key in inputsDict:
-           # self.clear_input_state(key)
             devRegKey = key[:-1]
             devRegPin = int(key[-1:])
             self.inputDict[devRegKey] = self.inputDict.get(devRegKey, 0) | (1 << devRegPin)
@@ -61,7 +53,7 @@ class I2CReadController(I2CController):
         i2cDevice = int(input_id[:1])
         i2cRegister = int(input_id[1:-1])
         i2cPin = int(input_id[-1:])
-        print("clear_input_state: id: ", input_id, " i2cRegister: ", i2cRegister, " i2cPin: ", i2cPin)
+        logger.info("Clear input state: %s", input_id)
         I2CWriteController.set_disabled(self, i2cDevice, i2cRegister, i2cPin)
 
     def is_input_state_changed(self, mask, value):
@@ -69,13 +61,12 @@ class I2CReadController(I2CController):
 
     def try_to_notify(self, targetKey):
         keyForNotify = None
-
         for key in self.expanderState:
             if key[:3] == targetKey:
                 keyForNotify = key
-        if keyForNotify != None:
-            self.callback(key, self.expanderState[key])
-            self.expanderState.pop(key, None)
+        if keyForNotify:
+            self.callback(keyForNotify, self.expanderState[keyForNotify])
+            self.expanderState.pop(keyForNotify, None)
 
     def i2c_read(self):
         while True:
@@ -85,7 +76,7 @@ class I2CReadController(I2CController):
                 try:
                     pinsState = self.busArray[i2cDevice].read_byte(i2cRegister)
                 except:
-                    print("Failed to read  i2cRegister: " + str(i2cRegister))
+                    logger.warning("Failed to read i2cRegister %s", i2cRegister)
                     continue
                 modifiedPins = self.is_input_state_changed(self.inputDict[key], pinsState)
 
@@ -96,3 +87,5 @@ class I2CReadController(I2CController):
                     exStKey = key + str(modifiedPins)
                     self.expanderState[exStKey] = self.expanderState.get(exStKey, 0) + 1
             time.sleep(settings.i2cReadTimeout)
+
+
