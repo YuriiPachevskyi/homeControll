@@ -9,10 +9,6 @@ logger = logging.getLogger(__name__)
 class I2CController:
     def __init__(self):
         self.busArray = [None, smbus2.SMBus(1)]
-        try:
-            smbus2.SMBus(1).read_byte(0x38)
-        except Exception as e:
-            logger.warning("I2C bus init failed: %s", e)
 
 class I2CWriteController(I2CController):
     def __init__(self):

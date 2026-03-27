@@ -5,4 +5,6 @@ build/CMakeFiles/
 build/Makefile
 build/cmake_install.cmake
 build/install_manifest.txt
+__pycache__/
+src/__pycache__/
 
