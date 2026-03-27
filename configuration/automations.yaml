@@ -193,7 +193,7 @@
         data: {}
       - action: input_number.set_value
         data:
-          value: 35
+          value: 45
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
     - conditions:
@@ -232,6 +232,13 @@
         target:
           entity_id: switch.input_meater_switch
         data: {}
+      - target:
+          entity_id:
+          - number.deye_5kw_program_5_power
+          - number.deye_5kw_program_6_power
+        data:
+          value: '{{ 0 }}'
+        action: number.set_value
     default:
     - action: switch.turn_on
       target:
@@ -251,6 +258,14 @@
           entity_id:
           - switch.deye_5kw_grid_peak_shaving
           - switch.deye_6kw_grid_peak_shaving
+        data: {}
+      - target:
+          entity_id:
+          - number.deye_5kw_program_5_power
+          - number.deye_5kw_program_6_power
+        data:
+          value: '{{ 1000 }}'
+        action: number.set_value
   variables:
     grid_on: '{{ is_state(''binary_sensor.deye_6kw_grid'', ''on'') }}'
   mode: queued
