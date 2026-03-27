@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  home_controller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: home_controller
+    restart: unless-stopped
+    network_mode: host # Required for Bluetooth/mDNS and local HA communication
+    privileged: true   # Required for direct I2C bus access
+    devices:
+      - "/dev/i2c-1:/dev/i2c-1" # Mapping the I2C bus (usually 1 on Raspberry Pi)
+    volumes:
+      - ./configuration:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - CONFIG_PATH=/config/switches.yaml
+      - INPUTS_PATH=/config/inputs.json
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      - mosquitto
+      - homeassistant
+
+  homeassistant:
+    container_name: homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./configuration:/config
+      - /etc/localtime:/etc/localtime:ro
+
+  mosquitto:
+    container_name: mosquitto
+    image: eclipse-mosquitto:latest
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
