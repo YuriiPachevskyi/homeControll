@@ -27,12 +27,6 @@ input_boolean:
   my_flag2:
     name: Air conditioning heating
     icon: mdi:toggle-switch
-  my_flag3:
-    name: Boiler night charge
-    icon: mdi:toggle-switch
-  my_flag4:
-    name: Heating enabled
-    icon: mdi:toggle-switch
 
 input_datetime:
   selling_start_time:
