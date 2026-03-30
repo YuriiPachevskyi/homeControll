@@ -28,36 +28,30 @@
     for: 00:00:05
     trigger: state
   actions:
-  - variables:
-      val: '{{ trigger.to_state.state | float }}'
   - choose:
     - conditions:
       - condition: template
         value_template: '{{ trigger.entity_id == ''input_number.battery_power_deye_5kw''
           }}'
       sequence:
-      - target:
+      - action: number.set_value
+        target:
           entity_id:
           - number.deye_5kw_program_1_power
           - number.deye_5kw_program_2_power
           - number.deye_5kw_program_3_power
           - number.deye_5kw_program_4_power
-        data:
-          value: '{{ val | round(0) }}'
-        action: number.set_value
-      - target:
-          entity_id:
           - number.deye_5kw_program_5_power
           - number.deye_5kw_program_6_power
         data:
-          value: '{{ 0 }}'
-        action: number.set_value
+          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
     - conditions:
       - condition: template
         value_template: '{{ trigger.entity_id == ''input_number.battery_power_deye_6kw''
           }}'
       sequence:
-      - target:
+      - action: number.set_value
+        target:
           entity_id:
           - number.deye_6kw_program_1_power
           - number.deye_6kw_program_2_power
@@ -66,8 +60,7 @@
           - number.deye_6kw_program_5_power
           - number.deye_6kw_program_6_power
         data:
-          value: '{{ val | round(0) }}'
-        action: number.set_value
+          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
     - conditions:
       - condition: template
         value_template: '{{ trigger.entity_id == ''input_number.charge_power_deye_6kw''
@@ -96,23 +89,21 @@
     for: 00:00:05
     trigger: state
   actions:
-  - variables:
-      val: '{{ trigger.to_state.state | float }}'
   - choose:
     - conditions:
       - condition: template
         value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_5kw''
           }}'
       sequence:
-      - target:
+      - action: number.set_value
+        target:
           entity_id:
           - number.deye_5kw_program_1_soc
           - number.deye_5kw_program_2_soc
           - number.deye_5kw_program_3_soc
           - number.deye_5kw_program_4_soc
         data:
-          value: '{{ val }}'
-        action: number.set_value
+          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
     - conditions:
       - condition: template
         value_template: '{{ trigger.entity_id == ''input_number.2_discharge_level_deye_5kw''
@@ -123,7 +114,7 @@
           - number.deye_5kw_program_5_soc
           - number.deye_5kw_program_6_soc
         data:
-          value: '{{ val }}'
+          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
         action: number.set_value
     - conditions:
       - condition: template
@@ -139,12 +130,12 @@
           - number.deye_6kw_program_5_soc
           - number.deye_6kw_program_6_soc
         data:
-          value: '{{ val }}'
+          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
         action: number.set_value
   mode: queued
   max: 3
 - id: '1772480869891'
-  alias: Deye Morning Control (Ultra Safe)
+  alias: Deye Morning Control
   description: Peak shaving + charge logic + scheduler control
   triggers:
   - trigger: time
@@ -154,8 +145,8 @@
     at: input_datetime.selling_stop_time
     id: stop_sell
   - trigger: time_pattern
-    id: periodic
     hours: /1
+    id: periodic
   - trigger: state
     entity_id: binary_sensor.deye_6kw_grid
     id: grid_change
@@ -170,8 +161,7 @@
       sequence:
       - action: switch.turn_on
         target:
-          entity_id:
-          - switch.deye_6kw_grid_peak_shaving
+          entity_id: switch.deye_6kw_grid_peak_shaving
         data: {}
       - action: input_number.set_value
         target:
@@ -182,9 +172,9 @@
   - choose:
     - conditions:
       - condition: template
-        value_template: "{{ trigger.id == 'start_sell'\n   or\n   (trigger.id == 'periodic'\n
-          \   and now().strftime('%H:%M') ==\n        states('input_datetime.selling_start_time')[0:5])
-          }}\n"
+        value_template: >
+          {{ trigger.id == 'start_sell' or (trigger.id == 'periodic' and 
+          now().strftime('%H:%M') == states('input_datetime.selling_start_time', '00:00')[0:5]) }}
       sequence:
       - action: automation.turn_on
         target:
@@ -197,8 +187,8 @@
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.id == ''stop_sell'' }}'
+      - condition: trigger
+        id: stop_sell
       sequence:
       - action: automation.turn_on
         target:
@@ -207,16 +197,10 @@
           - automation.general_automation
         data: {}
       - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_power_deye_5kw
         data:
           value: 2000
-        target:
-          entity_id: input_number.battery_power_deye_6kw
-      - action: input_number.set_value
-        data:
-          value: 35
-        target:
-          entity_id:
-          - input_number.1_discharge_level_deye_6kw
   - choose:
     - conditions:
       - condition: time
@@ -228,17 +212,16 @@
           entity_id: switch.deye_5kw_grid_peak_shaving
         data: {}
       - action: switch.turn_on
-        metadata: {}
         target:
           entity_id: switch.input_meater_switch
         data: {}
-      - target:
+      - action: number.set_value
+        target:
           entity_id:
           - number.deye_5kw_program_5_power
           - number.deye_5kw_program_6_power
         data:
-          value: '{{ 0 }}'
-        action: number.set_value
+          value: 0
     default:
     - action: switch.turn_on
       target:
@@ -246,26 +229,20 @@
         - switch.deye_5kw_grid_peak_shaving
         - switch.deye_6kw_grid_peak_shaving
       data: {}
-  - choose:
-    - conditions:
-      - condition: template
-        value_template: "{% set stop = states('input_datetime.selling_stop_time')
-          %} {% if stop == 'unknown' %}\n  false\n{% else %}\n  now() >= stop | as_datetime\n{%
-          endif %}\n"
-      sequence:
-      - action: switch.turn_on
-        target:
-          entity_id:
-          - switch.deye_5kw_grid_peak_shaving
-          - switch.deye_6kw_grid_peak_shaving
-        data: {}
-      - target:
-          entity_id:
-          - number.deye_5kw_program_5_power
-          - number.deye_5kw_program_6_power
-        data:
-          value: '{{ 1000 }}'
-        action: number.set_value
+    - action: input_number.set_value
+      data:
+        value: 2000
+      target:
+        entity_id:
+        - input_number.battery_power_deye_5kw
+        - input_number.battery_power_deye_6kw
+    - action: input_number.set_value
+      data:
+        value: 40
+      target:
+        entity_id:
+        - input_number.1_discharge_level_deye_5kw
+        - input_number.1_discharge_level_deye_6kw
   variables:
     grid_on: '{{ is_state(''binary_sensor.deye_6kw_grid'', ''on'') }}'
   mode: queued
