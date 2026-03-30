@@ -7,6 +7,14 @@ mqtt: !include switches.yaml
 
 homeassistant:
   packages: !include_dir_named packages
+  external_url: "https://[2a07:a081:0:5c30:c145:3408:cc29:9daf]"  # публічна IPv6 або домен
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 100.64.0.0/10       # All Tailscale devices (including your iPhone)
+    - 172.16.0.0/12      # Docker internal network
+    - 2a07:a081::/32     # Your Polish ISP IPv6
 
 sensor:
   - platform: integration

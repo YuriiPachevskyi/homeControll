@@ -273,24 +273,28 @@
 - id: '1772625520676'
   alias: Disable Conditioner
   description: ''
-  trigger:
-  - platform: numeric_state
-    entity_id: sensor.208069ecbf43d1c4d2a5d5d78c319f87
+  triggers:
+  - entity_id:
+    - climate.2_nd_room_conditioner
     above: 300
-    for: "00:10:00"
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+      milliseconds: 0
+    trigger: numeric_state
   conditions:
   - condition: or
     conditions:
-      - condition: state
-        entity_id: climate.e453c4793221ab7afa46754f7ff861f4
-        state: heat
-      - condition: state
-        entity_id: climate.e453c4793221ab7afa46754f7ff861f4
-        state: cool
-  action:
+    - condition: state
+      entity_id: climate.2_nd_room_conditioner
+      state:
+      - heat
+      - cool
+  actions:
   - action: climate.set_hvac_mode
     target:
-      entity_id: climate.e453c4793221ab7afa46754f7ff861f4
+      device_id: be55afc0f88f5ce38043ce63a5d08b6f
     data:
       hvac_mode: 'off'
   mode: single
