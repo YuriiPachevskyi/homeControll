@@ -40,22 +40,28 @@ class I2CWriteController(I2CController):
         if not bus: return
         value = bus.read_byte(register) & ~(1 << pin)
         bus.write_byte(register, value)
-        logger.info("Set ENABLED: device=%s register=%s pin=%s", i2cDevice, register, pin)
+        current_state = bus.read_byte(register)
+        binary_state = bin(current_state)[2:].zfill(8)
+        logger.info("Set ENABLED: device=%s register=%s pin=%s (%s)", i2cDevice, register, pin, binary_state)
 
     def set_disabled(self, i2cDevice, register, pin):
         bus = self._get_bus(i2cDevice)
         if not bus: return
         value = bus.read_byte(register) | (1 << pin)
         bus.write_byte(register, value)
-        logger.info("Set DISABLED: device=%s register=%s pin=%s", i2cDevice, register, pin)
+        current_state = bus.read_byte(register)
+        binary_state = bin(current_state)[2:].zfill(8)
+        logger.info("Set DISABLED: device=%s register=%s pin=%s (%s)", i2cDevice, register, pin, binary_state)
 
     def trigger_value(self, i2cDevice, register, pin):
         bus = self._get_bus(i2cDevice)
         if not bus: return False
         value = bus.read_byte(register) ^ (1 << pin)
         bus.write_byte(register, value)
-        result = bool(value & (1 << pin))
-        logger.info("Triggered: device=%s register=%s pin=%s -> %s", i2cDevice, register, pin, result)
+        current_state = bus.read_byte(register)
+        binary_state = bin(current_state)[2:].zfill(8)
+        result = bool(current_state & (1 << pin))
+        logger.info("Triggered: device=%s register=%s pin=%s (%s)", i2cDevice, register, pin, binary_state)
         return result
 
 class I2CReadController(I2CController):
