@@ -18,7 +18,7 @@
       - switch.1560_boiler_ten_0_8_kwh
   mode: single
 - id: '1772123844222'
-  alias: Deye Power Sync (Unified)
+  alias: Deye Power Sync
   description: ''
   triggers:
   - entity_id:
@@ -80,7 +80,7 @@
   mode: queued
   max: 3
 - id: '1772141612089'
-  alias: Deye SOC Sync (Unified)
+  alias: Deye SOC Sync
   description: ''
   triggers:
   - entity_id:
@@ -102,20 +102,10 @@
           - number.deye_5kw_program_2_soc
           - number.deye_5kw_program_3_soc
           - number.deye_5kw_program_4_soc
-        data:
-          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
-    - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.2_discharge_level_deye_5kw''
-          }}'
-      sequence:
-      - target:
-          entity_id:
           - number.deye_5kw_program_5_soc
           - number.deye_5kw_program_6_soc
         data:
           value: '{{ trigger.to_state.state | float(0) | round(0) }}'
-        action: number.set_value
     - conditions:
       - condition: template
         value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_6kw''
@@ -172,9 +162,11 @@
   - choose:
     - conditions:
       - condition: template
-        value_template: >
-          {{ trigger.id == 'start_sell' or (trigger.id == 'periodic' and 
-          now().strftime('%H:%M') == states('input_datetime.selling_start_time', '00:00')[0:5]) }}
+        value_template: '{{ trigger.id == ''start_sell'' or (trigger.id == ''periodic''
+          and  now().strftime(''%H:%M'') == states(''input_datetime.selling_start_time'',
+          ''00:00'')[0:5]) }}
+
+          '
       sequence:
       - action: automation.turn_on
         target:
@@ -183,7 +175,7 @@
         data: {}
       - action: input_number.set_value
         data:
-          value: 45
+          value: 65
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
     - conditions:
@@ -196,11 +188,6 @@
           - automation.disable_conditioner
           - automation.general_automation
         data: {}
-      - action: input_number.set_value
-        target:
-          entity_id: input_number.battery_power_deye_5kw
-        data:
-          value: 2000
   - choose:
     - conditions:
       - condition: time
