@@ -175,7 +175,7 @@
         data: {}
       - action: input_number.set_value
         data:
-          value: 65
+          value: 40
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
     - conditions:

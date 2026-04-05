@@ -200,7 +200,7 @@ power_load_disable_device_duplicate:
           sequence:
           - action: climate.set_hvac_mode
             data:
-              hvac_mode: cool
+              hvac_mode: heat
             target:
               device_id: be55afc0f88f5ce38043ce63a5d08b6f
   icon: mdi:solar-power-variant-outline
