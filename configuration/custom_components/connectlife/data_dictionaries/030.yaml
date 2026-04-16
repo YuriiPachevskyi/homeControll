@@ -17,6 +17,7 @@ properties:
     hide: true
   - property: Child_lock
     icon: mdi:lock
+    entity_category: config
     switch:
   - property: Clean_Filter
     icon: mdi:brush-variant
@@ -35,8 +36,10 @@ properties:
       read_only: true
     # Sample value: 0
   - property: DelayEndTime_Hour
-    # Sample value: 0
-    hide: true
+    icon: mdi:clock-end
+    number:
+      min_value: 0
+      max_value: 24
   - property: DelayEndTime_Minute
     # Sample value: 0
     hide: true
@@ -53,6 +56,7 @@ properties:
     hide: true
   - property: Drum_Light
     icon: mdi:lightbulb-on
+    entity_category: config
     switch:
   - property: Dry_Level
     icon: mdi:weather-sunny
@@ -130,10 +134,17 @@ properties:
   - property: DryingWizzard_ClothingType_twelfth
     # Sample value: 0
     hide: true
-  - property: Electricit_consumption_decimal
-    # Sample value: 0
-  - property: Electricit_consumption_int
-    # Sample value: 0
+  - property: Electricit_consumption
+    icon: mdi:lightning-bolt
+    sensor:
+      device_class: energy
+      unit: kWh
+      read_only: true
+      state_class: total_increasing
+    combine:
+      - property: Electricit_consumption_int
+      - property: Electricit_consumption_decimal
+        multiplier: 0.01
   - property: Favour_program_ID
     # Sample value: 0
   - property: Hard_pairing_commond
@@ -155,6 +166,12 @@ properties:
     # Sample value: 0
   - property: QuickerMode
     # Sample value: 0
+  - property: Remaining_time_of_selected_program
+    icon: mdi:update
+    sensor:
+      device_class: duration
+      unit: min
+      read_only: true
   - property: ScreenSaverTime
     # Sample value: 0
   - property: Selected_program_ID
@@ -176,18 +193,31 @@ properties:
         17: shirts
         18: bed_linen
         19: down
+        28: eco
   - property: Selected_program_remaining_time_in_minutes
     sensor:
       device_class: duration
       unit: min
       read_only: true
     icon: mdi:timer
+  - property: Selected_program_total_running_time
+    icon: mdi:timer
+    sensor:
+      device_class: duration
+      unit: min
+      read_only: true
   - property: Selected_program_total_running_time_in_minutes
     sensor:
       read_only: true
       device_class: duration
       unit: min
     icon: mdi:timer
+  - property: Selected_program_total_time
+    icon: mdi:timer
+    sensor:
+      device_class: duration
+      unit: min
+      read_only: true
   - property: Selected_program_total_time_in_minutes
     sensor:
       read_only: true
@@ -203,12 +233,17 @@ properties:
   - property: Sound_setting
     # Sample value: 0
     hide: true
-  - property: StandardElectricitConsumption_int
-    # Sample value: 0
+  - property: StandardElectricitConsumption
     hide: true
-  - property: StandardElectricitconsumption_decimal
-    # Sample value: 0
-    hide: true
+    entity_category: diagnostic
+    sensor:
+      device_class: energy
+      unit: kWh
+      read_only: true
+    combine:
+      - property: StandardElectricitConsumption_int
+      - property: StandardElectricitconsumption_decimal
+        multiplier: 0.01
   - property: Steam
     # Sample value: 0
     hide: true
@@ -241,8 +276,12 @@ properties:
     # Sample value: 4
     hide: true
   - property: dry_time
-    # Sample value: 220
-    hide: true
+    icon: mdi:timer
+    select:
+      options:
+        1: wardrobe
+        2: pre-ironing
+        3: extra_dry
   - property: drying_linkage_order
     # Sample value: 0
     hide: true
@@ -256,8 +295,12 @@ properties:
     # Sample value: 0
     hide: true
   - property: energy
-    # Sample value: 73
-    hide: true
+    entity_category: diagnostic
+    sensor:
+      device_class: energy
+      unit: Wh
+      read_only: true
+      state_class: total_increasing
   - property: error_code
     # Sample value: 0
     hide: true
@@ -272,10 +315,14 @@ properties:
       read_only: true
   - property: mute
     icon: mdi:volume-mute
+    entity_category: config
     switch:
   - property: parse_lib_ver
     # Sample value: 20241030
     hide: true
+  - property: selected_program
+    hide: true
+    entity_category: diagnostic
   - property: stoprunning_flag
     # Sample value: 0
     hide: true

@@ -16,11 +16,3 @@ properties:
       max_value:
         celsius: 30
         fahrenheit: 86
-  - property: t_work_mode
-    climate:
-      target: hvac_mode
-      options:
-        0: fan_only
-        2: cool
-        3: dry
-        5: eco

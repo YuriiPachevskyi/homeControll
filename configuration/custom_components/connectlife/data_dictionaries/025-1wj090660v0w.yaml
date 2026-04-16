@@ -1,8 +1,5 @@
-#WashingMachine
+# WashingMachine
 properties:
-  - property: Child_lock
-    icon: mdi:lock
-    switch:
   - property: Current_program_phase
     icon: mdi:state-machine
     sensor:
@@ -18,26 +15,11 @@ properties:
         10: finished
       read_only: true
   - property: Detergent_display
-    icon: mdi:alpha-d-circle-outline
-    sensor:
-      device_class: enum
+    icon: mdi:spray
+    binary_sensor:
       options:
-        0: "off"
-        1: "on"
-  - property: Door_status
-    icon: mdi:washing-machine
-    sensor:
-      device_class: enum
-      options:
-        1: "open"
-        3: "closed"
-  - property: Electricit_consumption_int
-    icon: mdi:lightning-bolt
-    sensor:
-      read_only: true
-      state_class: total_increasing
-      device_class: energy
-      unit: kWh
+        0: false
+        1: true
   - property: Energy_estimate
     icon: mdi:lightning-bolt
     sensor:
@@ -54,24 +36,8 @@ properties:
         1: "1"
         2: "2"
         3: "3"
-  - property: machine_status
-    icon: mdi:washing-machine
-    sensor:
-      device_class: enum
-      options:
-        0: "off"
-        1: "standby"
-        2: "running"
-  - property: mute
-    icon: mdi:volume-variant-off
-    switch:
-      device_class: switch
-  - property: Prewash
-    icon: mdi:numeric-1-circle-outline
-    switch:
-      device_class: switch
   - property: RinseNum
-    icon: mdi:tray-plus
+    icon: mdi:reload
     sensor:
       device_class: enum
       options:
@@ -99,33 +65,29 @@ properties:
         41: "power49"
         42: "auto"
   - property: Selected_program_remaining_time_in_minutes
-    icon: mdi:camera-timer
+    icon: mdi:update
     sensor:
       device_class: duration
       unit: min
       read_only: true
   - property: Selected_program_total_time_in_minutes
-    icon: mdi:camera-timer
+    icon: mdi:timer
     sensor:
       device_class: duration
       unit: min
       read_only: true
   - property: Selected_program_total_running_time_in_minutes
-    icon: mdi:camera-timer
+    icon: mdi:timer
     sensor:
       device_class: duration
       unit: min
       read_only: true
   - property: Softer_display
-    icon: mdi:alpha-s-circle-outline
-    sensor:
-      device_class: enum
+    icon: mdi:water
+    binary_sensor:
       options:
-        0: "off"
-        1: "on"
-  - property: Steam
-    icon: mdi:heat-wave
-    switch:
+        0: false
+        1: true
   - property: temperature
     icon: mdi:thermometer-lines
     select:
@@ -137,7 +99,7 @@ properties:
         6: "60"
         9: "90"
   - property: Spin_speed_rpm
-    icon: mdi:thermometer-lines
+    icon: mdi:rotate-3d-variant
     select:
       options:
         14: "1400"
@@ -147,14 +109,8 @@ properties:
         60: "600"
         0: "none"
   - property: spintime_index
-    icon: mdi:camera-timer
+    icon: mdi:timer-sand
     sensor:
       device_class: duration
       unit: min
       read_only: true
-  - property: Water_consumption_int
-    icon: mdi:water-pump
-    sensor:
-      state_class: total_increasing
-      device_class: water
-      unit: L
