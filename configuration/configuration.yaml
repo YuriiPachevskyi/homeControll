@@ -16,6 +16,27 @@ http:
     - 172.16.0.0/12      # Docker internal network
     - 2a07:a081::/32     # Your Polish ISP IPv6
 
+template:
+  - sensor:
+      - name: "Total PV Power"
+        unique_id: total_pv_power
+        unit_of_measurement: "W"
+        device_class: power
+        state: "{{ (states('sensor.deye_5kw_pv_power') | float(0)) + (states('sensor.deye_6kw_pv_power') | float(0)) }}"
+
+      - name: "Total Battery Today Discharge"
+        unique_id: total_battery_today_discharge
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state: "{{ (states('sensor.deye_5kw_today_battery_discharge') | float(0)) + (states('sensor.deye_6kw_today_battery_discharge') | float(0)) }}"
+
+      - name: "Total Battery Power Realtime"
+        unique_id: total_battery_power_realtime
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: "{{ (states('sensor.deye_5kw_battery_power') | float(0)) + (states('sensor.deye_6kw_battery_power') | float(0)) }}"
+
 sensor:
   - platform: integration
     source: sensor.deye_5kw_power_losses
