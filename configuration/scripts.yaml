@@ -30,17 +30,17 @@ power_load_disable_device_duplicate:
         - conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
-            above: 1.75
+            above: 1.4
           sequence:
           - action: input_number.set_value
             data:
-              value: 1
+              value: 0.75
             target:
               entity_id: input_number.charge_power_deye_6kw
         - conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
-            above: 0.5
+            above: 0.7
           sequence:
           - action: input_number.set_value
             data:
@@ -49,17 +49,18 @@ power_load_disable_device_duplicate:
               entity_id: input_number.charge_power_deye_6kw
         - conditions:
           - condition: state
-            entity_id: climate.e453c4793221ab7afa46754f7ff861f4
-            state: heat
+            entity_id: climate.2_nd_room_conditioner
+            state:
+            - heat
+            - cool
           - condition: numeric_state
-            entity_id: sensor.4abddc77fd64d0e26b9ea3c917006591
+            entity_id: sensor.deye_6kw_battery
             below: 95
           sequence:
-          - action: climate.set_hvac_mode
-            data:
-              hvac_mode: 'off'
+          - action: climate.turn_off
             target:
-              entity_id: climate.e453c4793221ab7afa46754f7ff861f4
+              device_id: be55afc0f88f5ce38043ce63a5d08b6f
+            data: {}
     - conditions:
       - condition: state
         entity_id: binary_sensor.any_device_high_power
@@ -70,7 +71,7 @@ power_load_disable_device_duplicate:
           conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
-            below: 1
+            below: 0.75
           - condition: state
             entity_id: binary_sensor.battery_deye_6kw_charged
             state: 'off'
@@ -88,14 +89,14 @@ power_load_disable_device_duplicate:
           sequence:
           - action: input_number.set_value
             data:
-              value: 1
+              value: 0.75
             target:
               entity_id: input_number.charge_power_deye_6kw
         - alias: 'Restore Step 2: Charge Power 2kW'
           conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
-            below: 2
+            below: 1.5
           - condition: state
             entity_id: binary_sensor.battery_deye_6kw_charged
             state:
@@ -114,7 +115,7 @@ power_load_disable_device_duplicate:
           sequence:
           - action: input_number.set_value
             data:
-              value: 2
+              value: 1.5
             target:
               entity_id: input_number.charge_power_deye_6kw
         - alias: 'Restore Step 3: Boiler 0.8kW ON'
