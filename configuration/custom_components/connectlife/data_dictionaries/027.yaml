@@ -10,6 +10,7 @@ properties:
     read_only: true
     device_class: temperature
     unit: °C
+    state_class: measurement
 - property: Delay_start_remaining_time_in_minutes
   icon: 'mdi:update'
   sensor:
@@ -55,7 +56,7 @@ properties:
 - property: Selected_program_entry_steam_status
   binary_sensor: {}
 - property: Selected_program_id_status
-  icon: 'mdi:playlist-check'
+  icon: 'mdi:tshirt-crew'
   sensor:
     read_only: true
     device_class: enum
@@ -80,7 +81,7 @@ properties:
       16: rinsing_softening
       17: down_feathers
 - property: Selected_program_mode_status
-  icon: 'mdi:playlist-check'
+  icon: 'mdi:tshirt-crew'
   sensor:
     read_only: true
     device_class: enum
@@ -92,7 +93,7 @@ properties:
 - property: Selected_program_prewash_status
   binary_sensor: {}
 - property: Selected_program_remaining_time_in_minutes
-  icon: 'mdi:update'
+  icon: 'mdi:clock-end'
   sensor:
     read_only: true
     device_class: duration

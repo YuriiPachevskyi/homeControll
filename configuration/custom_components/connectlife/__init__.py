@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform, CONF_USERNAME, CONF_PASSWORD
 from homeassistant.core import HomeAssistant
@@ -12,7 +12,12 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 from connectlife.api import ConnectLifeApi, LifeConnectAuthError, LifeConnectError
 
-from .const import CONF_DEVELOPMENT_MODE, CONF_TEST_SERVER_URL, DOMAIN
+from .const import (
+    CONF_DEVELOPMENT_MODE,
+    CONF_TEST_SERVER_URL,
+    DATA_STATE_CLASS_MIGRATION_DONE,
+    DOMAIN,
+)
 from .coordinator import ConnectLifeCoordinator, ConnectLifeEnergyCoordinator
 from .services import async_setup_services
 
@@ -54,7 +59,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await api.login()
     except LifeConnectAuthError as ex:
-        raise ConfigEntryError from ex
+        raise ConfigEntryAuthFailed from ex
     except LifeConnectError as ex:
         raise ConfigEntryNotReady from ex
     coordinator = ConnectLifeCoordinator(hass, api)
@@ -69,6 +74,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     await coordinator.cleanup_removed_entities()
+    if not entry.data.get(DATA_STATE_CLASS_MIGRATION_DONE):
+        await coordinator.update_orphaned_statistics_issue()
 
     return True
 

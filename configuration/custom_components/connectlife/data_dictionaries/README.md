@@ -2,8 +2,7 @@
 
 Mapping files for known appliances are located in this directory. Appliances without a mapping file will still
 be loaded, but with a warning in the log. Their properties will all be mapped to [sensor](#type-sensor) entities,
-with `hidden` set to `true` and `state_class` set to `measurement` (to enable
-[long-term statistics](https://developers.home-assistant.io/docs/core/entity/sensor/#long-term-statistics)).
+with `hidden` set to `true`.
 
 ## Default mapping files
 
@@ -16,6 +15,71 @@ will just be ignored for feature variants that don't expose that property.
 
 **Note:** The top level `climate` section is not supported in the default mapping files.
 
+### Property inheritance in feature overrides
+
+Any field in a property can be overridden in a feature file; unspecified fields are inherited from the
+base type file. If the override changes the platform type (e.g., from `sensor:` to `select:`), the
+override's platform block replaces the base's.
+
+The following top-level fields always inherit, even across platform changes:
+
+- `icon`
+- `hide`
+- `disable`
+- `entity_category`
+- `unavailable`
+- `combine` — if you change the platform and want to drop the base's combine sources, clear it with
+  `combine: null`.
+
+Collections replace as a whole — there is no per-key merging inside them:
+
+- `options`
+- `combine`
+- `command`
+- dict-valued `min_value` / `max_value`
+
+Set a field to `null` to explicitly unset what the base specified — useful for dropping a `unit:` set
+in the base. To suppress an entity entirely, use `disable: true`.
+
+Example: the base specifies the full mapping, the feature override carries only the difference.
+
+```yaml
+# 009.yaml (base)
+- property: t_temp
+  climate:
+    target: target_temperature
+    min_value: 16
+    max_value: 32
+```
+
+```yaml
+# 009-120.yaml (feature override — caps at 30 °C, inherits target and min_value)
+- property: t_temp
+  climate:
+    max_value: 30
+```
+
+Example: a feature variant returns a property as a direct value where the base combines two sources.
+
+```yaml
+# 025.yaml (base — virtual sensor combining int and decimal source properties)
+- property: StandardElectricitConsumption
+  sensor:
+    device_class: energy
+    unit: kWh
+    state_class: total_increasing
+  combine:
+    - property: StandardElectricitConsumption_int
+    - property: StandardElectricitconsumption_decimal
+      multiplier: 0.01
+```
+
+```yaml
+# 025-{feature}.yaml (override — read the property directly, no combine)
+- property: StandardElectricitConsumption
+  combine: null
+```
+
 ## Create your own mapping file
 
 To map you device, create a file with the name `<deviceTypeCode>-<deviceFeatureCode>.yaml` in this directory. When done,
@@ -27,7 +91,7 @@ The file contains two top level items:
 - `properties`: list of [`Property`](#property)
 
 To make a property visible by default, just add the property to the list. Note that properties you do not map are still
-mapped to [sensor](#type-sensor) entities with `hidden` set to `true` and `state_class` set to `measurement`.
+mapped to [sensor](#type-sensor) entities with `hidden` set to `true`.
 
 Each property is mapped to _one_ entity or _one_ target property. In addition, each `climate` preset is mapped to a
 set of properties and values.
@@ -88,6 +152,7 @@ Note that translation keys must be lowercase!
 | `disable`                  | `true`, `false`                    | If Home Assistant should not create an entity for this property. Defaults to `false`.                                                                                                                                                                                                  |
 | `hide`                     | `true`, `false`                    | If Home Assistant should initially hide the entity for this property. Defaults to `false`, but is set to `true` for unknown properties.                                                                                                                                                |
 | `icon`                     | `mdi:eye`, etc.                    | Icon to use for the entity.                                                                                                                                                                                                                                                            |
+| `unavailable`              | integer                            | If the property has this value on the device, no entity is created for it. Use for properties that the device reports as "not available" with a sentinel value.                                                                                                                        |
 | `entity_category`          | `config`, `diagnostic`             | Whether the entity should be considered a diagnostics or config entity. Defaults to `None`. [More info in HA docs](https://developers.home-assistant.io/docs/core/entity/#registry-properties:~:text=automatic%20device%20registration.-,entity_category,-EntityCategory%20%7C%20None) |
 | `binary_sensor`            | [BinarySensor](#type-binarysensor) | Create a binary sensor of the property.                                                                                                                                                                                                                                                |
 | `climate`                  | [Climate](#type-climate)           | Map the property to a climate entity for the device.                                                                                                                                                                                                                                   |
@@ -258,6 +323,8 @@ type `humidifier`, a humidifier entity is created for the appliance.
 | `target`       | string                          | Any  of these [humidifier entity](https://developers.home-assistant.io/docs/core/entity/humidifier#properties) attributes: `action`, `is_on`, `current_humidity`, `target_humidity`, `mode`. |
 | `options`      | dictionary of integer to string | Required for `action` and `mode`.                                                                                                                                                            |
 | `device_class` | string                          | Name of any [HumidifierDeviceClass enum](https://developers.home-assistant.io/docs/core/entity/humidifier#available-device-classes).                                                         |
+| `min_value`    | integer                         | Minimum allowed value for `target_humidity`.                                                                                                                                                 |
+| `max_value`    | integer                         | Maximum allowed value for `target_humidity`.                                                                                                                                                 |
 
 It is sufficient to set `device_class` on one property. The value of the first encountered property is used.
 
@@ -280,9 +347,10 @@ Number entities can be set by the user.
 
 ## Type `Select`
 
-| Item       | Type                            | Description |
-|------------|---------------------------------|-------------|
-| `options`  | dictionary of integer to string | Required.   |
+| Item       | Type                            | Description                                                                                                       |
+|------------|---------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| `options`  | dictionary of integer to string | Required.                                                                                                         |
+| `command`  | [Command](#command)             | Send writes to a different property than the status property, and/or offset the value. See [Command](#command).   |
 
 Remember to add [translation strings](#translation-strings) for the options.
 
@@ -294,7 +362,7 @@ the `sensor.connectlife` entities, unless the sensor is set to `read_only: true`
 | Item            | Type                                            | Description                                                                                                                                                                                                               |
 |-----------------|-------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `read_only`     | `true`, `false`                                 | If this property is known to be read-only (prevents `set_value` service).                                                                                                                                                 |
-| `state_class`   | `measurement`, `total`, `total_increasing`      | Name of any [SensorStateClass enum](https://developers.home-assistant.io/docs/core/entity/sensor/#available-state-classes). For integer properties, defaults to `measurement`. Not allowed when `device_class` is `enum`. |
+| `state_class`   | `measurement`, `total`, `total_increasing`      | Name of any [SensorStateClass enum](https://developers.home-assistant.io/docs/core/entity/sensor/#available-state-classes). Required to enable [long-term statistics](https://developers.home-assistant.io/docs/core/entity/sensor/#long-term-statistics). Only allowed for integer properties; not allowed when `device_class` is `enum`. |
 | `device_class`  | `duration`, `energy`, `water`, etc.             | Name of any [SensorDeviceClass enum](https://developers.home-assistant.io/docs/core/entity/sensor/#available-device-classes).                                                                                             |
 | `unit`          | `min`, `kWh`, `L`, etc., _or_ `property.<name>` | Required if `device_class` is set, except not allowed when `device_class` is `aqi`, `ph` or `enum`.                                                                                                                       |
 | `multiplier`    | number, e.g. `0.1` or `10`                      | Required if the unit in the API is not supported in Home Assistant, e.g. hWh can be multiplied by 0.1 to get kWh.                                                                                                         |
@@ -305,10 +373,37 @@ For device class `enum`, remember to add [translation strings](#translation-stri
 
 ## Type `Switch`
 
-| Item  | Type    | Description               |
-|-------|---------|---------------------------|
-| `off` | integer | Off value. Defaults to 0. |
-| `on`  | integer | On value. Defaults to 1.  |
+| Item           | Type                   | Description                                                                                                                  |
+|----------------|------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `off`          | integer                | Off value. Defaults to `0`.                                                                                                  |
+| `on`           | integer                | On value. Defaults to `1`.                                                                                                   |
+| `device_class` | `outlet`, `switch`     | Name of any [SwitchDeviceClass enum](https://developers.home-assistant.io/docs/core/entity/switch#available-device-classes). |
+| `command`      | [Command](#command)    | Send writes to a different property than the status property, and/or offset the value. See [Command](#command).              |
+
+## Command
+
+The `command` field on [Select](#type-select) and [Switch](#type-switch) is used when the API property that reports
+state is not the same as the property used to change state, or when the two use different value encodings.
+
+| Item     | Type    | Description                                                                                                                             |
+|----------|---------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| `name`   | string  | Property name to write to. If omitted, writes go to the status property.                                                                |
+| `adjust` | integer | Subtracted from the status-space value before writing: `written_value = status_value - adjust`. Defaults to `0`.                        |
+
+Use `adjust` when the write property uses a value encoding offset from the read property. For example, an oven setting
+reports `1 = off` and `2 = on` on the status property but expects `0 = off` and `1 = on` on the write property:
+
+```yaml
+- property: Adaptive_sense_setting   # status: 1 = off, 2 = on
+  switch:
+    "off": 1
+    "on": 2
+    command:
+      name: Adaptive_sense_setting_cmd   # write target
+      adjust: 1                          # sends 0 for off, 1 for on
+```
+
+The same mechanism works for [Select](#type-select): the value written is the integer key from `options` minus `adjust`.
 
 ## Type `WaterHeater`
 
@@ -417,10 +512,10 @@ For example, given the following data dictionary:
 ```yaml
 properties:
   - property: Door_status
+    unavailable: 0
     sensor:
       device_class: enum
       options:
-        0: not_available
         1: closed
         2: open
 ```
@@ -434,7 +529,6 @@ This goes into [strings.json](../strings.json) and [en.json](../translations/en.
       "Door_status": {
         "name": "Door",
         "state": {
-          "not_available": "Unavailable",
           "closed": "Closed",
           "open": "Open"
         }

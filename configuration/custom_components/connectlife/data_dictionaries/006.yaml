@@ -1,7 +1,28 @@
 # Portable air conditioner
 properties:
+- property: f_electricity
+  sensor:
+    device_class: current
+    unit: A
+    read_only: true
+    state_class: measurement
+  hide: true
+- property: f_power_consumption
+  sensor:
+    device_class: energy
+    unit: kWh
+    read_only: true
+    state_class: total_increasing
+  icon: mdi:lightning-bolt
+- property: f_power_display
+  sensor:
+    device_class: power
+    unit: W
+    read_only: true
+    state_class: measurement
+  icon: mdi:lightning-bolt
 - property: f_temp_in
-  icon: mdi:temp
+  icon: mdi:thermometer
   climate:
     target: current_temperature
 - property: t_eco

@@ -2,27 +2,21 @@
 properties:
 - property: ApplicationPermissions
   # 1 = not granted (No remote control allowed), 3 = granted (Remote control allowed) ?
+  hide: false
   sensor:
     read_only: true
     device_class: enum
     options:
       1: "not_granted"
       3: "granted"
-  icon: 'mdi:shield-check'
-  entity_category: diagnostic
-
 - property: Child_lock
-  icon: mdi:lock
   # 1 = active, 0 = inactive
   switch:
     device_class: switch
-  #icon_on: 'mdi:account-lock'
 
 - property: Current_program_phase
   # Machine falls back to the first option from the selected program after machine is completed. Usually option 3 for washing program. 7 for spin-dry only program. 8 for drying only program. Dont know why.
-  icon: mdi:state-machine
   sensor:
-    read_only: true
     device_class: enum
     options:
       0: not_available
@@ -35,9 +29,7 @@ properties:
       10: finished
 
 - property: DefaultSpinSpeed
-  icon: mdi:speedometer
   sensor:
-    read_only: true
     device_class: enum
     options:
       0: "off"
@@ -48,7 +40,6 @@ properties:
       14: "1400"
 
 - property: DelayEndTime
-  icon: mdi:clock-outline
   select:
     options:
       0: "none"
@@ -79,7 +70,6 @@ properties:
 
 - property: DryOpen_DefaultSpinSpeed
   # Sample value: 14
-  icon: 'mdi:rotate-3d-variant'
   sensor:
     read_only: true
     device_class: enum
@@ -92,15 +82,12 @@ properties:
       14: "1400"
 
 - property: Energy_estimate
-  icon: mdi:lightning-bolt
   # Estimates power consumption (0%-100%) for the selected program and options in 10 percentage steps, based on selected program options.
   sensor:
-    read_only: true
     device_class: power_factor
 #    unit: '%'
 
 - property: ExtraRinseNum
-  icon: mdi:tray-plus
   select:
     options:
       0: "none"
@@ -110,7 +97,6 @@ properties:
 
 - property: Selected_program_ID
   # Sample value: 41 (Power 49')
-  icon: 'mdi:washing-machine'
   select:
     options:
       1: "cotton_dry"
@@ -130,30 +116,8 @@ properties:
       41: "power49"
       42: "auto"
 
-- property: Selected_program_total_running_time_in_minutes
-  icon: mdi:timer
-  # Sample value: 49
-  sensor:
-    read_only: true
-    device_class: duration
-    unit: min
-
-- property: Selected_program_total_time_in_minutes
-  icon: mdi:timer
-  sensor:
-    read_only: true
-    device_class: duration
-    unit: min
-
-- property: Sound_setting
-  # Sample value: 3 
-  sensor:
-    read_only: true
-  icon: 'mdi:volume-high'
-
 - property: Spin_speed_rpm
   # Sample value: 12 (1200 rpm)
-  icon: 'mdi:rotate-3d-variant'
   select:
     options:
       0: "off"
@@ -165,13 +129,11 @@ properties:
 
 - property: Steam
   # Sample value: 0
-  icon: mdi:heat-wave
   switch:
     device_class: switch
 
 - property: dry_time
   # Sample value: 3
-  icon: 'mdi:tumble-dryer'
   select:
     options:
       0: "off"
@@ -184,22 +146,3 @@ properties:
       120: "120_min"
       180: "180_min"
       240: "240_min"
-
-- property: spin_time
-  icon: mdi:timer-sand
-  sensor:
-    read_only: true
-    device_class: duration
-    unit: min
-
-- property: temperature
-  icon: mdi:thermometer-lines
-  select:
-    options:
-      0: "cold"
-      2: "20"
-      3: "30"
-      4: "40"
-      6: "60"
-      9: "90"
-

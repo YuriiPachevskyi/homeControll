@@ -18,7 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, SW_VERSION_PROPERTY
 from .coordinator import ConnectLifeCoordinator, ConnectLifeEnergyCoordinator
 from .dictionaries import Dictionaries, Dictionary, Property
 from .entity import ConnectLifeEntity
@@ -46,7 +46,8 @@ async def async_setup_entry(
                 coordinator, appliance, s, dictionary.properties[s], dictionary
             )
             for s in appliance.status_list
-            if is_entity(
+            if s != SW_VERSION_PROPERTY
+            and is_entity(
                 Platform.SENSOR,
                 dictionary.properties[s],
                 appliance.status_list[s],
@@ -99,22 +100,16 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
 
         device_class = dd_entry.sensor.device_class
         self.options_map: dict[int, str] | None = None
-        options = None
         current_value = self.coordinator.data[self.device_id].status_list.get(status)
         if device_class == SensorDeviceClass.ENUM and dd_entry.sensor.options is not None:
-            self.options_map = dd_entry.sensor.options
-            options = list(self.options_map.values())
+            # Copy: unmapped values are added per-entity, avoid leaking to other appliances.
+            self.options_map = dict(dd_entry.sensor.options)
+            self._attr_options = list(self.options_map.values())
         elif device_class is None and isinstance(current_value, datetime.datetime):
             device_class = SensorDeviceClass.TIMESTAMP
         if device_class == SensorDeviceClass.TIMESTAMP and self.unknown_value is None:
             self.unknown_value = MAX_DATETIME
         state_class = dd_entry.sensor.state_class
-        if (
-            state_class is None
-            and (isinstance(current_value, int) or self.combine)
-            and device_class != SensorDeviceClass.ENUM
-        ):
-            state_class = SensorStateClass.MEASUREMENT
         self.entity_description = SensorEntityDescription(
             key=self._attr_unique_id,
             device_class=device_class,
@@ -124,7 +119,6 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
             native_unit_of_measurement=to_unit(
                 dd_entry.sensor.unit, appliance=appliance, dictionary=dictionary
             ),
-            options=options,
             state_class=state_class,
             translation_key=self.to_translation_key(status),
             entity_category=dd_entry.entity_category,
@@ -163,13 +157,17 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
                 if value in self.options_map:
                     value = self.options_map[value]
                 elif value != self.unknown_value:
-                    _LOGGER.warning(
-                        "Got unexpected value %d for %s (%s)",
-                        value,
-                        self.status,
-                        self.nickname,
-                    )
-                    value = None
+                    str_value = str(value)
+                    if self._attr_options is not None and str_value not in self._attr_options:
+                        _LOGGER.warning(
+                            "Got unexpected value %s for %s (%s)",
+                            str_value,
+                            self.status,
+                            self.nickname,
+                        )
+                        self.options_map[value] = str_value
+                        self._attr_options = [*self._attr_options, str_value]
+                    value = str_value
             if value == self.unknown_value:
                 self._attr_native_value = None
             else:

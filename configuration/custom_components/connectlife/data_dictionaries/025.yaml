@@ -20,6 +20,7 @@ properties:
         1: standby
         2: running
         3: paused
+        4: alarm
   - property: Detergent_display
     icon: mdi:spray
     binary_sensor:
@@ -47,13 +48,13 @@ properties:
         0: false
         1: true
   - property: Selected_program_remaining_time_in_minutes
-    icon: mdi:update
+    icon: mdi:clock-end
     sensor:
       device_class: duration
       unit: min
       read_only: true
   - property: Remaining_time_of_selected_program
-    icon: mdi:update
+    icon: mdi:clock-end
     sensor:
       device_class: duration
       unit: min
@@ -126,7 +127,7 @@ properties:
       unit: min
       read_only: true
   - property: MainWashTimeUseIndex
-    icon: mdi:clock
+    icon: mdi:clock-outline
     entity_category: diagnostic
     sensor:
       read_only: true
@@ -176,7 +177,7 @@ properties:
       read_only: true
       unit: rpm
   - property: DefaultSpinSpeed
-    icon: mdi:speedometer
+    icon: mdi:sync
     entity_category: diagnostic
     sensor:
       read_only: true
@@ -203,7 +204,7 @@ properties:
     entity_category: config
     switch: {}
   - property: mute
-    icon: mdi:volume-variant-off
+    icon: mdi:volume-off
     entity_category: config
     switch:
       device_class: switch
@@ -218,7 +219,7 @@ properties:
     icon: mdi:iron
     switch: {}
   - property: AutoDose
-    icon: mdi:tray-arrow-up
+    icon: mdi:car-coolant-level
     entity_category: config
     switch: {}
   - property: AutoTubClean
@@ -244,8 +245,14 @@ properties:
     hide: true
     entity_category: diagnostic
   - property: AutoDose_flag
-    hide: true
+    icon: mdi:car-coolant-level
     entity_category: diagnostic
+    sensor:
+      device_class: enum
+      options:
+        0: unavailable
+        1: available
+      read_only: true
   - property: BathingWaterPumpState
     hide: true
     entity_category: diagnostic
@@ -520,8 +527,7 @@ properties:
     hide: true
     entity_category: diagnostic
   - property: QuickerMode
-    hide: true
-    entity_category: diagnostic
+    icon: mdi:clock-fast
   - property: Quiet_model
     hide: true
     entity_category: diagnostic
@@ -602,6 +608,7 @@ properties:
       device_class: energy
       unit: kWh
       read_only: true
+      state_class: total_increasing
     combine:
       - property: StandardElectricitConsumption_int
       - property: StandardElectricitconsumption_decimal
@@ -613,6 +620,7 @@ properties:
       device_class: water
       unit: L
       read_only: true
+      state_class: total_increasing
     combine:
       - property: StandardWaterConsumption_int
       - property: StandardWaterConsumption_decimal
@@ -822,8 +830,28 @@ properties:
     hide: true
     entity_category: diagnostic
   - property: error_code
-    hide: true
+    icon: mdi:alert-circle-outline
     entity_category: diagnostic
+    sensor:
+      device_class: enum
+      read_only: true
+      options:
+        0: none
+        1: error_f01
+        3: error_f03
+        4: error_f04
+        5: error_f05
+        6: error_f06
+        7: error_f07
+        13: error_f13
+        14: error_f14
+        15: error_f15
+        16: error_f16
+        17: error_f17
+        18: error_f18
+        23: error_f23
+        24: error_f24
+        100: unbalance_alarm
   - property: hottime
     hide: true
     entity_category: diagnostic
@@ -902,7 +930,7 @@ properties:
     entity_category: diagnostic
   - property: ApplicationPermissions
     hide: true
-    entity_category: diagnostic
+    icon: mdi:cellphone-wireless
   - property: BathingWaterPump_Flag
     hide: true
     entity_category: diagnostic
@@ -931,10 +959,11 @@ properties:
     hide: true
     entity_category: diagnostic
   - property: DryOpen_DefaultSpinSpeed
-    hide: true
-    entity_category: diagnostic
+    icon: mdi:sync
   - property: FlexibleSpinTime_Flag
-    hide: true
+    sensor:
+      read_only: true
+    icon: 'mdi:timer-cog'
     entity_category: diagnostic
   - property: Fluffysoft_flag
     hide: true
@@ -999,6 +1028,9 @@ properties:
   - property: Sound_setting
     hide: true
     entity_category: diagnostic
+    sensor:
+      read_only: true
+    icon: 'mdi:volume-high'
   - property: SpinRange
     hide: true
     entity_category: diagnostic
@@ -1097,8 +1129,7 @@ properties:
     sensor:
       read_only: true
   - property: ExtraRinseNum
-    hide: true
-    entity_category: diagnostic
+    icon: mdi:tray-plus
   - property: Filterclean_washCound
     hide: true
     entity_category: diagnostic
@@ -1109,10 +1140,9 @@ properties:
     hide: true
     entity_category: diagnostic
   - property: Selected_program_ID
-    hide: true
-    entity_category: diagnostic
+    icon: mdi:tshirt-crew
   - property: Spin_speed_rpm
-    icon: mdi:rotate-3d-variant
+    icon: mdi:sync
     select:
       options:
         0: none
@@ -1122,13 +1152,12 @@ properties:
         12: "1200"
         14: "1400"
   - property: dry_time
-    hide: true
-    entity_category: diagnostic
+    icon: mdi:tumble-dryer
   - property: once_strong_step_time
     hide: true
     entity_category: diagnostic
   - property: temperature
-    icon: mdi:thermometer-lines
+    icon: mdi:thermometer
     select:
       options:
         0: cold

@@ -1,6 +1,7 @@
 """ConnectLife entity base class."""
 
 import logging
+import re
 from abc import abstractmethod
 
 from connectlife.api import LifeConnectError
@@ -17,6 +18,7 @@ from .const import (
     CONF_DEVICES,
     CONF_DISABLE_BEEP,
     DOMAIN,
+    SW_VERSION_PROPERTY,
 )
 from .coordinator import ConnectLifeCoordinator
 
@@ -42,12 +44,14 @@ class ConnectLifeEntity(CoordinatorEntity[ConnectLifeCoordinator]):
         self.device_id = appliance.device_id
         self.nickname = appliance.device_nickname
         self._attr_unique_id = f'{appliance.device_id}-{entity_name}'
+        sw_version = appliance.status_list.get(SW_VERSION_PROPERTY)
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, appliance.device_id)},
             model=appliance.device_feature_name,
             hw_version=f'{appliance.device_type_code}-{appliance.device_feature_code}',
             name=appliance.device_nickname,
             suggested_area=appliance.room_name,
+            sw_version=sw_version if isinstance(sw_version, str) else None,
         )
         coordinator.add_entity(self._attr_unique_id, platform)
         if config_entry and CONF_DEVICES in config_entry.options:
@@ -106,4 +110,4 @@ class ConnectLifeEntity(CoordinatorEntity[ConnectLifeCoordinator]):
             await self.coordinator.async_update_device(self.device_id, command, properties)
 
     def to_translation_key(self, property_name: str) -> str:
-        return property_name.lower().replace(" ", "_")
+        return re.sub(r'_+', '_', property_name.strip().lower().replace(" ", "_"))

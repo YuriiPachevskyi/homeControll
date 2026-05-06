@@ -174,10 +174,11 @@ properties:
     disable: true
   - property: f_electricity
     sensor:
-      device_class: energy
+      device_class: current
+      unit: A
       read_only: true
-      unit: kWh
-      state_class: total_increasing
+      state_class: measurement
+    hide: true
   - property: f_humidity
     climate:
       target: current_humidity
@@ -190,6 +191,7 @@ properties:
     sensor:
       device_class: voltage
       unit: V
+      state_class: measurement
     hide: true
     entity_category: diagnostic
   - property: t_beep
@@ -211,7 +213,7 @@ properties:
   - property: t_fan_mute
     switch:
       device_class: switch
-    icon: mdi:volume-variant-off
+    icon: mdi:volume-off
   - property: t_fan_speed
     climate:
       target: fan_mode

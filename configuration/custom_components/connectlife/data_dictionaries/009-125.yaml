@@ -1,0 +1,7 @@
+# t_temp range extends to the 8° heat mode low setpoint (8 °C / 46 °F).
+properties:
+  - property: t_temp
+    climate:
+      min_value:
+        celsius: 8
+        fahrenheit: 46
