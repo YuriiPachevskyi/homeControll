@@ -134,6 +134,9 @@
   - trigger: time
     at: input_datetime.selling_stop_time
     id: stop_sell
+  - trigger: time
+    at: input_datetime.update_selling_param_time
+    id: update_params
   - trigger: time_pattern
     hours: /1
     id: periodic
@@ -161,6 +164,39 @@
       - stop: Grid lost emergency
   - choose:
     - conditions:
+      - condition: trigger
+        id: update_params
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id:
+          - input_number.battery_power_deye_5kw
+        data:
+          value: 2800
+      - action: input_number.set_value
+        target:
+          entity_id:
+          - input_number.1_discharge_level_deye_5kw
+        data:
+          value: 50
+      - action: input_number.set_value
+        target:
+          entity_id:
+          - input_number.1_discharge_level_deye_6kw
+        data:
+          value: 70
+      - action: input_number.set_value
+        target:
+          entity_id:
+          - input_number.battery_power_deye_6kw
+        data:
+          value: 800
+      - action: switch.turn_off
+        target:
+          entity_id:
+          - switch.deye_6kw_grid_peak_shaving
+        data: {}
+    - conditions:
       - condition: template
         value_template: '{{ trigger.id == ''start_sell'' or (trigger.id == ''periodic''
           and  now().strftime(''%H:%M'') == states(''input_datetime.selling_start_time'',
@@ -168,16 +204,22 @@
 
           '
       sequence:
-      - action: automation.turn_on
-        target:
-          entity_id:
-          - automation.general_automation
-        data: {}
       - action: input_number.set_value
         data:
           value: 40
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
+      - action: automation.turn_on
+        target:
+          entity_id:
+          - automation.general_automation
+        data: {}
+      - action: automation.trigger
+        metadata: {}
+        target:
+          entity_id: automation.general_automation
+        data:
+          skip_condition: true
     - conditions:
       - condition: trigger
         id: stop_sell
@@ -186,8 +228,18 @@
         target:
           entity_id:
           - automation.disable_conditioner
+        data: {}
+      - action: automation.turn_on
+        target:
+          entity_id:
           - automation.general_automation
         data: {}
+      - action: automation.trigger
+        metadata: {}
+        target:
+          entity_id: automation.general_automation
+        data:
+          skip_condition: true
   - choose:
     - conditions:
       - condition: time
@@ -202,13 +254,6 @@
         target:
           entity_id: switch.input_meater_switch
         data: {}
-      - action: number.set_value
-        target:
-          entity_id:
-          - number.deye_5kw_program_5_power
-          - number.deye_5kw_program_6_power
-        data:
-          value: 0
     default:
     - action: switch.turn_on
       target:
@@ -218,14 +263,19 @@
       data: {}
     - action: input_number.set_value
       data:
-        value: 2000
+        value: 2500
       target:
         entity_id:
         - input_number.battery_power_deye_5kw
+    - action: input_number.set_value
+      data:
+        value: 1500
+      target:
+        entity_id:
         - input_number.battery_power_deye_6kw
     - action: input_number.set_value
       data:
-        value: 40
+        value: 35
       target:
         entity_id:
         - input_number.1_discharge_level_deye_5kw
@@ -277,8 +327,45 @@
     trigger: state
   - event: start
     trigger: homeassistant
+  - trigger: state
+    entity_id:
+    - binary_sensor.battery_charge_and_export_power_limit
+    to:
+    - 'on'
+    enabled: false
   conditions: []
   actions:
   - action: script.power_load_disable_device_duplicate
     data: {}
   mode: single
+- id: '1777532101180'
+  alias: 'Cooling Control: Deye 5kW'
+  description: Turns on Sonoff at 40°C and turns it off at 35°C
+  triggers:
+  - entity_id:
+    - sensor.deye_5kw_temperature
+    above: 40
+    id: turn_on
+    trigger: numeric_state
+  - entity_id:
+    - sensor.deye_5kw_temperature
+    below: 35
+    id: turn_off
+    trigger: numeric_state
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: turn_on
+      sequence:
+      - target:
+          entity_id: switch.sonoff_10004b3fe8
+        action: switch.turn_on
+    - conditions:
+      - condition: trigger
+        id: turn_off
+      sequence:
+      - target:
+          entity_id: switch.sonoff_10004b3fe8
+        action: switch.turn_off
+  mode: restart

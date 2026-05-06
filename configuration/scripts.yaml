@@ -20,6 +20,16 @@ power_load_disable_device_duplicate:
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
         - conditions:
+          - condition: numeric_state
+            entity_id: input_number.charge_power_deye_6kw
+            above: 1.7
+          sequence:
+          - action: input_number.set_value
+            data:
+              value: 1
+            target:
+              entity_id: input_number.charge_power_deye_6kw
+        - conditions:
           - condition: state
             entity_id: switch.1560_boiler_ten_0_8_kwh
             state: 'on'
@@ -30,17 +40,7 @@ power_load_disable_device_duplicate:
         - conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
-            above: 1.4
-          sequence:
-          - action: input_number.set_value
-            data:
-              value: 0.75
-            target:
-              entity_id: input_number.charge_power_deye_6kw
-        - conditions:
-          - condition: numeric_state
-            entity_id: input_number.charge_power_deye_6kw
-            above: 0.7
+            above: 0.95
           sequence:
           - action: input_number.set_value
             data:
@@ -55,7 +55,7 @@ power_load_disable_device_duplicate:
             - cool
           - condition: numeric_state
             entity_id: sensor.deye_6kw_battery
-            below: 95
+            below: 50
           sequence:
           - action: climate.turn_off
             target:
@@ -71,7 +71,7 @@ power_load_disable_device_duplicate:
           conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
-            below: 0.75
+            below: 1
           - condition: state
             entity_id: binary_sensor.battery_deye_6kw_charged
             state: 'off'
@@ -86,36 +86,18 @@ power_load_disable_device_duplicate:
               entity_id: binary_sensor.battery_charge_and_export_power_limit
               state:
               - 'on'
-          sequence:
-          - action: input_number.set_value
-            data:
-              value: 0.75
-            target:
-              entity_id: input_number.charge_power_deye_6kw
-        - alias: 'Restore Step 2: Charge Power 2kW'
-          conditions:
-          - condition: numeric_state
-            entity_id: input_number.charge_power_deye_6kw
-            below: 1.5
-          - condition: state
-            entity_id: binary_sensor.battery_deye_6kw_charged
-            state:
-            - 'off'
-          - condition: or
-            conditions:
             - condition: state
-              entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
-              state: 'on'
-              for:
-                seconds: 30
-            - condition: state
-              entity_id: binary_sensor.battery_charge_and_export_power_limit
+              entity_id: binary_sensor.grid_voltage_trigger_limit
               state:
               - 'on'
+              for:
+                hours: 0
+                minutes: 0
+                seconds: 30
           sequence:
           - action: input_number.set_value
             data:
-              value: 1.5
+              value: 1
             target:
               entity_id: input_number.charge_power_deye_6kw
         - alias: 'Restore Step 3: Boiler 0.8kW ON'
@@ -137,10 +119,53 @@ power_load_disable_device_duplicate:
               entity_id: binary_sensor.battery_charge_and_export_power_limit
               state:
               - 'on'
+            - condition: state
+              entity_id: binary_sensor.grid_voltage_trigger_limit
+              state:
+              - 'on'
+              for:
+                hours: 0
+                minutes: 0
+                seconds: 30
           sequence:
           - action: switch.turn_on
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
+            data: {}
+        - alias: 'Restore Step 2: Charge Power 2kW'
+          conditions:
+          - condition: numeric_state
+            entity_id: input_number.charge_power_deye_6kw
+            below: 1.75
+          - condition: state
+            entity_id: binary_sensor.battery_deye_6kw_charged
+            state:
+            - 'off'
+          - condition: or
+            conditions:
+            - condition: state
+              entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
+              state: 'on'
+              for:
+                seconds: 30
+            - condition: state
+              entity_id: binary_sensor.battery_charge_and_export_power_limit
+              state:
+              - 'on'
+            - condition: state
+              entity_id: binary_sensor.grid_voltage_trigger_limit
+              state:
+              - 'on'
+              for:
+                hours: 0
+                minutes: 0
+                seconds: 30
+          sequence:
+          - action: input_number.set_value
+            data:
+              value: 1.75
+            target:
+              entity_id: input_number.charge_power_deye_6kw
         - alias: 'Restore Step 4: Boiler 1.2kW ON (Switch from 0.8)'
           conditions:
           - condition: state
@@ -163,6 +188,14 @@ power_load_disable_device_duplicate:
               entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
               state:
               - 'on'
+            - condition: state
+              entity_id: binary_sensor.grid_voltage_trigger_limit
+              state:
+              - 'on'
+              for:
+                hours: 0
+                minutes: 0
+                seconds: 30
           sequence:
           - action: switch.turn_on
             target:
