@@ -13,6 +13,11 @@ power_load_disable_device_duplicate:
             entity_id: switch.1561_boiler_ten_1_2_kwh
             state: 'on'
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "High Power: Boiler 1.2 -> 0.8 ({{ now().strftime('%H:%M:%S') }})"
           - action: switch.turn_off
             target:
               entity_id: switch.1561_boiler_ten_1_2_kwh
@@ -24,6 +29,11 @@ power_load_disable_device_duplicate:
             entity_id: input_number.charge_power_deye_6kw
             above: 1.7
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "High Power: Reducing Charge to 1kW ({{ now().strftime('%H:%M:%S') }})"
           - action: input_number.set_value
             data:
               value: 1
@@ -34,6 +44,11 @@ power_load_disable_device_duplicate:
             entity_id: switch.1560_boiler_ten_0_8_kwh
             state: 'on'
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "High Power: Boiler 0.8 OFF ({{ now().strftime('%H:%M:%S') }})"
           - action: switch.turn_off
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
@@ -42,6 +57,11 @@ power_load_disable_device_duplicate:
             entity_id: input_number.charge_power_deye_6kw
             above: 0.95
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "High Power: Charge to 0kW ({{ now().strftime('%H:%M:%S') }})"
           - action: input_number.set_value
             data:
               value: 0
@@ -57,6 +77,11 @@ power_load_disable_device_duplicate:
             entity_id: sensor.deye_6kw_battery
             below: 50
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "High Power: Climate OFF (Battery low) ({{ now().strftime('%H:%M:%S') }})"
           - action: climate.turn_off
             target:
               device_id: be55afc0f88f5ce38043ce63a5d08b6f
@@ -95,6 +120,11 @@ power_load_disable_device_duplicate:
                 minutes: 0
                 seconds: 30
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "Restore: Charge 1kW ({{ now().strftime('%H:%M:%S') }})"
           - action: input_number.set_value
             data:
               value: 1
@@ -128,6 +158,11 @@ power_load_disable_device_duplicate:
                 minutes: 0
                 seconds: 30
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "Restore: Boiler 0.8kW ON ({{ now().strftime('%H:%M:%S') }})"
           - action: switch.turn_on
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
@@ -161,6 +196,11 @@ power_load_disable_device_duplicate:
                 minutes: 0
                 seconds: 30
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "Restore: Charge 1.75kW ({{ now().strftime('%H:%M:%S') }})"
           - action: input_number.set_value
             data:
               value: 1.75
@@ -197,6 +237,11 @@ power_load_disable_device_duplicate:
                 minutes: 0
                 seconds: 30
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "Restore: Boiler 1.2kW ON ({{ now().strftime('%H:%M:%S') }})"
           - action: switch.turn_on
             target:
               entity_id: switch.1561_boiler_ten_1_2_kwh
@@ -228,6 +273,11 @@ power_load_disable_device_duplicate:
               for:
                 seconds: 30
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: "Restore: Climate HEAT ({{ now().strftime('%H:%M:%S') }})"
           - action: climate.set_hvac_mode
             data:
               hvac_mode: heat
