@@ -365,33 +365,45 @@
     data: {}
   mode: single
 - id: '1777532101180'
-  alias: 'Cooling Control: Deye 5kW'
-  description: Turns on Sonoff at 40°C and turns it off at 35°C
+  alias: 'Cooling Control: Deye 5kW (Robust)'
+  description: Turns on Sonoff at 45°C and off at 40°C with state recovery
   triggers:
-  - entity_id:
-    - sensor.deye_5kw_temperature
-    above: 40
+  - trigger: numeric_state
+    entity_id: sensor.deye_5kw_temperature
+    above: 45
     id: turn_on
-    trigger: numeric_state
-  - entity_id:
-    - sensor.deye_5kw_temperature
-    below: 35
+  - trigger: numeric_state
+    entity_id: sensor.deye_5kw_temperature
+    below: 40
     id: turn_off
-    trigger: numeric_state
+  - trigger: homeassistant
+    event: start
+  - trigger: event
+    event_type: automation_reloaded
   actions:
   - choose:
     - conditions:
-      - condition: trigger
-        id: turn_on
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: turn_on
+        - condition: numeric_state
+          entity_id: sensor.deye_5kw_temperature
+          above: 45
       sequence:
-      - target:
+      - action: switch.turn_on
+        target:
           entity_id: switch.sonoff_10004b3fe8
-        action: switch.turn_on
     - conditions:
-      - condition: trigger
-        id: turn_off
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: turn_off
+        - condition: numeric_state
+          entity_id: sensor.deye_5kw_temperature
+          below: 40
       sequence:
-      - target:
+      - action: switch.turn_off
+        target:
           entity_id: switch.sonoff_10004b3fe8
-        action: switch.turn_off
   mode: restart
