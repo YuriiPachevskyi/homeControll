@@ -51,7 +51,7 @@ async def async_setup_entry(
     for appliance in coordinator.data.values():
         dictionary = Dictionaries.get_dictionary(appliance)
         if is_water_heater(dictionary):
-            entities.append(ConnectLifeWaterHeater(coordinator, appliance, dictionary, config_entry))
+            entities.append(ConnectLifeWaterHeater(coordinator, appliance, dictionary))
     async_add_entities(entities)
 
 
@@ -87,10 +87,9 @@ class ConnectLifeWaterHeater(ConnectLifeEntity, WaterHeaterEntity):
             coordinator: ConnectLifeCoordinator,
             appliance: ConnectLifeAppliance,
             data_dictionary: Dictionary,
-            config_entry: ConfigEntry,
     ):
         """Initialize the entity."""
-        super().__init__(coordinator, appliance, "waterheater", Platform.WATER_HEATER, config_entry)
+        super().__init__(coordinator, appliance, "waterheater", Platform.WATER_HEATER)
 
         self.entity_description = WaterHeaterEntityDescription(  # type: ignore[assignment]
             key=self._attr_unique_id,
@@ -204,8 +203,6 @@ class ConnectLifeWaterHeater(ConnectLifeEntity, WaterHeaterEntity):
                 self._attr_current_operation = STATE_OFF
             elif CURRENT_OPERATION not in self.target_map:
                 self._attr_current_operation = STATE_ON
-
-        self._attr_available = self.coordinator.data[self.device_id].offline_state == 1
 
     def get_temperature_limit(self, temperature_map: dict[str, int]) -> int | None:
         if temperature_map and self._attr_temperature_unit in temperature_map:

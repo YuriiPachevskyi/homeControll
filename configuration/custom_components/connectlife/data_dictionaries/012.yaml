@@ -1,70 +1,20 @@
+# Hood
 properties:
-  - property: ActiveModeLightBrightness
-    # Sample value: 0
-  - property: ActiveModeLightColorTemperature
-    # Sample value: 0
-  - property: ActiveModeLightStatus
-    # Sample value: 0
-  - property: ActiveModeMotorLevel
-    # Sample value: 0
-  - property: ActiveModeMotorLevelStatus
-    # Sample value: 0
-  - property: ActiveModeStatus
-    # Sample value: 0
-  - property: AlarmCleanAirEnded
-    # Sample value: 1
-  - property: AlarmGreaseFilter
-    # Sample value: 2
-  - property: AlarmRecirculationFilter1
-    # Sample value: 1
-  - property: AlarmRecirculationFilter2
-    # Sample value: 1
-  - property: AlarmTimerEnded
-    # Sample value: 1
-  - property: AmbientLightBrightness
-    # Sample value: 0
-  - property: AmbientLightColorTemperature
-    # Sample value: 0
-  - property: AmbientLightStatus
-    # Sample value: 0
-  - property: CirculationModeStatus
-    # Sample value: 1
-  - property: CleanAirActivePassedHours
-    # Sample value: 0
-  - property: CleanAirActiveTotalHours
-    # Sample value: 24
-  - property: CleanAirDurationOfCycleInMinutes
-    # Sample value: 10
-  - property: CleanAirMotorLevel
-    # Sample value: 1
-  - property: CleanAirRunCycleEveryNumberOfMinutes
-    # Sample value: 0
-  - property: CleanAirStartTime
-    # Sample value: 0002/11/30T00:00:00
-  - property: CleanAirStatus
-    # Sample value: 1
+  # Top-level operating state
   - property: DeviceStatus
-    # Sample value: 1
-  - property: FotaStatus
-    # Sample value: 0
-  - property: GreaseFilterCleaningIntervalInHours
-    # Sample value: 30
-  - property: GreaseFilterStatus
-    # Sample value: 2
-  - property: GreaseFilterUsedHours
-    # Sample value: 145
-  - property: HardPairingStatus
-    # Sample value: 0
-  - property: LightBrightness
-    number:
-      unit: "%"
-    icon: mdi:lightbulb-on-outline
-  - property: LightColorTemperature
-    number:
-      unit: "%"
-    icon: mdi:lightbulb-variant-outline
-  - property: LightStatus
+    icon: mdi:range-hood
+    sensor:
+      device_class: enum
+      read_only: true
+      options:
+        0: not_available
+        1: idle
+        2: service
+        3: production
+        4: running
+        5: reserved
   - property: MotorLevel
+    icon: mdi:fan
     select:
       options:
         0: "0"
@@ -73,51 +23,436 @@ properties:
         3: "3"
         4: "4"
         5: "5"
-  - property: ProximitySensor
-    # Sample value: 0
-  - property: ProximitySensorReactionTime
-    # Sample value: 0
-  - property: ProximitySensorSensitivity
-    # Sample value: 0
-  - property: ProximitySensorStatus
-    # Sample value: 0
-  - property: RFPairingStatus
-    # Sample value: 0
-  - property: RecirculationFilter1LifetimeInHours
-    # Sample value: 120
-  - property: RecirculationFilter1Status
-    # Sample value: 1
-  - property: RecirculationFilter1Type
-    # Sample value: 2
-  - property: RecirculationFilter1UsedHours
-    # Sample value: 0
-  - property: RecirculationFilter2LifetimeInHours
-    # Sample value: 0
-  - property: RecirculationFilter2Status
-    # Sample value: 1
-  - property: RecirculationFilter2Type
-    # Sample value: 1
-  - property: RecirculationFilter2UsedHours
-    # Sample value: 0
-  - property: RemoteControlMonitoringSetCommands
-    # Sample value: 2
-  - property: RemoteControlMonitoringSetCommandsActions
-    # Sample value: 0
-  - property: SessionPairing
-    # Sample value: 0
-  - property: SessionPairingActive
-    # Sample value: 0
-  - property: SessionPairingConfirmation
-    # Sample value: 0
-  - property: SoftPairing
-    # Sample value: 0
-  - property: TimerEndTime
-    # Sample value: 0002/11/30T00:00:00
-  - property: TimerPausedTime
-    # Sample value: 0002/11/30T00:00:00
-  - property: TimerPausedTotalSeconds
-    # Sample value: 0
-  - property: TimerStartTime
-    # Sample value: 0002/11/30T00:00:00
+  - property: LightStatus
+    icon: mdi:lightbulb
+    unavailable: 0
+    switch:
+      "off": 1
+      "on": 2
+      command:
+        name: LightSetting
+        adjust: 1
+  - property: LightBrightness
+    icon: mdi:lightbulb-on
+    number:
+      unit: "%"
+  - property: LightColorTemperature
+    icon: mdi:thermometer
+    number:
+      unit: "%"
+  - property: CirculationModeStatus
+    icon: mdi:weather-windy
+    unavailable: 0
+    select:
+      options:
+        1: exhaust
+        2: recirculation
+      command:
+        name: CirculationModeSetting
+        adjust: 1
   - property: TimerStatus
-    # Sample value: 5
+    icon: mdi:timer
+    sensor:
+      device_class: enum
+      read_only: true
+      options:
+        0: not_available
+        1: not_active
+        2: running
+        3: paused
+        4: stopped
+        5: ended
+        6: reserved
+  - property: TimerSetting
+    icon: mdi:timer-cog
+    select:
+      options:
+        0: not_active
+        1: start
+        2: pause
+        3: stop
+  - property: TimerStartTime
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: timestamp
+      read_only: true
+  - property: TimerEndTime
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: timestamp
+      read_only: true
+  - property: TimerPausedTime
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: timestamp
+      read_only: true
+  - property: TimerPausedTotalSeconds
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: s
+      read_only: true
+      state_class: total_increasing
+
+  # Top-level alarms (problem class)
+  - property: AlarmGreaseFilter
+    hide: true
+    entity_category: diagnostic
+    icon: mdi:filter-variant-remove
+    binary_sensor:
+      device_class: problem
+      options:
+        0: false
+        1: false
+        2: true
+        3: false
+  - property: AlarmRecirculationFilter1
+    hide: true
+    entity_category: diagnostic
+    icon: mdi:filter-variant-remove
+    binary_sensor:
+      device_class: problem
+      options:
+        0: false
+        1: false
+        2: true
+        3: false
+  - property: AlarmRecirculationFilter2
+    hide: true
+    entity_category: diagnostic
+    icon: mdi:filter-variant-remove
+    binary_sensor:
+      device_class: problem
+      options:
+        0: false
+        1: false
+        2: true
+        3: false
+
+  # Event notifications
+  - property: AlarmCleanAirEnded
+    optional: true
+    entity_category: diagnostic
+    binary_sensor:
+      options:
+        0: false
+        1: false
+        2: true
+        3: false
+  - property: AlarmTimerEnded
+    optional: true
+    entity_category: diagnostic
+    binary_sensor:
+      options:
+        0: false
+        1: false
+        2: true
+        3: false
+
+  # Per-mode mirrors (active mode + ambient lighting)
+  - property: ActiveModeStatus
+    optional: true
+    unavailable: 0
+    switch:
+      "off": 1
+      "on": 2
+      command:
+        name: ActiveModeSetting
+        adjust: 1
+  - property: ActiveModeLightStatus
+    optional: true
+    unavailable: 0
+    switch:
+      "off": 1
+      "on": 2
+      command:
+        name: ActiveModeLightSetting
+        adjust: 1
+  - property: ActiveModeLightBrightness
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+      unit: "%"
+  - property: ActiveModeLightColorTemperature
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+      unit: "%"
+  - property: ActiveModeMotorLevel
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: ActiveModeMotorLevelStatus
+    optional: true
+    unavailable: 0
+    switch:
+      "off": 1
+      "on": 2
+      command:
+        name: ActiveModeMotorLevelSetting
+        adjust: 1
+  - property: AmbientLightStatus
+    optional: true
+    unavailable: 0
+    switch:
+      "off": 1
+      "on": 2
+      command:
+        name: AmbientLightSetting
+        adjust: 1
+  - property: AmbientLightBrightness
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+      unit: "%"
+  - property: AmbientLightColorTemperature
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+      unit: "%"
+
+  # Clean air mode
+  - property: CleanAirStatus
+    unavailable: 0
+    icon: mdi:air-filter
+    switch:
+      "off": 1
+      "on": 2
+      command:
+        name: CleanAirActive
+        adjust: 1
+  - property: CleanAirActivePassedHours
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: h
+      read_only: true
+      state_class: total_increasing
+  - property: CleanAirActiveTotalHours
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: h
+      read_only: true
+      state_class: total_increasing
+  - property: CleanAirDurationOfCycleInMinutes
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: min
+      read_only: true
+  - property: CleanAirMotorLevel
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: CleanAirRunCycleEveryNumberOfMinutes
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: min
+      read_only: true
+  - property: CleanAirStartTime
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: timestamp
+      read_only: true
+
+  # Grease filter housekeeping
+  - property: GreaseFilterStatus
+    optional: true
+    unavailable: 0
+    icon: mdi:filter-variant
+    switch:
+      "off": 1
+      "on": 2
+      command:
+        name: GreaseFilterTimerActive
+        adjust: 1
+  - property: GreaseFilterCleaningIntervalInHours
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: h
+      read_only: true
+  - property: GreaseFilterSetLifetimeInHours
+    optional: true
+    entity_category: config
+    icon: mdi:filter-cog
+    number:
+      device_class: duration
+      unit: h
+  - property: GreaseFilterResetCounter
+    optional: true
+    entity_category: config
+    icon: mdi:filter-remove
+    select:
+      options:
+        0: not_active
+        1: reset
+  - property: GreaseFilterUsedHours
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: h
+      read_only: true
+      state_class: total_increasing
+
+  # Recirculation filter housekeeping
+  - property: RecirculationFilter1Status
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: RecirculationFilter1Type
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: RecirculationFilter1LifetimeInHours
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: h
+      read_only: true
+  - property: RecirculationFilter1UsedHours
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: h
+      read_only: true
+      state_class: total_increasing
+  - property: RecirculationFilter2Status
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: RecirculationFilter2Type
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: RecirculationFilter2LifetimeInHours
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: h
+      read_only: true
+  - property: RecirculationFilter2UsedHours
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: duration
+      unit: h
+      read_only: true
+      state_class: total_increasing
+
+  # Proximity sensor
+  - property: ProximitySensorStatus
+    optional: true
+    unavailable: 0
+    icon: mdi:motion-sensor
+    switch:
+      "off": 1
+      "on": 2
+      command:
+        name: ProximitySensorSetting
+        adjust: 1
+  - property: ProximitySensorSetAvalibility
+    optional: true
+    entity_category: config
+    icon: mdi:motion-sensor
+    switch:
+      "off": 0
+      "on": 1
+  - property: ProximitySensor
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: ProximitySensorReactionTime
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: ProximitySensorSensitivity
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+
+  # Pairing
+  - property: HardPairingStatus
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      device_class: enum
+      read_only: true
+      options:
+        0: not_active
+        1: pairing_active
+        2: unpair_all_users
+        3: reserved
+  - property: SoftPairing
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: SessionPairing
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: SessionPairingActive
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: SessionPairingConfirmation
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: RFPairingStatus
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+
+  # Remote control monitoring
+  - property: RemoteControlMonitoringSetCommands
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+  - property: RemoteControlMonitoringSetCommandsActions
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true
+
+  # Firmware over the air
+  - property: FotaStatus
+    optional: true
+    entity_category: diagnostic
+    sensor:
+      read_only: true

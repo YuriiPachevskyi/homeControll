@@ -1,0 +1,517 @@
+"""."""
+
+from enum import StrEnum
+
+from .device_capabilities import DeviceCapabilityEnum
+from .device_types import DeviceTypeEnum
+
+import logging
+_LOGGER = logging.getLogger(__name__)
+
+
+class DeviceFeatureEnum(StrEnum):
+    MODE_AC_AUTO = "mode.ac.auto"
+    MODE_AC_COOL = "mode.ac.cool"
+    MODE_AC_DEHUMIDIFICATION = "mode.ac.dehumidification"
+    MODE_AC_FAN = "mode.ac.fan"
+    MODE_AC_HEAT = "mode.ac.heat"
+    MODE_DEHUMIDIFIER_DRY = "mode.dehumidifier.dry"
+    MODE_DEHUMIDIFIER_TURBO = "mode.dehumidifier.turbo"
+    MODE_DEHUMIDIFIER_COMFORT = "mode.dehumidifier.comfort"
+    MODE_DEHUMIDIFIER_CONTINUE = "mode.dehumidifier.continue"
+    SENSOR_IS_ONLINE = "sensor.is_online"
+    SENSOR_FILTER_LIFETIME = "sensor.filterLifeTime"
+    SENSOR_CURRENT_TEMPERATURE = "sensor.current_temperature"
+    SENSOR_DEHUMIDIFIER_ENV_HUMIDITY = "sensor.dehumidifier.env_humidity"
+    SENSOR_DEHUMIDIFIER_WATER_BUCKET_FULL = "sensor.dehumidifier.is_water_bucket_full"
+    SENSOR_INTERNAL_UNIT_COIL_TEMPERATURE = "sensor.internal_unit_coil_temperature"
+    SENSOR_EXTERNAL_UNIT_COIL_TEMPERATURE = "sensor.external_unit_coil_temperature"
+    SENSOR_EXTERNAL_UNIT_TEMPERATURE = "sensor.external_unit_temperature"
+    SENSOR_EXTERNAL_UNIT_EXHAUST_TEMPERATURE = "sensor.external_unit_exhaust_temperature"
+    SENSOR_FRESH_AIR_TVOC = "sensor.fresh_air.TVOC"
+    SENSOR_SPLIT_AC_TVOC_LEVEL = "sensor.split_ac.sensorTVOCLevel"
+    SENSOR_SPLIT_AC_TVOC_VALUE = "sensor.split_ac.sensorTVOCValue"
+    SENSOR_POWER_CONSUMPTION_DAILY = "sensor.power_consumption.daily"
+    SENSOR_PM25_SENSOR_VALUE = "sensor.PM25SensorValue"
+    SENSOR_PM25_SENSOR_LEVEL = "sensor.PM25SensorLevel"
+    SENSOR_VOC_SENSOR_LEVEL = "sensor.VOCSensorLevel"
+    SENSOR_WORK_TIME_DAILY = "sensor.work_time.daily"
+    SWITCH_POWER = "switch.powerSwitch"
+    SWITCH_BEEP = "switch.beepSwitch"
+    SWITCH_ECO = "switch.eco"
+    SWITCH_AI_ECO = "switch.AIeco"
+    SWITCH_HEALTHY = "switch.healthy"
+    SWITCH_DRYING = "switch.drying"
+    SWITCH_SCREEN = "switch.screen"
+    SWITCH_SCREEN_SWITCH = "switch.screenSwitch"
+    SWITCH_LIGHT_SENSE = "switch.lightSense"
+    SWITCH_SWING_WIND = "switch.swingWind"
+    SWITCH_SLEEP = "switch.sleep"
+    SWITCH_8_C_HEATING = "switch.8CHeating"
+    SWITCH_SOFT_WIND = "switch.softWind"
+    SWITCH_FRESH_AIR = "switch.freshAir"
+    SWITCH_SHIELD_SWITCH = "switch.shieldSwitch"
+    SWITCH_ANION = "switch.anionSwitch"
+    SWITCH_CHILD_LOCK_SWITCH = "switch.childLockSwitch"
+    SWITCH_PANEL_LIGHT_AUTO_OFF = "switch.panelLightAutoOFF"
+    SELECT_MODE = "select.mode"
+    SELECT_DEHUMIDIFIER_WIND_SPEED_LOW_MEDIUM_HEIGH = "select.dehumidifier.windSpeed.lowMediumHigh"
+    SELECT_WIND_SPEED = "select.windSpeed"
+    SELECT_WIND_SPEED_7_GEAR = "select.windSpeed7Gear"
+    SELECT_WIND_FEELING = "select.windFeeling"
+    SELECT_WORK_MODE = "select.workMode"
+    SELECT_VERTICAL_DIRECTION = "select.verticalDirection"
+    SELECT_HORIZONTAL_DIRECTION = "select.horizontalDirection"
+    SELECT_SLEEP_MODE = "select.sleepMode"
+    SELECT_FRESH_AIR = "select.freshAir"
+    SELECT_GENERATOR_MODE = "select.generatorMode"
+    SELECT_TEMPERATURE_TYPE = "select.temperatureType"
+    SELECT_PORTABLE_WIND_SPEED = "select.portableWindSpeed"
+    SELECT_PORTABLE_WIND_4VALUE_SPEED = "select.portableWind4ValueSpeed"
+    SELECT_WINDOW_AS_WIND_SPEED = "select.WindowAcWindSpeed"
+    NUMBER_DEHUMIDIFIER_HUMIDITY = "number.dehumidifier.humidity"
+    NUMBER_TARGET_DEGREE = "number.targetDegree"
+    NUMBER_TARGET_TEMPERATURE = "number.targetTemperature"
+    NUMBER_TARGET_TEMPERATURE_ALLOW_HALF_DIGITS = "number.targetTemperature.allow_half_digits"
+    DIAGNOSIC_ERROR_CODES = "diagnosic.error.codes"
+    BUTTON_SELF_CLEAN = "button.selfClean"
+    CLIMATE = "climate"
+    HUMIDIFIER = "humidifier"
+    LIGHT_AMBIENT = "ambientLight"
+    INTERNAL_IS_AC = "internal.is.ac"
+    INTERNAL_IS_DEHUMIDIFIER = "internal.is.dehumidifier"
+    INTERNAL_HAS_SWING_SWITCH = "internal.hasSwingSwitch"
+    INTERNAL_HAS_TURBO_PROPERTY = "internal.has_turbo_property"
+    INTERNAL_HAS_HIGHTEMPERATUREWIND_PROPERTY = "internal.has_highTemperatureWind_property"
+    INTERNAL_HAS_SILENCESWITCH_PROPERTY = "internal.has_silenceSwitch_property"
+    INTERNAL_SET_TFT_WITH_TT = "internal.set_targetFahrenheitTemp_with_targetTemperature"
+    USER_CONFIG_BEHAVIOR_MEMORIZE_TEMP_BY_MODE = "user_config.behavior.memorize_temp_by_mode"
+    USER_CONFIG_BEHAVIOR_MEMORIZE_FAN_SPEED_BY_MODE = "user_config.behavior.memorize_fan_speed_by_mode"
+    USER_CONFIG_BEHAVIOR_MEMORIZE_HUMIDITY_BY_MODE = "user_config.behavior.memorize_humidity_by_mode"
+    USER_CONFIG_BEHAVIOR_SILENT_BEEP_WHEN_TURN_ON = "user_config.behavior.silent_beep_when_turn_on"
+    USER_CONFIG_SETTINGS_NATIVE_TEMP_STEP = "user_config.settings.native_temp_step"
+    USER_CONFIG_SETTINGS_MIN_TEMP = "user_config.settings.min_temp"
+    USER_CONFIG_SETTINGS_MAX_TEMP = "user_config.settings.max_temp"
+
+
+def has_property(aws_thing_state_reported: dict[str, any], propertyName: str) -> bool:
+    return propertyName in aws_thing_state_reported
+
+
+def getSupportedFeatures(
+    device_type: DeviceTypeEnum,aws_thing_state_reported: dict[str, any],device_storage: dict[str, any] | None = None,
+) -> list[DeviceFeatureEnum]:
+    try:
+        capabilities = aws_thing_state_reported.get("capabilities", [])
+        has_power_consumption_data = False
+        has_work_time_data = False
+        has_rn_probe_data = False
+        rn_probe_data = {}
+        if device_storage is not None:
+            has_rn_probe_data = (device_storage.get("non_user_config", {}).get("rn_probe_data", {}).get("is_success", False))
+            rn_probe_data = (device_storage.get("non_user_config", {}).get("rn_probe_data", {}).get("data", {}))
+            has_power_consumption_data = (device_storage.get("non_user_config", {}).get("power_consumption", {}).get("enabled", False))
+            has_work_time_data = (device_storage.get("non_user_config", {}).get("work_time", {}).get("enabled", False))
+
+        match device_type:
+            case DeviceTypeEnum.SPLIT_AC:
+                features = [
+                    DeviceFeatureEnum.INTERNAL_IS_AC,
+                    DeviceFeatureEnum.MODE_AC_AUTO,
+                    DeviceFeatureEnum.MODE_AC_COOL,
+                    DeviceFeatureEnum.MODE_AC_DEHUMIDIFICATION,
+                    DeviceFeatureEnum.MODE_AC_FAN,
+                    DeviceFeatureEnum.MODE_AC_HEAT,
+                    DeviceFeatureEnum.SENSOR_CURRENT_TEMPERATURE,
+                    DeviceFeatureEnum.SENSOR_IS_ONLINE,
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SWITCH_BEEP,
+                    DeviceFeatureEnum.SWITCH_HEALTHY,
+                    DeviceFeatureEnum.SWITCH_DRYING,
+                    DeviceFeatureEnum.SWITCH_SCREEN,
+                    DeviceFeatureEnum.SELECT_MODE,
+                    DeviceFeatureEnum.SELECT_WIND_SPEED,
+                    DeviceFeatureEnum.SELECT_VERTICAL_DIRECTION,
+                    DeviceFeatureEnum.SELECT_HORIZONTAL_DIRECTION,
+                    DeviceFeatureEnum.SELECT_SLEEP_MODE,
+                    DeviceFeatureEnum.NUMBER_TARGET_TEMPERATURE,
+                    DeviceFeatureEnum.BUTTON_SELF_CLEAN,
+                    DeviceFeatureEnum.CLIMATE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_TEMP_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_FAN_SPEED_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_SILENT_BEEP_WHEN_TURN_ON,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_NATIVE_TEMP_STEP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MIN_TEMP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MAX_TEMP,
+                ]
+                if has_power_consumption_data:
+                    features.append(DeviceFeatureEnum.SENSOR_POWER_CONSUMPTION_DAILY)
+                if has_work_time_data:
+                    features.append(DeviceFeatureEnum.SENSOR_WORK_TIME_DAILY)
+                if len(capabilities) > 0:
+                    if DeviceCapabilityEnum.CAPABILITY_8C_HEATING in capabilities:
+                        features.append(DeviceFeatureEnum.SWITCH_8_C_HEATING)
+
+                    if DeviceCapabilityEnum.CAPABILITY_GENERATOR_MODE in capabilities:
+                        features.append(DeviceFeatureEnum.SELECT_GENERATOR_MODE)
+
+                if has_property(aws_thing_state_reported, "ECO"):
+                    features.append(DeviceFeatureEnum.SWITCH_ECO)
+
+                if has_property(aws_thing_state_reported, "windSpeed"):
+                    features.append(DeviceFeatureEnum.SELECT_WIND_SPEED)
+
+                if has_property(aws_thing_state_reported, "verticalSwitch") and has_property(aws_thing_state_reported, "horizontalSwitch"):
+                    features.append(DeviceFeatureEnum.INTERNAL_HAS_SWING_SWITCH)
+
+                if has_property(aws_thing_state_reported, "turbo"):
+                    features.append(DeviceFeatureEnum.INTERNAL_HAS_TURBO_PROPERTY)
+
+                if has_property(aws_thing_state_reported, "silenceSwitch"):
+                    features.append(DeviceFeatureEnum.INTERNAL_HAS_SILENCESWITCH_PROPERTY)
+
+                if has_property(aws_thing_state_reported, "highTemperatureWind"):
+                    features.append(DeviceFeatureEnum.INTERNAL_HAS_HIGHTEMPERATUREWIND_PROPERTY)
+
+                if has_property(aws_thing_state_reported, "windSpeed7Gear"):
+                    features.append(DeviceFeatureEnum.SELECT_WIND_SPEED_7_GEAR)
+
+                if has_property(aws_thing_state_reported, "externalUnitTemperature"):
+                    features.append(DeviceFeatureEnum.SENSOR_EXTERNAL_UNIT_TEMPERATURE)
+
+                if has_property(aws_thing_state_reported, "AIECOSwitch"):
+                    features.append(DeviceFeatureEnum.SWITCH_AI_ECO)
+
+                if has_property(aws_thing_state_reported, "targetFahrenheitTemp"):
+                    features.append(DeviceFeatureEnum.INTERNAL_SET_TFT_WITH_TT)
+
+                if has_property(aws_thing_state_reported, "sensorTVOCLevel"):
+                    features.append(DeviceFeatureEnum.SENSOR_SPLIT_AC_TVOC_LEVEL)
+
+                if has_property(aws_thing_state_reported, "sensorTVOCValue"):
+                    features.append(DeviceFeatureEnum.SENSOR_SPLIT_AC_TVOC_VALUE)
+
+                if has_property(aws_thing_state_reported, "newWindSwitch"):
+                    features.append(DeviceFeatureEnum.SWITCH_FRESH_AIR)
+
+                if has_property(aws_thing_state_reported, "newWindStrength"):
+                    features.append(DeviceFeatureEnum.SELECT_FRESH_AIR)
+
+                if has_property(aws_thing_state_reported, "softWind"):
+                    features.append(DeviceFeatureEnum.SWITCH_SOFT_WIND)
+
+                    
+
+                return features
+            case DeviceTypeEnum.CYLINDRICAL_AC:
+                features = [
+                    DeviceFeatureEnum.INTERNAL_IS_AC,
+                    DeviceFeatureEnum.MODE_AC_AUTO,
+                    DeviceFeatureEnum.MODE_AC_COOL,
+                    DeviceFeatureEnum.MODE_AC_DEHUMIDIFICATION,
+                    DeviceFeatureEnum.MODE_AC_FAN,
+                    DeviceFeatureEnum.MODE_AC_HEAT,
+                    DeviceFeatureEnum.SENSOR_CURRENT_TEMPERATURE,
+                    DeviceFeatureEnum.SENSOR_IS_ONLINE,
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SWITCH_BEEP,
+                    DeviceFeatureEnum.SWITCH_HEALTHY,
+                    DeviceFeatureEnum.SWITCH_DRYING,
+                    DeviceFeatureEnum.SWITCH_SCREEN,
+                    DeviceFeatureEnum.SELECT_MODE,
+                    DeviceFeatureEnum.SELECT_VERTICAL_DIRECTION,
+                    DeviceFeatureEnum.SELECT_HORIZONTAL_DIRECTION,
+                    DeviceFeatureEnum.SELECT_SLEEP_MODE,
+                    DeviceFeatureEnum.NUMBER_TARGET_TEMPERATURE,
+                    DeviceFeatureEnum.CLIMATE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_TEMP_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_FAN_SPEED_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_SILENT_BEEP_WHEN_TURN_ON,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_NATIVE_TEMP_STEP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MIN_TEMP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MAX_TEMP,
+                ]
+                if has_power_consumption_data:
+                    features.append(DeviceFeatureEnum.SENSOR_POWER_CONSUMPTION_DAILY)
+                if has_work_time_data:
+                    features.append(DeviceFeatureEnum.SENSOR_WORK_TIME_DAILY)
+                if len(capabilities) > 0:
+                    if DeviceCapabilityEnum.CAPABILITY_GENERATOR_MODE in capabilities:
+                        features.append(DeviceFeatureEnum.SELECT_GENERATOR_MODE)
+                if has_property(aws_thing_state_reported, "windSpeed7Gear"):
+                    features.append(DeviceFeatureEnum.SELECT_WIND_SPEED_7_GEAR)
+                if has_property(aws_thing_state_reported, "externalUnitTemperature"):
+                    features.append(DeviceFeatureEnum.SENSOR_EXTERNAL_UNIT_TEMPERATURE)
+                if has_property(aws_thing_state_reported, "AIECOSwitch"):
+                    features.append(DeviceFeatureEnum.SWITCH_AI_ECO)
+                if has_property(aws_thing_state_reported, "targetFahrenheitTemp"):
+                    features.append(DeviceFeatureEnum.INTERNAL_SET_TFT_WITH_TT)
+                if has_property(aws_thing_state_reported, "internalUnitCoilTemperature"):
+                    features.append(DeviceFeatureEnum.SENSOR_INTERNAL_UNIT_COIL_TEMPERATURE)
+                return features
+            case DeviceTypeEnum.SPLIT_AC_FRESH_AIR:
+                features = [
+                    DeviceFeatureEnum.INTERNAL_IS_AC,
+                    DeviceFeatureEnum.MODE_AC_AUTO,
+                    DeviceFeatureEnum.MODE_AC_COOL,
+                    DeviceFeatureEnum.MODE_AC_DEHUMIDIFICATION,
+                    DeviceFeatureEnum.MODE_AC_FAN,
+                    DeviceFeatureEnum.MODE_AC_HEAT,
+                    DeviceFeatureEnum.SENSOR_CURRENT_TEMPERATURE,
+                    DeviceFeatureEnum.SENSOR_INTERNAL_UNIT_COIL_TEMPERATURE,
+                    DeviceFeatureEnum.SENSOR_EXTERNAL_UNIT_COIL_TEMPERATURE,
+                    DeviceFeatureEnum.SENSOR_EXTERNAL_UNIT_TEMPERATURE,
+                    DeviceFeatureEnum.SENSOR_EXTERNAL_UNIT_EXHAUST_TEMPERATURE,
+                    DeviceFeatureEnum.SENSOR_IS_ONLINE,
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SWITCH_BEEP,
+                    DeviceFeatureEnum.SWITCH_ECO,
+                    DeviceFeatureEnum.SWITCH_HEALTHY,
+                    DeviceFeatureEnum.SWITCH_DRYING,
+                    DeviceFeatureEnum.SWITCH_SCREEN,
+                    DeviceFeatureEnum.SWITCH_LIGHT_SENSE,
+                    DeviceFeatureEnum.SWITCH_FRESH_AIR,
+                    DeviceFeatureEnum.SELECT_MODE,
+                    DeviceFeatureEnum.SELECT_VERTICAL_DIRECTION,
+                    DeviceFeatureEnum.SELECT_HORIZONTAL_DIRECTION,
+                    DeviceFeatureEnum.SELECT_SLEEP_MODE,
+                    DeviceFeatureEnum.SELECT_WIND_SPEED_7_GEAR,
+                    DeviceFeatureEnum.SELECT_WIND_FEELING,
+                    DeviceFeatureEnum.SELECT_FRESH_AIR,
+                    DeviceFeatureEnum.SELECT_GENERATOR_MODE,
+                    DeviceFeatureEnum.NUMBER_TARGET_TEMPERATURE,
+                    DeviceFeatureEnum.NUMBER_TARGET_TEMPERATURE_ALLOW_HALF_DIGITS,
+                    DeviceFeatureEnum.BUTTON_SELF_CLEAN,
+                    DeviceFeatureEnum.CLIMATE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_TEMP_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_FAN_SPEED_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_SILENT_BEEP_WHEN_TURN_ON,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_NATIVE_TEMP_STEP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MIN_TEMP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MAX_TEMP,
+                ]
+                if has_power_consumption_data:
+                    features.append(DeviceFeatureEnum.SENSOR_POWER_CONSUMPTION_DAILY)
+                if has_work_time_data:
+                    features.append(DeviceFeatureEnum.SENSOR_WORK_TIME_DAILY)
+
+                if has_property(aws_thing_state_reported, "sensorTVOC"):
+                    features.append(DeviceFeatureEnum.SENSOR_FRESH_AIR_TVOC)
+                return features
+            case DeviceTypeEnum.DUCT_AC:
+                features = [
+                    DeviceFeatureEnum.INTERNAL_IS_AC,
+                    DeviceFeatureEnum.MODE_AC_AUTO,
+                    DeviceFeatureEnum.MODE_AC_COOL,
+                    DeviceFeatureEnum.MODE_AC_DEHUMIDIFICATION,
+                    DeviceFeatureEnum.MODE_AC_FAN,
+                    DeviceFeatureEnum.MODE_AC_HEAT,
+                    DeviceFeatureEnum.SENSOR_CURRENT_TEMPERATURE,
+                    DeviceFeatureEnum.SENSOR_IS_ONLINE,
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SWITCH_BEEP,
+                    DeviceFeatureEnum.SWITCH_DRYING,
+                    DeviceFeatureEnum.SWITCH_SCREEN,
+                    DeviceFeatureEnum.SWITCH_SLEEP,
+                    DeviceFeatureEnum.SELECT_MODE,
+                    DeviceFeatureEnum.NUMBER_TARGET_TEMPERATURE,
+                    DeviceFeatureEnum.BUTTON_SELF_CLEAN,
+                    DeviceFeatureEnum.CLIMATE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_TEMP_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_FAN_SPEED_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_SILENT_BEEP_WHEN_TURN_ON,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_NATIVE_TEMP_STEP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MIN_TEMP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MAX_TEMP,
+                ]
+                if has_power_consumption_data:
+                    features.append(DeviceFeatureEnum.SENSOR_POWER_CONSUMPTION_DAILY)
+                if has_work_time_data:
+                    features.append(DeviceFeatureEnum.SENSOR_WORK_TIME_DAILY)
+                if len(capabilities) > 0:
+                    if DeviceCapabilityEnum.CAPABILITY_SOFT_WIND in capabilities:
+                        features.append(DeviceFeatureEnum.SWITCH_SOFT_WIND)
+
+                    if DeviceCapabilityEnum.CAPABILITY_8C_HEATING in capabilities:
+                        features.append(DeviceFeatureEnum.SWITCH_8_C_HEATING)
+
+                    if DeviceCapabilityEnum.CAPABILITY_GENERATOR_MODE in capabilities:
+                        features.append(DeviceFeatureEnum.SELECT_GENERATOR_MODE)
+
+                if has_property(aws_thing_state_reported, "windSpeed7Gear"):
+                    features.append(DeviceFeatureEnum.SELECT_WIND_SPEED_7_GEAR)
+
+                if has_property(aws_thing_state_reported, "externalUnitTemperature"):
+                    features.append(DeviceFeatureEnum.SENSOR_EXTERNAL_UNIT_TEMPERATURE)
+
+                if has_property(aws_thing_state_reported, "AIECOSwitch"):
+                    features.append(DeviceFeatureEnum.SWITCH_AI_ECO)
+
+                if has_property(aws_thing_state_reported, "targetFahrenheitTemp"):
+                    features.append(DeviceFeatureEnum.INTERNAL_SET_TFT_WITH_TT)
+
+                return features
+            case DeviceTypeEnum.WINDOW_AC:
+                features = [
+                    DeviceFeatureEnum.INTERNAL_IS_AC,
+                    DeviceFeatureEnum.MODE_AC_AUTO,
+                    DeviceFeatureEnum.MODE_AC_COOL,
+                    DeviceFeatureEnum.MODE_AC_DEHUMIDIFICATION,
+                    DeviceFeatureEnum.MODE_AC_FAN,
+                    DeviceFeatureEnum.SENSOR_CURRENT_TEMPERATURE,
+                    DeviceFeatureEnum.SENSOR_IS_ONLINE,
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SWITCH_BEEP,
+                    DeviceFeatureEnum.SWITCH_ECO,
+                    DeviceFeatureEnum.SWITCH_SCREEN,
+                    DeviceFeatureEnum.SWITCH_SLEEP,
+                    DeviceFeatureEnum.SELECT_MODE,
+                    DeviceFeatureEnum.SELECT_WINDOW_AS_WIND_SPEED,
+                    DeviceFeatureEnum.NUMBER_TARGET_TEMPERATURE,
+                    DeviceFeatureEnum.NUMBER_TARGET_TEMPERATURE_ALLOW_HALF_DIGITS,
+                    DeviceFeatureEnum.CLIMATE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_TEMP_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_FAN_SPEED_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_SILENT_BEEP_WHEN_TURN_ON,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_NATIVE_TEMP_STEP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MIN_TEMP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MAX_TEMP,
+                ]
+                if has_power_consumption_data:
+                    features.append(DeviceFeatureEnum.SENSOR_POWER_CONSUMPTION_DAILY)
+                if has_work_time_data:
+                    features.append(DeviceFeatureEnum.SENSOR_WORK_TIME_DAILY)
+                return features
+            case DeviceTypeEnum.DEHUMIDIFIER_DEM:
+                features = [
+                    DeviceFeatureEnum.INTERNAL_IS_DEHUMIDIFIER,
+                    DeviceFeatureEnum.MODE_DEHUMIDIFIER_DRY,
+                    DeviceFeatureEnum.MODE_DEHUMIDIFIER_TURBO,
+                    DeviceFeatureEnum.MODE_DEHUMIDIFIER_COMFORT,
+                    DeviceFeatureEnum.MODE_DEHUMIDIFIER_CONTINUE,
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SELECT_MODE,
+                    DeviceFeatureEnum.NUMBER_DEHUMIDIFIER_HUMIDITY,
+                    DeviceFeatureEnum.SENSOR_DEHUMIDIFIER_ENV_HUMIDITY,
+                    DeviceFeatureEnum.SENSOR_DEHUMIDIFIER_WATER_BUCKET_FULL,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_HUMIDITY_BY_MODE,
+                    DeviceFeatureEnum.DIAGNOSIC_ERROR_CODES,
+                    DeviceFeatureEnum.HUMIDIFIER,
+                ]
+                if has_power_consumption_data:
+                    features.append(DeviceFeatureEnum.SENSOR_POWER_CONSUMPTION_DAILY)
+                if has_work_time_data:
+                    features.append(DeviceFeatureEnum.SENSOR_WORK_TIME_DAILY)
+                return features
+            case DeviceTypeEnum.DEHUMIDIFIER_DF:
+                features = [
+                    DeviceFeatureEnum.INTERNAL_IS_DEHUMIDIFIER,
+                    DeviceFeatureEnum.MODE_DEHUMIDIFIER_DRY,
+                    DeviceFeatureEnum.MODE_DEHUMIDIFIER_COMFORT,
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SELECT_MODE,
+                    DeviceFeatureEnum.SELECT_DEHUMIDIFIER_WIND_SPEED_LOW_MEDIUM_HEIGH,
+                    DeviceFeatureEnum.NUMBER_DEHUMIDIFIER_HUMIDITY,
+                    DeviceFeatureEnum.SENSOR_DEHUMIDIFIER_ENV_HUMIDITY,
+                    # DeviceFeatureEnum.SENSOR_DEHUMIDIFIER_WATER_BUCKET_FULL,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_HUMIDITY_BY_MODE,
+                    DeviceFeatureEnum.USER_CONFIG_BEHAVIOR_MEMORIZE_FAN_SPEED_BY_MODE,
+                    DeviceFeatureEnum.DIAGNOSIC_ERROR_CODES,
+                    DeviceFeatureEnum.HUMIDIFIER,
+                ]
+                if has_power_consumption_data:
+                    features.append(DeviceFeatureEnum.SENSOR_POWER_CONSUMPTION_DAILY)
+                if has_work_time_data:
+                    features.append(DeviceFeatureEnum.SENSOR_WORK_TIME_DAILY)
+                return features
+            case DeviceTypeEnum.PORTABLE_AC:
+                features = [
+                    DeviceFeatureEnum.INTERNAL_IS_AC,
+                    DeviceFeatureEnum.MODE_AC_DEHUMIDIFICATION,
+                    DeviceFeatureEnum.MODE_AC_FAN,
+                    DeviceFeatureEnum.MODE_AC_COOL,
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SWITCH_SLEEP,
+                    DeviceFeatureEnum.SELECT_MODE,
+                    DeviceFeatureEnum.NUMBER_TARGET_DEGREE,
+                    DeviceFeatureEnum.SENSOR_IS_ONLINE,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_NATIVE_TEMP_STEP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MIN_TEMP,
+                    DeviceFeatureEnum.USER_CONFIG_SETTINGS_MAX_TEMP,
+                ]
+                if has_power_consumption_data:
+                    features.append(DeviceFeatureEnum.SENSOR_POWER_CONSUMPTION_DAILY)
+                if has_work_time_data:
+                    features.append(DeviceFeatureEnum.SENSOR_WORK_TIME_DAILY)
+
+                if has_rn_probe_data:
+                    fan_speed_mapping = rn_probe_data.get("fan_speed_mapping", [])
+                    if (
+                        "FAN_SPEED_AUTO" in fan_speed_mapping
+                        and "FAN_SPEED_LOW" in fan_speed_mapping
+                        and ("FAN_SPEED_MED" in fan_speed_mapping or "FAN_SPEED_MEDIUM" in fan_speed_mapping)
+                        and "FAN_SPEED_HIGH" in fan_speed_mapping
+                    ):
+                        features.append(
+                            DeviceFeatureEnum.SELECT_PORTABLE_WIND_4VALUE_SPEED
+                        )
+                    else:
+                        features.append(DeviceFeatureEnum.SELECT_PORTABLE_WIND_SPEED)
+                else:
+                    features.append(DeviceFeatureEnum.SELECT_PORTABLE_WIND_SPEED)
+
+                if has_property(aws_thing_state_reported, "swingWind"):
+                    features.append(DeviceFeatureEnum.SWITCH_SWING_WIND)
+                    features.append(DeviceFeatureEnum.MODE_AC_AUTO)
+
+                if has_property(aws_thing_state_reported, "currentTemperature"):
+                    features.append(DeviceFeatureEnum.SENSOR_CURRENT_TEMPERATURE)
+                    features.append(DeviceFeatureEnum.CLIMATE)
+
+                return features
+            # Breeva A3 and A5 pretty much have the same features
+            case (DeviceTypeEnum.AIR_PURIFIER_BREEVA_A3 | DeviceTypeEnum.AIR_PURIFIER_BREEVA_A5):
+                features = [
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SWITCH_SHIELD_SWITCH,
+                    DeviceFeatureEnum.SENSOR_IS_ONLINE,
+                    DeviceFeatureEnum.SWITCH_SCREEN_SWITCH,
+                    DeviceFeatureEnum.SWITCH_CHILD_LOCK_SWITCH,
+                    DeviceFeatureEnum.SENSOR_FILTER_LIFETIME,
+                    DeviceFeatureEnum.SENSOR_PM25_SENSOR_VALUE,
+                    DeviceFeatureEnum.SENSOR_VOC_SENSOR_LEVEL,
+                    DeviceFeatureEnum.SELECT_WIND_SPEED,
+                    DeviceFeatureEnum.SELECT_WORK_MODE,
+                ]
+
+                if has_property(aws_thing_state_reported, "panelLightAutoOFF"):
+                    features.append(DeviceFeatureEnum.SWITCH_PANEL_LIGHT_AUTO_OFF)
+
+                if has_property(aws_thing_state_reported, "ambientLight"):
+                    
+                    features.append(DeviceFeatureEnum.LIGHT_AMBIENT)
+
+                return features
+            case DeviceTypeEnum.AIR_PURIFIER_BREEVA_A2:
+                features = [
+                    DeviceFeatureEnum.SWITCH_POWER,
+                    DeviceFeatureEnum.SWITCH_ANION,
+                    DeviceFeatureEnum.SWITCH_SCREEN_SWITCH,
+                    DeviceFeatureEnum.SENSOR_IS_ONLINE,
+                    DeviceFeatureEnum.SENSOR_FILTER_LIFETIME,
+                    DeviceFeatureEnum.SENSOR_PM25_SENSOR_LEVEL,
+                    DeviceFeatureEnum.SENSOR_VOC_SENSOR_LEVEL,
+                    DeviceFeatureEnum.SELECT_WIND_SPEED,
+                    DeviceFeatureEnum.SELECT_WORK_MODE,
+                ]
+
+                if has_property(aws_thing_state_reported, "panelLightAutoOFF"):
+                    features.append(DeviceFeatureEnum.SWITCH_PANEL_LIGHT_AUTO_OFF)
+
+                return features
+
+            case _:
+                return []
+    except Exception as e:
+        _LOGGER.error("Error while device_features.getSupportedFeatures: %s", e)
+        raise e

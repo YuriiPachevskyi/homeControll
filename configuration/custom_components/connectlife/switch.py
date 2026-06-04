@@ -14,7 +14,7 @@ from .const import DOMAIN
 from .coordinator import ConnectLifeCoordinator
 from .dictionaries import Dictionaries, Property
 from .entity import ConnectLifeEntity
-from .utils import is_entity
+from .utils import has_platform
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,12 +30,10 @@ async def async_setup_entry(
         dictionary = Dictionaries.get_dictionary(appliance)
         async_add_entities(
             ConnectLifeSwitch(
-                coordinator, appliance, s, dictionary.properties[s], config_entry
+                coordinator, appliance, s, dictionary.properties[s]
             )
             for s in appliance.status_list
-            if is_entity(
-                Platform.SWITCH, dictionary.properties[s], appliance.status_list[s]
-            )
+            if has_platform(Platform.SWITCH, dictionary.properties[s])
         )
 
 
@@ -48,11 +46,12 @@ class ConnectLifeSwitch(ConnectLifeEntity, SwitchEntity):
         appliance: ConnectLifeAppliance,
         status: str,
         dd_entry: Property,
-        config_entry: ConfigEntry,
     ):
         """Initialize the entity."""
-        super().__init__(coordinator, appliance, status, Platform.SWITCH, config_entry)
+        super().__init__(coordinator, appliance, status, Platform.SWITCH)
         self.status = status
+        self._unavailable_status = status
+        self._unavailable_value = dd_entry.unavailable
         self.command_name = (
             dd_entry.switch.command_name if dd_entry.switch.command_name else status
         )
@@ -63,13 +62,14 @@ class ConnectLifeSwitch(ConnectLifeEntity, SwitchEntity):
         self.entity_description = SwitchEntityDescription(
             key=self._attr_unique_id,
             entity_registry_visible_default=not dd_entry.hide,
+            entity_registry_enabled_default=not dd_entry.optional,
             icon=dd_entry.icon,
             name=status.replace("_", " "),
             translation_key=self.to_translation_key(status),
             device_class=dd_entry.switch.device_class,
             entity_category=dd_entry.entity_category,
         )
-        self.update_state()
+        self._refresh_state()
 
     @callback
     def update_state(self):
@@ -82,7 +82,6 @@ class ConnectLifeSwitch(ConnectLifeEntity, SwitchEntity):
             else:
                 self._attr_is_on = None
                 _LOGGER.warning("Unknown value %s for %s", str(value), self.status)
-        self._attr_available = self.coordinator.data[self.device_id].offline_state == 1
 
     async def async_turn_off(self, **kwargs):
         """Turn off."""

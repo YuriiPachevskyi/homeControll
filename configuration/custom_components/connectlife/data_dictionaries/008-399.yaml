@@ -1,4 +1,10 @@
 # Ultraslim AC
+climate:
+  presets:
+    - preset: eco
+      t_power: 1
+      t_work_mode: 5
+
 properties:
   - property: t_fan_speed
     climate:
@@ -7,8 +13,3 @@ properties:
         5: low
         7: medium
         9: high
-  - property: t_temp
-    climate:
-      max_value:
-        celsius: 30
-        fahrenheit: 86

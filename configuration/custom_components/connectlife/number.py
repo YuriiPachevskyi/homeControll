@@ -5,16 +5,14 @@ from homeassistant.components.number import NumberEntity, NumberEntityDescriptio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .coordinator import ConnectLifeCoordinator
 from .dictionaries import Dictionaries, Dictionary, Property
 from .entity import ConnectLifeEntity
-from connectlife.api import LifeConnectError
 from connectlife.appliance import ConnectLifeAppliance
-from .utils import is_entity, to_unit
+from .utils import has_platform, to_unit
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,13 +32,10 @@ async def async_setup_entry(
                 appliance,
                 s,
                 dictionary.properties[s],
-                config_entry,
                 dictionary,
             )
             for s in appliance.status_list
-            if is_entity(
-                Platform.NUMBER, dictionary.properties[s], appliance.status_list[s]
-            )
+            if has_platform(Platform.NUMBER, dictionary.properties[s])
         )
 
 
@@ -55,17 +50,22 @@ class ConnectLifeNumberEntity(ConnectLifeEntity, NumberEntity):
         appliance: ConnectLifeAppliance,
         status: str,
         dd_entry: Property,
-        config_entry: ConfigEntry,
         dictionary: Dictionary,
     ):
         """Initialize the entity."""
-        super().__init__(coordinator, appliance, status, Platform.NUMBER, config_entry)
+        super().__init__(coordinator, appliance, status, Platform.NUMBER)
         self.status = status
+        self._unavailable_status = status
+        self._unavailable_value = dd_entry.unavailable
+        self.command_name = (
+            dd_entry.number.command_name if dd_entry.number.command_name else status
+        )
         device_class = dd_entry.number.device_class
         self.entity_description = NumberEntityDescription(
             key=self._attr_unique_id,
             device_class=device_class,
             entity_registry_visible_default=not dd_entry.hide,
+            entity_registry_enabled_default=not dd_entry.optional,
             icon=dd_entry.icon,
             name=status.replace("_", " "),
             native_max_value=dd_entry.number.max_value,  # type: ignore[arg-type]
@@ -76,20 +76,19 @@ class ConnectLifeNumberEntity(ConnectLifeEntity, NumberEntity):
             translation_key=self.to_translation_key(status),
             entity_category=dd_entry.entity_category,
         )
-        self.update_state()
+        self._refresh_state()
 
     @callback
     def update_state(self):
         if self.status in self.coordinator.data[self.device_id].status_list:
             value = self.coordinator.data[self.device_id].status_list[self.status]
             self._attr_native_value = value
-        self._attr_available = self.coordinator.data[self.device_id].offline_state == 1
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
         value = int(value)
         _LOGGER.debug("Setting %s to %d on %s", self.status, value, self.nickname)
-        try:
-            await self.async_update_device({self.status: value})
-        except LifeConnectError as api_error:
-            raise ServiceValidationError(str(api_error)) from api_error
+        await self.async_update_device(
+            {self.command_name: value},
+            {self.status: value},
+        )

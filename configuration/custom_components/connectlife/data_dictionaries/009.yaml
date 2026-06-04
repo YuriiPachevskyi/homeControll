@@ -207,11 +207,23 @@ properties:
   - property: f_e_push
     disable: true
   - property: f_ecm
-    disable: true
+    # f_ecm: appears to indicate which unit f_electricity uses (f_ecm=1
+    # has been observed alongside mA current values; absent in 009-104,
+    # which reports in hW). Exposed as a diagnostic so users can report
+    # the value alongside f_electricity readings.
+    sensor:
+      read_only: true
+    entity_category: diagnostic
+    optional: true
   - property: f_electricity
+    # f_electricity: unit varies by device. Most devices observed report
+    # in mA. Devices that report in other units (e.g. hW), need a
+    # per-feature override mapping to power/kW (see e.g. 009-104).
+    # The companion property f_ecm appears to discriminate the scheme
+    # (f_ecm=1 → mA; absent → hW).
     sensor:
       device_class: current
-      unit: A
+      unit: mA
       read_only: true
       state_class: measurement
     hide: true
@@ -246,7 +258,7 @@ properties:
       device_class: voltage
       unit: V
       state_class: measurement
-    hide: true
+    optional: true
     entity_category: diagnostic
   - property: t_8heat
     switch:
@@ -257,7 +269,7 @@ properties:
       options:
         0: off
         1: on
-    hide: true
+    optional: true
     entity_category: diagnostic
   - property: t_device_info
     disable: true
@@ -289,6 +301,12 @@ properties:
   - property: t_fan_speed_s
     disable: true
   - property: t_fanspeedCV
+    number:
+      min_value: 0
+      max_value: 100
+      unit: "%"
+    icon: mdi:fan
+  - property: t_fanspeedcv
     number:
       min_value: 0
       max_value: 100

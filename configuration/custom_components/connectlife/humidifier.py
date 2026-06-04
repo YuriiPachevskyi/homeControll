@@ -38,7 +38,7 @@ async def async_setup_entry(
     for appliance in coordinator.data.values():
         dictionary = Dictionaries.get_dictionary(appliance)
         if is_humidifier(dictionary):
-            entities.append(ConnectLifeHumidifier(coordinator, appliance, dictionary, config_entry))
+            entities.append(ConnectLifeHumidifier(coordinator, appliance, dictionary))
     async_add_entities(entities)
 
 
@@ -63,10 +63,9 @@ class ConnectLifeHumidifier(ConnectLifeEntity, HumidifierEntity):
             coordinator: ConnectLifeCoordinator,
             appliance: ConnectLifeAppliance,
             data_dictionary: Dictionary,
-            config_entry: ConfigEntry,
     ):
         """Initialize the entity."""
-        super().__init__(coordinator, appliance, "humidifier", Platform.HUMIDIFIER, config_entry)
+        super().__init__(coordinator, appliance, "humidifier", Platform.HUMIDIFIER)
 
         self.target_map = {}
         self.mode_map = {}
@@ -133,7 +132,6 @@ class ConnectLifeHumidifier(ConnectLifeEntity, HumidifierEntity):
                         _LOGGER.warning("Got unexpected value %d for %s (%s)", value, status, self.nickname)
                 else:
                     setattr(self, f"_attr_{target}", value)
-        self._attr_available = self.coordinator.data[self.device_id].offline_state == 1
 
     async def async_set_humidity(self, humidity):
         """Set new target humidity."""

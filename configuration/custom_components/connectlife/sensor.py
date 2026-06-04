@@ -18,13 +18,17 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, SW_VERSION_PROPERTY
+from .const import (
+    CONF_DEVICES,
+    CONF_EXPOSE_OFFLINE_STATE,
+    DOMAIN,
+    SW_VERSION_PROPERTY,
+)
 from .coordinator import ConnectLifeCoordinator, ConnectLifeEnergyCoordinator
 from .dictionaries import Dictionaries, Dictionary, Property
 from .entity import ConnectLifeEntity
-from connectlife.api import LifeConnectError
 from connectlife.appliance import ConnectLifeAppliance, MAX_DATETIME
-from .utils import is_entity, to_unit
+from .utils import has_platform, to_unit
 
 SERVICE_SET_VALUE = "set_value"
 
@@ -47,11 +51,7 @@ async def async_setup_entry(
             )
             for s in appliance.status_list
             if s != SW_VERSION_PROPERTY
-            and is_entity(
-                Platform.SENSOR,
-                dictionary.properties[s],
-                appliance.status_list[s],
-            )
+            and has_platform(Platform.SENSOR, dictionary.properties[s])
         )
         async_add_entities(
             ConnectLifeStatusSensor(
@@ -93,6 +93,8 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
         """Initialize the entity."""
         super().__init__(coordinator, appliance, status, Platform.SENSOR)
         self.status = status
+        self._unavailable_status = status
+        self._unavailable_value = dd_entry.unavailable
         self.combine = dd_entry.combine
         self.read_only = True if self.combine else dd_entry.sensor.read_only
         self.multiplier = dd_entry.sensor.multiplier
@@ -114,6 +116,7 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
             key=self._attr_unique_id,
             device_class=device_class,
             entity_registry_visible_default=not dd_entry.hide,
+            entity_registry_enabled_default=not dd_entry.optional,
             icon=dd_entry.icon,
             name=status.replace("_", " "),
             native_unit_of_measurement=to_unit(
@@ -123,7 +126,7 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
             translation_key=self.to_translation_key(status),
             entity_category=dd_entry.entity_category,
         )
-        self.update_state()
+        self._refresh_state()
 
     @callback
     def update_state(self):
@@ -145,11 +148,9 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
                     if self.multiplier is not None:
                         value *= self.multiplier
                     self._attr_native_value = value
-                self._attr_available = self.coordinator.data[self.device_id].offline_state == 1
                 return
             elif self.status not in status_list:
                 self._attr_native_value = None
-                self._attr_available = self.coordinator.data[self.device_id].offline_state == 1
                 return
         if self.status in status_list:
             value = status_list[self.status]
@@ -174,7 +175,6 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
                 if self.multiplier is not None and value is not None:
                     value *= self.multiplier  # type: ignore[operator]
                 self._attr_native_value = value
-        self._attr_available = self.coordinator.data[self.device_id].offline_state == 1
 
     async def async_set_value(self, value: int) -> None:
         """Set value for this sensor."""
@@ -187,10 +187,7 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
             raise ServiceValidationError(
                 f"{self.entity_description.name} is read-only on {self.nickname}"
             )
-        try:
-            await self.async_update_device({self.status: value})
-        except LifeConnectError as api_error:
-            raise ServiceValidationError(str(api_error)) from api_error
+        await self.async_update_device({self.status: value})
 
 
 class ConnectLifeEnergySensor(CoordinatorEntity[ConnectLifeEnergyCoordinator], SensorEntity):
@@ -211,12 +208,27 @@ class ConnectLifeEnergySensor(CoordinatorEntity[ConnectLifeEnergyCoordinator], S
         """Initialize the energy sensor."""
         super().__init__(energy_coordinator)
         self._device_id = appliance.device_id
+        self._appliance_coordinator = appliance_coordinator
         self._attr_unique_id = f"{appliance.device_id}-daily_energy_kwh"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, appliance.device_id)},
         )
+        device = appliance_coordinator.config_entry.options.get(CONF_DEVICES, {}).get(self._device_id, {})
+        self._expose_offline_state = device.get(CONF_EXPOSE_OFFLINE_STATE, False)
         appliance_coordinator.add_entity(self._attr_unique_id, Platform.SENSOR)
         self._update_native_value()
+
+    @property
+    def available(self) -> bool:
+        appliance = self._appliance_coordinator.data.get(self._device_id)
+        if appliance is None:
+            return False
+        return (
+            super().available
+            and (self._expose_offline_state or appliance.offline_state == 1)
+            and self.coordinator.data is not None
+            and self.coordinator.data.get(self._device_id) is not None
+        )
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -227,9 +239,6 @@ class ConnectLifeEnergySensor(CoordinatorEntity[ConnectLifeEnergyCoordinator], S
     def _update_native_value(self) -> None:
         """Update native value from energy coordinator data."""
         if self.coordinator.data and self._device_id in self.coordinator.data:
-            value = self.coordinator.data[self._device_id]
-            self._attr_native_value = value
-            self._attr_available = value is not None
+            self._attr_native_value = self.coordinator.data[self._device_id]
         else:
             self._attr_native_value = None
-            self._attr_available = False

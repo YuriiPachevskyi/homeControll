@@ -1,0 +1,8 @@
+# Dehumidifier — fan speed medium instead of auto
+properties:
+  - property: t_fan_speed
+    select:
+      options:
+        0: low
+        1: high
+        3: medium

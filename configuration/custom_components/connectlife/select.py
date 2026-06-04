@@ -13,7 +13,7 @@ from .coordinator import ConnectLifeCoordinator
 from .dictionaries import Dictionaries, Property
 from .entity import ConnectLifeEntity
 from connectlife.appliance import ConnectLifeAppliance
-from .utils import is_entity
+from .utils import has_platform
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,12 +29,10 @@ async def async_setup_entry(
         dictionary = Dictionaries.get_dictionary(appliance)
         async_add_entities(
             ConnectLifeSelect(
-                coordinator, appliance, s, dictionary.properties[s], config_entry
+                coordinator, appliance, s, dictionary.properties[s]
             )
             for s in appliance.status_list
-            if is_entity(
-                Platform.SELECT, dictionary.properties[s], appliance.status_list[s]
-            )
+            if has_platform(Platform.SELECT, dictionary.properties[s])
         )
 
 
@@ -49,14 +47,16 @@ class ConnectLifeSelect(ConnectLifeEntity, SelectEntity):
         appliance: ConnectLifeAppliance,
         status: str,
         dd_entry: Property,
-        config_entry: ConfigEntry,
     ):
         """Initialize the entity."""
-        super().__init__(coordinator, appliance, status, Platform.SELECT, config_entry)
+        super().__init__(coordinator, appliance, status, Platform.SELECT)
         self.status = status
+        self._unavailable_status = status
+        self._unavailable_value = dd_entry.unavailable
         # Copy: unmapped values are added per-entity, avoid leaking to other appliances.
         self.options_map = dict(dd_entry.select.options)
         self.reverse_options_map = {v: k for k, v in self.options_map.items()}
+        self.unknown_value = dd_entry.select.unknown_value
         self.command_name = (
             dd_entry.select.command_name if dd_entry.select.command_name else status
         )
@@ -65,17 +65,21 @@ class ConnectLifeSelect(ConnectLifeEntity, SelectEntity):
         self.entity_description = SelectEntityDescription(
             key=self._attr_unique_id,
             entity_registry_visible_default=not dd_entry.hide,
+            entity_registry_enabled_default=not dd_entry.optional,
             icon=dd_entry.icon,
             name=status.replace("_", " "),
             translation_key=self.to_translation_key(status),
             entity_category=dd_entry.entity_category,
         )
-        self.update_state()
+        self._refresh_state()
 
     @callback
     def update_state(self):
         if self.status in self.coordinator.data[self.device_id].status_list:
             value = self.coordinator.data[self.device_id].status_list[self.status]
+            if value == self.unknown_value:
+                self._attr_current_option = None
+                return
             if value in self.options_map:
                 value = self.options_map[value]
             else:

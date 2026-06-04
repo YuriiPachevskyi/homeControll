@@ -28,12 +28,15 @@ from .const import (
 )
 
 ADJUST = "adjust"
+AVAILABLE_WHEN = "available_when"
+BUTTONS = "buttons"
 COMMAND = "command"
 DEVICE = "device"
 DEVICE_CLASS = "device_class"
 DISABLE = "disable"
 HIDE = "hide"
 ICON = "icon"
+KEY = "key"
 NAME = "name"
 OFF = "off"
 ON = "on"
@@ -44,6 +47,7 @@ PROPERTIES = "properties"
 MAX_VALUE = "max_value"
 MIN_VALUE = "min_value"
 MULTIPLIER = "multiplier"
+OPTIONAL = "optional"
 TARGET = "target"
 READ_ONLY = "read_only"
 STATE_CLASS = "state_class"
@@ -53,6 +57,7 @@ UNAVAILABLE = "unavailable"
 ENTITY_CATEGORY = "entity_category"
 UNKNOWN_VALUE = "unknown_value"
 UNIT = "unit"
+WRITE = "write"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -146,6 +151,7 @@ class Number:
     multiplier: float | None
     device_class: NumberDeviceClass | None
     unit: str | None
+    command_name: str | None
 
     def __init__(self, name: str, number: dict | None):
         if number is None:
@@ -154,6 +160,8 @@ class Number:
         self.max_value = _val(number, MAX_VALUE)
         self.unit = _val(number, UNIT) or None
         self.multiplier = _val(number, MULTIPLIER)
+        command = _val(number, COMMAND, {})
+        self.command_name = _val(command, NAME)
 
         device_class = None
         device_class_value = _val(number, DEVICE_CLASS)
@@ -179,6 +187,7 @@ class Number:
 
 class Select:
     options: dict
+    unknown_value: int | None
     command_name: str | None
     command_adjust: int = 0
 
@@ -191,6 +200,7 @@ class Select:
             self.options = {}
         else:
             self.options = options
+        self.unknown_value = _val(select, UNKNOWN_VALUE)
         command = _val(select, COMMAND, {})
         self.command_name = _val(command, NAME)
         self.command_adjust = _val(command, ADJUST, 0)
@@ -316,6 +326,7 @@ class Property:
     icon: str | None
     hide: bool
     disable: bool
+    optional: bool
     unavailable: int | None
     entity_category: EntityCategory | None
     combine: list[CombineSource] | None
@@ -333,6 +344,7 @@ class Property:
         self.icon = _val(entry, ICON) or None
         self.hide = bool(entry[HIDE]) if HIDE in entry else False
         self.disable = bool(entry[DISABLE]) if DISABLE in entry else False
+        self.optional = bool(entry[OPTIONAL]) if OPTIONAL in entry else False
         self.unavailable = _val(entry, UNAVAILABLE)
         entity_category = _val(entry, ENTITY_CATEGORY)
         self.entity_category = (
@@ -360,6 +372,53 @@ class Property:
             self.sensor = Sensor(self.name, {})
 
 
+class Button:
+    """A button entity declared at the top level of a data dictionary.
+
+    Buttons are for write-only commands: a press writes ``write`` to the
+    device. ``available_when`` gates the button on read-back property values
+    (all keys must match for the button to be available).
+    """
+
+    key: str
+    icon: str | None
+    available_when: dict[str, int]
+    write: dict[str, int]
+
+    def __init__(self, entry: dict):
+        self.key = entry[KEY]
+        self.icon = _val(entry, ICON) or None
+        self.available_when = _val(entry, AVAILABLE_WHEN, {})
+        write = _val(entry, WRITE)
+        if not write:
+            _LOGGER.warning("Button %s has no write map", self.key)
+            self.write = {}
+        else:
+            self.write = write
+
+
+def _merge_buttons(base: list[dict], override: list[dict]) -> list[dict]:
+    """Merge button lists by ``key``.
+
+    Entries in ``override`` matching a key in ``base`` shallow-merge field by
+    field (override wins; ``available_when`` and ``write`` replace as a whole
+    since they're collections). Entries with keys not in ``base`` are
+    appended. ``disable: true`` removes the merged entry from the result —
+    use it to suppress an inherited button on a variant that doesn't support
+    the action.
+    """
+    by_key: dict[str, dict] = {b[KEY]: dict(b) for b in base}
+    order: list[str] = [b[KEY] for b in base]
+    for entry in override:
+        key = entry[KEY]
+        if key in by_key:
+            by_key[key] = {**by_key[key], **entry}
+        else:
+            by_key[key] = dict(entry)
+            order.append(key)
+    return [by_key[k] for k in order if not by_key[k].get(DISABLE)]
+
+
 @dataclass
 class Dictionary:
     """Data dictionary for a ConnectLife appliance"""
@@ -367,6 +426,7 @@ class Dictionary:
     # Todo: Refactor Climate dataclass
     climate: dict | None
     properties: dict[str, Property]
+    buttons: list[Button]
 
 
 PLATFORM_KEYS = (
@@ -462,14 +522,18 @@ class Dictionaries:
 
         climate: dict | None = None
         raw_entries: dict[str, dict] = {}
+        raw_buttons: list[dict] = []
 
         # TODO: Support default climate section
         _, base_data = _load_yaml(
             f"data_dictionaries/{appliance.device_type_code}.yaml"
         )
-        if base_data is not None and PROPERTIES in base_data and base_data[PROPERTIES] is not None:
-            for prop in base_data[PROPERTIES]:
-                raw_entries[prop[PROPERTY]] = prop
+        if base_data is not None:
+            if PROPERTIES in base_data and base_data[PROPERTIES] is not None:
+                for prop in base_data[PROPERTIES]:
+                    raw_entries[prop[PROPERTY]] = prop
+            if BUTTONS in base_data and base_data[BUTTONS] is not None:
+                raw_buttons = list(base_data[BUTTONS])
 
         sub_found, sub_data = _load_yaml(f"data_dictionaries/{key}.yaml")
         if not sub_found:
@@ -485,9 +549,11 @@ class Dictionaries:
                 for prop in sub_data[PROPERTIES]:
                     name = prop[PROPERTY]
                     raw_entries[name] = _merge_property(raw_entries.get(name), prop)
+            if BUTTONS in sub_data and sub_data[BUTTONS] is not None:
+                raw_buttons = _merge_buttons(raw_buttons, sub_data[BUTTONS])
 
         properties: dict[str, Property] = defaultdict(
-            lambda: Property({PROPERTY: "default", HIDE: True})
+            lambda: Property({PROPERTY: "default", OPTIONAL: True})
         )
         for name, entry in raw_entries.items():
             properties[name] = Property(entry)
@@ -497,6 +563,8 @@ class Dictionaries:
                 for source in prop.combine:
                     properties[source[PROPERTY]].disable = True
 
-        dictionary = Dictionary(climate=climate, properties=properties)
+        buttons = [Button(b) for b in raw_buttons]
+
+        dictionary = Dictionary(climate=climate, properties=properties, buttons=buttons)
         cls.dictionaries[key] = dictionary
         return dictionary
