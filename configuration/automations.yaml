@@ -163,6 +163,9 @@
   - trigger: homeassistant
     event: start
     id: ha_start
+  - trigger: time
+    at: 09:00:00
+    id: morning_9am
   actions:
   - action: input_text.set_value
     target:
@@ -208,6 +211,16 @@
   - choose:
     - conditions:
       - condition: trigger
+        id: morning_9am
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_power_deye_5kw
+        data:
+          value: 300
+      - stop: Morning power set
+    - conditions:
+      - condition: trigger
         id: update_params_sell
       sequence:
       - action: input_number.set_value
@@ -221,7 +234,7 @@
           entity_id:
           - input_number.1_discharge_level_deye_5kw
         data:
-          value: 40
+          value: 60
       - action: input_number.set_value
         target:
           entity_id:
@@ -261,7 +274,7 @@
       sequence:
       - action: input_number.set_value
         data:
-          value: 40
+          value: 60
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
       - action: automation.turn_on
