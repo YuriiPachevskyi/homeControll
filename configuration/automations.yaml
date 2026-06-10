@@ -164,8 +164,8 @@
     event: start
     id: ha_start
   - trigger: time
-    at: 09:00:00
-    id: morning_9am
+    at: '10:00:00'
+    id: morning_10am
   actions:
   - action: input_text.set_value
     target:
@@ -211,7 +211,7 @@
   - choose:
     - conditions:
       - condition: trigger
-        id: morning_9am
+        id: morning_10am
       sequence:
       - action: input_number.set_value
         target:
@@ -234,7 +234,7 @@
           entity_id:
           - input_number.1_discharge_level_deye_5kw
         data:
-          value: 60
+          value: 45
       - action: input_number.set_value
         target:
           entity_id:
@@ -274,7 +274,7 @@
       sequence:
       - action: input_number.set_value
         data:
-          value: 60
+          value: 45
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
       - action: automation.turn_on
