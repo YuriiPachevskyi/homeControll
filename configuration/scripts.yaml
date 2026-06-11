@@ -8,7 +8,8 @@ power_load_disable_device_duplicate:
         state: 'on'
       sequence:
       - choose:
-        - conditions:
+        - alias: 'High Power Step 1: Boiler 1.2 -> 0.8'
+          conditions:
           - condition: state
             entity_id: switch.1561_boiler_ten_1_2_kwh
             state: 'on'
@@ -25,7 +26,8 @@ power_load_disable_device_duplicate:
           - action: switch.turn_on
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
-        - conditions:
+        - alias: 'High Power Step 2: Boiler 0.8 OFF'
+          conditions:
           - condition: state
             entity_id: switch.1560_boiler_ten_0_8_kwh
             state: 'on'
@@ -39,7 +41,8 @@ power_load_disable_device_duplicate:
           - action: switch.turn_off
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
-        - conditions:
+        - alias: 'High Power Step 3: Reduce Charge to 1kW'
+          conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
             above: 1.7
@@ -55,7 +58,8 @@ power_load_disable_device_duplicate:
               value: 1
             target:
               entity_id: input_number.charge_power_deye_6kw
-        - conditions:
+        - alias: 'High Power Step 4: Charge to 0kW'
+          conditions:
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
             above: 0.95
@@ -70,26 +74,56 @@ power_load_disable_device_duplicate:
               value: 0
             target:
               entity_id: input_number.charge_power_deye_6kw
-        - conditions:
-          - condition: state
-            entity_id: climate.bedroom_ac
-            state:
-            - heat
-            - cool
+        - alias: 'High Power Step 5: Big Bedroom AC OFF'
+          conditions:
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: climate.big_bedroom_ac
+              state: 'off'
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: input_select.big_bedroom_ac
+              state: 'off'
           - condition: numeric_state
             entity_id: sensor.deye_6kw_battery
-            below: 50
+            below: 71
           sequence:
           - action: input_text.set_value
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'High Power: Climate OFF (Battery low) ({{ now().strftime(''%H:%M:%S'')
+              value: 'High Power: Big Bedroom AC OFF (Battery <= 70%) ({{ now().strftime(''%H:%M:%S'')
                 }})'
           - action: climate.turn_off
             target:
-              device_id: be55afc0f88f5ce38043ce63a5d08b6f
-            data: {}
+              entity_id: climate.big_bedroom_ac
+        - alias: 'High Power Step 6: Bedroom AC OFF'
+          conditions:
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: climate.bedroom_ac
+              state: 'off'
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: input_select.bedroom_ac
+              state: 'off'
+          - condition: numeric_state
+            entity_id: sensor.deye_6kw_battery
+            below: 51
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: 'High Power: Bedroom AC OFF (Battery <= 50%) ({{ now().strftime(''%H:%M:%S'')
+                }})'
+          - action: climate.turn_off
+            target:
+              entity_id: climate.bedroom_ac
     - conditions:
       - condition: state
         entity_id: binary_sensor.any_device_high_power
@@ -252,19 +286,19 @@ power_load_disable_device_duplicate:
           - action: switch.turn_off
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
-        - alias: 'Restore Step 5: Climate -> Heat'
+        - alias: 'Restore Step 5: Bedroom AC ON'
           conditions:
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: input_select.bedroom_ac
+              state: 'off'
           - condition: state
-            entity_id: input_boolean.my_flag2
-            state: 'on'
-          - condition: state
-            entity_id: switch.1561_boiler_ten_1_2_kwh
-            state: 'on'
-            enabled: false
+            entity_id: climate.bedroom_ac
+            state: 'off'
           - condition: state
             entity_id: binary_sensor.battery_deye_6kw_charged
-            state:
-            - 'on'
+            state: 'on'
           - condition: or
             conditions:
             - condition: state
@@ -282,12 +316,51 @@ power_load_disable_device_duplicate:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Restore: Climate HEAT ({{ now().strftime(''%H:%M:%S'') }})'
+              value: 'Restore: Bedroom AC ON ({{ now().strftime(''%H:%M:%S'') }})'
           - action: climate.set_hvac_mode
             data:
-              hvac_mode: heat
+              hvac_mode: '{{ ''heat'' if is_state(''input_select.bedroom_ac'', ''heating'')
+                else ''cool'' }}'
             target:
               entity_id: climate.bedroom_ac
+        - alias: 'Restore Step 6: Big Bedroom AC ON'
+          conditions:
+          - condition: not
+            conditions:
+            - condition: state
+              entity_id: input_select.big_bedroom_ac
+              state: 'off'
+          - condition: state
+            entity_id: climate.big_bedroom_ac
+            state: 'off'
+          - condition: state
+            entity_id: binary_sensor.battery_deye_6kw_charged
+            state: 'on'
+          - condition: or
+            conditions:
+            - condition: state
+              entity_id: binary_sensor.battery_charge_and_export_power_limit
+              state: 'on'
+              for:
+                seconds: 30
+            - condition: state
+              entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
+              state: 'on'
+              for:
+                seconds: 30
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: 'Restore: Big Bedroom AC ON ({{ now().strftime(''%H:%M:%S'')
+                }})'
+          - action: climate.set_hvac_mode
+            data:
+              hvac_mode: '{{ ''heat'' if is_state(''input_select.big_bedroom_ac'',
+                ''heating'') else ''cool'' }}'
+            target:
+              entity_id: climate.big_bedroom_ac
   icon: mdi:solar-power-variant-outline
   description: ''
 bizon_suspend_2:

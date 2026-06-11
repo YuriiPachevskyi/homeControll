@@ -1,4 +1,3 @@
-configuration/.storage/
 configuration/home-*
 build/CMakeCache.txt
 build/CMakeFiles/
