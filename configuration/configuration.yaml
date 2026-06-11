@@ -51,25 +51,6 @@ utility_meter:
     source: sensor.deye_5kw_energy_losses
     cycle: daily
 
-input_boolean:
-  my_flag1:
-    name: Air conditioning cooling
-    icon: mdi:toggle-switch
-  my_flag2:
-    name: Air conditioning heating
-    icon: mdi:toggle-switch
-
-input_datetime:
-  selling_start_time:
-    name: Selling Start Time
-    has_date: false
-    has_time: true
-
-  selling_stop_time:
-    name: Selling Stop Time
-    has_date: false
-    has_time: true
-
 shell_command:
   bizon_suspend: ssh -i /config/.ssh/id_rsa -o StrictHostKeyChecking=no yurii@192.168.1.4 "sudo systemctl suspend"
   bizon_reboot: ssh -i /config/.ssh/id_rsa -o StrictHostKeyChecking=no yurii@192.168.1.4 "sudo reboot"

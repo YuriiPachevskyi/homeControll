@@ -240,13 +240,13 @@
           entity_id:
           - input_number.1_discharge_level_deye_6kw
         data:
-          value: 70
+          value: 65
       - action: input_number.set_value
         target:
           entity_id:
           - input_number.battery_power_deye_6kw
         data:
-          value: 900
+          value: 1100
       - choose:
         - conditions:
           - condition: state
@@ -274,7 +274,7 @@
       sequence:
       - action: input_number.set_value
         data:
-          value: 45
+          value: 40
         target:
           entity_id: input_number.1_discharge_level_deye_5kw
       - action: automation.turn_on
