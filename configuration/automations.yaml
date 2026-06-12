@@ -352,34 +352,6 @@
     grid_on: '{{ is_state(''binary_sensor.deye_6kw_grid'', ''on'') }}'
   mode: queued
   max: 3
-- id: '1772625520676'
-  alias: Disable Conditioner
-  description: ''
-  triggers:
-  - entity_id:
-    - climate.2_nd_room_conditioner
-    above: 300
-    for:
-      hours: 0
-      minutes: 10
-      seconds: 0
-      milliseconds: 0
-    trigger: numeric_state
-  conditions:
-  - condition: or
-    conditions:
-    - condition: state
-      entity_id: climate.2_nd_room_conditioner
-      state:
-      - heat
-      - cool
-  actions:
-  - action: climate.set_hvac_mode
-    target:
-      device_id: be55afc0f88f5ce38043ce63a5d08b6f
-    data:
-      hvac_mode: 'off'
-  mode: single
 - id: '1773316386421'
   alias: Grid power
   description: ''
