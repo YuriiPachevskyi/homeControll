@@ -1,0 +1,47 @@
+template:
+  - sensor:
+      - name: "Deye 5kW Smart Discharge Limit"
+        unique_id: deye_5kw_smart_discharge_limit
+        unit_of_measurement: "W"
+        device_class: power
+        state: >
+          {% set soc = states('sensor.deye_5kw_battery') | float(0) %}
+          {% if soc <= 40 %}
+            {{ 300 }}
+          {% else %}
+            {% set target_soc = 40 %}
+            {% set battery_capacity_wh = 30000 %}
+            {% set available_energy_wh = (soc - target_soc) / 100 * battery_capacity_wh %}
+            
+            {% set t_now = now() %}
+            {% set t_start_m = today_at(states('input_datetime.selling_start_time')) %}
+            {% set t_end_m = today_at(states('input_datetime.update_morning_param_time')) %}
+            {% set t_start_e = today_at(states('input_datetime.update_evening_param_time')) %}
+            {% set t_end_e = today_at(states('input_datetime.selling_stop_time')) %}
+            
+            {% if t_now < t_start_m %}
+              {% set rem_h = (t_end_m - t_start_m).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
+            {% elif t_now < t_end_m %}
+              {% set rem_h = (t_end_m - t_now).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
+            {% elif t_now < t_start_e %}
+              {% set rem_h = (t_end_e - t_start_e).total_seconds() / 3600 %}
+            {% elif t_now < t_end_e %}
+              {% set rem_h = (t_end_e - t_now).total_seconds() / 3600 %}
+            {% else %}
+              {# After evening period, prepare for tomorrow #}
+              {% set rem_h = (t_end_m - t_start_m).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
+            {% endif %}
+            
+            {# Avoid division by zero and sanity check #}
+            {% if rem_h < 0.1 %}
+              {% set power = 2600 %}
+            {% else %}
+              {% set power = available_energy_wh / rem_h %}
+            {% endif %}
+            
+            {# Apply bounds #}
+            {% if power > 2600 %} {{ 2600 }}
+            {% elif power < 300 %} {{ 300 }}
+            {% else %} {{ power | round(0) }}
+            {% endif %}
+          {% endif %}

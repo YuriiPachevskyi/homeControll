@@ -141,110 +141,112 @@
         action: number.set_value
   mode: queued
   max: 3
-- id: '1772480869891'
-  alias: Deye Morning Control
-  description: Peak shaving + charge logic + scheduler control
+- id: deye_state_scheduler
+  alias: Deye State Scheduler
+  description: Handles time-based state transitions
   triggers:
   - trigger: time
     at: input_datetime.selling_start_time
-    id: start_sell
+    id: Morning Export
+  - trigger: time
+    at: input_datetime.update_morning_param_time
+    id: Max Solar
+  - trigger: time
+    at: input_datetime.update_evening_param_time
+    id: Evening Export
   - trigger: time
     at: input_datetime.selling_stop_time
-    id: stop_sell
-  - trigger: time
-    at: input_datetime.update_selling_param_time
-    id: update_params_sell
-  - trigger: time_pattern
-    hours: /1
-    id: periodic
+    id: Night Idle
+  actions:
+  - action: input_select.select_option
+    target:
+      entity_id: input_select.deye_system_state
+    data:
+      option: '{{ trigger.id }}'
+- id: deye_state_controller
+  alias: Deye State Controller
+  description: Applies settings based on current Deye System State
+  triggers:
   - trigger: state
-    entity_id: binary_sensor.deye_6kw_grid
-    id: grid_change
+    entity_id: input_select.deye_system_state
+    id: state_changed
+  - trigger: time_pattern
+    minutes: /1
+    id: periodic_update
   - trigger: homeassistant
     event: start
     id: ha_start
-  - trigger: time
-    at: '10:00:00'
-    id: morning_10am
   actions:
-  - action: input_text.set_value
-    target:
-      entity_id: input_text.last_automation_trigger
-    data:
-      value: '{{ trigger.id }}: {{ now().strftime(''%H:%M:%S'') }}'
+  - variables:
+      current_state: '{{ states(''input_select.deye_system_state'') }}'
+      smart_limit: '{{ states(''sensor.deye_5kw_smart_discharge_limit'') | float(300)
+        }}'
   - choose:
     - conditions:
       - condition: template
-        value_template: '{{ not grid_on }}'
+        value_template: '{{ current_state == ''Morning Export'' }}'
       sequence:
-      - choose:
-        - conditions:
-          - condition: numeric_state
-            entity_id: sensor.deye_5kw_grid_l1_voltage
-            above: 255
-          sequence:
-          - action: switch.turn_on
-            target:
-              entity_id:
-              - switch.1560_boiler_ten_0_8_kwh
-              - switch.1561_boiler_ten_1_2_kwh
-          - action: input_number.set_value
-            target:
-              entity_id: input_number.charge_power_deye_6kw
-            data:
-              value: 3
-        - conditions:
-          - condition: numeric_state
-            entity_id: sensor.deye_5kw_grid_l1_voltage
-            below: 255.1
-          sequence:
-          - action: input_number.set_value
-            target:
-              entity_id: input_number.charge_power_deye_6kw
-            data:
-              value: 2
-      - action: switch.turn_on
+      - action: switch.turn_off
         target:
-          entity_id: switch.deye_6kw_grid_peak_shaving
-        data: {}
-      - stop: Grid lost emergency
-  - choose:
+          entity_id:
+          - switch.deye_5kw_grid_peak_shaving
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.1_discharge_level_deye_5kw
+        data:
+          value: 40
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_power_deye_5kw
+        data:
+          value: '{{ smart_limit }}'
+      - action: automation.turn_on
+        target:
+          entity_id: automation.general_automation
+      - action: automation.trigger
+        target:
+          entity_id: automation.general_automation
+        data:
+          skip_condition: true
     - conditions:
-      - condition: trigger
-        id: morning_10am
+      - condition: template
+        value_template: '{{ current_state == ''Max Solar'' }}'
       sequence:
+      - action: switch.turn_off
+        target:
+          entity_id:
+          - switch.deye_5kw_grid_peak_shaving
       - action: input_number.set_value
         target:
           entity_id: input_number.battery_power_deye_5kw
         data:
           value: 300
-      - stop: Morning power set
     - conditions:
-      - condition: trigger
-        id: update_params_sell
+      - condition: template
+        value_template: '{{ current_state == ''Evening Export'' }}'
       sequence:
-      - action: input_number.set_value
+      - action: switch.turn_off
         target:
           entity_id:
-          - input_number.battery_power_deye_5kw
+          - switch.deye_5kw_grid_peak_shaving
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_power_deye_5kw
         data:
-          value: 2600
+          value: '{{ smart_limit }}'
       - action: input_number.set_value
         target:
-          entity_id:
-          - input_number.1_discharge_level_deye_5kw
+          entity_id: input_number.1_discharge_level_deye_5kw
         data:
           value: 45
       - action: input_number.set_value
         target:
-          entity_id:
-          - input_number.1_discharge_level_deye_6kw
+          entity_id: input_number.1_discharge_level_deye_6kw
         data:
           value: 65
       - action: input_number.set_value
         target:
-          entity_id:
-          - input_number.battery_power_deye_6kw
+          entity_id: input_number.battery_power_deye_6kw
         data:
           value: 1100
       - choose:
@@ -266,88 +268,69 @@
               entity_id: switch.deye_6kw_grid_peak_shaving
     - conditions:
       - condition: template
-        value_template: '{{ trigger.id == ''start_sell'' or (trigger.id == ''periodic''
-          and  now().strftime(''%H:%M'') == states(''input_datetime.selling_start_time'',
-          ''00:00'')[0:5]) }}
-
-          '
+        value_template: '{{ current_state == ''Night Idle'' }}'
       sequence:
-      - action: input_number.set_value
-        data:
-          value: 40
-        target:
-          entity_id: input_number.1_discharge_level_deye_5kw
-      - action: automation.turn_on
-        target:
-          entity_id:
-          - automation.general_automation
-        data: {}
-      - action: automation.trigger
-        metadata: {}
-        target:
-          entity_id: automation.general_automation
-        data:
-          skip_condition: true
-    - conditions:
-      - condition: trigger
-        id: stop_sell
-      sequence:
-      - action: automation.turn_on
-        target:
-          entity_id:
-          - automation.disable_conditioner
-        data: {}
-      - action: automation.turn_on
-        target:
-          entity_id:
-          - automation.general_automation
-        data: {}
-      - action: automation.trigger
-        metadata: {}
-        target:
-          entity_id: automation.general_automation
-        data:
-          skip_condition: true
-  - choose:
-    - conditions:
-      - condition: time
-        after: input_datetime.selling_start_time
-        before: input_datetime.selling_stop_time
-      sequence:
-      - action: switch.turn_off
-        target:
-          entity_id: switch.deye_5kw_grid_peak_shaving
-        data: {}
       - action: switch.turn_on
         target:
-          entity_id: switch.input_meater_switch
-        data: {}
+          entity_id:
+          - switch.deye_5kw_grid_peak_shaving
+          - switch.deye_6kw_grid_peak_shaving
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_power_deye_5kw
+        data:
+          value: '{{ smart_limit }}'
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.battery_power_deye_6kw
+        data:
+          value: 1500
+      - action: input_number.set_value
+        target:
+          entity_id:
+          - input_number.1_discharge_level_deye_5kw
+          - input_number.1_discharge_level_deye_6kw
+        data:
+          value: 35
+      - action: automation.turn_on
+        target:
+          entity_id: automation.disable_conditioner
+- id: deye_grid_lost_emergency
+  alias: Deye Grid Lost Emergency
+  description: High priority protection when grid is down
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.deye_6kw_grid
+    to: 'off'
+  - trigger: numeric_state
+    entity_id: sensor.deye_5kw_grid_l1_voltage
+    above: 255
+  actions:
+  - choose:
+    - conditions:
+      - condition: numeric_state
+        entity_id: sensor.deye_5kw_grid_l1_voltage
+        above: 255
+      sequence:
+      - action: switch.turn_on
+        target:
+          entity_id:
+          - switch.1560_boiler_ten_0_8_kwh
+          - switch.1561_boiler_ten_1_2_kwh
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.charge_power_deye_6kw
+        data:
+          value: 3
     default:
-    - action: switch.turn_on
-      target:
-        entity_id:
-        - switch.deye_5kw_grid_peak_shaving
-        - switch.deye_6kw_grid_peak_shaving
-      data: {}
     - action: input_number.set_value
-      data:
-        value: 2600
       target:
-        entity_id:
-        - input_number.battery_power_deye_5kw
-    - action: input_number.set_value
+        entity_id: input_number.charge_power_deye_6kw
       data:
-        value: 1500
-      target:
-        entity_id:
-        - input_number.battery_power_deye_6kw
-    - action: input_number.set_value
-      data:
-        value: 35
-      target:
-        entity_id:
-        - input_number.1_discharge_level_deye_5kw
-        - input_number.1_discharge_level_deye_6kw
+        value: 2
+  - action: switch.turn_on
+    target:
+      entity_id: switch.deye_6kw_grid_peak_shaving
   variables:
     grid_on: '{{ is_state(''binary_sensor.deye_6kw_grid'', ''on'') }}'
   mode: queued
@@ -379,7 +362,7 @@
     data: {}
   mode: single
 - id: '1777532101180'
-  alias: 'Cooling Control: Deye 5kW'
+  alias: 'Fan controller: Deye 5kW'
   description: Turns on Sonoff at 42°C and off at 35°C with state recovery
   triggers:
   - trigger: numeric_state
