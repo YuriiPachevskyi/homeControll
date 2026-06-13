@@ -171,7 +171,7 @@
     entity_id: input_select.deye_system_state
     id: state_changed
   - trigger: time_pattern
-    minutes: /1
+    minutes: /10
     id: periodic_update
   - trigger: homeassistant
     event: start
@@ -216,6 +216,11 @@
         target:
           entity_id:
           - switch.deye_5kw_grid_peak_shaving
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.1_discharge_level_deye_5kw
+        data:
+          value: 55
       - action: input_number.set_value
         target:
           entity_id: input_number.battery_power_deye_5kw
