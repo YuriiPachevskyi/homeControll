@@ -190,7 +190,7 @@
           6kw_soc: 40
           6kw_power: 900
           peak_shaving_5kw: 'off'
-          peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
+          peak_shaving_6kw: 'on'
           general_automation: true
         Max Solar:
           5kw_soc: 60
@@ -250,18 +250,12 @@
     - action: automation.turn_on
       target:
         entity_id: automation.general_automation
+      data: {}
     - action: automation.trigger
       target:
         entity_id: automation.general_automation
       data:
         skip_condition: true
-  - if:
-    - condition: template
-      value_template: '{{ current_state == ''Night Idle'' }}'
-    then:
-    - action: automation.turn_on
-      target:
-        entity_id: automation.disable_conditioner
 - id: deye_grid_lost_emergency
   alias: Deye Grid Lost Emergency
   description: High priority protection when grid is down
@@ -333,12 +327,14 @@
   description: Turns on Sonoff at 42°C and off at 35°C with state recovery
   triggers:
   - trigger: numeric_state
-    entity_id: sensor.deye_5kw_temperature
-    above: 45
+    entity_id:
+    - sensor.deye_5kw_temperature
+    above: 54
     id: turn_on
   - trigger: numeric_state
-    entity_id: sensor.deye_5kw_temperature
-    below: 40
+    entity_id:
+    - sensor.deye_5kw_temperature
+    below: 47
     id: turn_off
   - trigger: homeassistant
     event: start
@@ -353,11 +349,12 @@
           id: turn_on
         - condition: numeric_state
           entity_id: sensor.deye_5kw_temperature
-          above: 45
+          above: 54
       sequence:
       - action: switch.turn_on
         target:
-          entity_id: switch.sonoff_10004b3fe8
+          entity_id: switch.fan1_sonoff_10004d5447
+        data: {}
     - conditions:
       - condition: or
         conditions:
@@ -365,9 +362,10 @@
           id: turn_off
         - condition: numeric_state
           entity_id: sensor.deye_5kw_temperature
-          below: 37
+          below: 47
       sequence:
       - action: switch.turn_off
         target:
-          entity_id: switch.sonoff_10004b3fe8
+          entity_id: switch.fan1_sonoff_10004d5447
+        data: {}
   mode: restart
