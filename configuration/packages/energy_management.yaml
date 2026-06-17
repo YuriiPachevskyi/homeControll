@@ -4,12 +4,13 @@ template:
         unique_id: deye_5kw_smart_discharge_limit
         unit_of_measurement: "W"
         device_class: power
+        state_class: measurement
         state: >
           {% set soc = states('sensor.deye_5kw_battery') | float(0) %}
           {% if soc <= 40 %}
             {{ 300 }}
           {% else %}
-            {% set target_soc = 40 %}
+            {% set target_soc = (states('input_number.1_discharge_level_deye_5kw') | float(0)) %}
             {% set battery_capacity_wh = 30000 %}
             {% set available_energy_wh = (soc - target_soc) / 100 * battery_capacity_wh %}
             
@@ -22,11 +23,11 @@ template:
             {% if t_now < t_start_m %}
               {% set rem_h = (t_end_m - t_start_m).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
             {% elif t_now < t_end_m %}
-              {% set rem_h = (t_end_m - t_now).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
+              {% set rem_h = (t_end_m - now()).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
             {% elif t_now < t_start_e %}
               {% set rem_h = (t_end_e - t_start_e).total_seconds() / 3600 %}
             {% elif t_now < t_end_e %}
-              {% set rem_h = (t_end_e - t_now).total_seconds() / 3600 %}
+              {% set rem_h = (t_end_e - now()).total_seconds() / 3600 %}
             {% else %}
               {# After evening period, prepare for tomorrow #}
               {% set rem_h = (t_end_m - t_start_m).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
@@ -45,3 +46,9 @@ template:
             {% else %} {{ power | round(0) }}
             {% endif %}
           {% endif %}
+        availability: >
+          {{ is_number(states('sensor.deye_5kw_battery')) and 
+             states('input_datetime.selling_start_time') != 'unknown' and
+             states('input_datetime.update_morning_param_time') != 'unknown' and
+             states('input_datetime.update_evening_param_time') != 'unknown' and
+             states('input_datetime.selling_stop_time') != 'unknown' }}

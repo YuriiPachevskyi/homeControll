@@ -171,8 +171,8 @@
     entity_id: input_select.deye_system_state
     id: state_changed
   - trigger: time_pattern
-    hours: /1
     id: periodic_update
+    minutes: /10
   - trigger: homeassistant
     event: start
     id: ha_start
@@ -186,7 +186,7 @@
       config:
         Morning Export:
           5kw_soc: 40
-          5kw_power: '{{ smart_limit }}'
+          5kw_power: '{{ smart_limit * 2 }}'
           6kw_soc: 40
           6kw_power: 900
           peak_shaving_5kw: 'off'
@@ -329,12 +329,12 @@
   - trigger: numeric_state
     entity_id:
     - sensor.deye_5kw_temperature
-    above: 54
+    above: 52
     id: turn_on
   - trigger: numeric_state
     entity_id:
     - sensor.deye_5kw_temperature
-    below: 47
+    below: 46
     id: turn_off
   - trigger: homeassistant
     event: start
@@ -349,7 +349,7 @@
           id: turn_on
         - condition: numeric_state
           entity_id: sensor.deye_5kw_temperature
-          above: 54
+          above: 52
       sequence:
       - action: switch.turn_on
         target:
@@ -362,7 +362,7 @@
           id: turn_off
         - condition: numeric_state
           entity_id: sensor.deye_5kw_temperature
-          below: 47
+          below: 46
       sequence:
       - action: switch.turn_off
         target:
