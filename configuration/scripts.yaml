@@ -88,7 +88,7 @@ power_load_disable_device_duplicate:
               state: 'off'
           - condition: numeric_state
             entity_id: sensor.deye_6kw_battery
-            below: 71
+            below: 91
           sequence:
           - action: input_text.set_value
             target:

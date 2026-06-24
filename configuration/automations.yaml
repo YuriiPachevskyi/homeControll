@@ -143,7 +143,7 @@
   max: 3
 - id: deye_state_scheduler
   alias: Deye State Scheduler
-  description: Handles time-based state transitions
+  description: Handles time-based state transitions and force mode
   triggers:
   - trigger: time
     at: input_datetime.selling_start_time
@@ -157,12 +157,24 @@
   - trigger: time
     at: input_datetime.selling_stop_time
     id: Night Idle
+  - trigger: state
+    entity_id: input_boolean.force_high_power_on_low_charge
+    id: force_toggle
   actions:
   - action: input_select.select_option
     target:
       entity_id: input_select.deye_system_state
     data:
-      option: '{{ trigger.id }}'
+      option: "{% if is_state('input_boolean.force_high_power_on_low_charge', 'on')
+        %}\n  Max Solar Forced\n{% else %}\n  {% set now_time = now().strftime('%H:%M:%S')
+        %}\n  {% set morning_export = states('input_datetime.selling_start_time')
+        %}\n  {% set max_solar = states('input_datetime.update_morning_param_time')
+        %}\n  {% set evening_export = states('input_datetime.update_evening_param_time')
+        %}\n  {% set night_idle = states('input_datetime.selling_stop_time') %}\n
+        \ \n  {% if morning_export <= now_time < max_solar %}\n    Morning Export\n
+        \ {% elif max_solar <= now_time < evening_export %}\n    Max Solar\n  {% elif
+        evening_export <= now_time < night_idle %}\n    Evening Export\n  {% else
+        %}\n    Night Idle\n  {% endif %}\n{% endif %}"
 - id: deye_state_controller
   alias: Deye State Controller
   description: Applies settings based on current Deye System State
@@ -172,7 +184,7 @@
     id: state_changed
   - trigger: time_pattern
     id: periodic_update
-    minutes: /10
+    minutes: /20
   - trigger: homeassistant
     event: start
     id: ha_start
@@ -185,8 +197,8 @@
         }}'
       config:
         Morning Export:
-          5kw_soc: 40
-          5kw_power: '{{ smart_limit * 2 }}'
+          5kw_soc: 50
+          5kw_power: 2500
           6kw_soc: 40
           6kw_power: 900
           peak_shaving_5kw: 'off'
@@ -200,11 +212,19 @@
           peak_shaving_5kw: 'off'
           peak_shaving_6kw: 'on'
           general_automation: false
+        Max Solar Forced:
+          5kw_soc: 40
+          5kw_power: 2600
+          6kw_soc: 40
+          6kw_power: 1000
+          peak_shaving_5kw: 'off'
+          peak_shaving_6kw: 'on'
+          general_automation: false
         Evening Export:
-          5kw_soc: 45
+          5kw_soc: 50
           5kw_power: '{{ smart_limit }}'
-          6kw_soc: 65
-          6kw_power: 1100
+          6kw_soc: 50
+          6kw_power: 1000
           peak_shaving_5kw: 'off'
           peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
           general_automation: true

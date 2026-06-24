@@ -479,9 +479,6 @@
       "child_lock_open_door_sound_alarm": {
         "name": "Child lock open door sound alarm"
       },
-      "child_lock_status_status": {
-        "name": "Child lock"
-      },
       "child_lock_switch_exist": {
         "name": "Child lock switch exist"
       },
@@ -854,8 +851,14 @@
       "f_e_arkgrille": {
         "name": "Cabinet grille protection alarm"
       },
+      "f_e_drive": {
+        "name": "Drive"
+      },
       "f_e_dwmachine": {
         "name": "Lower machine failure"
+      },
+      "f_e_eeprom": {
+        "name": "EEPROM"
       },
       "f_e_filterclean": {
         "name": "Filter clean"
@@ -1808,6 +1811,9 @@
       "t_beep": {
         "name": "Beep"
       },
+      "t_pump": {
+        "name": "Pump"
+      },
       "test_mode": {
         "name": "Test mode"
       },
@@ -1867,6 +1873,26 @@
       },
       "wine_sensor_failure_flag": {
         "name": "Wine sensor failure"
+      }
+    },
+    "button": {
+      "cancel": {
+        "name": "Cancel"
+      },
+      "pause": {
+        "name": "Pause"
+      },
+      "resume": {
+        "name": "Resume"
+      },
+      "start": {
+        "name": "Start"
+      },
+      "stop": {
+        "name": "Stop"
+      },
+      "stop_add_go": {
+        "name": "StopAddGo"
       }
     },
     "climate": {
@@ -6850,14 +6876,16 @@
       "status": {
         "name": "Device status",
         "state": {
+          "add_clothes": "Add clothes",
           "delay_time_waiting": "Delay time waiting",
           "error": "Error",
           "idle": "Idle",
           "not_avaliable": "Not avaliable",
-          "off": "Off",
           "pause": "Pause",
           "production": "Production",
+          "program_select": "Program select",
           "running": "Running",
+          "service": "Service",
           "standby": "Standby"
         }
       },
@@ -8499,6 +8527,9 @@
       "child_lock_status": {
         "name": "Child lock"
       },
+      "child_lock_status_status": {
+        "name": "Child lock status"
+      },
       "childlockenabled": {
         "name": "Child lock"
       },
@@ -8696,6 +8727,9 @@
       },
       "t_air": {
         "name": "Air"
+      },
+      "t_anion": {
+        "name": "Ioniser"
       },
       "t_dal": {
         "name": "DAL"
