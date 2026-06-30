@@ -18,8 +18,11 @@ will just be ignored for feature variants that don't expose that property.
 ### Property inheritance in feature overrides
 
 Any field in a property can be overridden in a feature file; unspecified fields are inherited from the
-base type file. If the override changes the platform type (e.g., from `sensor:` to `select:`), the
-override's platform block replaces the base's.
+base type file. Platforms are inherited in two independent groups: the **device-level** platform
+(`climate` / `humidifier` / `water_heater`) and the **per-property** platform (`binary_sensor` /
+`number` / `select` / `sensor` / `switch`). Changing the platform *within a group* (e.g. `sensor:` to
+`select:`) replaces the base's block for that group; an override that touches only one group leaves
+the other intact. A property may therefore hold one of each — see [Target fallback](#target-fallback).
 
 The following top-level fields always inherit, even across platform changes:
 
@@ -28,6 +31,7 @@ The following top-level fields always inherit, even across platform changes:
 - `disable`
 - `optional`
 - `entity_category`
+- `translation_key`
 - `unavailable`
 - `combine` — if you change the platform and want to drop the base's combine sources, clear it with
   `combine: null`.
@@ -96,8 +100,9 @@ The file contains these top level items:
 To make a property visible by default, just add the property to the list. Note that properties you do not map are still
 mapped to [sensor](#type-sensor) entities, but registered as disabled by default.
 
-Each property is mapped to _one_ entity or _one_ target property. In addition, each `climate` preset is mapped to a
-set of properties and values.
+Each property is mapped to _one_ entity or _one_ target property (with one exception: a property may
+declare a climate `target` candidacy alongside a per-property platform as a [fallback](#target-fallback)).
+In addition, each `climate` preset is mapped to a set of properties and values.
 
 If you disable or change the type of mapping, old entities will be automatically removed from Home Assistant, while
 state attributes will change to unavailable.
@@ -122,6 +127,15 @@ ConnectLife properties can be mapped to any of these entity types:
 
 ### Mapping tips and tricks
 
+- Property keys follow a prefix convention that's a useful starting point when deciding how to map a property:
+  - **`t_*`** — writable *target*/control values (e.g. `t_power`, `t_temp`, `t_work_mode`). Usually map to
+    `switch`/`select`/`number`, or to a writable `climate`/`humidifier`/`water_heater` target.
+  - **`f_*`** — read-only *feedback*/state (e.g. `f_temp_in`, `f_electricity`, the `f_e_*` fault flags). Usually
+    map to a `sensor` (with `read_only: true`), a `binary_sensor`, or a `current_*` climate target.
+
+  This is a convention, not a guarantee: a `t_*` control is occasionally better surfaced read-only (e.g. `t_beep`
+  as a status `binary_sensor`), and a device may advertise `t_*` controls it doesn't physically have — `disable`
+  those in the feature override (see [Property inheritance in feature overrides](#property-inheritance-in-feature-overrides)).
 - Generate a skeleton file using the [connectlife](https://pypi.org/project/connectlife/) package:
 
   ```bash
@@ -158,6 +172,7 @@ Note that translation keys must be lowercase!
 | `icon`             | `mdi:eye`, etc.                    | Icon to use for the entity.                                                                                                                                                                                                                                                                         |
 | `unavailable`      | integer                            | If the property has this value on the device, no entity is created for it. Use for properties that the device reports as "not available" with a sentinel value.                                                                                                                                     |
 | `entity_category`  | `config`, `diagnostic`             | Whether the entity should be considered a diagnostics or config entity. Defaults to `None`. [More info in HA docs](https://developers.home-assistant.io/docs/core/entity/#registry-properties:~:text=automatic%20device%20registration.-,entity_category,-EntityCategory%20%7C%20None)              |
+| `translation_key`  | string                             | Custom translation key for the entity, used instead of the one derived from the property name. Lets a device-specific mapping name an entity (in `strings.json`/translations). Must be lowercase. Only applies to per-property platforms.                    |
 | `binary_sensor`    | [BinarySensor](#type-binarysensor) | Create a binary sensor of the property.                                                                                                                                                                                                                                                             |
 | `climate`          | [Climate](#type-climate)           | Map the property to a climate entity for the device.                                                                                                                                                                                                                                                |
 | `humidifier`       | [Humidifier](#type-humidifier)     | Map the property to a humidifier entity for the device.                                                                                                                                                                                                                                             |
@@ -267,6 +282,7 @@ type `climate`, a climate entity is created for the appliance.
 | Item            | Type                                               | Description                                                                                                                                                                                                                                                                                                                                |
 |-----------------|----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `target`        | string                                             | Any  of these [climate entity](https://developers.home-assistant.io/docs/core/entity/climate#properties) attributes: `current_humidity`, `fan_mode`, `hvac_action`, `hvac_mode`, `swing_horizontal_mode`, `swing_mode`, `current_temperature`, `target_humidity`, `target_temperature`, `temperature_unit`, or the special target `is_on`. |
+| `priority`      | integer                                            | Tie-break when several properties map to the same `target`. Lower = preferred. Defaults to 100. See [Target fallback](#target-fallback).                                                                                                                                                                                                   |
 | `options`       | dictionary of integer to string                    | Required for `fan_mode`, `hvac_action`, `hvac_mode`, `swing_horizontal_mode`, `swing_mode`, and `temperature_unit`.                                                                                                                                                                                                                        |
 | `unknown_value` | integer                                            | The value used by the API to signal unknown value.                                                                                                                                                                                                                                                                                         |
 | `min_value`     | [IntegerOrTemperature](#type-integerortemperature) | Minimum allowed value. Supported for `target_humidity` (integer) and `target_temperature` (temperature).                                                                                                                                                                                                                                   |
@@ -294,6 +310,42 @@ If a value does not have a sensible mapping, leave it out to set `hvac_action` t
 mapping to a sensor `enum` instead.
 
 For `fan_mode`, `swing_horizontal_mode`, and `swing_mode`, remember to add [translation strings](#translation-strings) for the options.
+
+#### Target fallback
+
+Two appliances that share the same `deviceTypeCode`/`deviceFeatureCode` — and therefore the same
+data dictionary — can still expose different property sets. To handle this, **several properties may
+map to the same climate `target`**. For each target, the integration binds the candidate with the
+lowest `priority` *that the device actually exposes*; the others fall back to their own
+per-property platform (if they declare one).
+
+A property may carry both a `climate` candidacy **and** a per-property platform (`switch`,
+`select`, …). When it wins the target it is exposed through the climate entity; when it loses, it is
+exposed through its per-property platform instead. This lets the default mapping describe the full
+superset once, with each device resolving to the right control automatically.
+
+For example, vertical swing in `009.yaml`: `t_swing_angle` (multi-position) is the preferred
+`swing_mode` control, and `t_up_down` (on/off) is both a `switch` and a lower-priority fallback:
+
+```yaml
+- property: t_swing_angle
+  climate:
+    target: swing_mode
+    priority: 1            # preferred
+    options: { ... }
+- property: t_up_down
+  switch:                  # used when t_swing_angle is also present
+    device_class: switch
+  climate:
+    target: swing_mode
+    priority: 2            # fallback when t_swing_angle is absent
+    options:
+      0: "off"
+      1: "on"
+```
+
+A device exposing both gets `t_swing_angle` as `swing_mode` and `t_up_down` as a switch; a device
+exposing only `t_up_down` gets it as `swing_mode`.
 
 Not yet supported target properties:
 

@@ -145,6 +145,12 @@
             "config",
             "diagnostic"
           ]
+        },
+        "translation_key": {
+          "type": ["string", "null"],
+          "title": "Translation key",
+          "description": "Custom translation key for the entity, overriding the default derived from the property name. Use to give an entity a device-specific name without renaming the API property. Must be lowercase.",
+          "pattern": "^[a-z0-9_]+$"
         }
       },
       "required": [
@@ -229,6 +235,11 @@
       "properties": {
         "target": {
           "$ref": "#/$defs/ClimateTarget"
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Tie-break when several properties map to the same climate target. The lowest-priority candidate the device actually exposes wins the target; the rest fall back to their per-property platform. Lower = preferred. Defaults to 100.",
+          "default": 100
         },
         "unknown_value": {
           "$ref": "#/$defs/UnknownValue"

@@ -568,8 +568,14 @@
       "existing_sr_mode": {
         "name": "Aktueller SR-Modus"
       },
+      "f-filter": {
+        "name": "Filter"
+      },
       "f_e_arkgrille": {
         "name": "Schutzalarm f\u00fcr Kabinengrill"
+      },
+      "f_e_dwmachine": {
+        "name": "Fehler untere Einheit"
       },
       "f_e_filterclean": {
         "name": "Filter reinigen"
@@ -619,6 +625,12 @@
       "f_e_outtemp": {
         "name": "Fehler des Au\u00dfentemperatursensors"
       },
+      "f_e_over_cold": {
+        "name": "Unterk\u00fchlungsschutz"
+      },
+      "f_e_over_hot": {
+        "name": "\u00dcberhitzungsschutz"
+      },
       "f_e_pump": {
         "name": "Pumpe"
       },
@@ -628,6 +640,9 @@
       "f_e_tubetemp": {
         "name": "Temperatur der R\u00f6hre"
       },
+      "f_e_upmachine": {
+        "name": "Fehler obere Einheit"
+      },
       "f_e_waterfull": {
         "name": "Wasser voll"
       },
@@ -636,6 +651,9 @@
       },
       "fill_salt": {
         "name": "Salz nachf\u00fcllen"
+      },
+      "filter_state": {
+        "name": "Filterstatus"
       },
       "float_switch": {
         "name": "Schwimmerschalter"
@@ -1146,6 +1164,12 @@
       "cancel": {
         "name": "Abbrechen"
       },
+      "light_off": {
+        "name": "Licht aus"
+      },
+      "light_on": {
+        "name": "Licht an"
+      },
       "pause": {
         "name": "Pause"
       },
@@ -1234,6 +1258,9 @@
       "brightness_setting": {
         "name": "Helligkeit"
       },
+      "charcoal_filter_surplus_time": {
+        "name": "Kohlefilter-Zeit"
+      },
       "freeze_max_temperature": {
         "name": "Maximale Gefriertemperatur"
       },
@@ -1248,6 +1275,9 @@
       },
       "gratin_function_set_time_in_seconds": {
         "name": "Gratin Zeiteinstellung"
+      },
+      "lumin_value_of_interior_light": {
+        "name": "Helligkeit Innenbeleuchtung"
       },
       "refrigerator_max_temperature": {
         "name": "Maximale K\u00fchlschranktemperatur"
@@ -1272,6 +1302,12 @@
       },
       "volume_setting": {
         "name": "Lautst\u00e4rke"
+      },
+      "wine_zone_lower_temperature": {
+        "name": "Untere Zone"
+      },
+      "wine_zone_upper_temperature": {
+        "name": "Obere Zone"
       }
     },
     "select": {
@@ -2424,6 +2460,9 @@
       },
       "running_status": {
         "name": "Laufstatus"
+      },
+      "sabbath_mode_status": {
+        "name": "Sabbatmodus-Status"
       },
       "sand_timer1_duration_in_seconds": {
         "name": "Sanduhr 1 Dauer in Sekunden"
@@ -3666,6 +3705,12 @@
           "present": "Vorhanden"
         }
       },
+      "wine_zone_lower_real_temperature": {
+        "name": "Temperatur untere Zone"
+      },
+      "wine_zone_upper_real_temperature": {
+        "name": "Temperatur obere Zone"
+      },
       "zone_number": {
         "name": "Anzahl der Zonen"
       }
@@ -3703,6 +3748,9 @@
       },
       "child_lock_status_status": {
         "name": "Kindersicherungsstatus"
+      },
+      "child_lock_switch_status": {
+        "name": "Kindersicherung"
       },
       "cleaning_reminder_setting": {
         "name": "Reinigungserinnerung"
@@ -3776,6 +3824,9 @@
       "prewash": {
         "name": "Vorw\u00e4sche"
       },
+      "sabbath_mode_switch_status": {
+        "name": "Sabbatmodus"
+      },
       "save_mode": {
         "name": "Sparmodus"
       },
@@ -3802,6 +3853,9 @@
       },
       "sr_mode": {
         "name": "SR-Modus"
+      },
+      "standby_mode_status": {
+        "name": "Standby-Modus"
       },
       "steam": {
         "name": "Dampf"
@@ -3856,6 +3910,9 @@
       },
       "welcome": {
         "name": "Willkommen"
+      },
+      "wine_light": {
+        "name": "Weinlicht"
       }
     },
     "water_heater": {

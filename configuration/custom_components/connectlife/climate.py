@@ -31,7 +31,7 @@ from .const import (
 from .coordinator import ConnectLifeCoordinator
 from .dictionaries import Dictionaries, Dictionary
 from .entity import ConnectLifeEntity
-from .utils import to_temperature_map, normalize_temperature_unit
+from .utils import climate_target_bindings, has_platform, to_temperature_map, normalize_temperature_unit
 from connectlife.appliance import ConnectLifeAppliance
 
 _LOGGER = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ async def async_setup_entry(
 
 def is_climate(dictionary: Dictionary):
     for prop in dictionary.properties.values():
-        if hasattr(prop, Platform.CLIMATE):
+        if has_platform(Platform.CLIMATE, prop):
             return True
     return False
 
@@ -130,7 +130,6 @@ class ConnectLifeClimate(ConnectLifeEntity, ClimateEntity):
             translation_key=DOMAIN
         )
 
-        self.target_map = {}
         self.fan_mode_map = {}
         self.fan_mode_reverse_map = {}
         self.hvac_action_map = {}
@@ -146,16 +145,9 @@ class ConnectLifeClimate(ConnectLifeEntity, ClimateEntity):
         self.max_temperature_map = {}
         self.unknown_values = {}
 
-        for dd_entry in data_dictionary.properties.values():
-            if hasattr(dd_entry, Platform.CLIMATE) and dd_entry.name in appliance.status_list and dd_entry.climate.target is not None:
-                target = dd_entry.climate.target
-                if target in self.target_map:
-                    _LOGGER.warning(
-                        "%s and %s both map to climate %s for %s; using %s. "
-                        "The device exposes more properties than its mapping expects — please report it.",
-                        self.target_map[target], dd_entry.name, target, self.nickname, dd_entry.name,
-                    )
-                self.target_map[target] = dd_entry.name
+        # When several properties claim the same climate target, the lowest-
+        # priority candidate the device exposes wins (see climate_target_bindings).
+        self.target_map = climate_target_bindings(appliance, data_dictionary)
 
         hvac_modes: list[HVACMode] = []
         for target, status in self.target_map.items():

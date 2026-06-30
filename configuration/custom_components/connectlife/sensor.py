@@ -26,7 +26,7 @@ from .dictionaries import Dictionaries, Dictionary, Property
 from .entity import ConnectLifeEntity
 from .statistics_sources import StatisticsSensorDef, enabled_sensors
 from connectlife.appliance import ConnectLifeAppliance, MAX_DATETIME
-from .utils import has_platform, to_unit
+from .utils import climate_bound_properties, has_platform, to_unit
 
 SERVICE_SET_VALUE = "set_value"
 
@@ -43,6 +43,7 @@ async def async_setup_entry(
     statistics_coordinator = hass.data[DOMAIN].get(f"{config_entry.entry_id}_statistics")
     for appliance in coordinator.data.values():
         dictionary = Dictionaries.get_dictionary(appliance)
+        climate_bound = climate_bound_properties(appliance, dictionary)
         async_add_entities(
             ConnectLifeStatusSensor(
                 coordinator, appliance, s, dictionary.properties[s], dictionary
@@ -50,6 +51,7 @@ async def async_setup_entry(
             for s in appliance.status_list
             if s != SW_VERSION_PROPERTY
             and has_platform(Platform.SENSOR, dictionary.properties[s])
+            and s not in climate_bound
         )
         async_add_entities(
             ConnectLifeStatusSensor(
@@ -58,7 +60,7 @@ async def async_setup_entry(
             for name, prop in dictionary.properties.items()
             if prop.combine
             and name not in appliance.status_list
-            and hasattr(prop, Platform.SENSOR)
+            and has_platform(Platform.SENSOR, prop)
             and any(
                 src["property"] in appliance.status_list
                 for src in prop.combine
@@ -126,7 +128,7 @@ class ConnectLifeStatusSensor(ConnectLifeEntity, SensorEntity):
                 dd_entry.sensor.unit, appliance=appliance, dictionary=dictionary
             ),
             state_class=state_class,
-            translation_key=self.to_translation_key(status),
+            translation_key=self.to_translation_key(dd_entry.translation_key or status),
             entity_category=dd_entry.entity_category,
         )
         self._refresh_state()
