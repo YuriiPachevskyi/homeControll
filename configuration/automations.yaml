@@ -184,7 +184,7 @@
     id: state_changed
   - trigger: time_pattern
     id: periodic_update
-    minutes: /20
+    minutes: /30
   - trigger: homeassistant
     event: start
     id: ha_start
@@ -211,7 +211,7 @@
           6kw_power: 1000
           peak_shaving_5kw: 'off'
           peak_shaving_6kw: 'on'
-          general_automation: false
+          general_automation: true
         Max Solar Forced:
           5kw_soc: 40
           5kw_power: 2600
@@ -219,7 +219,7 @@
           6kw_power: 1000
           peak_shaving_5kw: 'off'
           peak_shaving_6kw: 'on'
-          general_automation: false
+          general_automation: true
         Evening Export:
           5kw_soc: 50
           5kw_power: '{{ smart_limit }}'
@@ -235,7 +235,7 @@
           6kw_power: 1300
           peak_shaving_5kw: 'on'
           peak_shaving_6kw: 'on'
-          general_automation: false
+          general_automation: true
       s: '{{ config.get(current_state, config[''Night Idle'']) }}'
   - action: switch.turn_{{ s.peak_shaving_5kw }}
     target:
@@ -343,49 +343,99 @@
     data: {}
   mode: single
 - id: '1777532101180'
-  alias: 'Fan controller: Deye 5kW'
-  description: Turns on Sonoff at 42°C and off at 35°C with state recovery
+  alias: 'Fan controllers: Deye 5kW & 6kW'
   triggers:
   - trigger: numeric_state
-    entity_id:
-    - sensor.deye_5kw_temperature
-    above: 52
-    id: turn_on
+    entity_id: sensor.deye_5kw_temperature
+    above: 55
+    id: deye5_on
   - trigger: numeric_state
-    entity_id:
-    - sensor.deye_5kw_temperature
-    below: 46
-    id: turn_off
+    entity_id: sensor.deye_5kw_temperature
+    below: 45
+    id: deye5_off
+  - trigger: numeric_state
+    entity_id: sensor.deye_6kw_temperature
+    above: 55
+    id: deye6_on
+  - trigger: numeric_state
+    entity_id: sensor.deye_6kw_temperature
+    below: 45
+    id: deye6_off
   - trigger: homeassistant
     event: start
+    id: recovery
   - trigger: event
     event_type: automation_reloaded
+    id: recovery
+  - trigger: time_pattern
+    minutes: /15
+    id: recovery
   actions:
   - choose:
     - conditions:
       - condition: or
         conditions:
         - condition: trigger
-          id: turn_on
-        - condition: numeric_state
-          entity_id: sensor.deye_5kw_temperature
-          above: 52
+          id: deye5_on
+        - condition: and
+          conditions:
+          - condition: trigger
+            id: recovery
+          - condition: numeric_state
+            entity_id: sensor.deye_5kw_temperature
+            above: 55
       sequence:
       - action: switch.turn_on
         target:
           entity_id: switch.fan1_sonoff_10004d5447
-        data: {}
     - conditions:
       - condition: or
         conditions:
         - condition: trigger
-          id: turn_off
-        - condition: numeric_state
-          entity_id: sensor.deye_5kw_temperature
-          below: 46
+          id: deye5_off
+        - condition: and
+          conditions:
+          - condition: trigger
+            id: recovery
+          - condition: numeric_state
+            entity_id: sensor.deye_5kw_temperature
+            below: 45
       sequence:
       - action: switch.turn_off
         target:
           entity_id: switch.fan1_sonoff_10004d5447
-        data: {}
-  mode: restart
+  - choose:
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: deye6_on
+        - condition: and
+          conditions:
+          - condition: trigger
+            id: recovery
+          - condition: numeric_state
+            entity_id: sensor.deye_6kw_temperature
+            above: 55
+      sequence:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.fan2_sonoff_1002672f1f_1
+    - conditions:
+      - condition: or
+        conditions:
+        - condition: trigger
+          id: deye6_off
+        - condition: and
+          conditions:
+          - condition: trigger
+            id: recovery
+          - condition: numeric_state
+            entity_id: sensor.deye_6kw_temperature
+            below: 45
+      sequence:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.fan2_sonoff_1002672f1f_1
+  mode: parallel
+  max: 10
