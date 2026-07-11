@@ -5,6 +5,7 @@ import aiohttp
 import base64
 import hashlib
 import json
+import ssl
 from typing import Callable, Awaitable, Set, Tuple, Optional
 from Crypto.Cipher import AES
 
@@ -27,7 +28,8 @@ class TuyaOpenPulsar:
         access_id: str, 
         access_secret: str, 
         topic: str,
-        session: Optional[aiohttp.ClientSession] = None
+        session: Optional[aiohttp.ClientSession] = None,
+        ssl_context: Optional[ssl.SSLContext] = None
     ):
         """Initialize the Async Pulsar Client."""
         self._ws_endpoint = ws_endpoint
@@ -41,9 +43,13 @@ class TuyaOpenPulsar:
 
         # Track the live connection state of the WebSocket
         self._is_connected = False
+
+        # SSL context passed from HA, or synchronous fallback (safe outside the event loop)
+        self._ssl_context = ssl_context or ssl.create_default_context()
         
         self._stop_event = asyncio.Event()
         self._listeners: Set[Callable[[str], Awaitable[None]]] = set()
+        self._task: Optional[asyncio.Task] = None
         
         # Pre-calculate cryptographic assets
         self._access_secret_bytes = access_secret.encode('utf-8')
@@ -83,11 +89,14 @@ class TuyaOpenPulsar:
     async def start(self):
         """Start the asynchronous connection loop."""
         self._stop_event.clear()
-        asyncio.create_task(self._connect_loop())
+        self._task = asyncio.create_task(self._connect_loop())
 
     async def stop(self):
         """Stop the client and close session only if owned."""
         self._stop_event.set()
+        if self._task is not None and not self._task.done():
+            self._task.cancel()
+            self._task = None
         self._listeners.clear()
         if self._owns_session and self._session and not self._session.closed:
             await self._session.close()
@@ -112,7 +121,7 @@ class TuyaOpenPulsar:
                     self._topic_url, 
                     headers=headers,
                     heartbeat=PING_INTERVAL_SECONDS,
-                    ssl=False
+                    ssl=self._ssl_context
                 ) as ws:
                     logger.info("Successfully connected to Tuya WebSocket.")
                     reconnect_delay = 1
@@ -163,7 +172,7 @@ class TuyaOpenPulsar:
             pv = data_map.get("pv")
             raw_data_str = data_map.get("data", "")
             raw_encrypted_bytes = base64.b64decode(raw_data_str)
-            
+
             # Deterministic routing based on protocol metadata
             if encrypt_version == "v2" and pv == "2.0":
                 #logger.debug("Processing message format: AES-GCM (encryptVersion: v2, pv: 2.0)")
@@ -181,12 +190,6 @@ class TuyaOpenPulsar:
             
         except Exception as e:
             logger.error("Error processing incoming message payload: %s", e)
-
-    def _verify_v2_sign(self, data: str, t: int, received_sign: str) -> bool:
-        """Verify the integrity of a v2 message envelope using official Tuya formula."""
-        target = f"{data}{self._access_secret}{t}".encode('utf-8')
-        calculated_sign = hashlib.md5(target).hexdigest()
-        return calculated_sign == received_sign
 
     def _decrypt_gcm(self, raw_data: bytes) -> str:
         """Decrypt payload using AES-GCM mode (pv 2.0)."""
