@@ -11,11 +11,12 @@ homeassistant:
 http:
   use_x_forwarded_for: true
   trusted_proxies:
-    - 172.26.0.0/16
     - 127.0.0.1
+    - ::1
+    - 172.16.0.0/12
     - 192.168.1.0/24
-    - 2000::/3
-    - 2a00:f41:583f:54b3:7492:5a16:7e68:8a3e  # Твій поточний IP
+    - 192.168.1.1       # Внутрішня IP-адреса вашого роутера OpenWrt
+    - fe80::/10
 
 template:
   - sensor:

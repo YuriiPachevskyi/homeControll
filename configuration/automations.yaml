@@ -184,7 +184,7 @@
     id: state_changed
   - trigger: time_pattern
     id: periodic_update
-    minutes: /30
+    hours: /1
   - trigger: homeassistant
     event: start
     id: ha_start
@@ -205,7 +205,7 @@
           peak_shaving_6kw: 'on'
           general_automation: true
         Max Solar:
-          5kw_soc: 60
+          5kw_soc: 50
           5kw_power: 300
           6kw_soc: 40
           6kw_power: 1000
@@ -215,7 +215,7 @@
         Max Solar Forced:
           5kw_soc: 40
           5kw_power: 2600
-          6kw_soc: 40
+          6kw_soc: 50
           6kw_power: 1000
           peak_shaving_5kw: 'off'
           peak_shaving_6kw: 'on'
@@ -224,7 +224,7 @@
           5kw_soc: 50
           5kw_power: '{{ smart_limit }}'
           6kw_soc: 50
-          6kw_power: 1000
+          6kw_power: 1100
           peak_shaving_5kw: 'off'
           peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
           general_automation: true
