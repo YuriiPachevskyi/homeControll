@@ -18,10 +18,14 @@
       - switch.1560_boiler_ten_0_8_kwh
   mode: single
 - id: '1772123844222'
-  alias: Deye Power Sync
-  description: ''
+  alias: Deye Param Sync
   triggers:
   - entity_id:
+    - input_number.1_discharge_level_deye_5kw
+    - input_number.1_discharge_level_deye_6kw
+    - input_number.export_deye_5kw_power
+    - input_datetime.selling_start_time
+    - input_datetime.selling_stop_time
     - input_number.battery_power_deye_5kw
     - input_number.battery_power_deye_6kw
     - input_number.charge_power_deye_5kw
@@ -30,6 +34,69 @@
     trigger: state
   actions:
   - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_5kw''
+          }}'
+      sequence:
+      - action: number.set_value
+        target:
+          entity_id:
+          - number.deye_5kw_program_1_soc
+          - number.deye_5kw_program_2_soc
+          - number.deye_5kw_program_3_soc
+          - number.deye_5kw_program_4_soc
+          - number.deye_5kw_program_5_soc
+          - number.deye_5kw_program_6_soc
+        data:
+          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_6kw''
+          }}'
+      sequence:
+      - action: number.set_value
+        target:
+          entity_id:
+          - number.deye_6kw_program_1_soc
+          - number.deye_6kw_program_2_soc
+          - number.deye_6kw_program_3_soc
+          - number.deye_6kw_program_4_soc
+          - number.deye_6kw_program_5_soc
+          - number.deye_6kw_program_6_soc
+        data:
+          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_number.export_deye_5kw_power''
+          }}'
+      sequence:
+      - action: number.set_value
+        target:
+          entity_id:
+          - number.deye_5kw_export_surplus_power
+        data:
+          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_datetime.selling_start_time''
+          }}'
+      sequence:
+      - action: time.set_value
+        target:
+          entity_id: time.deye_5kw_program_2_time
+        data:
+          time: '{{ trigger.to_state.state }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_datetime.selling_stop_time''
+          }}'
+      sequence:
+      - action: time.set_value
+        target:
+          entity_id: time.deye_5kw_program_4_time
+        data:
+          time: '{{ trigger.to_state.state }}'
     - conditions:
       - condition: template
         value_template: '{{ trigger.entity_id == ''input_number.battery_power_deye_5kw''
@@ -69,15 +136,14 @@
       sequence:
       - variables:
           voltage: 54.4
-          power_kw: '{{ states(''input_number.charge_power_deye_5kw'') | float(0)
-            }}'
+          power_kw: '{{ trigger.to_state.state | float(0) }}'
           current: '{{ (power_kw * 1000 / voltage) | round(0) }}'
-      - target:
+      - action: number.set_value
+        target:
           entity_id:
           - number.deye_5kw_battery_max_charging_current
         data:
           value: '{{ current }}'
-        action: number.set_value
     - conditions:
       - condition: template
         value_template: '{{ trigger.entity_id == ''input_number.charge_power_deye_6kw''
@@ -85,62 +151,16 @@
       sequence:
       - variables:
           voltage: 51
-          power_kw: '{{ states(''input_number.charge_power_deye_6kw'') | float(0)
-            }}'
+          power_kw: '{{ trigger.to_state.state | float(0) }}'
           current: '{{ (power_kw * 1000 / voltage) | round(0) }}'
-      - target:
+      - action: number.set_value
+        target:
           entity_id:
           - number.deye_6kw_battery_max_charging_current
         data:
           value: '{{ current }}'
-        action: number.set_value
   mode: queued
-  max: 3
-- id: '1772141612089'
-  alias: Deye SOC Sync
-  description: ''
-  triggers:
-  - entity_id:
-    - input_number.1_discharge_level_deye_5kw
-    - input_number.1_discharge_level_deye_6kw
-    for: 00:00:01
-    trigger: state
-  actions:
-  - choose:
-    - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_5kw''
-          }}'
-      sequence:
-      - action: number.set_value
-        target:
-          entity_id:
-          - number.deye_5kw_program_1_soc
-          - number.deye_5kw_program_2_soc
-          - number.deye_5kw_program_3_soc
-          - number.deye_5kw_program_4_soc
-          - number.deye_5kw_program_5_soc
-          - number.deye_5kw_program_6_soc
-        data:
-          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
-    - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_6kw''
-          }}'
-      sequence:
-      - target:
-          entity_id:
-          - number.deye_6kw_program_1_soc
-          - number.deye_6kw_program_2_soc
-          - number.deye_6kw_program_3_soc
-          - number.deye_6kw_program_4_soc
-          - number.deye_6kw_program_5_soc
-          - number.deye_6kw_program_6_soc
-        data:
-          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
-        action: number.set_value
-  mode: queued
-  max: 3
+  max: 9
 - id: deye_state_scheduler
   alias: Deye State Scheduler
   description: Handles time-based state transitions and force mode
@@ -199,47 +219,44 @@
         Morning Export:
           5kw_soc: 50
           5kw_power: 2500
+          export_power: 5050
           6kw_soc: 40
           6kw_power: 900
-          peak_shaving_5kw: 'off'
           peak_shaving_6kw: 'on'
           general_automation: true
         Max Solar:
           5kw_soc: 50
           5kw_power: 300
+          export_power: 5080
           6kw_soc: 40
           6kw_power: 1000
-          peak_shaving_5kw: 'off'
           peak_shaving_6kw: 'on'
           general_automation: true
         Max Solar Forced:
           5kw_soc: 40
           5kw_power: 2600
+          export_power: 5020
           6kw_soc: 50
           6kw_power: 1000
-          peak_shaving_5kw: 'off'
           peak_shaving_6kw: 'on'
           general_automation: true
         Evening Export:
           5kw_soc: 50
           5kw_power: '{{ smart_limit }}'
+          export_power: 5000
           6kw_soc: 50
           6kw_power: 1100
-          peak_shaving_5kw: 'off'
           peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
           general_automation: true
         Night Idle:
           5kw_soc: 35
           5kw_power: 1000
+          export_power: 100
           6kw_soc: 35
           6kw_power: 1300
-          peak_shaving_5kw: 'on'
           peak_shaving_6kw: 'on'
           general_automation: true
       s: '{{ config.get(current_state, config[''Night Idle'']) }}'
-  - action: switch.turn_{{ s.peak_shaving_5kw }}
-    target:
-      entity_id: switch.deye_5kw_grid_peak_shaving
   - action: switch.turn_{{ s.peak_shaving_6kw }}
     target:
       entity_id: switch.deye_6kw_grid_peak_shaving
@@ -263,6 +280,11 @@
       entity_id: input_number.battery_power_deye_6kw
     data:
       value: '{{ s[''6kw_power''] }}'
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.export_deye_5kw_power
+    data:
+      value: '{{ s[''export_power''] }}'
   - if:
     - condition: template
       value_template: '{{ s.general_automation }}'
