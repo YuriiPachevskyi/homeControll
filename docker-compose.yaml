@@ -9,6 +9,7 @@ services:
     network_mode: host
     volumes:
       - ./configuration:/config
+      - /home/yurii/.ssh:/ssh:ro
       - /etc/localtime:/etc/localtime:ro
 
 #  mosquitto:

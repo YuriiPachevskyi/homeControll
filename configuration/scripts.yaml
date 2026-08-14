@@ -378,17 +378,27 @@ power_load_disable_device_duplicate:
               entity_id: climate.big_bedroom_ac
   icon: mdi:solar-power-variant-outline
   description: ''
-bizon_suspend_2:
+'1786295205474':
+  sequence:
+  - action: shell_command.bizon_poweroff
+    data: {}
+  alias: Bizon poweroff
+  description: ''
+'1786295227849':
   sequence:
   - action: shell_command.bizon_suspend
-    metadata: {}
     data: {}
-  alias: BIZON SUSPEND GENERAL
+  alias: Bizon suspend
   description: ''
-bizon_reboot_general:
+'1786295256293':
   sequence:
   - action: shell_command.bizon_reboot
-    metadata: {}
     data: {}
-  alias: BIZON REBOOT GENERAL
+  alias: Bizon reboot
+  description: ''
+'1786368435244':
+  sequence:
+  - action: shell_command.bizon_wakeup
+    data: {}
+  alias: Bizon wakeup
   description: ''

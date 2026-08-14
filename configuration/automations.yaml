@@ -195,6 +195,11 @@
         \ {% elif max_solar <= now_time < evening_export %}\n    Max Solar\n  {% elif
         evening_export <= now_time < night_idle %}\n    Evening Export\n  {% else
         %}\n    Night Idle\n  {% endif %}\n{% endif %}"
+  - action: homeassistant.reload_config_entry
+    metadata: {}
+    data:
+      entry_id: 01JS8NP2A9B0M9XF0Q3031G9F4
+    enabled: false
 - id: deye_state_controller
   alias: Deye State Controller
   description: Applies settings based on current Deye System State
@@ -244,7 +249,7 @@
           5kw_soc: 50
           5kw_power: '{{ smart_limit }}'
           export_power: 5000
-          6kw_soc: 50
+          6kw_soc: 70
           6kw_power: 1100
           peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
           general_automation: true
