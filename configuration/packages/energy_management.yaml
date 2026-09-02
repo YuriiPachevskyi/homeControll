@@ -35,13 +35,13 @@ template:
             
             {# Avoid division by zero and sanity check #}
             {% if rem_h < 0.1 %}
-              {% set power = 2600 %}
+              {% set power = 2500 %}
             {% else %}
               {% set power = available_energy_wh / rem_h %}
             {% endif %}
             
             {# Apply bounds #}
-            {% if power > 2600 %} {{ 2600 }}
+            {% if power > 2500 %} {{ 2500 }}
             {% elif power < 300 %} {{ 300 }}
             {% else %} {{ power | round(0) }}
             {% endif %}
