@@ -1,6 +1,5 @@
 configuration/home-*
-configuration/.storage/auth
-configuration/.storage/auth_provider.homeassistant
+configuration/.storage/
 configuration/.ssh/
 configuration/secrets.yaml
 build/CMakeCache.txt
