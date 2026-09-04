@@ -41,22 +41,6 @@ power_load_disable_device_duplicate:
           - action: switch.turn_on
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
-        - alias: 'High Power: Boiler 0.8 OFF'
-          conditions:
-          - condition: state
-            entity_id: switch.1560_boiler_ten_0_8_kwh
-            state: 'on'
-          sequence:
-          - action: input_text.set_value
-            target:
-              entity_id: input_text.last_script_trigger
-            data:
-              value: 'High Power: Boiler 0.8 OFF ({{ now().strftime(''%H:%M:%S'')
-                }})'
-          - action: switch.turn_off
-            target:
-              entity_id: switch.1560_boiler_ten_0_8_kwh
-            data: {}
         - alias: 'High Power: Reduce Charge to 1kW'
           conditions:
           - condition: numeric_state
@@ -74,6 +58,22 @@ power_load_disable_device_duplicate:
               value: 1
             target:
               entity_id: input_number.charge_power_deye_6kw
+        - alias: 'High Power: Boiler 0.8 OFF'
+          conditions:
+          - condition: state
+            entity_id: switch.1560_boiler_ten_0_8_kwh
+            state: 'on'
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: 'High Power: Boiler 0.8 OFF ({{ now().strftime(''%H:%M:%S'')
+                }})'
+          - action: switch.turn_off
+            target:
+              entity_id: switch.1560_boiler_ten_0_8_kwh
+            data: {}
         - alias: 'High Power: Charge to 0kW'
           conditions:
           - condition: numeric_state
@@ -184,6 +184,43 @@ power_load_disable_device_duplicate:
               value: 1
             target:
               entity_id: input_number.charge_power_deye_6kw
+        - alias: 'Restore: Boiler 0.8kW ON'
+          conditions:
+          - condition: state
+            entity_id: switch.1560_boiler_ten_0_8_kwh
+            state: 'off'
+          - condition: or
+            conditions:
+            - condition: state
+              entity_id: binary_sensor.grid_off_and_deye_5kw_high_battery
+              state: 'on'
+            - condition: state
+              entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
+              state: 'on'
+              for:
+                seconds: 30
+            - condition: state
+              entity_id: binary_sensor.battery_charge_and_export_power_limit
+              state:
+              - 'on'
+            - condition: state
+              entity_id: binary_sensor.grid_voltage_trigger_limit
+              state:
+              - 'on'
+              for:
+                hours: 0
+                minutes: 0
+                seconds: 30
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: 'Restore: Boiler 0.8kW ON ({{ now().strftime(''%H:%M:%S'') }})'
+          - action: switch.turn_on
+            target:
+              entity_id: switch.1560_boiler_ten_0_8_kwh
+            data: {}
         - alias: 'Restore: Charge Power 2kW'
           conditions:
           - condition: numeric_state
@@ -223,43 +260,6 @@ power_load_disable_device_duplicate:
               value: 1.75
             target:
               entity_id: input_number.charge_power_deye_6kw
-        - alias: 'Restore: Boiler 0.8kW ON'
-          conditions:
-          - condition: state
-            entity_id: switch.1560_boiler_ten_0_8_kwh
-            state: 'off'
-          - condition: or
-            conditions:
-            - condition: state
-              entity_id: binary_sensor.grid_off_and_deye_5kw_high_battery
-              state: 'on'
-            - condition: state
-              entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
-              state: 'on'
-              for:
-                seconds: 30
-            - condition: state
-              entity_id: binary_sensor.battery_charge_and_export_power_limit
-              state:
-              - 'on'
-            - condition: state
-              entity_id: binary_sensor.grid_voltage_trigger_limit
-              state:
-              - 'on'
-              for:
-                hours: 0
-                minutes: 0
-                seconds: 30
-          sequence:
-          - action: input_text.set_value
-            target:
-              entity_id: input_text.last_script_trigger
-            data:
-              value: 'Restore: Boiler 0.8kW ON ({{ now().strftime(''%H:%M:%S'') }})'
-          - action: switch.turn_on
-            target:
-              entity_id: switch.1560_boiler_ten_0_8_kwh
-            data: {}
         - alias: 'Restore: Boiler 1.2kW ON (Switch from 0.8)'
           conditions:
           - condition: state

@@ -20,24 +20,47 @@
 - id: '1772123844222'
   alias: Deye Param Sync
   triggers:
-  - entity_id:
-    - input_number.1_discharge_level_deye_5kw
-    - input_number.1_discharge_level_deye_6kw
-    - input_number.export_deye_5kw_power
-    - input_datetime.selling_start_time
-    - input_datetime.selling_stop_time
-    - input_number.battery_power_deye_5kw
-    - input_number.battery_power_deye_6kw
-    - input_number.charge_power_deye_5kw
-    - input_number.charge_power_deye_6kw
+  - trigger: state
+    entity_id: input_number.1_discharge_level_deye_5kw
     for: 00:00:01
-    trigger: state
+    id: discharge_5kw
+  - trigger: state
+    entity_id: input_number.1_discharge_level_deye_6kw
+    for: 00:00:01
+    id: discharge_6kw
+  - trigger: state
+    entity_id: input_number.export_deye_5kw_power
+    for: 00:00:01
+    id: export_5kw
+  - trigger: state
+    entity_id: input_datetime.selling_start_time
+    for: 00:00:01
+    id: selling_start
+  - trigger: state
+    entity_id: input_datetime.selling_stop_time
+    for: 00:00:01
+    id: selling_stop
+  - trigger: state
+    entity_id: input_number.battery_power_deye_5kw
+    for: 00:00:01
+    id: battery_power_5kw
+  - trigger: state
+    entity_id: input_number.battery_power_deye_6kw
+    for: 00:00:01
+    id: battery_power_6kw
+  - trigger: state
+    entity_id: input_number.charge_power_deye_5kw
+    for: 00:00:01
+    id: charge_power_5kw
+  - trigger: state
+    entity_id: input_number.charge_power_deye_6kw
+    for: 00:00:01
+    id: charge_power_6kw
   actions:
   - choose:
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_5kw''
-          }}'
+      - condition: trigger
+        id: discharge_5kw
       sequence:
       - action: number.set_value
         target:
@@ -51,9 +74,8 @@
         data:
           value: '{{ trigger.to_state.state | float(0) | round(0) }}'
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.1_discharge_level_deye_6kw''
-          }}'
+      - condition: trigger
+        id: discharge_6kw
       sequence:
       - action: number.set_value
         target:
@@ -67,9 +89,8 @@
         data:
           value: '{{ trigger.to_state.state | float(0) | round(0) }}'
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.export_deye_5kw_power''
-          }}'
+      - condition: trigger
+        id: export_5kw
       sequence:
       - action: number.set_value
         target:
@@ -78,9 +99,8 @@
         data:
           value: '{{ trigger.to_state.state | float(0) | round(0) }}'
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_datetime.selling_start_time''
-          }}'
+      - condition: trigger
+        id: selling_start
       sequence:
       - action: time.set_value
         target:
@@ -88,9 +108,8 @@
         data:
           time: '{{ trigger.to_state.state }}'
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_datetime.selling_stop_time''
-          }}'
+      - condition: trigger
+        id: selling_stop
       sequence:
       - action: time.set_value
         target:
@@ -98,9 +117,8 @@
         data:
           time: '{{ trigger.to_state.state }}'
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.battery_power_deye_5kw''
-          }}'
+      - condition: trigger
+        id: battery_power_5kw
       sequence:
       - action: number.set_value
         target:
@@ -114,9 +132,8 @@
         data:
           value: '{{ trigger.to_state.state | float(0) | round(0) }}'
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.battery_power_deye_6kw''
-          }}'
+      - condition: trigger
+        id: battery_power_6kw
       sequence:
       - action: number.set_value
         target:
@@ -130,9 +147,8 @@
         data:
           value: '{{ trigger.to_state.state | float(0) | round(0) }}'
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.charge_power_deye_5kw''
-          }}'
+      - condition: trigger
+        id: charge_power_5kw
       sequence:
       - variables:
           voltage: 54.4
@@ -145,9 +161,8 @@
         data:
           value: '{{ current }}'
     - conditions:
-      - condition: template
-        value_template: '{{ trigger.entity_id == ''input_number.charge_power_deye_6kw''
-          }}'
+      - condition: trigger
+        id: charge_power_6kw
       sequence:
       - variables:
           voltage: 51
@@ -195,11 +210,6 @@
         \ {% elif max_solar <= now_time < evening_export %}\n    Max Solar\n  {% elif
         evening_export <= now_time < night_idle %}\n    Evening Export\n  {% else
         %}\n    Night Idle\n  {% endif %}\n{% endif %}"
-  - action: homeassistant.reload_config_entry
-    metadata: {}
-    data:
-      entry_id: 01JS8NP2A9B0M9XF0Q3031G9F4
-    enabled: false
 - id: deye_state_controller
   alias: Deye State Controller
   description: Applies settings based on current Deye System State
@@ -225,7 +235,7 @@
         }}'
       config:
         Morning Export:
-          5kw_soc: 50
+          5kw_soc: 55
           5kw_power: 2100
           export_power: 5050
           6kw_soc: 40
@@ -233,7 +243,7 @@
           peak_shaving_6kw: 'on'
           general_automation: true
         Max Solar:
-          5kw_soc: 50
+          5kw_soc: 55
           5kw_power: 350
           export_power: 5050
           6kw_soc: 40
@@ -244,16 +254,16 @@
           5kw_soc: 40
           5kw_power: 350
           export_power: 5080
-          6kw_soc: 50
+          6kw_soc: 55
           6kw_power: 1000
           peak_shaving_6kw: 'on'
           general_automation: true
         Evening Export:
-          5kw_soc: 50
+          5kw_soc: 55
           5kw_power: '{{ smart_limit }}'
           export_power: 5000
           6kw_soc: 70
-          6kw_power: 1000
+          6kw_power: 1100
           peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
           general_automation: true
         Night Idle:
@@ -498,3 +508,68 @@
   - action: script.1786295227849
     data: {}
   mode: single
+- id: '1788451374111'
+  alias: All notifications
+  triggers:
+  - entity_id: sensor.deye_6kw_load_l1_power
+    below: 450
+    for:
+      minutes: 5
+    trigger: numeric_state
+    id: boiler
+  - entity_id: binary_sensor.deye_5kw_grid
+    to: 'off'
+    for:
+      seconds: 10
+    trigger: state
+    id: lost
+  - entity_id: binary_sensor.deye_5kw_grid
+    to: 'on'
+    for:
+      seconds: 10
+    trigger: state
+    id: restored
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: boiler
+      - condition: or
+        conditions:
+        - condition: state
+          entity_id: switch.1560_boiler_ten_0_8_kwh
+          state: 'on'
+        - condition: state
+          entity_id: switch.1561_boiler_ten_1_2_kwh
+          state: 'on'
+      - condition: template
+        value_template: "{{ states('input_datetime.boiler_last_notified') in ['unknown',
+          'unavailable']\n   or (now() - states('input_datetime.boiler_last_notified')
+          | as_datetime).total_seconds() > 2 * 3600 }}\n"
+      sequence:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.boiler_last_notified
+        data:
+          timestamp: '{{ now().timestamp() }}'
+      - action: notify.notify
+        data:
+          title: Бойлер
+          message: "\U0001F550 {{ now().strftime('%H:%M') }}\n\U0001F525 Бойлер нагрівся!!!\n"
+    - conditions:
+      - condition: trigger
+        id: lost
+      sequence:
+      - action: notify.notify
+        data:
+          title: Електроживлення
+          message: "\U0001F550 {{ now().strftime('%H:%M') }}\n⚡ Електроживлення зникло\n"
+    - conditions:
+      - condition: trigger
+        id: restored
+      sequence:
+      - action: notify.notify
+        data:
+          title: Електроживлення
+          message: "\U0001F550 {{ now().strftime('%H:%M') }}\n\U0001F4A1 Електроживлення
+            відновлено\n"
