@@ -350,6 +350,8 @@
           entity_id: automation.general_automation
         data:
           skip_condition: true
+  mode: queued
+  max: 5
 - id: deye_grid_lost_emergency
   alias: Deye Grid Lost Emergency
   description: High priority protection when grid is down
