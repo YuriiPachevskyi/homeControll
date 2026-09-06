@@ -196,6 +196,16 @@
     entity_id: input_boolean.force_high_power_on_low_charge
     id: force_toggle
   actions:
+  - if:
+    - condition: trigger
+      id: Evening Export
+    - condition: state
+      entity_id: input_boolean.force_high_power_on_low_charge
+      state: 'on'
+    then:
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.force_high_power_on_low_charge
   - action: input_select.select_option
     target:
       entity_id: input_select.deye_system_state
@@ -290,6 +300,11 @@
     - action: input_boolean.turn_off
       target:
         entity_id: input_boolean.deye_6kw_battery_selling
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.1_discharge_level_deye_6kw
+      data:
+        value: '{{ [ (states(''sensor.deye_6kw_battery'') | float(0) - 20) | round(0), 30 ] | max }}'
   - if:
     - condition: template
       value_template: '{{ trigger.id != ''battery_changed'' }}'
