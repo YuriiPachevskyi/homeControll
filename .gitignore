@@ -1,5 +1,6 @@
 configuration/home-*
 configuration/.storage/
+configuration/.ha_run.lock
 configuration/.ssh/
 configuration/secrets.yaml
 build/CMakeCache.txt
