@@ -3,7 +3,7 @@ default_config:
 
 automation: !include automations.yaml
 script: !include scripts.yaml
-mqtt: !include switches.yaml
+switch: !include switches_i2c.yaml
 
 homeassistant:
   packages: !include_dir_named packages

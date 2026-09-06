@@ -1,0 +1,12 @@
+- platform: i2c_relay
+  switches:
+    - name: "1560 Boiler ten 0.8 kWh"
+      id: "1566"
+    - name: "1561 Boiler ten 1.2 kWh"
+      id: "1561"
+    - name: "1562 Heating main"
+      id: "1562"
+    - name: "1563 Heating ten 1.5 kWh"
+      id: "1563"
+    - name: "1564 Heating ten 3 kWh"
+      id: "1564"
