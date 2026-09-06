@@ -113,7 +113,7 @@
       sequence:
       - action: time.set_value
         target:
-          entity_id: time.deye_5kw_program_4_time
+          entity_id: time.deye_5kw_program_3_time
         data:
           time: '{{ trigger.to_state.state }}'
     - conditions:
@@ -244,7 +244,7 @@
           general_automation: true
         Max Solar:
           5kw_soc: 55
-          5kw_power: 350
+          5kw_power: 1000
           export_power: 5050
           6kw_soc: 40
           6kw_power: 1000
@@ -520,13 +520,13 @@
   - entity_id: binary_sensor.deye_5kw_grid
     to: 'off'
     for:
-      seconds: 10
+      seconds: 30
     trigger: state
     id: lost
   - entity_id: binary_sensor.deye_5kw_grid
     to: 'on'
     for:
-      seconds: 10
+      seconds: 30
     trigger: state
     id: restored
   actions:
@@ -562,7 +562,7 @@
       sequence:
       - action: notify.notify
         data:
-          title: Електроживлення
+          title: Мережа
           message: "\U0001F550 {{ now().strftime('%H:%M') }}\n⚡ Електроживлення зникло\n"
     - conditions:
       - condition: trigger
@@ -570,6 +570,6 @@
       sequence:
       - action: notify.notify
         data:
-          title: Електроживлення
+          title: Мережа
           message: "\U0001F550 {{ now().strftime('%H:%M') }}\n\U0001F4A1 Електроживлення
             відновлено\n"
