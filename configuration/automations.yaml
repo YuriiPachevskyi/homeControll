@@ -535,15 +535,17 @@
     trigger: numeric_state
     id: boiler
   - entity_id: binary_sensor.deye_5kw_grid
+    from: 'on'
     to: 'off'
     for:
-      seconds: 30
+      minutes: 1
     trigger: state
     id: lost
   - entity_id: binary_sensor.deye_5kw_grid
+    from: 'off'
     to: 'on'
     for:
-      seconds: 30
+      minutes: 1
     trigger: state
     id: restored
   - trigger: time
