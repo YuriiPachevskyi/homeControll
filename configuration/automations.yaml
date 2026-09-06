@@ -544,6 +544,9 @@
       seconds: 30
     trigger: state
     id: restored
+  - trigger: time
+    at: '17:00:00'
+    id: eco_reminder
   actions:
   - choose:
     - conditions:
@@ -554,23 +557,55 @@
         - condition: state
           entity_id: switch.1560_boiler_ten_0_8_kwh
           state: 'on'
+          for:
+            minutes: 5
         - condition: state
           entity_id: switch.1561_boiler_ten_1_2_kwh
           state: 'on'
+          for:
+            minutes: 5
       - condition: template
         value_template: "{{ states('input_datetime.boiler_last_notified') in ['unknown',
           'unavailable']\n   or (now() - states('input_datetime.boiler_last_notified')
-          | as_datetime).total_seconds() > 2 * 3600 }}\n"
+          | as_datetime).total_seconds() > 1 * 3600 }}\n"
       sequence:
       - action: input_datetime.set_datetime
         target:
           entity_id: input_datetime.boiler_last_notified
         data:
           timestamp: '{{ now().timestamp() }}'
+      - if:
+        - condition: template
+          value_template: "{{ now().strftime('%H:%M:%S') < '15:00:00' }}"
+        then:
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.boiler_boost_suggested
       - action: notify.notify
         data:
           title: Бойлер
-          message: "\U0001F550 {{ now().strftime('%H:%M') }}\n\U0001F525 Бойлер нагрівся!!!\n"
+          message: >-
+            {{ '\U0001F550' }} {{ now().strftime('%H:%M') }}
+            {{ '\U0001F525' }} Бойлер нагрівся!!!
+            {% if now().strftime('%H:%M:%S') < '15:00:00' %}
+            Збільште потужність на макс
+            {% endif %}
+    - conditions:
+      - condition: trigger
+        id: eco_reminder
+      - condition: state
+        entity_id: input_boolean.boiler_boost_suggested
+        state: 'on'
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.boiler_boost_suggested
+      - action: notify.notify
+        data:
+          title: Нагадування
+          message: >-
+            {{ '\U0001F550' }} {{ now().strftime('%H:%M') }}
+            Бойлер на Еко
     - conditions:
       - condition: trigger
         id: lost
