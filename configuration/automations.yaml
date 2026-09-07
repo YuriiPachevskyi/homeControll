@@ -340,7 +340,7 @@
         value: '{{ s[''export_power''] }}'
     - if:
       - condition: template
-        value_template: '{{ current_state == ''Night Idle'' }}'
+        value_template: '{{ current_state != ''Evening Export'' }}'
       then:
       - action: input_boolean.turn_off
         target:
