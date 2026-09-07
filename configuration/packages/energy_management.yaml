@@ -10,7 +10,7 @@ template:
           {% if soc <= 40 %}
             {{ 300 }}
           {% else %}
-            {% set target_soc = (states('input_number.1_discharge_level_deye_5kw') | float(0)) %}
+            {% set target_soc = (states('input_number.discharge_level_deye_5kw') | float(0)) %}
             {% set battery_capacity_wh = 30000 %}
             {% set available_energy_wh = (soc - target_soc) / 100 * battery_capacity_wh %}
             
