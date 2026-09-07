@@ -154,6 +154,9 @@ power_load_disable_device_duplicate:
           - condition: state
             entity_id: binary_sensor.battery_deye_6kw_charged
             state: 'off'
+          - condition: numeric_state
+            entity_id: sensor.deye_6kw_battery
+            below: 95
           - condition: or
             conditions:
             - condition: state
@@ -230,6 +233,9 @@ power_load_disable_device_duplicate:
             entity_id: binary_sensor.battery_deye_6kw_charged
             state:
             - 'off'
+          - condition: numeric_state
+            entity_id: sensor.deye_6kw_battery
+            below: 95
           - condition: or
             conditions:
             - condition: state
