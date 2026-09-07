@@ -254,7 +254,7 @@
           general_automation: true
         Max Solar:
           5kw_soc: 55
-          5kw_power: 1000
+          5kw_power: 350
           export_power: 5050
           6kw_soc: 40
           6kw_power: 1000
@@ -304,7 +304,8 @@
       target:
         entity_id: input_number.1_discharge_level_deye_6kw
       data:
-        value: '{{ [ (states(''sensor.deye_6kw_battery'') | float(0) - 20) | round(0), 30 ] | max }}'
+        value: '{{ [ (states(''sensor.deye_6kw_battery'') | float(0) - 20) | round(0),
+          30 ] | max }}'
   - if:
     - condition: template
       value_template: '{{ trigger.id != ''battery_changed'' }}'
@@ -580,7 +581,7 @@
           timestamp: '{{ now().timestamp() }}'
       - if:
         - condition: template
-          value_template: "{{ now().strftime('%H:%M:%S') < '15:00:00' }}"
+          value_template: '{{ now().strftime(''%H:%M:%S'') < ''15:00:00'' }}'
         then:
         - action: input_boolean.turn_on
           target:
@@ -588,12 +589,9 @@
       - action: notify.notify
         data:
           title: Бойлер
-          message: >-
-            {{ '\U0001F550' }} {{ now().strftime('%H:%M') }}
-            {{ '\U0001F525' }} Бойлер нагрівся!!!
-            {% if now().strftime('%H:%M:%S') < '15:00:00' %}
-            Збільште потужність на макс
-            {% endif %}
+          message: '{{ ''\U0001F550'' }} {{ now().strftime(''%H:%M'') }} {{ ''\U0001F525''
+            }} Бойлер нагрівся!!! {% if now().strftime(''%H:%M:%S'') < ''15:00:00''
+            %} Збільште потужність на макс {% endif %}'
     - conditions:
       - condition: trigger
         id: eco_reminder
@@ -607,9 +605,8 @@
       - action: notify.notify
         data:
           title: Нагадування
-          message: >-
-            {{ '\U0001F550' }} {{ now().strftime('%H:%M') }}
-            Бойлер на Еко
+          message: '{{ ''\U0001F550'' }} {{ now().strftime(''%H:%M'') }} Бойлер на
+            Еко'
     - conditions:
       - condition: trigger
         id: lost
