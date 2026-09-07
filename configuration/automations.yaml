@@ -358,15 +358,14 @@
   description: >-
     Auto-toggles input_boolean.deye_6kw_battery_selling based on tomorrow's
     forecast cloud coverage, 1 minute before update_evening_param_time.
-    Only active March-September.
+    Runs year-round so the flag is force-reset off outside March-September
+    (it would otherwise never reset once the season condition stopped
+    matching), but only ever turns it on within that window.
   triggers:
   - trigger: time
     at:
       entity_id: input_datetime.update_evening_param_time
       offset: '-00:01:00'
-  conditions:
-  - condition: template
-    value_template: '{{ now().month in [3, 4, 5, 6, 7, 8, 9] }}'
   actions:
   - action: weather.get_forecasts
     target:
@@ -388,7 +387,8 @@
         {% endfor %}
         {{ (ns.total / ns.count) if ns.count > 0 else 100 }}
       sunny_percent: '{{ 100 - (avg_cloud_coverage | float(100)) }}'
-      is_sunny_tomorrow: '{{ sunny_percent > 70 }}'
+      in_season: '{{ now().month in [3, 4, 5, 6, 7, 8, 9] }}'
+      is_sunny_tomorrow: '{{ in_season and sunny_percent > 70 }}'
   - action: input_number.set_value
     target:
       entity_id: input_number.deye_6kw_selling_forecast_cloud
@@ -399,7 +399,7 @@
       entity_id: input_text.last_script_trigger
     data:
       value: >-
-        Deye 6kW Selling Auto: sunny {{ sunny_percent | round(0) }}%
+        Deye 6kW Selling Auto: sunny {{ sunny_percent | round(0) }}%{{ '' if in_season else ' (off-season)' }}
         -> {{ 'ON' if is_sunny_tomorrow else 'OFF' }} ({{ now().strftime('%H:%M:%S') }})
   - if:
     - condition: template
