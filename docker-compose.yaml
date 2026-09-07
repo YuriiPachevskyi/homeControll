@@ -11,4 +11,5 @@ services:
       - ./configuration:/config
       - /home/yurii/.ssh:/ssh:ro
       - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
 
