@@ -353,6 +353,66 @@
           skip_condition: true
   mode: queued
   max: 5
+- id: deye_6kw_selling_weather_check
+  alias: Deye 6kW Battery Selling - Auto Weather Check
+  description: >-
+    Auto-toggles input_boolean.deye_6kw_battery_selling based on tomorrow's
+    forecast cloud coverage, 1 minute before update_evening_param_time.
+    Only active March-September.
+  triggers:
+  - trigger: time
+    at:
+      entity_id: input_datetime.update_evening_param_time
+      offset: '-00:01:00'
+  conditions:
+  - condition: template
+    value_template: '{{ now().month in [3, 4, 5, 6, 7, 8, 9] }}'
+  actions:
+  - action: weather.get_forecasts
+    target:
+      entity_id: weather.forecast_home
+    data:
+      type: hourly
+    response_variable: hourly_forecast
+  - variables:
+      hourly: '{{ hourly_forecast[''weather.forecast_home''][''forecast''] }}'
+      avg_cloud_coverage: >-
+        {% set tomorrow_date = (now() + timedelta(days=1)).date() %}
+        {% set ns = namespace(total=0, count=0) %}
+        {% for f in hourly %}
+          {% set dt_local = as_local(as_datetime(f.datetime)) %}
+          {% if dt_local.date() == tomorrow_date and 8 <= dt_local.hour <= 18 %}
+            {% set ns.total = ns.total + f.cloud_coverage %}
+            {% set ns.count = ns.count + 1 %}
+          {% endif %}
+        {% endfor %}
+        {{ (ns.total / ns.count) if ns.count > 0 else 100 }}
+      sunny_percent: '{{ 100 - (avg_cloud_coverage | float(100)) }}'
+      is_sunny_tomorrow: '{{ sunny_percent > 70 }}'
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.deye_6kw_selling_forecast_cloud
+    data:
+      value: '{{ avg_cloud_coverage | round(1) }}'
+  - action: input_text.set_value
+    target:
+      entity_id: input_text.last_script_trigger
+    data:
+      value: >-
+        Deye 6kW Selling Auto: sunny {{ sunny_percent | round(0) }}%
+        -> {{ 'ON' if is_sunny_tomorrow else 'OFF' }} ({{ now().strftime('%H:%M:%S') }})
+  - if:
+    - condition: template
+      value_template: '{{ is_sunny_tomorrow }}'
+    then:
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.deye_6kw_battery_selling
+    else:
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.deye_6kw_battery_selling
+  mode: single
 - id: deye_grid_lost_emergency
   alias: Deye Grid Lost Emergency
   description: High priority protection when grid is down
@@ -532,7 +592,7 @@
   - entity_id: sensor.deye_6kw_load_l1_power
     below: 450
     for:
-      minutes: 5
+      minutes: 3
     trigger: numeric_state
     id: boiler
   - entity_id: binary_sensor.deye_5kw_grid
@@ -563,12 +623,12 @@
           entity_id: switch.1560_boiler_ten_0_8_kwh
           state: 'on'
           for:
-            minutes: 5
+            minutes: 3
         - condition: state
           entity_id: switch.1561_boiler_ten_1_2_kwh
           state: 'on'
           for:
-            minutes: 5
+            minutes: 3
       - condition: template
         value_template: "{{ states('input_datetime.boiler_last_notified') in ['unknown',
           'unavailable']\n   or (now() - states('input_datetime.boiler_last_notified')
