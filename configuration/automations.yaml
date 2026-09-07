@@ -692,3 +692,24 @@
           title: Мережа
           message: "\U0001F550 {{ now().strftime('%H:%M') }}\n\U0001F4A1 Електроживлення
             відновлено\n"
+- id: '1788815476602'
+  alias: Boiler Energy Sensor Startup Fix
+  description: >-
+    Template/integration sensors for boiler energy tracking can get stuck on
+    "unknown" after a HA restart if the boiler switches haven't changed state
+    yet. Forces a re-render shortly after startup so tracking resumes without
+    manual intervention.
+  triggers:
+  - trigger: homeassistant
+    event: start
+  conditions: []
+  actions:
+  - delay: '00:00:30'
+  - action: template.reload
+    data: {}
+  - delay: '00:00:03'
+  - action: homeassistant.update_entity
+    target:
+      entity_id: sensor.boiler_ten_power_estimate
+    data: {}
+  mode: single

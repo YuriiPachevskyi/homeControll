@@ -115,6 +115,41 @@ template:
           {{ total }}
         availability: "{{ is_number(states('sensor.deye_5kw_battery_power')) and is_number(states('sensor.deye_6kw_battery_power')) }}"
 
+      - name: "Boiler TEN Power Estimate"
+        unique_id: boiler_ten_power_estimate
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {# Upper-bound estimate: relay on = rated TEN power.
+             The boiler's internal thermostat can open the circuit even
+             while the relay stays on - HA can't see that, so actual
+             consumption may be lower than this estimate. #}
+          {% set ns = namespace(p=0) %}
+          {% if is_state('switch.1560_boiler_ten_0_8_kwh', 'on') %}
+            {% set ns.p = ns.p + 800 %}
+          {% endif %}
+          {% if is_state('switch.1561_boiler_ten_1_2_kwh', 'on') %}
+            {% set ns.p = ns.p + 1200 %}
+          {% endif %}
+          {{ ns.p }}
+        availability: >
+          {{ states('switch.1560_boiler_ten_0_8_kwh') not in ['unknown', 'unavailable'] and
+             states('switch.1561_boiler_ten_1_2_kwh') not in ['unknown', 'unavailable'] }}
+
+      - name: "Boiler TEN Energy Total"
+        unique_id: boiler_ten_energy_total
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {# Adds the manually-backfilled Sep 1-7 baseline (16.70755 kWh) to the
+             live Riemann-integrated value, so the running total stays continuous
+             across HA restarts instead of the raw integration sensor's own value
+             (which restarts from 0 and would overwrite recorder statistics). #}
+          {{ (16.70755 + (states('sensor.boiler_ten_energy_estimate') | float(0))) | round(4) }}
+        availability: "{{ is_number(states('sensor.boiler_ten_energy_estimate')) }}"
+
 sensor:
   - platform: integration
     source: sensor.deye_5kw_power_losses
@@ -122,9 +157,19 @@ sensor:
     unit_prefix: k
     method: trapezoidal
 
+  - platform: integration
+    source: sensor.boiler_ten_power_estimate
+    name: boiler_ten_energy_estimate
+    unit_prefix: k
+    method: trapezoidal
+
 utility_meter:
   deye_5_losses_daily:
     source: sensor.deye_5kw_energy_losses
+    cycle: daily
+
+  boiler_ten_energy_estimate_daily:
+    source: sensor.boiler_ten_energy_estimate
     cycle: daily
 
 shell_command:
