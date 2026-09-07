@@ -659,7 +659,10 @@
           title: Бойлер
           message: '{{ ''\U0001F550'' }} {{ now().strftime(''%H:%M'') }} {{ ''\U0001F525''
             }} Бойлер нагрівся!!! {% if now().strftime(''%H:%M:%S'') < ''15:00:00''
-            %} Збільште потужність на макс {% endif %}'
+            %} Збільште потужність на макс {% endif %}
+
+            Бойлер спожив: {{ states(''sensor.boiler_ten_energy_estimate_daily'')
+            | float(0) | round(1) }} кВт⋅год'
     - conditions:
       - condition: trigger
         id: eco_reminder
