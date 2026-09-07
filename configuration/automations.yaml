@@ -340,6 +340,13 @@
         value: '{{ s[''export_power''] }}'
     - if:
       - condition: template
+        value_template: '{{ current_state == ''Night Idle'' }}'
+      then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.deye_6kw_battery_selling
+    - if:
+      - condition: template
         value_template: '{{ s.general_automation }}'
       then:
       - action: automation.turn_on
