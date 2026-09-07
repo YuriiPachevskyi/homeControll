@@ -340,7 +340,8 @@
         value: '{{ s[''export_power''] }}'
     - if:
       - condition: template
-        value_template: '{{ current_state != ''Evening Export'' }}'
+        value_template: '{{ current_state != ''Evening Export'' and trigger.id in
+          [''state_changed'', ''ha_start''] }}'
       then:
       - action: input_boolean.turn_off
         target:
