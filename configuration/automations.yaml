@@ -716,3 +716,22 @@
       entity_id: sensor.boiler_ten_power_estimate
     data: {}
   mode: single
+- id: '1788820000000'
+  alias: Boiler Energy Sensor Periodic Refresh
+  description: >-
+    sensor.boiler_ten_power_estimate only re-renders when the boiler
+    switches change state, so the integration (Riemann sum) sensor gets no
+    new sample - and no accumulated energy - during a long continuous
+    on/off stretch. Forces a re-render every 5 minutes so long stretches
+    accumulate smoothly instead of jumping only on the next real switch
+    transition.
+  triggers:
+  - trigger: time_pattern
+    minutes: /5
+  conditions: []
+  actions:
+  - action: homeassistant.update_entity
+    target:
+      entity_id: sensor.boiler_ten_power_estimate
+    data: {}
+  mode: single
