@@ -146,8 +146,18 @@ template:
           {# Adds the manually-backfilled Sep 1-7 baseline (16.70755 kWh) to the
              live Riemann-integrated value, so the running total stays continuous
              across HA restarts instead of the raw integration sensor's own value
-             (which restarts from 0 and would overwrite recorder statistics). #}
-          {{ (16.70755 + (states('sensor.boiler_ten_energy_estimate') | float(0))) | round(4) }}
+             (which restarts from 0 and would overwrite recorder statistics).
+             Clamped against its own last reported value so a post-restart
+             blip (the estimate sensor briefly reporting stale/zeroed data
+             while the template/integration chain re-renders) can never make
+             this total_increasing sensor go backwards - a real decrease here
+             gets read by the recorder as a meter reset and zeroes the
+             recorded statistics sum (happened 2026-09-07/08). Holding the
+             last value steady during a blip is self-healing: once the
+             estimate is valid again, tracking just resumes from there. #}
+          {% set computed = (16.70755 + (states('sensor.boiler_ten_energy_estimate') | float(0))) | round(4) %}
+          {% set last = states('sensor.boiler_ten_energy_total') | float(computed) %}
+          {{ [computed, last] | max }}
         availability: "{{ is_number(states('sensor.boiler_ten_energy_estimate')) }}"
 
 sensor:
