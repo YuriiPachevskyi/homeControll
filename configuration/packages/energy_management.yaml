@@ -1,4 +1,37 @@
 template:
+  - trigger:
+      - trigger: time
+        at: input_datetime.selling_start_time
+      - trigger: homeassistant
+        event: start
+    action:
+      - action: weather.get_forecasts
+        target:
+          entity_id: weather.forecast_home
+        data:
+          type: hourly
+        response_variable: hourly_forecast
+      - variables:
+          hourly: "{{ hourly_forecast['weather.forecast_home']['forecast'] }}"
+          t_now: "{{ now() }}"
+          t_end_m: "{{ today_at(states('input_datetime.update_morning_param_time')) }}"
+          effective_hours: >
+            {% set ns = namespace(total=0, count=0) %}
+            {% for f in hourly %}
+              {% set dt_local = as_local(as_datetime(f.datetime)) %}
+              {% if dt_local >= t_now and dt_local < t_end_m %}
+                {% set ns.total = ns.total + (f.cloud_coverage | float(100) / 100) %}
+                {% set ns.count = ns.count + 1 %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.total if ns.count > 0 else (t_end_m - t_now).total_seconds() / 3600 }}
+    sensor:
+      - name: "Deye 5kW Morning Effective Dark Hours"
+        unique_id: deye_5kw_morning_effective_dark_hours
+        unit_of_measurement: "h"
+        state: "{{ effective_hours | round(2) }}"
+        attributes:
+          computed_date: "{{ now().date() }}"
   - sensor:
       - name: "Deye 5kW Smart Discharge Limit"
         unique_id: deye_5kw_smart_discharge_limit
@@ -20,10 +53,16 @@ template:
             {% set t_start_e = today_at(states('input_datetime.update_evening_param_time')) %}
             {% set t_end_e = today_at(states('input_datetime.selling_stop_time')) %}
             
+            {% set forecast_h = states('sensor.deye_5kw_morning_effective_dark_hours') | float(-1) %}
+            {% set forecast_fresh = state_attr('sensor.deye_5kw_morning_effective_dark_hours', 'computed_date') | string == t_now.date() | string %}
             {% if t_now < t_start_m %}
-              {% set rem_h = (t_end_m - t_start_m).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
+              {% set rem_h = (t_end_m - t_start_m).total_seconds() / 3600 %}
             {% elif t_now < t_end_m %}
-              {% set rem_h = (t_end_m - now()).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
+              {% if forecast_fresh and forecast_h >= 0 %}
+                {% set rem_h = forecast_h %}
+              {% else %}
+                {% set rem_h = (t_end_m - now()).total_seconds() / 3600 %}
+              {% endif %}
             {% elif t_now < t_start_e %}
               {% set rem_h = (t_end_e - t_start_e).total_seconds() / 3600 %}
             {% elif t_now < t_end_e %}
@@ -33,15 +72,15 @@ template:
               {% set rem_h = (t_end_m - t_start_m).total_seconds() / 3600 + (t_end_e - t_start_e).total_seconds() / 3600 %}
             {% endif %}
             
-            {# Avoid division by zero and sanity check #}
+            {# Avoid division by zero; the operative upper cap is applied by the caller #}
             {% if rem_h < 0.1 %}
-              {% set power = 2500 %}
+              {% set power = 3000 %}
             {% else %}
               {% set power = available_energy_wh / rem_h %}
             {% endif %}
-            
-            {# Apply bounds #}
-            {% if power > 2500 %} {{ 2500 }}
+
+            {# Apply bounds: 300W floor, 3000W physical ceiling #}
+            {% if power > 3000 %} {{ 3000 }}
             {% elif power < 300 %} {{ 300 }}
             {% else %} {{ power | round(0) }}
             {% endif %}
