@@ -238,12 +238,10 @@
     id: battery_changed
   actions:
   - variables:
-      current_state: '{{ states(''input_select.deye_system_state'') }}'
+      current_state: "{{ states('input_select.deye_system_state') }}"
       max_discharge_power_5kw: 2400
-      smart_limit: '{{ [states(''sensor.deye_5kw_smart_discharge_limit'') | float(300),
-        max_discharge_power_5kw] | min }}'
-      is_selling_6kw: '{{ is_state(''input_boolean.deye_6kw_battery_selling'', ''on'')
-        }}'
+      smart_limit: "{{ [states('sensor.deye_5kw_smart_discharge_limit') | float(300), max_discharge_power_5kw] | min }}"
+      is_selling_6kw: "{{ is_state('input_boolean.deye_6kw_battery_selling', 'on') }}"
       config:
         Morning Export:
           5kw_soc: 55
@@ -275,7 +273,7 @@
           export_power: 5000
           6kw_soc: 70
           6kw_power: 1000
-          peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
+          peak_shaving_6kw: "{{ 'off' if is_selling_6kw else 'on' }}"
           general_automation: true
         Night Idle:
           5kw_soc: 35
@@ -285,15 +283,14 @@
           6kw_power: 1300
           peak_shaving_6kw: 'on'
           general_automation: true
-      s: '{{ config.get(current_state, config[''Night Idle'']) }}'
+      s: "{{ config.get(current_state, config['Night Idle']) }}"
   - if:
     - condition: template
-      value_template: '{{ current_state == ''Evening Export'' }}'
+      value_template: "{{ current_state == 'Evening Export' }}"
     - condition: template
-      value_template: '{{ is_selling_6kw }}'
+      value_template: "{{ is_selling_6kw }}"
     - condition: template
-      value_template: '{{ states(''sensor.deye_6kw_battery'') | float(0) <= s[''6kw_soc'']
-        | float(0) }}'
+      value_template: "{{ states('sensor.deye_6kw_battery') | float(0) <= s['6kw_soc'] | float(0) }}"
     then:
     - action: switch.turn_on
       target:
@@ -305,11 +302,10 @@
       target:
         entity_id: input_number.discharge_level_deye_6kw
       data:
-        value: '{{ [ (states(''sensor.deye_6kw_battery'') | float(0) - 20) | round(0),
-          30 ] | max }}'
+        value: "{{ [ (states('sensor.deye_6kw_battery') | float(0) - 20) | round(0), 30 ] | max }}"
   - if:
     - condition: template
-      value_template: '{{ trigger.id != ''battery_changed'' }}'
+      value_template: "{{ trigger.id != 'battery_changed' }}"
     then:
     - action: switch.turn_{{ s.peak_shaving_6kw }}
       target:
@@ -318,38 +314,37 @@
       target:
         entity_id: input_number.discharge_level_deye_5kw
       data:
-        value: '{{ s[''5kw_soc''] }}'
+        value: "{{ s['5kw_soc'] }}"
     - action: input_number.set_value
       target:
         entity_id: input_number.battery_power_deye_5kw
       data:
-        value: '{{ s[''5kw_power''] }}'
+        value: "{{ s['5kw_power'] }}"
     - action: input_number.set_value
       target:
         entity_id: input_number.discharge_level_deye_6kw
       data:
-        value: '{{ s[''6kw_soc''] }}'
+        value: "{{ s['6kw_soc'] }}"
     - action: input_number.set_value
       target:
         entity_id: input_number.battery_power_deye_6kw
       data:
-        value: '{{ s[''6kw_power''] }}'
+        value: "{{ s['6kw_power'] }}"
     - action: input_number.set_value
       target:
         entity_id: input_number.export_deye_5kw_power
       data:
-        value: '{{ s[''export_power''] }}'
+        value: "{{ s['export_power'] }}"
     - if:
       - condition: template
-        value_template: '{{ current_state != ''Evening Export'' and trigger.id in
-          [''state_changed'', ''ha_start''] }}'
+        value_template: "{{ current_state != 'Evening Export' and trigger.id in ['state_changed', 'ha_start'] }}"
       then:
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.deye_6kw_battery_selling
     - if:
       - condition: template
-        value_template: '{{ s.general_automation }}'
+        value_template: "{{ s.general_automation }}"
       then:
       - action: automation.turn_on
         target:
