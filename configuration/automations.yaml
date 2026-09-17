@@ -629,8 +629,8 @@
             minutes: 3
       - condition: template
         value_template: "{{ states('input_datetime.boiler_last_notified') in ['unknown',
-          'unavailable']\n   or (now() - states('input_datetime.boiler_last_notified')
-          | as_datetime).total_seconds() > 1 * 3600 }}\n"
+          'unavailable']\n   or (as_timestamp(now()) - as_timestamp(states('input_datetime.boiler_last_notified')))
+          > 1 * 3600 }}\n"
       sequence:
       - action: input_datetime.set_datetime
         target:

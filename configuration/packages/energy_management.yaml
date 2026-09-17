@@ -13,9 +13,9 @@ template:
         response_variable: hourly_forecast
       - variables:
           hourly: "{{ hourly_forecast['weather.forecast_home']['forecast'] }}"
-          t_now: "{{ now() }}"
-          t_end_m: "{{ today_at(states('input_datetime.update_morning_param_time')) }}"
           effective_hours: >
+            {% set t_now = now() %}
+            {% set t_end_m = today_at(states('input_datetime.update_morning_param_time')) %}
             {% set ns = namespace(total=0, count=0) %}
             {% for f in hourly %}
               {% set dt_local = as_local(as_datetime(f.datetime)) %}
