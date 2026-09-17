@@ -1,26 +1,44 @@
 """Config flow for BLE Battery Management System integration."""
 
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Any, Final, override
 
-from aiobmsble.utils import bms_identify
+from aiobmsble.basebms import BaseBMS
+from aiobmsble.utils import bms_cls, bms_identify
 import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
+    async_request_active_scan,
 )
-from homeassistant.config_entries import ConfigFlowResult
-from homeassistant.const import CONF_ADDRESS, CONF_ID, CONF_MODEL, CONF_NAME
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlowResult,
+    OptionsFlowWithReload,
+)
+from homeassistant.const import (
+    CONF_ADDRESS,
+    CONF_ID,
+    CONF_MODEL,
+    CONF_NAME,
+    CONF_PASSWORD,
+)
+from homeassistant.core import callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
-from .const import DOMAIN, LOGGER
+from .const import CONF_ADVANCED_OPTIONS, CONF_KEEP_ALIVE, DOMAIN, LOGGER
 
 
 @dataclass
@@ -66,6 +84,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
         return str(bms_class.get_bms_module())
 
+    @override
     async def async_step_bluetooth(
         self, discovery_info: BluetoothServiceInfoBleak
     ) -> ConfigFlowResult:
@@ -73,8 +92,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         LOGGER.debug("Bluetooth device detected: %s", discovery_info)
 
         address: Final = discovery_info.address
-        await self.async_set_unique_id(address)
-        self._abort_if_unique_id_configured()
+        if await self.async_set_unique_id(address, raise_on_progress=False):
+            return self.async_abort(reason="already_configured")
 
         if not (bms_module := await self._async_device_supported(discovery_info)):
             return self.async_abort(reason="not_supported")
@@ -97,7 +116,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         LOGGER.debug("confirm step for %s", self._disc_dev.name)
 
         if user_input is not None:
-            self._abort_if_unique_id_configured()
+            if await self.async_set_unique_id(
+                self._disc_dev.discovery_info.address, raise_on_progress=False
+            ):
+                return self.async_abort(reason="already_configured")
+
             return self.async_create_entry(
                 title=self._disc_dev.name,
                 data={"type": self._disc_dev.type},
@@ -110,6 +133,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders=self.context.get("title_placeholders"),
         )
 
+    @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -121,8 +145,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             address = str(user_input[CONF_ADDRESS])
-            await self.async_set_unique_id(address, raise_on_progress=False)
-            self._abort_if_unique_id_configured()
+            if await self.async_set_unique_id(address, raise_on_progress=False):
+                return self.async_abort(reason="already_configured")
             self._disc_dev = self._disc_devs[address]
 
             return self.async_create_entry(
@@ -130,6 +154,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data={"type": self._disc_dev.type},
             )
 
+        await async_request_active_scan(self.hass)
         current_addresses: Final = self._async_current_ids(include_ignore=False)
         for discovery_info in list(
             async_discovered_service_info(self.hass, connectable=True)
@@ -164,5 +189,62 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         SelectSelectorConfig(options=devices),
                     )
                 }
+            ),
+        )
+
+    @staticmethod
+    @callback
+    @override
+    def async_get_options_flow(
+        config_entry: ConfigEntry,
+    ) -> OptionsFlowWithReload:
+        """Create the options flow."""
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(OptionsFlowWithReload):
+    """Manage the options of the BMS class."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize options flow."""
+        self._bms_type: Final[str] = config_entry.data["type"]
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        bms_class: type[BaseBMS] | None = await bms_cls(
+            self._bms_type.rsplit(".", 1)[-1]
+        )
+        if not bms_class:
+            return self.async_abort(reason="not_supported")
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(
+                    {
+                        vol.Optional(CONF_PASSWORD): TextSelector(
+                            TextSelectorConfig(
+                                type=TextSelectorType.PASSWORD,
+                                read_only=not bms_class.accept_secret,
+                            )
+                        ),
+                        vol.Optional(CONF_ADVANCED_OPTIONS): section(
+                            vol.Schema(
+                                {
+                                    vol.Optional(
+                                        CONF_KEEP_ALIVE, default=True
+                                    ): BooleanSelector()
+                                }
+                            ),
+                            {"collapsed": True},
+                        ),
+                    }
+                ),
+                self.config_entry.options,
             ),
         )
