@@ -243,7 +243,7 @@ power_load_disable_device_duplicate:
           - condition: or
             conditions:
             - condition: state
-              entity_id: binary_sensor.grid_off_and_deye_5kw_high_battery
+              entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
               state: 'on'
             - condition: state
               entity_id: binary_sensor.pv_5kw_15_lower_than_6kw
@@ -283,7 +283,7 @@ power_load_disable_device_duplicate:
           - condition: or
             conditions:
             - condition: state
-              entity_id: binary_sensor.grid_off_and_deye_5kw_high_battery
+              entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
               state: 'on'
             - condition: state
               entity_id: binary_sensor.battery_charge_and_export_power_limit
