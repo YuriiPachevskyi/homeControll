@@ -660,9 +660,14 @@
           entity_id: input_datetime.boiler_last_notified
         data:
           timestamp: '{{ now().timestamp() }}'
+      - variables:
+          surplus_power_available: >-
+            {{ now().strftime('%H:%M:%S') < '14:00:00'
+               and states('sensor.deye_6kw_battery') | float(0) > 90
+               and states('sensor.deye_5kw_battery') | float(0) > 90 }}
       - if:
         - condition: template
-          value_template: '{{ now().strftime(''%H:%M:%S'') < ''15:00:00'' }}'
+          value_template: '{{ surplus_power_available }}'
         then:
         - action: input_boolean.turn_on
           target:
@@ -676,8 +681,7 @@
         data:
           title: Бойлер
           message: '{{ ''\U0001F550'' }} {{ now().strftime(''%H:%M'') }} {{ ''\U0001F525''
-            }} Бойлер нагрівся!!! {% if now().strftime(''%H:%M:%S'') < ''15:00:00''
-            %} Збільште потужність на макс {% endif %}
+            }} Бойлер нагрівся!!! {% if surplus_power_available %} Збільште потужність на макс {% endif %}
 
             Бойлер спожив: {{ states(''sensor.boiler_ten_energy_estimate_daily'')
             | float(0) | round(1) }} кВт⋅год'
