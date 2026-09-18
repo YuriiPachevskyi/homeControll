@@ -90,21 +90,6 @@ template:
         state: "{{ (states('sensor.deye_5kw_today_battery_charge') | float(0)) + (states('sensor.deye_6kw_today_battery_charge') | float(0)) }}"
         availability: "{{ is_number(states('sensor.deye_5kw_today_battery_charge')) and is_number(states('sensor.deye_6kw_today_battery_charge')) }}"
 
-      - name: "Total Battery Charge Power Realtime"
-        unique_id: total_battery_charge_power_realtime
-        unit_of_measurement: "W"
-        device_class: power
-        state_class: measurement
-        state: >
-          {% set p5 = states('sensor.deye_5kw_battery_power') | float(0) %}
-          {% set p6 = states('sensor.deye_6kw_battery_power') | float(0) %}
-          {% set total = 0 %}
-          {# Оскільки на графіку у вас розряд відображається коли x > 0, то заряд є від'ємним (x < 0) #}
-          {% if p5 < 0 %}{% set total = total + p5 | abs %}{% endif %}
-          {% if p6 < 0 %}{% set total = total + p6 | abs %}{% endif %}
-          {{ total }}
-        availability: "{{ is_number(states('sensor.deye_5kw_battery_power')) and is_number(states('sensor.deye_6kw_battery_power')) }}"
-
       - name: "Boiler TEN Power Estimate"
         unique_id: boiler_ten_power_estimate
         unit_of_measurement: "W"
