@@ -415,3 +415,29 @@ power_load_disable_device_duplicate:
     data: {}
   alias: Bizon wakeup
   description: ''
+notify_all:
+  alias: Notify all (mobile app + Telegram)
+  description: Sends the same notification to the mobile apps and to Telegram.
+  fields:
+    title:
+      description: Notification title
+      example: Boiler
+    message:
+      description: Notification text
+      example: Boiler is heated
+  mode: parallel
+  sequence:
+  - action: notify.notify
+    data:
+      title: '{{ title }}'
+      message: '{{ message }}'
+  - action: notify.send_message
+    continue_on_error: true
+    target:
+      entity_id:
+      - notify.yurii_p
+      - notify.kateryna
+      - notify.nataliya
+    data:
+      title: '{{ title }}'
+      message: '{{ message }}'

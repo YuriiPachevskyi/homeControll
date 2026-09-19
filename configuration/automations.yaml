@@ -677,7 +677,7 @@
           entity_id: sensor.boiler_ten_power_estimate
         data: {}
       - delay: 00:00:02
-      - action: notify.notify
+      - action: script.notify_all
         data:
           title: Бойлер
           message: '{{ ''\U0001F550'' }} {{ now().strftime(''%H:%M'') }} {{ ''\U0001F525''
@@ -695,7 +695,7 @@
       - action: input_boolean.turn_off
         target:
           entity_id: input_boolean.boiler_boost_suggested
-      - action: notify.notify
+      - action: script.notify_all
         data:
           title: Нагадування
           message: '{{ ''\U0001F550'' }} {{ now().strftime(''%H:%M'') }} Бойлер на
@@ -704,7 +704,7 @@
       - condition: trigger
         id: lost
       sequence:
-      - action: notify.notify
+      - action: script.notify_all
         data:
           title: Мережа
           message: "\U0001F550 {{ now().strftime('%H:%M') }}\n⚡ Електроживлення зникло\n"
@@ -712,7 +712,7 @@
       - condition: trigger
         id: restored
       sequence:
-      - action: notify.notify
+      - action: script.notify_all
         data:
           title: Мережа
           message: "\U0001F550 {{ now().strftime('%H:%M') }}\n\U0001F4A1 Електроживлення
