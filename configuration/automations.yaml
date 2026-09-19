@@ -804,6 +804,8 @@
       period_start: '{{ (now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)).replace(day=1).isoformat() }}'
       month_name: '{{ [''січень'', ''лютий'', ''березень'', ''квітень'', ''травень'', ''червень'', ''липень'', ''серпень'', ''вересень'', ''жовтень'', ''листопад'', ''грудень''][(now().month - 2) % 12] }}'
       report_year: '{{ now().year if now().month > 1 else now().year - 1 }}'
+      report_month: '{{ (now().month - 2) % 12 + 1 }}'
+      year_start: '{{ now().replace(year=(now().year if now().month > 1 else now().year - 1), month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat() }}'
   - action: recorder.get_statistics
     data:
       start_time: '{{ period_start }}'
@@ -871,4 +873,79 @@
       data:
         title: Підсумки місяця
         message: '🕐 {{ now().strftime(''%H:%M'') }} ⚠️ Не вдалося сформувати підсумки за {{ month_name }} {{ report_year }}: немає даних статистики'
+  - if:
+    - condition: template
+      value_template: '{{ data_ok and report_month > 1 }}'
+    then:
+    - delay: 00:00:03
+    - action: recorder.get_statistics
+      data:
+        start_time: '{{ year_start }}'
+        end_time: '{{ period_end }}'
+        period: month
+        types:
+        - change
+        statistic_ids:
+        - sensor.deye_5kw_total_production
+        - sensor.deye_6kw_total_production
+        - sensor.deye_5kw_total_energy_export
+        - sensor.deye_5kw_total_energy_import
+        - sensor.deye_6kw_total_load_consumption
+      response_variable: stats_y
+    - action: recorder.get_statistics
+      data:
+        start_time: '{{ year_start }}'
+        end_time: '{{ period_end }}'
+        period: hour
+        types:
+        - change
+        statistic_ids:
+        - sensor.deye_5kw_total_energy_import
+      response_variable: stats_h
+    - variables:
+        year_data: >-
+          {%- set sol5 = stats_y.statistics.get('sensor.deye_5kw_total_production', []) -%}
+          {%- set sol6 = stats_y.statistics.get('sensor.deye_6kw_total_production', []) -%}
+          {%- set exp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_export', []) -%}
+          {%- set imp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
+          {%- set hs_l = stats_y.statistics.get('sensor.deye_6kw_total_load_consumption', []) -%}
+          {%- set hourly = stats_h.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
+          {%- set ns = namespace(solar=0, exp=0, imp=0, house=0, net=0, house_cost=0) -%}
+          {%- for i in range([report_month | int, sol5 | length, sol6 | length, exp_l | length, imp_l | length, hs_l | length] | min) -%}
+            {%- set s = (sol5[i].change or 0) + (sol6[i].change or 0) -%}
+            {%- set e = exp_l[i].change or 0 -%}
+            {%- set im = imp_l[i].change or 0 -%}
+            {%- set ho = hs_l[i].change or 0 -%}
+            {%- set mo = as_local(as_datetime(sol5[i].start)).month -%}
+            {%- set ns.solar = ns.solar + s -%}
+            {%- set ns.exp = ns.exp + e -%}
+            {%- set ns.imp = ns.imp + im -%}
+            {%- set ns.house = ns.house + ho -%}
+            {%- if ho > s -%}
+              {%- set nn = namespace(v=0) -%}
+              {%- for r in hourly -%}
+                {%- set t = as_local(as_datetime(r.start)) -%}
+                {%- if t.month == mo and (t.hour >= night_from or t.hour < night_to) and r.change is not none -%}{%- set nn.v = nn.v + r.change -%}{%- endif -%}
+              {%- endfor -%}
+              {%- set bl = ((im - nn.v) * day_tariff + nn.v * night_tariff) / im if im > 0 else day_tariff -%}
+              {%- set ns.net = ns.net - (ho - s) * bl -%}
+              {%- set ns.house_cost = ns.house_cost + ho * bl -%}
+            {%- else -%}
+              {%- set ns.net = ns.net + (e - im) * tariff -%}
+              {%- set ns.house_cost = ns.house_cost + ho * tariff -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {{ {'solar': ns.solar, 'exp': ns.exp, 'imp': ns.imp, 'house': ns.house, 'net': ns.net, 'house_cost': ns.house_cost} | tojson }}
+    - action: script.notify_all
+      data:
+        title: Підсумки року
+        message: |-
+          {%- set y = year_data if year_data is mapping else year_data | from_json -%}
+          🕐 {{ now().strftime('%H:%M') }} 📅 !!!Підсумки за {{ report_year }} рік{% if report_month | int < 12 %} (січень–{{ month_name }}){% endif %}!!!
+
+          ☀️ Сонце (обидва інвертори): {{ y.solar | round(1) }} кВт⋅год
+          📤 Експорт у мережу: {{ y.exp | round(1) }} кВт⋅год
+          📥 Спожито з мережі: {{ y.imp | round(1) }} кВт⋅год
+          💰 Дохід від експорту в мережу: {{ y.net | round(0) | int }} грн
+          🏠 Спожито будинком: {{ y.house | round(1) }} кВт⋅год ({{ y.house_cost | round(0) | int }} грн)
   mode: single
