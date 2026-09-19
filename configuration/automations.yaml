@@ -623,9 +623,21 @@
       minutes: 1
     trigger: state
     id: lost
+  - entity_id: switch.input_meater_switch
+    to: unavailable
+    for:
+      minutes: 1
+    trigger: state
+    id: lost
   - entity_id: binary_sensor.deye_5kw_grid
     from: 'off'
     to: 'on'
+    for:
+      minutes: 1
+    trigger: state
+    id: restored
+  - entity_id: switch.input_meater_switch
+    from: unavailable
     for:
       minutes: 1
     trigger: state
@@ -661,10 +673,9 @@
         data:
           timestamp: '{{ now().timestamp() }}'
       - variables:
-          surplus_power_available: >-
-            {{ now().strftime('%H:%M:%S') < '14:00:00'
-               and states('sensor.deye_6kw_battery') | float(0) > 90
-               and states('sensor.deye_5kw_battery') | float(0) > 90 }}
+          surplus_power_available: "{{ now().strftime('%H:%M:%S') < '14:00:00'\n   and
+            states('sensor.deye_6kw_battery') | float(0) > 90\n   and states('sensor.deye_5kw_battery')
+            | float(0) > 90 }}"
       - if:
         - condition: template
           value_template: '{{ surplus_power_available }}'
@@ -680,11 +691,10 @@
       - action: script.notify_all
         data:
           title: Бойлер
-          message: '{{ ''\U0001F550'' }} {{ now().strftime(''%H:%M'') }} {{ ''\U0001F525''
-            }} Бойлер нагрівся!!! {% if surplus_power_available %} Збільште потужність на макс {% endif %}
-
-            Бойлер спожив: {{ states(''sensor.boiler_ten_energy_estimate_daily'')
-            | float(0) | round(1) }} кВт⋅год'
+          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F525 Бойлер нагрівся!!!{%
+            if surplus_power_available %} Збільште потужність на макс{% endif %}\nСпожив
+            сьогодні: {{ states('sensor.boiler_ten_energy_estimate_daily') | float(0)
+            | round(1) }} кВт⋅год"
     - conditions:
       - condition: trigger
         id: eco_reminder
@@ -703,20 +713,34 @@
     - conditions:
       - condition: trigger
         id: lost
+      - condition: state
+        entity_id: binary_sensor.deye_5kw_grid
+        state: 'off'
+      - condition: state
+        entity_id: switch.input_meater_switch
+        state: unavailable
       sequence:
       - action: script.notify_all
         data:
           title: Мережа
-          message: "\U0001F550 {{ now().strftime('%H:%M') }}\n⚡ Електроживлення зникло\n"
+          message: "\U0001F550 {{ now().strftime('%H:%M') }} ⚡ Електроживлення зникло"
     - conditions:
       - condition: trigger
         id: restored
+      - condition: state
+        entity_id: binary_sensor.deye_5kw_grid
+        state: 'on'
+      - condition: not
+        conditions:
+        - condition: state
+          entity_id: switch.input_meater_switch
+          state: unavailable
       sequence:
       - action: script.notify_all
         data:
           title: Мережа
-          message: "\U0001F550 {{ now().strftime('%H:%M') }}\n\U0001F4A1 Електроживлення
-            відновлено\n"
+          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4A1 Електроживлення
+            відновлено"
 - id: '1788815476602'
   alias: Boiler Energy Sensor Startup Fix
   description: Template/integration sensors for boiler energy tracking can get stuck
