@@ -777,3 +777,98 @@
       entity_id: sensor.boiler_ten_power_estimate
     data: {}
   mode: single
+- id: '1788900000000'
+  alias: Monthly energy summary
+  description: On the 1st of every month at 09:00, sends the previous month's energy
+    report to Telegram (solar, grid export/import in UAH, house load). Uses
+    hourly long-term statistics - period "day"/"month" return an extra bucket for
+    the next month's first day, so they must not be used here. Export and grid purchases
+    are priced at 5.2. In months when house load exceeds solar generation, generation
+    self-compensates consumption, so (house - solar) is billed at the weighted average
+    of day 4.32 and night (23:00-07:00) 2.16, weighted by the month's actual grid
+    import per zone, and export is not paid separately.
+  triggers:
+  - trigger: time
+    at: '09:00:00'
+  conditions:
+  - condition: template
+    value_template: '{{ now().day == 1 }}'
+  actions:
+  - variables:
+      tariff: 5.2
+      day_tariff: 4.32
+      night_tariff: 2.16
+      night_from: 23
+      night_to: 7
+      period_end: '{{ now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat() }}'
+      period_start: '{{ (now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)).replace(day=1).isoformat() }}'
+      month_name: '{{ [''січень'', ''лютий'', ''березень'', ''квітень'', ''травень'', ''червень'', ''липень'', ''серпень'', ''вересень'', ''жовтень'', ''листопад'', ''грудень''][(now().month - 2) % 12] }}'
+      report_year: '{{ now().year if now().month > 1 else now().year - 1 }}'
+  - action: recorder.get_statistics
+    data:
+      start_time: '{{ period_start }}'
+      end_time: '{{ period_end }}'
+      period: hour
+      types:
+      - change
+      statistic_ids:
+      - sensor.deye_5kw_total_production
+      - sensor.deye_6kw_total_production
+      - sensor.deye_5kw_total_energy_export
+      - sensor.deye_5kw_total_energy_import
+      - sensor.deye_6kw_total_load_consumption
+    response_variable: stats
+  - variables:
+      solar: >-
+        {{ (stats.statistics.get('sensor.deye_5kw_total_production', []) | map(attribute='change') | reject('none') | sum)
+           + (stats.statistics.get('sensor.deye_6kw_total_production', []) | map(attribute='change') | reject('none') | sum) }}
+      grid_export: >-
+        {{ stats.statistics.get('sensor.deye_5kw_total_energy_export', []) | map(attribute='change') | reject('none') | sum }}
+      grid_import: >-
+        {{ stats.statistics.get('sensor.deye_5kw_total_energy_import', []) | map(attribute='change') | reject('none') | sum }}
+      house: >-
+        {{ stats.statistics.get('sensor.deye_6kw_total_load_consumption', []) | map(attribute='change') | reject('none') | sum }}
+      data_ok: '{{ stats.statistics.get(''sensor.deye_5kw_total_production'', []) | length > 600 }}'
+      import_night: >-
+        {%- set ns = namespace(v=0) -%}
+        {%- for r in stats.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
+        {%- set h = as_local(as_datetime(r.start)).hour -%}
+        {%- if (h >= night_from or h < night_to) and r.change is not none -%}{%- set ns.v = ns.v + r.change -%}{%- endif -%}
+        {%- endfor -%}{{ ns.v }}
+      deficit_month: '{{ house > solar }}'
+      blended_tariff: '{{ ((grid_import - import_night) * day_tariff + import_night * night_tariff) / grid_import if grid_import > 0 else day_tariff }}'
+      payable: '{{ (house - solar) * blended_tariff }}'
+      night_kwh: '{{ (house - solar) * import_night / grid_import if grid_import > 0 else 0 }}'
+      day_kwh: '{{ (house - solar) - night_kwh }}'
+      import_cost: '{{ grid_import * tariff }}'
+      house_cost: '{{ house * (blended_tariff if deficit_month else tariff) }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ data_ok }}'
+      sequence:
+      - action: script.notify_all
+        data:
+          title: Підсумки місяця
+          message: |-
+            🕐 {{ now().strftime('%H:%M') }} 📊 !!!Підсумки за {{ month_name }} {{ report_year }}!!!
+
+            ☀️ Сонце (обидва інвертори): {{ solar | round(1) }} кВт⋅год
+            {%- if deficit_month %}
+            📤 Експорт у мережу: {{ grid_export | round(1) }} кВт⋅год
+            📥 Спожито з мережі: {{ grid_import | round(1) }} кВт⋅год
+            💸 До сплати (споживання мінус генерація): {{ payable | round(0) | int }} грн
+               🌙 Вночі: {{ night_kwh | round(1) }} кВт⋅год × {{ night_tariff }} = {{ (night_kwh * night_tariff) | round(0) | int }} грн
+               🌞 Вдень: {{ day_kwh | round(1) }} кВт⋅год × {{ day_tariff }} = {{ (day_kwh * day_tariff) | round(0) | int }} грн
+            {%- else %}
+            📤 Експорт у мережу: {{ grid_export | round(1) }} кВт⋅год ({{ (grid_export * tariff) | round(0) | int }} грн)
+            📥 Спожито з мережі: {{ grid_import | round(1) }} кВт⋅год ({{ import_cost | round(0) | int }} грн)
+            💰 Дохід від експорту в мережу: {{ (grid_export * tariff - import_cost) | round(0) | int }} грн
+            {%- endif %}
+            🏠 Спожито будинком: {{ house | round(1) }} кВт⋅год ({{ house_cost | round(0) | int }} грн)
+    default:
+    - action: script.notify_all
+      data:
+        title: Підсумки місяця
+        message: '🕐 {{ now().strftime(''%H:%M'') }} ⚠️ Не вдалося сформувати підсумки за {{ month_name }} {{ report_year }}: немає даних статистики'
+  mode: single
