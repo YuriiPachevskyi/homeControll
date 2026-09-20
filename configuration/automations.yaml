@@ -786,7 +786,9 @@
     are priced at 5.2. In months when house load exceeds solar generation, generation
     self-compensates consumption, so (house - solar) is billed at the weighted average
     of day 4.32 and night (23:00-07:00) 2.16, weighted by the month's actual grid
-    import per zone, and export is not paid separately.
+    import per zone, and export is not paid separately. Right after it, sends the
+    year-to-date summary with a per-month table (skipped on Feb 1, when only January
+    would be covered; on Jan 1 it covers the full previous year).
   triggers:
   - trigger: time
     at: '09:00:00'
@@ -891,6 +893,8 @@
         - sensor.deye_5kw_total_energy_export
         - sensor.deye_5kw_total_energy_import
         - sensor.deye_6kw_total_load_consumption
+        - sensor.deye_6kw_today_load_consumption
+        - sensor.deye_6kw_total_losses
       response_variable: stats_y
     - action: recorder.get_statistics
       data:
@@ -909,13 +913,16 @@
           {%- set exp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_export', []) -%}
           {%- set imp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
           {%- set hs_l = stats_y.statistics.get('sensor.deye_6kw_total_load_consumption', []) -%}
+          {%- set load_l = stats_y.statistics.get('sensor.deye_6kw_today_load_consumption', []) -%}
+          {%- set loss_l = stats_y.statistics.get('sensor.deye_6kw_total_losses', []) -%}
           {%- set hourly = stats_h.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
-          {%- set ns = namespace(solar=0, exp=0, imp=0, house=0, net=0, house_cost=0) -%}
-          {%- for i in range([report_month | int, sol5 | length, sol6 | length, exp_l | length, imp_l | length, hs_l | length] | min) -%}
+          {%- set ns = namespace(solar=0, exp=0, imp=0, house=0, net=0, house_cost=0, months=[]) -%}
+          {%- for i in range([report_month | int, sol5 | length, sol6 | length, exp_l | length, imp_l | length, hs_l | length, load_l | length, loss_l | length] | min) -%}
             {%- set s = (sol5[i].change or 0) + (sol6[i].change or 0) -%}
             {%- set e = exp_l[i].change or 0 -%}
             {%- set im = imp_l[i].change or 0 -%}
             {%- set ho = hs_l[i].change or 0 -%}
+            {%- set hh = (load_l[i].change or 0) + (loss_l[i].change or 0) -%}
             {%- set mo = as_local(as_datetime(sol5[i].start)).month -%}
             {%- set ns.solar = ns.solar + s -%}
             {%- set ns.exp = ns.exp + e -%}
@@ -929,13 +936,15 @@
               {%- endfor -%}
               {%- set bl = ((im - nn.v) * day_tariff + nn.v * night_tariff) / im if im > 0 else day_tariff -%}
               {%- set ns.net = ns.net - (ho - s) * bl -%}
+              {%- set ns.months = ns.months + [{'month': mo, 'solar': s, 'exp': e, 'imp': im, 'house': hh, 'net': -(ho - s) * bl}] -%}
               {%- set ns.house_cost = ns.house_cost + ho * bl -%}
             {%- else -%}
               {%- set ns.net = ns.net + (e - im) * tariff -%}
+              {%- set ns.months = ns.months + [{'month': mo, 'solar': s, 'exp': e, 'imp': im, 'house': hh, 'net': (e - im) * tariff}] -%}
               {%- set ns.house_cost = ns.house_cost + ho * tariff -%}
             {%- endif -%}
           {%- endfor -%}
-          {{ {'solar': ns.solar, 'exp': ns.exp, 'imp': ns.imp, 'house': ns.house, 'net': ns.net, 'house_cost': ns.house_cost} | tojson }}
+          {{ {'solar': ns.solar, 'exp': ns.exp, 'imp': ns.imp, 'house': ns.house, 'net': ns.net, 'house_cost': ns.house_cost, 'months': ns.months} | tojson }}
     - action: script.notify_all
       data:
         title: Підсумки року
@@ -948,4 +957,14 @@
           📥 Спожито з мережі: {{ y.imp | round(1) }} кВт⋅год
           💰 Дохід від експорту в мережу: {{ y.net | round(0) | int }} грн
           🏠 Спожито будинком: {{ y.house | round(1) }} кВт⋅год ({{ y.house_cost | round(0) | int }} грн)
+
+          📆 По місяцях:
+          ```
+          {{ '%-4s%6s%6s%7s%6s%7s' % ('Міс.', 'Сонце', 'Експ.', 'Мережа', 'Буд.', 'Грн') }}
+          {%- set names = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'] %}
+          {%- for r in y.months %}
+          {{ '%-4s%6d%6d%7d%6d%+7d' % (names[r.month - 1], r.solar | round(0) | int, r.exp | round(0) | int, r.imp | round(0) | int, r.house | round(0) | int, r.net | round(0) | int) }}
+          {%- endfor %}
+          ```
+          ☀️ Сонце, 📤 експорт, 📥 з мережі, 🏠 будинок (навантаження + втрати) — кВт⋅год; грн: + дохід, − до сплати
   mode: single
