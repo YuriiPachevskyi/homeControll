@@ -968,3 +968,115 @@
           ```
           ☀️ Сонце, 📤 експорт, 📥 з мережі, 🏠 будинок — кВт⋅год; грн: + дохід, − до сплати
   mode: single
+- id: '1788900000001'
+  alias: Annual export income breakdown
+  description: On Dec 1 at 09:01 (right after the monthly and year-to-date summaries),
+    sends to Telegram a per-month breakdown of how the year's export income is calculated
+    (January-November). Surplus month = (export - import) x 5.2353 (green tariff 6.7991 minus
+    18% PDFO and 5% military levy). Deficit month (house load above solar generation) = minus
+    (house - solar) x the month's blended day 4.32 / night (23:00-07:00) 2.16 tariff, weighted
+    by actual grid import per zone. Same logic as the year-to-date summary in the monthly
+    energy summary automation, so the totals match.
+  triggers:
+  - trigger: time
+    at: '09:01:00'
+  conditions:
+  - condition: template
+    value_template: '{{ now().month == 12 and now().day == 1 }}'
+  actions:
+  - variables:
+      tariff: 5.2353
+      day_tariff: 4.32
+      night_tariff: 2.16
+      night_from: 23
+      night_to: 7
+      period_end: '{{ now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat() }}'
+      year_start: '{{ now().replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat() }}'
+      report_month: '{{ now().month - 1 }}'
+      report_year: '{{ now().year }}'
+  - action: recorder.get_statistics
+    data:
+      start_time: '{{ year_start }}'
+      end_time: '{{ period_end }}'
+      period: month
+      types:
+      - change
+      statistic_ids:
+      - sensor.deye_5kw_total_production
+      - sensor.deye_6kw_total_production
+      - sensor.deye_5kw_total_energy_export
+      - sensor.deye_5kw_total_energy_import
+      - sensor.deye_6kw_total_load_consumption
+    response_variable: stats_y
+  - action: recorder.get_statistics
+    data:
+      start_time: '{{ year_start }}'
+      end_time: '{{ period_end }}'
+      period: hour
+      types:
+      - change
+      statistic_ids:
+      - sensor.deye_5kw_total_energy_import
+    response_variable: stats_h
+  - variables:
+      year_data: >-
+        {%- set sol5 = stats_y.statistics.get('sensor.deye_5kw_total_production', []) -%}
+        {%- set sol6 = stats_y.statistics.get('sensor.deye_6kw_total_production', []) -%}
+        {%- set exp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_export', []) -%}
+        {%- set imp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
+        {%- set hs_l = stats_y.statistics.get('sensor.deye_6kw_total_load_consumption', []) -%}
+        {%- set hourly = stats_h.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
+        {%- set ns = namespace(net=0, months=[]) -%}
+        {%- for i in range([report_month | int, sol5 | length, sol6 | length, exp_l | length, imp_l | length, hs_l | length] | min) -%}
+          {%- set s = (sol5[i].change or 0) + (sol6[i].change or 0) -%}
+          {%- set e = exp_l[i].change or 0 -%}
+          {%- set im = imp_l[i].change or 0 -%}
+          {%- set ho = hs_l[i].change or 0 -%}
+          {%- set mo = as_local(as_datetime(sol5[i].start)).month -%}
+          {%- if ho > s -%}
+            {%- set nn = namespace(v=0) -%}
+            {%- for r in hourly -%}
+              {%- set t = as_local(as_datetime(r.start)) -%}
+              {%- if t.month == mo and (t.hour >= night_from or t.hour < night_to) and r.change is not none -%}{%- set nn.v = nn.v + r.change -%}{%- endif -%}
+            {%- endfor -%}
+            {%- set bl = ((im - nn.v) * day_tariff + nn.v * night_tariff) / im if im > 0 else day_tariff -%}
+            {%- set net = -(ho - s) * bl -%}
+            {%- set ns.months = ns.months + [{'month': mo, 'exp': e, 'imp': im, 'diff': s - ho, 'rate': bl, 'net': net, 'deficit': true}] -%}
+          {%- else -%}
+            {%- set net = (e - im) * tariff -%}
+            {%- set ns.months = ns.months + [{'month': mo, 'exp': e, 'imp': im, 'diff': e - im, 'rate': tariff, 'net': net, 'deficit': false}] -%}
+          {%- endif -%}
+          {%- set ns.net = ns.net + net -%}
+        {%- endfor -%}
+        {{ {'net': ns.net, 'months': ns.months} | tojson }}
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ (year_data if year_data is mapping else year_data | from_json).months | length == report_month | int }}'
+      sequence:
+      - action: script.notify_all
+        data:
+          title: Розрахунок доходу за рік
+          message: |-
+            {%- set y = year_data if year_data is mapping else year_data | from_json -%}
+            🕐 {{ now().strftime('%H:%M') }} 🧮 !!!Розрахунок доходу від експорту за {{ report_year }} рік (січень–листопад)!!!
+
+            💰 Разом: {{ y.net | round(0) | int }} грн
+
+            ```
+            {{ '%-5s%6s%6s%7s%7s%8s' % ('Міс.', 'Експ.', 'Імп.', 'Різн.', 'Тариф', 'Грн') }}
+            {%- set names = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'] %}
+            {%- for r in y.months %}
+            {{ '%-5s%6d%6d%+7d%7.2f%+8d' % (names[r.month - 1] ~ ('†' if r.deficit else ''), r.exp | round(0) | int, r.imp | round(0) | int, r.diff | round(0) | int, r.rate, r.net | round(0) | int) }}
+            {%- endfor %}
+            {{ '%-5s%6s%6s%7s%7s%+8d' % ('Разом', '', '', '', '', y.net | round(0) | int) }}
+            ```
+            Різн. = експорт − імпорт, кВт⋅год; Тариф — грн/кВт⋅год; грн: + дохід, − до сплати.{% if y.months | selectattr('deficit') | list | length > 0 %}
+
+            † Місяць з дефіцитом: генерація менша за споживання будинку, експорт не оплачується. Різн. = сонце − будинок, вартість = різниця × змішаний тариф день/ніч.{% endif %}
+    default:
+    - action: script.notify_all
+      data:
+        title: Розрахунок доходу за рік
+        message: '🕐 {{ now().strftime(''%H:%M'') }} ⚠️ Не вдалося сформувати розрахунок доходу за {{ report_year }} рік: неповні дані статистики'
+  mode: single
