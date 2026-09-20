@@ -788,7 +788,8 @@
     of day 4.32 and night (23:00-07:00) 2.16, weighted by the month's actual grid
     import per zone, and export is not paid separately. Right after it, sends the
     year-to-date summary with a per-month table (skipped on Feb 1, when only January
-    would be covered; on Jan 1 it covers the full previous year).
+    would be covered; on Jan 1 it covers the full previous year). House consumption is
+    shown at two prices - the green-tariff scheme above and a flat day tariff (4.32).
   triggers:
   - trigger: time
     at: '09:00:00'
@@ -869,7 +870,9 @@
             📥 Спожито з мережі: {{ grid_import | round(1) }} кВт⋅год ({{ import_cost | round(0) | int }} грн)
             💰 Дохід від експорту в мережу: {{ (grid_export * tariff - import_cost) | round(0) | int }} грн
             {%- endif %}
-            🏠 Спожито будинком: {{ house | round(1) }} кВт⋅год ({{ house_cost | round(0) | int }} грн)
+            🏠 Спожито будинком: {{ house | round(1) }} кВт⋅год
+               🟢 За зеленим тарифом: {{ house_cost | round(0) | int }} грн
+               ⚪ За загальним тарифом: {{ (house * day_tariff) | round(0) | int }} грн (× {{ day_tariff }})
     default:
     - action: script.notify_all
       data:
@@ -951,7 +954,9 @@
           📤 Експорт у мережу: {{ y.exp | round(1) }} кВт⋅год
           📥 Спожито з мережі: {{ y.imp | round(1) }} кВт⋅год
           💰 Дохід від експорту в мережу: {{ y.net | round(0) | int }} грн
-          🏠 Спожито будинком: {{ y.house | round(1) }} кВт⋅год ({{ y.house_cost | round(0) | int }} грн)
+          🏠 Спожито будинком: {{ y.house | round(1) }} кВт⋅год
+             🟢 За зеленим тарифом: {{ y.house_cost | round(0) | int }} грн
+             ⚪ За загальним тарифом: {{ (y.house * day_tariff) | round(0) | int }} грн (× {{ day_tariff }})
 
           📆 По місяцях:
           ```
