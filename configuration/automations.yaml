@@ -783,7 +783,7 @@
     report to Telegram (solar, grid export/import in UAH, house load). Uses
     hourly long-term statistics - period "day"/"month" return an extra bucket for
     the next month's first day, so they must not be used here. Export and grid purchases
-    are priced at 5.2. In months when house load exceeds solar generation, generation
+    are priced at 5.2353 (green tariff 6.7991 minus 18% PDFO and 5% military levy). In months when house load exceeds solar generation, generation
     self-compensates consumption, so (house - solar) is billed at the weighted average
     of day 4.32 and night (23:00-07:00) 2.16, weighted by the month's actual grid
     import per zone, and export is not paid separately. Right after it, sends the
@@ -797,7 +797,7 @@
     value_template: '{{ now().day == 1 }}'
   actions:
   - variables:
-      tariff: 5.2
+      tariff: 5.2353
       day_tariff: 4.32
       night_tariff: 2.16
       night_from: 23
