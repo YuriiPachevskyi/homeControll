@@ -42,14 +42,22 @@ def bot_url() -> str:
 def send_pdf(path: Path, caption: str) -> bool:
     ok = True
     for chat in CHAT_IDS:
-        r = subprocess.run(
-            ["curl", "-s", "-m", "60", "-F", f"chat_id={chat}", "-F", f"caption={caption}",
-             "-F", f"document=@{path}", f"{bot_url()}/sendDocument"],
-            capture_output=True, text=True)
-        try:
-            ok = ok and json.loads(r.stdout).get("ok", False)
-        except json.JSONDecodeError:
-            ok = False
+        sent = False
+        # Markdown makes the payout line bold; if Telegram rejects the markup,
+        # deliver the same caption as plain text rather than retry forever.
+        for cap, mode in ((caption, "Markdown"), (caption.replace("*", ""), None)):
+            cmd = ["curl", "-s", "-m", "60", "-F", f"chat_id={chat}", "-F", f"caption={cap}",
+                   "-F", f"document=@{path}", f"{bot_url()}/sendDocument"]
+            if mode:
+                cmd[-1:-1] = ["-F", f"parse_mode={mode}"]
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            try:
+                sent = json.loads(r.stdout).get("ok", False)
+            except json.JSONDecodeError:
+                sent = False
+            if sent:
+                break
+        ok = ok and sent
     return ok
 
 
@@ -77,8 +85,8 @@ def caption_for(path: Path) -> str:
     y, m = month.split("-")
     title = f"🕐 {now} 📄 Акт за {MONTHS[int(m) - 1]} {y}!!!"
     if rec.get("green_tariff"):
-        return f"{title}\nДо виплати: {rec['payout']:.2f} ₴"
-    return f"{title}\nВиплати немає"
+        return f"{title}\n💰 *До виплати: {rec['payout']:.2f} ₴*"
+    return f"{title}\n*Виплати немає*"
 
 
 def refresh_ha_sensor() -> None:
