@@ -788,8 +788,10 @@
     of day 4.32 and night (23:00-07:00) 2.16, weighted by the month's actual grid
     import per zone, and export is not paid separately. Right after it, sends the
     year-to-date summary with a per-month table (skipped on Feb 1, when only January
-    would be covered; on Jan 1 it covers the full previous year). House consumption is
-    shown at two prices - the green-tariff scheme above and a flat day tariff (4.32).
+    would be covered; on Jan 1 it covers the full previous year). The monthly message shows
+    house consumption in kWh only, plus the boiler's share of it (estimate from sensor.boiler_ten_energy_total,
+    shown only for months with data, i.e. from September 2026); the year-to-date summary also shows
+    house consumption at two prices - the green-tariff scheme above and a flat day tariff (4.32).
   triggers:
   - trigger: time
     at: '09:00:00'
@@ -824,6 +826,7 @@
       - sensor.deye_5kw_total_energy_export
       - sensor.deye_5kw_total_energy_import
       - sensor.deye_6kw_total_load_consumption
+      - sensor.boiler_ten_energy_total
     response_variable: stats
   - variables:
       solar: >-
@@ -835,6 +838,8 @@
         {{ stats.statistics.get('sensor.deye_5kw_total_energy_import', []) | map(attribute='change') | reject('none') | sum }}
       house: >-
         {{ stats.statistics.get('sensor.deye_6kw_total_load_consumption', []) | map(attribute='change') | reject('none') | sum }}
+      boiler: >-
+        {{ stats.statistics.get('sensor.boiler_ten_energy_total', []) | map(attribute='change') | reject('none') | sum }}
       data_ok: '{{ stats.statistics.get(''sensor.deye_5kw_total_production'', []) | length > 600 }}'
       import_night: >-
         {%- set ns = namespace(v=0) -%}
@@ -848,7 +853,6 @@
       night_kwh: '{{ (house - solar) * import_night / grid_import if grid_import > 0 else 0 }}'
       day_kwh: '{{ (house - solar) - night_kwh }}'
       import_cost: '{{ grid_import * tariff }}'
-      house_cost: '{{ house * (blended_tariff if deficit_month else tariff) }}'
   - choose:
     - conditions:
       - condition: template
@@ -873,8 +877,9 @@
             💰 Дохід від експорту в мережу: {{ (grid_export * tariff - import_cost) | round(0) | int }} грн
             {%- endif %}
             🏠 Спожито будинком: {{ house | round(1) }} кВт⋅год
-               🟢 За зеленим тарифом: {{ house_cost | round(0) | int }} грн
-               ⚪ За загальним тарифом: {{ (house * day_tariff) | round(0) | int }} грн (× {{ day_tariff }})
+            {%- if boiler > 0 and house > 0 %}
+               🔥 З них бойлер: {{ boiler | round(1) }} кВт⋅год ({{ (boiler / house * 100) | round(0) | int }}%)
+            {%- endif %}
     default:
     - action: script.notify_all
       data:
