@@ -1068,21 +1068,18 @@
           title: Розрахунок доходу за рік
           message: |-
             {%- set y = year_data if year_data is mapping else year_data | from_json -%}
-            🕐 {{ now().strftime('%H:%M') }} 🧮 !!!Розрахунок доходу від експорту за {{ report_year }} рік (січень–листопад)!!!
+            🕐 {{ now().strftime('%H:%M') }} 🧮 !!!Дохід за {{ report_year }} рік (січень–листопад)!!!
 
-            💰 Разом: {{ y.net | round(0) | int }} грн
+            💰 Разом: {{ y.net | round(0) | int }} ₴
 
             ```
-            {{ '%-5s%6s%6s%7s%7s%8s' % ('Міс.', 'Експ.', 'Імп.', 'Різн.', 'Тариф', 'Грн') }}
+            {{ '%-4s%5s%5s%6s%5s%7s' % ('Міс', 'Експ', 'Імп', 'Різн', 'Тар', '₴') }}
             {%- set names = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'] %}
             {%- for r in y.months %}
-            {{ '%-5s%6d%6d%+7d%7.2f%+8d' % (names[r.month - 1] ~ ('†' if r.deficit else ''), r.exp | round(0) | int, r.imp | round(0) | int, r.diff | round(0) | int, r.rate, r.net | round(0) | int) }}
+            {{ '%-4s%5d%5d%+6d%5.2f%+7d' % (names[r.month - 1] ~ ('†' if r.deficit else ''), r.exp | round(0) | int, r.imp | round(0) | int, r.diff | round(0) | int, r.rate, r.net | round(0) | int) }}
             {%- endfor %}
-            {{ '%-5s%6s%6s%7s%7s%+8d' % ('Разом', '', '', '', '', y.net | round(0) | int) }}
+            {{ '%-5s%5s%5s%6s%5s%+6d' % ('Разом', '', '', '', '', y.net | round(0) | int) }}
             ```
-            Різн. = експорт − імпорт, кВт⋅год; Тариф — грн/кВт⋅год; грн: + дохід, − до сплати.{% if y.months | selectattr('deficit') | list | length > 0 %}
-
-            † Місяць з дефіцитом: генерація менша за споживання будинку, експорт не оплачується. Різн. = сонце − будинок, вартість = різниця × змішаний тариф день/ніч.{% endif %}
     default:
     - action: script.notify_all
       data:
