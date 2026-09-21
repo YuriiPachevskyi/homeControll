@@ -73,11 +73,11 @@ def caption_for(path: Path) -> str:
         month, rec = parse_acts.parse(path)
     except Exception as e:  # layout changed - still deliver the PDF
         print(f"parse failed for {path.name}: {e}")
-        return f"🕐 {now} 📄 Акт від ЕНЕРА!!!\nТариф не вдалося прочитати автоматично"
+        return f"🕐 {now} 📄 Акт!!!\nСуму не вдалося прочитати автоматично"
     y, m = month.split("-")
-    title = f"🕐 {now} 📄 Акт від ЕНЕРА за {MONTHS[int(m) - 1]} {y}!!!"
+    title = f"🕐 {now} 📄 Акт за {MONTHS[int(m) - 1]} {y}!!!"
     if rec.get("green_tariff"):
-        return f"{title}\nДо виплати: {rec['payout']:.2f} грн"
+        return f"{title}\nДо виплати: {rec['payout']:.2f} ₴"
     return f"{title}\nВиплати немає"
 
 
