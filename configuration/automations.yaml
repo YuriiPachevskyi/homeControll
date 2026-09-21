@@ -246,7 +246,7 @@
         }}'
       config:
         Morning Export:
-          5kw_soc: 55
+          5kw_soc: 60
           5kw_power: '{{ smart_limit }}'
           export_power: 5050
           6kw_soc: 40
@@ -254,7 +254,7 @@
           peak_shaving_6kw: 'on'
           general_automation: true
         Max Solar:
-          5kw_soc: 55
+          5kw_soc: 60
           5kw_power: 350
           export_power: 5080
           6kw_soc: 40
@@ -270,7 +270,7 @@
           peak_shaving_6kw: 'on'
           general_automation: true
         Evening Export:
-          5kw_soc: 55
+          5kw_soc: 60
           5kw_power: '{{ smart_limit }}'
           export_power: 5000
           6kw_soc: 70
@@ -780,18 +780,21 @@
 - id: '1788900000000'
   alias: Monthly energy summary
   description: On the 1st of every month at 09:00, sends the previous month's energy
-    report to Telegram (solar, grid export/import in UAH, house load). Uses
-    hourly long-term statistics - period "day"/"month" return an extra bucket for
-    the next month's first day, so they must not be used here. Export and grid purchases
-    are priced at 5.2353 (green tariff 6.7991 minus 18% PDFO and 5% military levy). In months when house load exceeds solar generation, generation
-    self-compensates consumption, so (house - solar) is billed at the weighted average
-    of day 4.32 and night (23:00-07:00) 2.16, weighted by the month's actual grid
-    import per zone, and export is not paid separately. On Jan 1 only, right after it, sends the summary of the full previous year with a
+    report to Telegram (solar, grid export/import in UAH, house load). Uses hourly
+    long-term statistics - period "day"/"month" return an extra bucket for the next
+    month's first day, so they must not be used here. Export and grid purchases are
+    priced at 5.2353 (green tariff 6.7991 minus 18% PDFO and 5% military levy). In
+    months when house load exceeds solar generation, generation self-compensates consumption,
+    so (house - solar) is billed at the weighted average of day 4.32 and night (23:00-07:00)
+    2.16, weighted by the month's actual grid import per zone, and export is not paid
+    separately. On Jan 1 only, right after it, sends the summary of the full previous year with a
     per-month table. Both messages show house consumption in kWh; the monthly one also shows the boiler's share of it
     (estimate from sensor.boiler_ten_energy_total, only for months with data, i.e. from September 2026).
+    House consumption is sensor.home_load_energy (6kW load plus the part
+    of the 5kW load that is not passed on to the 6kW inverter).
   triggers:
   - trigger: time
-    at: '09:00:00'
+    at: 09:00:00
   conditions:
   - condition: template
     value_template: '{{ now().day == 1 }}'
@@ -803,13 +806,19 @@
       night_tariff: 2.16
       night_from: 23
       night_to: 7
-      period_end: '{{ now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat() }}'
-      period_start: '{{ (now().replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)).replace(day=1).isoformat() }}'
-      month_name: '{{ [''січень'', ''лютий'', ''березень'', ''квітень'', ''травень'', ''червень'', ''липень'', ''серпень'', ''вересень'', ''жовтень'', ''листопад'', ''грудень''][(now().month - 2) % 12] }}'
+      period_end: '{{ now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+        }}'
+      period_start: '{{ (now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        - timedelta(days=1)).replace(day=1).isoformat() }}'
+      month_name: '{{ [''січень'', ''лютий'', ''березень'', ''квітень'', ''травень'',
+        ''червень'', ''липень'', ''серпень'', ''вересень'', ''жовтень'', ''листопад'',
+        ''грудень''][(now().month - 2) % 12] }}'
       report_year: '{{ now().year if now().month > 1 else now().year - 1 }}'
       report_month: '{{ (now().month - 2) % 12 + 1 }}'
       tariff: '{{ (((state_attr(''sensor.enera_green_tariffs'', ''tariffs'') or {}).get(''%d-%02d'' % (report_year | int, report_month | int)) | float(0)) * tax_factor) or fallback_tariff }}'
-      year_start: '{{ now().replace(year=(now().year if now().month > 1 else now().year - 1), month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat() }}'
+      year_start: '{{ now().replace(year=(now().year if now().month > 1 else now().year
+        - 1), month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+        }}'
   - action: recorder.get_statistics
     data:
       start_time: '{{ period_start }}'
@@ -822,32 +831,33 @@
       - sensor.deye_6kw_total_production
       - sensor.deye_5kw_total_energy_export
       - sensor.deye_5kw_total_energy_import
-      - sensor.deye_6kw_total_load_consumption
+      - sensor.home_load_energy
       - sensor.boiler_ten_energy_total
     response_variable: stats
   - variables:
-      solar: >-
-        {{ (stats.statistics.get('sensor.deye_5kw_total_production', []) | map(attribute='change') | reject('none') | sum)
-           + (stats.statistics.get('sensor.deye_6kw_total_production', []) | map(attribute='change') | reject('none') | sum) }}
-      grid_export: >-
-        {{ stats.statistics.get('sensor.deye_5kw_total_energy_export', []) | map(attribute='change') | reject('none') | sum }}
-      grid_import: >-
-        {{ stats.statistics.get('sensor.deye_5kw_total_energy_import', []) | map(attribute='change') | reject('none') | sum }}
-      house: >-
-        {{ stats.statistics.get('sensor.deye_6kw_total_load_consumption', []) | map(attribute='change') | reject('none') | sum }}
-      boiler: >-
-        {{ stats.statistics.get('sensor.boiler_ten_energy_total', []) | map(attribute='change') | reject('none') | sum }}
-      data_ok: '{{ stats.statistics.get(''sensor.deye_5kw_total_production'', []) | length > 600 }}'
-      import_night: >-
-        {%- set ns = namespace(v=0) -%}
-        {%- for r in stats.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
-        {%- set h = as_local(as_datetime(r.start)).hour -%}
-        {%- if (h >= night_from or h < night_to) and r.change is not none -%}{%- set ns.v = ns.v + r.change -%}{%- endif -%}
-        {%- endfor -%}{{ ns.v }}
+      solar: "{{ (stats.statistics.get('sensor.deye_5kw_total_production', []) | map(attribute='change')
+        | reject('none') | sum)\n   + (stats.statistics.get('sensor.deye_6kw_total_production',
+        []) | map(attribute='change') | reject('none') | sum) }}"
+      grid_export: '{{ stats.statistics.get(''sensor.deye_5kw_total_energy_export'',
+        []) | map(attribute=''change'') | reject(''none'') | sum }}'
+      grid_import: '{{ stats.statistics.get(''sensor.deye_5kw_total_energy_import'',
+        []) | map(attribute=''change'') | reject(''none'') | sum }}'
+      house: '{{ stats.statistics.get(''sensor.home_load_energy'',
+        []) | map(attribute=''change'') | reject(''none'') | sum }}'
+      boiler: '{{ stats.statistics.get(''sensor.boiler_ten_energy_total'',
+        []) | map(attribute=''change'') | reject(''none'') | sum }}'
+      data_ok: '{{ stats.statistics.get(''sensor.deye_5kw_total_production'', [])
+        | length > 600 }}'
+      import_night: '{%- set ns = namespace(v=0) -%} {%- for r in stats.statistics.get(''sensor.deye_5kw_total_energy_import'',
+        []) -%} {%- set h = as_local(as_datetime(r.start)).hour -%} {%- if (h >= night_from
+        or h < night_to) and r.change is not none -%}{%- set ns.v = ns.v + r.change
+        -%}{%- endif -%} {%- endfor -%}{{ ns.v }}'
       deficit_month: '{{ house > solar }}'
-      blended_tariff: '{{ ((grid_import - import_night) * day_tariff + import_night * night_tariff) / grid_import if grid_import > 0 else day_tariff }}'
+      blended_tariff: '{{ ((grid_import - import_night) * day_tariff + import_night
+        * night_tariff) / grid_import if grid_import > 0 else day_tariff }}'
       payable: '{{ (house - solar) * blended_tariff }}'
-      night_kwh: '{{ (house - solar) * import_night / grid_import if grid_import > 0 else 0 }}'
+      night_kwh: '{{ (house - solar) * import_night / grid_import if grid_import >
+        0 else 0 }}'
       day_kwh: '{{ (house - solar) - night_kwh }}'
       import_cost: '{{ grid_import * tariff }}'
   - choose:
@@ -858,30 +868,28 @@
       - action: script.notify_all
         data:
           title: Підсумки місяця
-          message: |-
-            🕐 {{ now().strftime('%H:%M') }} 📊 !!!{{ month_name | capitalize }} {{ report_year }}!!!
-
-            ☀️ Сонце сумарно: {{ solar | round(1) }} kWh
-            {%- if deficit_month %}
-            📤 Експорт: {{ grid_export | round(1) }} kWh
-            📥 Імпорт: {{ grid_import | round(1) }} kWh
-            💸 *До сплати: {{ payable | round(0) | int }} ₴*
-               🌙 Вночі: {{ night_kwh | round(1) }} kWh × {{ night_tariff }} = {{ (night_kwh * night_tariff) | round(0) | int }} ₴
-               🌞 Вдень: {{ day_kwh | round(1) }} kWh × {{ day_tariff }} = {{ (day_kwh * day_tariff) | round(0) | int }} ₴
-            {%- else %}
-            📤 Експорт: {{ grid_export | round(1) }} kWh ({{ (grid_export * tariff) | round(0) | int }} ₴)
-            📥 Імпорт: {{ grid_import | round(1) }} kWh ({{ import_cost | round(0) | int }} ₴)
-            💰 *Дохід від експорту: {{ (grid_export * tariff - import_cost) | round(0) | int }} ₴*
-            {%- endif %}
-            🏠 Спожито: {{ house | round(1) }} kWh
-            {%- if boiler > 0 and house > 0 %}
-               🔥 З них бойлер: {{ boiler | round(1) }} kWh ({{ (boiler / house * 100) | round(0) | int }}%)
-            {%- endif %}
+          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4CA !!!{{ month_name | capitalize }} {{ report_year }}!!!\n\n☀️ Сонце сумарно:
+            {{ solar | round(1) }} kWh\n{%- if deficit_month %}\n\U0001F4E4 Експорт:
+            {{ grid_export | round(1) }} kWh\n\U0001F4E5 Імпорт:
+            {{ grid_import | round(1) }} kWh\n\U0001F4B8 *До сплати:
+            {{ payable | round(0) | int }} ₴*\n   \U0001F319 Вночі:
+            {{ night_kwh | round(1) }} kWh × {{ night_tariff }} = {{ (night_kwh
+            * night_tariff) | round(0) | int }} ₴\n   \U0001F31E Вдень: {{ day_kwh
+            | round(1) }} kWh × {{ day_tariff }} = {{ (day_kwh * day_tariff) |
+            round(0) | int }} ₴\n{%- else %}\n\U0001F4E4 Експорт: {{ grid_export
+            | round(1) }} kWh ({{ (grid_export * tariff) | round(0) | int }} ₴)\n\U0001F4E5
+            Імпорт: {{ grid_import | round(1) }} kWh ({{ import_cost
+            | round(0) | int }} ₴)\n\U0001F4B0 *Дохід від експорту: {{ (grid_export
+            * tariff - import_cost) | round(0) | int }} ₴*\n{%- endif %}\n\U0001F3E0
+            Спожито: {{ house | round(1) }} kWh{%- if boiler > 0 and house > 0 %}\n   \U0001F525
+            З них бойлер: {{ boiler | round(1) }} kWh ({{ (boiler / house * 100) | round(0)
+            | int }}%){%- endif %}"
     default:
     - action: script.notify_all
       data:
         title: Підсумки місяця
-        message: '🕐 {{ now().strftime(''%H:%M'') }} ⚠️ Не вдалося сформувати підсумки за {{ month_name }} {{ report_year }}: немає даних статистики'
+        message: "\U0001F550 {{ now().strftime('%H:%M') }} ⚠️ Не вдалося сформувати
+          підсумки за {{ month_name }} {{ report_year }}: немає даних статистики"
   - if:
     - condition: template
       value_template: '{{ data_ok and now().month == 1 }}'
@@ -899,7 +907,7 @@
         - sensor.deye_6kw_total_production
         - sensor.deye_5kw_total_energy_export
         - sensor.deye_5kw_total_energy_import
-        - sensor.deye_6kw_total_load_consumption
+        - sensor.home_load_energy
       response_variable: stats_y
     - action: recorder.get_statistics
       data:
@@ -912,61 +920,47 @@
         - sensor.deye_5kw_total_energy_import
       response_variable: stats_h
     - variables:
-        year_data: >-
-          {%- set sol5 = stats_y.statistics.get('sensor.deye_5kw_total_production', []) -%}
-          {%- set sol6 = stats_y.statistics.get('sensor.deye_6kw_total_production', []) -%}
-          {%- set exp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_export', []) -%}
-          {%- set imp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
-          {%- set hs_l = stats_y.statistics.get('sensor.deye_6kw_total_load_consumption', []) -%}
-          {%- set hourly = stats_h.statistics.get('sensor.deye_5kw_total_energy_import', []) -%}
-          {%- set ns = namespace(solar=0, exp=0, imp=0, house=0, net=0, months=[]) -%}
-          {%- for i in range([report_month | int, sol5 | length, sol6 | length, exp_l | length, imp_l | length, hs_l | length] | min) -%}
-            {%- set s = (sol5[i].change or 0) + (sol6[i].change or 0) -%}
-            {%- set e = exp_l[i].change or 0 -%}
-            {%- set im = imp_l[i].change or 0 -%}
-            {%- set ho = hs_l[i].change or 0 -%}
-            {%- set mo = as_local(as_datetime(sol5[i].start)).month -%}
-            {%- set tar = (((state_attr('sensor.enera_green_tariffs', 'tariffs') or {}).get('%d-%02d' % (report_year | int, mo)) | float(0)) * tax_factor) or fallback_tariff -%}
-            {%- set ns.solar = ns.solar + s -%}
-            {%- set ns.exp = ns.exp + e -%}
-            {%- set ns.imp = ns.imp + im -%}
-            {%- set ns.house = ns.house + ho -%}
-            {%- if ho > s -%}
-              {%- set nn = namespace(v=0) -%}
-              {%- for r in hourly -%}
-                {%- set t = as_local(as_datetime(r.start)) -%}
-                {%- if t.month == mo and (t.hour >= night_from or t.hour < night_to) and r.change is not none -%}{%- set nn.v = nn.v + r.change -%}{%- endif -%}
-              {%- endfor -%}
-              {%- set bl = ((im - nn.v) * day_tariff + nn.v * night_tariff) / im if im > 0 else day_tariff -%}
-              {%- set ns.net = ns.net - (ho - s) * bl -%}
-              {%- set ns.months = ns.months + [{'month': mo, 'solar': s, 'exp': e, 'imp': im, 'house': ho, 'net': -(ho - s) * bl}] -%}
-            {%- else -%}
-              {%- set ns.net = ns.net + (e - im) * tar -%}
-              {%- set ns.months = ns.months + [{'month': mo, 'solar': s, 'exp': e, 'imp': im, 'house': ho, 'net': (e - im) * tar}] -%}
-            {%- endif -%}
-          {%- endfor -%}
-          {{ {'solar': ns.solar, 'exp': ns.exp, 'imp': ns.imp, 'house': ns.house, 'net': ns.net, 'months': ns.months} | tojson }}
+        year_data: "{%- set sol5 = stats_y.statistics.get('sensor.deye_5kw_total_production',
+          []) -%} {%- set sol6 = stats_y.statistics.get('sensor.deye_6kw_total_production',
+          []) -%} {%- set exp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_export',
+          []) -%} {%- set imp_l = stats_y.statistics.get('sensor.deye_5kw_total_energy_import',
+          []) -%} {%- set hs_l = stats_y.statistics.get('sensor.home_load_energy',
+          []) -%} {%- set hourly = stats_h.statistics.get('sensor.deye_5kw_total_energy_import',
+          []) -%} {%- set ns = namespace(solar=0, exp=0, imp=0, house=0, net=0,
+          months=[]) -%} {%- for i in range([report_month | int, sol5 | length, sol6
+          | length, exp_l | length, imp_l | length, hs_l | length] | min) -%}\n  {%-
+          set s = (sol5[i].change or 0) + (sol6[i].change or 0) -%}\n  {%- set e =
+          exp_l[i].change or 0 -%}\n  {%- set im = imp_l[i].change or 0 -%}\n  {%-
+          set ho = hs_l[i].change or 0 -%}\n  {%- set mo = as_local(as_datetime(sol5[i].start)).month
+          -%}\n  {%- set tar = (((state_attr('sensor.enera_green_tariffs', 'tariffs') or {}).get('%d-%02d' % (report_year | int, mo)) | float(0)) * tax_factor) or fallback_tariff -%}{%- set ns.solar = ns.solar + s -%}\n  {%- set ns.exp = ns.exp +
+          e -%}\n  {%- set ns.imp = ns.imp + im -%}\n  {%- set ns.house = ns.house
+          + ho -%}\n  {%- if ho > s -%}\n    {%- set nn = namespace(v=0) -%}\n    {%-
+          for r in hourly -%}\n      {%- set t = as_local(as_datetime(r.start)) -%}\n
+          \     {%- if t.month == mo and (t.hour >= night_from or t.hour < night_to)
+          and r.change is not none -%}{%- set nn.v = nn.v + r.change -%}{%- endif
+          -%}\n    {%- endfor -%}\n    {%- set bl = ((im - nn.v) * day_tariff + nn.v
+          * night_tariff) / im if im > 0 else day_tariff -%}\n    {%- set ns.net =
+          ns.net - (ho - s) * bl -%}\n    {%- set ns.months = ns.months + [{'month':
+          mo, 'solar': s, 'exp': e, 'imp': im, 'house': ho, 'net': -(ho - s) * bl}]
+          -%}\n    {%- else
+          -%}\n    {%- set ns.net = ns.net + (e - im) * tar -%}\n    {%- set ns.months
+          = ns.months + [{'month': mo, 'solar': s, 'exp': e, 'imp': im, 'house': ho,
+          'net': (e - im) * tar}] -%}\n  {%- endif -%}\n{%- endfor -%} {{ {'solar': ns.solar,
+          'exp': ns.exp, 'imp': ns.imp, 'house': ns.house, 'net': ns.net, 'months': ns.months} | tojson }}"
     - action: script.notify_all
       data:
         title: Підсумки року
-        message: |-
-          {%- set y = year_data if year_data is mapping else year_data | from_json -%}
-          🕐 {{ now().strftime('%H:%M') }} 📅 !!!{{ report_year }} рік{% if report_month | int < 12 %} (січень–{{ month_name }}){% endif %}!!!
-
-          ☀️ Сонце сумарно: {{ y.solar | round(1) }} kWh
-          📤 Експорт: {{ y.exp | round(1) }} kWh
-          📥 Імпорт: {{ y.imp | round(1) }} kWh
-          💰 *Дохід від експорту: {{ y.net | round(0) | int }} ₴*
-          🏠 Спожито: {{ y.house | round(1) }} kWh
-
-          ```
-          {{ '%-4s%6s%6s%7s%6s%7s' % ('Міс.', 'Сонце', 'Експ.', 'Мережа', 'Буд.', '₴') }}
-          {%- set names = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'] %}
-          {%- for r in y.months %}
-          {{ '%-4s%6d%6d%7d%6d%+7d' % (names[r.month - 1], r.solar | round(0) | int, r.exp | round(0) | int, r.imp | round(0) | int, r.house | round(0) | int, r.net | round(0) | int) }}
-          {%- endfor %}
-          {{ '─' * 36 }}
-          {{ '%-4s%6d%6d%7d%6d%+7d' % ('Сума', y.solar | round(0) | int, y.exp | round(0) | int, y.imp | round(0) | int, y.house | round(0) | int, y.net | round(0) | int) }}
-          ```
-          💰 *Разом: {{ y.net | round(0) | int }} ₴*
+        message: "{%- set y = year_data if year_data is mapping else year_data | from_json
+          -%}\n\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4C5 !!!{{ report_year }} рік{% if report_month | int < 12 %} (січень–{{ month_name
+          }}){% endif %}!!!\n\n☀️ Сонце сумарно: {{ y.solar | round(1)
+          }} kWh\n\U0001F4E4 Експорт: {{ y.exp | round(1) }} kWh\n\U0001F4E5
+          Імпорт: {{ y.imp | round(1) }} kWh\n\U0001F4B0 *Дохід від експорту:
+          {{ y.net | round(0) | int }} ₴*\n\U0001F3E0 Спожито:
+          {{ y.house | round(1) }} kWh\n\n```\n{{
+          '%-4s%6s%6s%7s%6s%7s' % ('Міс.', 'Сонце', 'Експ.', 'Мережа', 'Буд.', '₴')
+          }}\n{%- set names = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер',
+          'Вер', 'Жов', 'Лис', 'Гру'] %}\n{%- for r in y.months %}\n{{ '%-4s%6d%6d%7d%6d%+7d'
+          % (names[r.month - 1], r.solar | round(0) | int, r.exp | round(0) | int,
+          r.imp | round(0) | int, r.house | round(0) | int, r.net | round(0) | int)
+          }}\n{%- endfor %}\n{{ '─' * 36 }}\n{{ '%-4s%6d%6d%7d%6d%+7d' % ('Сума', y.solar | round(0) | int, y.exp | round(0) | int, y.imp | round(0) | int, y.house | round(0) | int, y.net | round(0) | int) }}\n```\n\U0001F4B0 *Разом: {{ y.net | round(0) | int }} ₴*"
   mode: single
