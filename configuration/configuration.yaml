@@ -135,6 +135,83 @@ template:
           {{ [computed, last] | max }}
         availability: "{{ is_number(states('sensor.boiler_ten_energy_estimate')) }}"
 
+      - name: "House Losses And Untracked Energy"
+        unique_id: house_losses_and_untracked_energy
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {# Parent for the Energy dashboard "Losses" branch: everything the
+             house consumed except the 6kW inverter's useful load, i.e. inverter
+             losses + whatever the dashboard would otherwise call "untracked".
+             House consumption is computed the same way the Energy dashboard
+             does (only the 5kW inverter is on the real grid, see the
+             energy_dashboard_topology notes). Only deltas matter - the
+             absolute value is meaningless because the lifetime counters have
+             different baselines. Clamped against its own last value: the
+             inputs update at slightly different moments (two inverters) and
+             a momentary dip would be read by the recorder as a meter reset. #}
+          {% set ids = ['sensor.deye_5kw_total_energy_import', 'sensor.deye_5kw_total_production',
+                        'sensor.deye_6kw_total_production', 'sensor.deye_5kw_total_battery_discharge',
+                        'sensor.deye_6kw_total_battery_discharge', 'sensor.deye_5kw_total_energy_export',
+                        'sensor.deye_5kw_total_battery_charge', 'sensor.deye_6kw_total_battery_charge',
+                        'sensor.deye_6kw_total_load_consumption', 'sensor.deye_5kw_total_load_consumption',
+                        'sensor.deye_6kw_total_energy_import'] %}
+          {% set v = ids | map('states') | map('float', 0) | list %}
+          {# minus 6kW load, minus the 5kW load that is NOT passed on to the 6kW
+             inverter (that part is its own "Deye_5KW Load" device) #}
+          {% set computed = (v[0] + v[1] + v[2] + v[3] + v[4] - v[5] - v[6] - v[7] - v[8] - (v[9] - v[10])) | round(1) %}
+          {% set last = states('sensor.house_losses_and_untracked_energy') | float(computed) %}
+          {{ [computed, last] | max }}
+        availability: >
+          {{ expand('sensor.deye_5kw_total_energy_import', 'sensor.deye_5kw_total_production',
+                    'sensor.deye_6kw_total_production', 'sensor.deye_5kw_total_battery_discharge',
+                    'sensor.deye_6kw_total_battery_discharge', 'sensor.deye_5kw_total_energy_export',
+                    'sensor.deye_5kw_total_battery_charge', 'sensor.deye_6kw_total_battery_charge',
+                    'sensor.deye_6kw_total_load_consumption', 'sensor.deye_5kw_total_load_consumption',
+                    'sensor.deye_6kw_total_energy_import')
+             | map(attribute='state') | select('is_number') | list | length == 11 }}
+
+      - name: "Deye 5KW Direct Load Energy"
+        unique_id: deye_5kw_direct_load_energy
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {# 5kW load that is consumed directly on its LOAD port, i.e. not
+             passed on to the 6kW inverter. The 6kW is fed from that port
+             (its "grid import"), and that energy is already counted in the
+             6kW load / losses, so counting the whole 5kW load would double
+             it in winter. Ratcheted like the other cumulative sensors here. #}
+          {% set computed = (states('sensor.deye_5kw_total_load_consumption') | float(0)
+                             - states('sensor.deye_6kw_total_energy_import') | float(0)) | round(1) %}
+          {% set last = states('sensor.deye_5kw_direct_load_energy') | float(computed) %}
+          {{ [computed, last] | max }}
+        availability: >
+          {{ is_number(states('sensor.deye_5kw_total_load_consumption')) and
+             is_number(states('sensor.deye_6kw_total_energy_import')) }}
+
+      - name: "Home Load Energy"
+        unique_id: home_load_energy
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {# Everything the house actually consumed: 6kW load plus the part of
+             the 5kW load that is not passed on to the 6kW inverter (that part
+             is already inside the 6kW load - see Deye 5KW Direct Load Energy).
+             Cumulative, ratcheted so a skew between the two inverters can not
+             make it go backwards. #}
+          {% set computed = (states('sensor.deye_6kw_total_load_consumption') | float(0)
+                             + states('sensor.deye_5kw_total_load_consumption') | float(0)
+                             - states('sensor.deye_6kw_total_energy_import') | float(0)) | round(1) %}
+          {% set last = states('sensor.home_load_energy') | float(computed) %}
+          {{ [computed, last] | max }}
+        availability: >
+          {{ is_number(states('sensor.deye_6kw_total_load_consumption')) and
+             is_number(states('sensor.deye_5kw_total_load_consumption')) and
+             is_number(states('sensor.deye_6kw_total_energy_import')) }}
+
 sensor:
   - platform: integration
     source: sensor.deye_5kw_power_losses
