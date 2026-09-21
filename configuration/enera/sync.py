@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""Hourly job (cron): pick up new ENERA acts, refresh tariffs, send the PDF.
+
+1. fetch_acts.fetch()   - new PDFs from the mailbox into enera/acts/
+2. parse_acts           - rebuild enera/tariffs.json (also fixes months that
+                          failed to parse earlier)
+3. every act not yet in enera/sent.json is sent to Telegram (PDF + caption with
+   the tariff and the payout); a failed send is retried on the next run
+4. Home Assistant is told to re-read sensor.enera_green_tariffs
+
+`sync.py --mark-all-sent` records every PDF already on disk as sent (used once
+so history is not re-sent).
+"""
+import json
+import os
+import subprocess
+import sys
+import urllib.request
+from datetime import datetime
+from pathlib import Path
+
+import fetch_acts
+import parse_acts
+
+BASE = Path(__file__).parent
+CONFIG = BASE.parent
+SENT = BASE / "sent.json"
+CHAT_IDS = ["612533502"]  # Yurii P; add family chat ids here to widen the audience
+MONTHS = ["січень", "лютий", "березень", "квітень", "травень", "червень",
+          "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"]
+
+
+def bot_url() -> str:
+    entries = json.loads((CONFIG / ".storage/core.config_entries").read_text())["data"]["entries"]
+    token = next(e["data"]["api_key"] for e in entries if e["domain"] == "telegram_bot")
+    return f"https://api.telegram.org/bot{token}"
+
+
+def send_pdf(path: Path, caption: str) -> bool:
+    ok = True
+    for chat in CHAT_IDS:
+        r = subprocess.run(
+            ["curl", "-s", "-m", "60", "-F", f"chat_id={chat}", "-F", f"caption={caption}",
+             "-F", f"document=@{path}", f"{bot_url()}/sendDocument"],
+            capture_output=True, text=True)
+        try:
+            ok = ok and json.loads(r.stdout).get("ok", False)
+        except json.JSONDecodeError:
+            ok = False
+    return ok
+
+
+def caption_for(path: Path) -> str:
+    """Two-line message in the house style; falls back to a plain title."""
+    now = datetime.now().strftime("%H:%M")
+    try:
+        month, rec = parse_acts.parse(path)
+    except Exception as e:  # layout changed - still deliver the PDF
+        print(f"parse failed for {path.name}: {e}")
+        return f"🕐 {now} 📄 Акт від ЕНЕРА!!!\nТариф не вдалося прочитати автоматично"
+    y, m = month.split("-")
+    title = f"🕐 {now} 📄 Акт від ЕНЕРА за {MONTHS[int(m) - 1]} {y}!!!"
+    if rec.get("green_tariff"):
+        return (f"{title}\nЗелений тариф: {rec['green_tariff']} грн/кВт⋅год, "
+                f"до виплати: {rec['payout']:.2f} грн")
+    return f"{title}\nСальдо: {rec['saldo']:.0f} кВт⋅год, виплати немає"
+
+
+def refresh_ha_sensor() -> None:
+    try:
+        token = (Path.home() / ".ha_token").read_text().strip()
+        req = urllib.request.Request(
+            "http://localhost:8123/api/services/homeassistant/update_entity",
+            data=json.dumps({"entity_id": "sensor.enera_green_tariffs"}).encode(),
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=20)
+    except Exception as e:  # the sensor also polls hourly on its own
+        print(f"HA sensor refresh failed: {e}")
+
+
+def main() -> int:
+    acts = lambda: sorted(fetch_acts.ACTS_DIR.glob("*.pdf"))
+    if "--mark-all-sent" in sys.argv:
+        SENT.write_text(json.dumps(sorted(p.name for p in acts()), indent=1))
+        print(f"marked {len(acts())} acts as sent")
+        return 0
+
+    fetch_acts.fetch(since_days=45)
+    parse_acts.main()
+    refresh_ha_sensor()
+
+    sent = set(json.loads(SENT.read_text())) if SENT.exists() else set()
+    failed = 0
+    for pdf in acts():
+        if pdf.name in sent:
+            continue
+        if send_pdf(pdf, caption_for(pdf)):
+            sent.add(pdf.name)
+            SENT.write_text(json.dumps(sorted(sent), indent=1))
+            print(f"sent {pdf.name}")
+        else:
+            failed += 1
+            print(f"send FAILED for {pdf.name}, will retry")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    os.chdir(BASE)
+    sys.exit(main())

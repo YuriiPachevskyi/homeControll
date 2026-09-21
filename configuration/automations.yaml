@@ -798,7 +798,8 @@
     value_template: '{{ now().day == 1 }}'
   actions:
   - variables:
-      tariff: 5.2353
+      tax_factor: 0.77
+      fallback_tariff: '{{ ((state_attr(''sensor.enera_green_tariffs'', ''latest'') | float(0)) * tax_factor) or 5.2353 }}'
       day_tariff: 4.32
       night_tariff: 2.16
       night_from: 23
@@ -808,6 +809,7 @@
       month_name: '{{ [''січень'', ''лютий'', ''березень'', ''квітень'', ''травень'', ''червень'', ''липень'', ''серпень'', ''вересень'', ''жовтень'', ''листопад'', ''грудень''][(now().month - 2) % 12] }}'
       report_year: '{{ now().year if now().month > 1 else now().year - 1 }}'
       report_month: '{{ (now().month - 2) % 12 + 1 }}'
+      tariff: '{{ (((state_attr(''sensor.enera_green_tariffs'', ''tariffs'') or {}).get(''%d-%02d'' % (report_year | int, report_month | int)) | float(0)) * tax_factor) or fallback_tariff }}'
       year_start: '{{ now().replace(year=(now().year if now().month > 1 else now().year - 1), month=1, day=1, hour=0, minute=0, second=0, microsecond=0).isoformat() }}'
   - action: recorder.get_statistics
     data:
@@ -922,6 +924,7 @@
             {%- set im = imp_l[i].change or 0 -%}
             {%- set ho = hs_l[i].change or 0 -%}
             {%- set mo = as_local(as_datetime(sol5[i].start)).month -%}
+            {%- set tar = (((state_attr('sensor.enera_green_tariffs', 'tariffs') or {}).get('%d-%02d' % (report_year | int, mo)) | float(0)) * tax_factor) or fallback_tariff -%}
             {%- set ns.solar = ns.solar + s -%}
             {%- set ns.exp = ns.exp + e -%}
             {%- set ns.imp = ns.imp + im -%}
@@ -937,9 +940,9 @@
               {%- set ns.months = ns.months + [{'month': mo, 'solar': s, 'exp': e, 'imp': im, 'house': ho, 'net': -(ho - s) * bl}] -%}
               {%- set ns.house_cost = ns.house_cost + ho * bl -%}
             {%- else -%}
-              {%- set ns.net = ns.net + (e - im) * tariff -%}
-              {%- set ns.months = ns.months + [{'month': mo, 'solar': s, 'exp': e, 'imp': im, 'house': ho, 'net': (e - im) * tariff}] -%}
-              {%- set ns.house_cost = ns.house_cost + ho * tariff -%}
+              {%- set ns.net = ns.net + (e - im) * tar -%}
+              {%- set ns.months = ns.months + [{'month': mo, 'solar': s, 'exp': e, 'imp': im, 'house': ho, 'net': (e - im) * tar}] -%}
+              {%- set ns.house_cost = ns.house_cost + ho * tar -%}
             {%- endif -%}
           {%- endfor -%}
           {{ {'solar': ns.solar, 'exp': ns.exp, 'imp': ns.imp, 'house': ns.house, 'net': ns.net, 'house_cost': ns.house_cost, 'months': ns.months} | tojson }}
@@ -985,7 +988,8 @@
     value_template: '{{ now().month == 12 and now().day == 1 }}'
   actions:
   - variables:
-      tariff: 5.2353
+      tax_factor: 0.77
+      fallback_tariff: '{{ ((state_attr(''sensor.enera_green_tariffs'', ''latest'') | float(0)) * tax_factor) or 5.2353 }}'
       day_tariff: 4.32
       night_tariff: 2.16
       night_from: 23
@@ -1033,6 +1037,7 @@
           {%- set im = imp_l[i].change or 0 -%}
           {%- set ho = hs_l[i].change or 0 -%}
           {%- set mo = as_local(as_datetime(sol5[i].start)).month -%}
+          {%- set tar = (((state_attr('sensor.enera_green_tariffs', 'tariffs') or {}).get('%d-%02d' % (report_year | int, mo)) | float(0)) * tax_factor) or fallback_tariff -%}
           {%- if ho > s -%}
             {%- set nn = namespace(v=0) -%}
             {%- for r in hourly -%}
@@ -1043,8 +1048,8 @@
             {%- set net = -(ho - s) * bl -%}
             {%- set ns.months = ns.months + [{'month': mo, 'exp': e, 'imp': im, 'diff': s - ho, 'rate': bl, 'net': net, 'deficit': true}] -%}
           {%- else -%}
-            {%- set net = (e - im) * tariff -%}
-            {%- set ns.months = ns.months + [{'month': mo, 'exp': e, 'imp': im, 'diff': e - im, 'rate': tariff, 'net': net, 'deficit': false}] -%}
+            {%- set net = (e - im) * tar -%}
+            {%- set ns.months = ns.months + [{'month': mo, 'exp': e, 'imp': im, 'diff': e - im, 'rate': tar, 'net': net, 'deficit': false}] -%}
           {%- endif -%}
           {%- set ns.net = ns.net + net -%}
         {%- endfor -%}
