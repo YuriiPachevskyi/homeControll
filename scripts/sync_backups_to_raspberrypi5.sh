@@ -12,6 +12,16 @@ rsync -az --timeout=300 -e "ssh -o BatchMode=yes -o ConnectTimeout=10" \
     && logger -t "$LOG_TAG" "synced HA backups to ${DEST_HOST}:${DEST_PATH}" \
     || logger -t "$LOG_TAG" "FAILED to sync HA backups to ${DEST_HOST}:${DEST_PATH}"
 
+# ENERA act PDFs (not in git: they hold personal data). Copied as-is, no
+# --delete and no pruning, so an act removed locally stays on the remote.
+ACTS_SRC="/home/yurii/docker/homeControll/configuration/enera/acts/"
+ACTS_DEST_PATH="/home/yurii/work/raspberrypi4/enera-acts"
+
+rsync -az --timeout=300 -e "ssh -o BatchMode=yes -o ConnectTimeout=10" \
+    "$ACTS_SRC" "${DEST_HOST}:${ACTS_DEST_PATH}/" \
+    && logger -t "$LOG_TAG" "synced ENERA acts to ${DEST_HOST}:${ACTS_DEST_PATH}" \
+    || logger -t "$LOG_TAG" "FAILED to sync ENERA acts to ${DEST_HOST}:${ACTS_DEST_PATH}"
+
 # Keep only the newest $KEEP *.tar backups on the remote; delete the rest.
 # Only touches *.tar (leaves key.txt and anything else in the dir alone).
 SKIP=$((KEEP + 1))
