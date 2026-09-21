@@ -862,23 +862,23 @@
         data:
           title: Підсумки місяця
           message: |-
-            🕐 {{ now().strftime('%H:%M') }} 📊 !!!Підсумки за {{ month_name }} {{ report_year }}!!!
+            🕐 {{ now().strftime('%H:%M') }} 📊 !!!{{ month_name | capitalize }} {{ report_year }}!!!
 
-            ☀️ Сонце (обидва інвертори): {{ solar | round(1) }} кВт⋅год
+            ☀️ Сонце сумарно: {{ solar | round(1) }} kWh
             {%- if deficit_month %}
-            📤 Експорт у мережу: {{ grid_export | round(1) }} кВт⋅год
-            📥 Спожито з мережі: {{ grid_import | round(1) }} кВт⋅год
-            💸 До сплати (споживання мінус генерація): {{ payable | round(0) | int }} грн
-               🌙 Вночі: {{ night_kwh | round(1) }} кВт⋅год × {{ night_tariff }} = {{ (night_kwh * night_tariff) | round(0) | int }} грн
-               🌞 Вдень: {{ day_kwh | round(1) }} кВт⋅год × {{ day_tariff }} = {{ (day_kwh * day_tariff) | round(0) | int }} грн
+            📤 Експорт: {{ grid_export | round(1) }} kWh
+            📥 Імпорт: {{ grid_import | round(1) }} kWh
+            💸 До сплати: {{ payable | round(0) | int }} ₴
+               🌙 Вночі: {{ night_kwh | round(1) }} kWh × {{ night_tariff }} = {{ (night_kwh * night_tariff) | round(0) | int }} ₴
+               🌞 Вдень: {{ day_kwh | round(1) }} kWh × {{ day_tariff }} = {{ (day_kwh * day_tariff) | round(0) | int }} ₴
             {%- else %}
-            📤 Експорт у мережу: {{ grid_export | round(1) }} кВт⋅год ({{ (grid_export * tariff) | round(0) | int }} грн)
-            📥 Спожито з мережі: {{ grid_import | round(1) }} кВт⋅год ({{ import_cost | round(0) | int }} грн)
-            💰 Дохід від експорту в мережу: {{ (grid_export * tariff - import_cost) | round(0) | int }} грн
+            📤 Експорт: {{ grid_export | round(1) }} kWh ({{ (grid_export * tariff) | round(0) | int }} ₴)
+            📥 Імпорт: {{ grid_import | round(1) }} kWh ({{ import_cost | round(0) | int }} ₴)
+            💰 Дохід від експорту: {{ (grid_export * tariff - import_cost) | round(0) | int }} ₴
             {%- endif %}
-            🏠 Спожито будинком: {{ house | round(1) }} кВт⋅год
+            🏠 Спожито: {{ house | round(1) }} kWh
             {%- if boiler > 0 and house > 0 %}
-               🔥 З них бойлер: {{ boiler | round(1) }} кВт⋅год ({{ (boiler / house * 100) | round(0) | int }}%)
+               🔥 З них бойлер: {{ boiler | round(1) }} kWh ({{ (boiler / house * 100) | round(0) | int }}%)
             {%- endif %}
     default:
     - action: script.notify_all
