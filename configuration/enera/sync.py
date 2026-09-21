@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Hourly job (cron): pick up new ENERA acts, refresh tariffs, send the PDF.
+"""Hourly job (cron): pick up new ENERA acts, refresh tariffs, send the PDF,
+and forward planned-outage notices from the utility cabinet (esvitlo.py).
 
 1. fetch_acts.fetch()   - new PDFs from the mailbox into enera/acts/
 2. parse_acts           - rebuild enera/tariffs.json (also fixes months that
                           failed to parse earlier)
 3. every act not yet in enera/sent.json is sent to Telegram (PDF + caption with
-   the tariff and the payout); a failed send is retried on the next run
+   the payout); a failed send is retried on the next run
 4. Home Assistant is told to re-read sensor.enera_green_tariffs
 
 `sync.py --mark-all-sent` records every PDF already on disk as sent (used once
@@ -15,10 +16,12 @@ import json
 import os
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from pathlib import Path
 
+import esvitlo
 import fetch_acts
 import parse_acts
 
@@ -50,6 +53,19 @@ def send_pdf(path: Path, caption: str) -> bool:
     return ok
 
 
+def send_text(text: str) -> bool:
+    ok = True
+    for chat in CHAT_IDS:
+        data = urllib.parse.urlencode({"chat_id": chat, "text": text}).encode()
+        try:
+            ok = ok and json.load(urllib.request.urlopen(
+                urllib.request.Request(f"{bot_url()}/sendMessage", data=data), timeout=30)).get("ok", False)
+        except Exception as e:
+            print(f"sendMessage failed: {e}")
+            ok = False
+    return ok
+
+
 def caption_for(path: Path) -> str:
     """Two-line message in the house style; falls back to a plain title."""
     now = datetime.now().strftime("%H:%M")
@@ -61,9 +77,8 @@ def caption_for(path: Path) -> str:
     y, m = month.split("-")
     title = f"🕐 {now} 📄 Акт від ЕНЕРА за {MONTHS[int(m) - 1]} {y}!!!"
     if rec.get("green_tariff"):
-        return (f"{title}\nЗелений тариф: {rec['green_tariff']} грн/кВт⋅год, "
-                f"до виплати: {rec['payout']:.2f} грн")
-    return f"{title}\nСальдо: {rec['saldo']:.0f} кВт⋅год, виплати немає"
+        return f"{title}\nДо виплати: {rec['payout']:.2f} грн"
+    return f"{title}\nВиплати немає"
 
 
 def refresh_ha_sensor() -> None:
@@ -101,6 +116,16 @@ def main() -> int:
         else:
             failed += 1
             print(f"send FAILED for {pdf.name}, will retry")
+
+    # Planned outage notices from the utility cabinet (short text, no PDF).
+    for key, text in esvitlo.new_notices(sent):
+        if send_text(text):
+            sent.add(key)
+            SENT.write_text(json.dumps(sorted(sent), indent=1))
+            print(f"sent outage notice {key[:40]}")
+        else:
+            failed += 1
+            print("outage notice send FAILED, will retry")
     return 1 if failed else 0
 
 

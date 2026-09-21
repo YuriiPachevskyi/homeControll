@@ -24,24 +24,35 @@ def safe_name(name: str) -> str:
     return re.sub(r"[^\w.\-]+", "_", name, flags=re.UNICODE).strip("_")
 
 
+def connect() -> imaplib.IMAP4_SSL:
+    """Log in and select the Gmail "All Mail" folder (read-only).
+
+    Its name depends on the account language, so it is found by the \\All
+    attribute; INBOX is the fallback for non-Gmail hosts.
+    """
+    lines = [ln.strip() for ln in CREDS.read_text().splitlines() if ln.strip()]
+    user = lines[0]
+    password = lines[1].replace(" ", "")  # app passwords are shown in groups of 4
+    host = lines[2] if len(lines) > 2 else "imap.gmail.com"
+    imap = imaplib.IMAP4_SSL(host)
+    imap.login(user, password)
+    box = "INBOX"
+    for line in imap.list()[1]:
+        if b"\\All" in line:
+            box = line.decode().split(' "/" ', 1)[1]
+            break
+    imap.select(box, readonly=True)
+    return imap
+
+
 def fetch(since_days: int | None = None) -> list[Path]:
     """Save new PDFs; return the paths that were not on disk before.
 
     since_days limits the IMAP search to recent mail, so the hourly cron run
     does not download the whole history every time.
     """
-    lines = [ln.strip() for ln in CREDS.read_text().splitlines() if ln.strip()]
-    user = lines[0]
-    password = lines[1].replace(" ", "")  # app passwords are shown in groups of 4
-    host = lines[2] if len(lines) > 2 else "imap.gmail.com"
-
     ACTS_DIR.mkdir(exist_ok=True)
-    imap = imaplib.IMAP4_SSL(host)
-    imap.login(user, password)
-    # "All Mail" also finds messages that were archived or moved to a label.
-    status, _ = imap.select('"[Gmail]/All Mail"', readonly=True)
-    if status != "OK":
-        imap.select("INBOX", readonly=True)
+    imap = connect()
 
     criteria = ["FROM", f'"{SENDER}"']
     if since_days:
