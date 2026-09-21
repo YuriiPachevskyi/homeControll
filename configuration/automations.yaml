@@ -956,25 +956,24 @@
         title: Підсумки року
         message: |-
           {%- set y = year_data if year_data is mapping else year_data | from_json -%}
-          🕐 {{ now().strftime('%H:%M') }} 📅 !!!Підсумки за {{ report_year }} рік{% if report_month | int < 12 %} (січень–{{ month_name }}){% endif %}!!!
+          🕐 {{ now().strftime('%H:%M') }} 📅 !!!{{ report_year }} рік{% if report_month | int < 12 %} (січень–{{ month_name }}){% endif %}!!!
 
-          ☀️ Сонце (обидва інвертори): {{ y.solar | round(1) }} кВт⋅год
-          📤 Експорт у мережу: {{ y.exp | round(1) }} кВт⋅год
-          📥 Спожито з мережі: {{ y.imp | round(1) }} кВт⋅год
-          💰 Дохід від експорту в мережу: {{ y.net | round(0) | int }} грн
-          🏠 Спожито будинком: {{ y.house | round(1) }} кВт⋅год
-             🟢 За зеленим тарифом: {{ y.house_cost | round(0) | int }} грн
-             ⚪ За загальним тарифом: {{ (y.house * day_tariff) | round(0) | int }} грн (× {{ day_tariff }})
+          ☀️ Сонце сумарно: {{ y.solar | round(1) }} kWh
+          📤 Експорт: {{ y.exp | round(1) }} kWh
+          📥 Імпорт: {{ y.imp | round(1) }} kWh
+          💰 Дохід від експорту: {{ y.net | round(0) | int }} ₴
+          🏠 Спожито: {{ y.house | round(1) }} kWh
+             🟢 За зеленим тарифом: {{ y.house_cost | round(0) | int }} ₴
+             ⚪ За загальним тарифом: {{ (y.house * day_tariff) | round(0) | int }} ₴ (× {{ day_tariff }})
 
           📆 По місяцях:
           ```
-          {{ '%-4s%6s%6s%7s%6s%7s' % ('Міс.', 'Сонце', 'Експ.', 'Мережа', 'Буд.', 'Грн') }}
+          {{ '%-4s%6s%6s%7s%6s%7s' % ('Міс.', 'Сонце', 'Експ.', 'Мережа', 'Буд.', '₴') }}
           {%- set names = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'] %}
           {%- for r in y.months %}
           {{ '%-4s%6d%6d%7d%6d%+7d' % (names[r.month - 1], r.solar | round(0) | int, r.exp | round(0) | int, r.imp | round(0) | int, r.house | round(0) | int, r.net | round(0) | int) }}
           {%- endfor %}
           ```
-          ☀️ Сонце, 📤 експорт, 📥 з мережі, 🏠 будинок — кВт⋅год; грн: + дохід, − до сплати
   mode: single
 - id: '1788900000001'
   alias: Annual export income breakdown
