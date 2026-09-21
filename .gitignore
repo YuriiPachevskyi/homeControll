@@ -15,3 +15,5 @@ configuration/enera/.venv/
 configuration/enera/acts/
 configuration/enera/sent.json
 configuration/enera/sync.log
+configuration/energy/monthly_table.log
+configuration/energy/monthly_energy.json

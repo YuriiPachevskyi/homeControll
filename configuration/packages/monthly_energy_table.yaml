@@ -1,0 +1,12 @@
+command_line:
+  - sensor:
+      name: "Monthly Energy Table"
+      unique_id: monthly_energy_table
+      # Rows for the DAP dashboard table, built by energy/monthly_table.py (cron).
+      # State = number of rows; the data is in the `rows` attribute.
+      command: "cat /config/energy/monthly_energy.json"
+      value_template: "{{ value_json.rows | length }}"
+      json_attributes:
+        - rows
+        - updated
+      scan_interval: 3600
