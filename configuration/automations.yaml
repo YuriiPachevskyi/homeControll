@@ -742,41 +742,36 @@
           message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4A1 Електроживлення
             відновлено"
 - id: '1788815476602'
-  alias: Boiler Energy Sensor Startup Fix
-  description: Template/integration sensors for boiler energy tracking can get stuck
-    on "unknown" after a HA restart if the boiler switches haven't changed state yet.
-    Forces a re-render shortly after startup so tracking resumes without manual intervention.
+  alias: Boiler Energy Sensor Refresh
+  description: 'Keeps the boiler energy tracking from stalling. sensor.boiler_ten_power_estimate
+    only re-renders when the boiler switches change state, so the integration (Riemann
+    sum) sensor gets no new sample - and no accumulated energy - during a long continuous
+    on/off stretch: it is refreshed every 30 minutes so long stretches accumulate
+    smoothly. After a HA restart the template/integration chain can also get stuck
+    on "unknown" until something forces a re-render, so on startup it waits 30 seconds,
+    reloads the templates and then refreshes.'
   triggers:
   - trigger: homeassistant
     event: start
-  conditions: []
-  actions:
-  - delay: 00:00:30
-  - action: template.reload
-    data: {}
-  - delay: 00:00:03
-  - action: homeassistant.update_entity
-    target:
-      entity_id: sensor.boiler_ten_power_estimate
-    data: {}
-  mode: single
-- id: '1788820000000'
-  alias: Boiler Energy Sensor Periodic Refresh
-  description: sensor.boiler_ten_power_estimate only re-renders when the boiler switches
-    change state, so the integration (Riemann sum) sensor gets no new sample - and
-    no accumulated energy - during a long continuous on/off stretch. Forces a re-render
-    every 5 minutes so long stretches accumulate smoothly instead of jumping only
-    on the next real switch transition.
-  triggers:
+    id: startup
   - trigger: time_pattern
     minutes: /30
+    id: periodic
   conditions: []
   actions:
+  - if:
+    - condition: trigger
+      id: startup
+    then:
+    - delay: 00:00:30
+    - action: template.reload
+      data: {}
+    - delay: 00:00:03
   - action: homeassistant.update_entity
     target:
       entity_id: sensor.boiler_ten_power_estimate
     data: {}
-  mode: single
+  mode: queued
 - id: '1788900000000'
   alias: Monthly energy summary
   description: On the 1st of every month at 09:00, sends the previous month's energy
