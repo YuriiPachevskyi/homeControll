@@ -5,8 +5,9 @@ Same numbers and the same billing rules as the monthly Telegram report
 (automation "Monthly energy summary"): hourly long-term statistics are summed
 per local month; a month where the house used more than the solar produced
 ("deficit") is billed at the day/night blended tariff, any other month is
-(export - import) x the month's green tariff x 0.77 (tariffs from enera/tariffs.json,
-the latest known one for a month whose act has not arrived yet).
+(export - import) x the month's green tariff x 0.77 (tariffs from
+statistics/enera/tariffs.json, the latest known one for a month whose act
+has not arrived yet).
 
 Runs from cron every few hours; stdlib only. Rows are
 display-ready: per month, a "Сума <year>" row after each year and a "Всього"
@@ -14,10 +15,10 @@ row when more than one year is covered. The current month is included and
 marked partial. Rebuilding from statistics every time is cheap, so nothing
 needs to be appended by hand when a month ends.
 Each month row also gets an "act" URL when the matching ENERA act PDF has been
-synced (enera/acts/*-YYMM-*.pdf, see enera/sync.py): the file is copied as
-www/enera_acts/YYYY-MM.pdf (HA's /local/ static server doesn't follow
-symlinks, and the dashboard table links to it so tapping a month downloads
-the act) - the dashboard reads the url via r.act.
+synced (statistics/enera/acts/*-YYMM-*.pdf, see statistics/enera/sync.py):
+the file is copied as www/enera_acts/YYYY-MM.pdf (HA's /local/ static server
+doesn't follow symlinks, and the dashboard table links to it so tapping a
+month downloads the act) - the dashboard reads the url via r.act.
 """
 import json
 import shutil
@@ -29,8 +30,8 @@ from zoneinfo import ZoneInfo
 TZ = ZoneInfo("Europe/Kyiv")
 BASE = Path(__file__).parent
 OUT = BASE / "monthly_energy.json"
-TARIFFS = BASE.parent / "enera" / "tariffs.json"
-ACTS_DIR = BASE.parent / "enera" / "acts"
+TARIFFS = BASE.parent / "statistics" / "enera" / "tariffs.json"
+ACTS_DIR = BASE.parent / "statistics" / "enera" / "acts"
 WWW_ACTS_DIR = BASE.parent / "www" / "enera_acts"
 START = (2025, 9)  # green tariff starts here; nothing was paid for export before
 DAY_T, NIGHT_T, NIGHT_FROM, NIGHT_TO, TAX, FALLBACK = 4.32, 2.16, 23, 7, 0.77, 5.2353

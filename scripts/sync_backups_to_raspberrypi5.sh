@@ -14,7 +14,7 @@ rsync -az --timeout=300 -e "ssh -o BatchMode=yes -o ConnectTimeout=10" \
 
 # ENERA act PDFs (not in git: they hold personal data). Copied as-is, no
 # --delete and no pruning, so an act removed locally stays on the remote.
-ACTS_SRC="/home/yurii/docker/homeControll/configuration/enera/acts/"
+ACTS_SRC="/home/yurii/docker/homeControll/configuration/statistics/enera/acts/"
 ACTS_DEST_PATH="/home/yurii/work/raspberrypi4/enera-acts"
 
 rsync -az --timeout=300 -e "ssh -o BatchMode=yes -o ConnectTimeout=10" \
