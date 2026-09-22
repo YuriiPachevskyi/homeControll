@@ -1,0 +1,96 @@
+# Backs the "Сповіщення" dashboard tab: last 10 Telegram notifications sent via
+# script.notify_all, each with a per-row delete button (script.delete_notification_slot)
+# that removes the message for everyone. Data written by notify/notify_log.py via the
+# notify_log_append/notify_log_remove shell_commands (configuration.yaml).
+command_line:
+  - sensor:
+      name: "Telegram Notify Log"
+      unique_id: telegram_notify_log
+      command: "cat /config/notify/notify_log.json"
+      value_template: "{{ value_json.rows | count }}"
+      json_attributes:
+        - rows
+      scan_interval: 3600
+
+template:
+  - sensor:
+      - name: "Telegram Notify 1"
+        unique_id: telegram_notify_1
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[0].ts[11:16] ~ ' · ' ~ rows[0].title if rows | count >= 1 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[0].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 1 else '' }}"
+      - name: "Telegram Notify 2"
+        unique_id: telegram_notify_2
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[1].ts[11:16] ~ ' · ' ~ rows[1].title if rows | count >= 2 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[1].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 2 else '' }}"
+      - name: "Telegram Notify 3"
+        unique_id: telegram_notify_3
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[2].ts[11:16] ~ ' · ' ~ rows[2].title if rows | count >= 3 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[2].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 3 else '' }}"
+      - name: "Telegram Notify 4"
+        unique_id: telegram_notify_4
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[3].ts[11:16] ~ ' · ' ~ rows[3].title if rows | count >= 4 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[3].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 4 else '' }}"
+      - name: "Telegram Notify 5"
+        unique_id: telegram_notify_5
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[4].ts[11:16] ~ ' · ' ~ rows[4].title if rows | count >= 5 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[4].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 5 else '' }}"
+      - name: "Telegram Notify 6"
+        unique_id: telegram_notify_6
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[5].ts[11:16] ~ ' · ' ~ rows[5].title if rows | count >= 6 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[5].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 6 else '' }}"
+      - name: "Telegram Notify 7"
+        unique_id: telegram_notify_7
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[6].ts[11:16] ~ ' · ' ~ rows[6].title if rows | count >= 7 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[6].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 7 else '' }}"
+      - name: "Telegram Notify 8"
+        unique_id: telegram_notify_8
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[7].ts[11:16] ~ ' · ' ~ rows[7].title if rows | count >= 8 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[7].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 8 else '' }}"
+      - name: "Telegram Notify 9"
+        unique_id: telegram_notify_9
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[8].ts[11:16] ~ ' · ' ~ rows[8].title if rows | count >= 9 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[8].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 9 else '' }}"
+      - name: "Telegram Notify 10"
+        unique_id: telegram_notify_10
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ rows[9].ts[11:16] ~ ' · ' ~ rows[9].title if rows | count >= 10 else '—' }}
+        attributes:
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[9].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 10 else '' }}"

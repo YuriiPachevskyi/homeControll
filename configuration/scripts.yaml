@@ -417,7 +417,10 @@ power_load_disable_device_duplicate:
   description: ''
 notify_all:
   alias: Notify all (Telegram)
-  description: Sends the same notification to all Telegram recipients.
+  description: Sends the same notification to all Telegram recipients and logs
+    the sent chat/message IDs into notify/notify_log.json (last 10, newest
+    first) so any of them can be deleted for everyone from the "Сповіщення"
+    dashboard tab or script.delete_notification_slot / script.delete_last_notification.
   fields:
     title:
       description: Notification title
@@ -427,7 +430,7 @@ notify_all:
       example: Boiler is heated
   mode: parallel
   sequence:
-  - action: notify.send_message
+  - action: telegram_bot.send_message
     continue_on_error: true
     target:
       entity_id:
@@ -437,3 +440,61 @@ notify_all:
     data:
       title: '{{ title }}'
       message: '{{ message }}'
+    response_variable: send_result
+  - if:
+    - condition: template
+      value_template: "{{ send_result is defined and (send_result.chats | default([]))
+        | count > 0 }}"
+    then:
+    - action: shell_command.notify_log_append
+      data:
+        payload_b64: "{{ ({'ts': now().strftime('%Y-%m-%d %H:%M:%S'), 'title': title,
+          'message': message, 'chats': send_result.chats} | tojson) | base64_encode }}"
+    - action: homeassistant.update_entity
+      target:
+        entity_id: sensor.telegram_notify_log
+      data: {}
+delete_notification_slot:
+  alias: Delete Telegram notification (all recipients)
+  description: Deletes, for everyone, the notification at the given row of
+    notify/notify_log.json (slot 1 = most recent), then removes that row from
+    the log. Used by the per-row delete button on the "Сповіщення" dashboard
+    tab. Only works while the message is less than ~48h old (Telegram Bot API
+    limit) and hasn't been deleted already.
+  fields:
+    slot:
+      description: Row number, 1 = most recent notification
+      example: 1
+  mode: queued
+  sequence:
+  - variables:
+      rows: "{{ state_attr('sensor.telegram_notify_log', 'rows') or [] }}"
+      entry: "{{ rows[slot | int - 1] if (slot | int - 1) < (rows | count) else none }}"
+  - if:
+    - condition: template
+      value_template: '{{ entry is not none }}'
+    then:
+    - repeat:
+        for_each: '{{ entry.chats }}'
+        sequence:
+        - action: telegram_bot.delete_message
+          continue_on_error: true
+          data:
+            chat_id: '{{ repeat.item.chat_id }}'
+            message_id: '{{ repeat.item.message_id }}'
+    - action: shell_command.notify_log_remove
+      data:
+        slot: '{{ slot }}'
+    - action: homeassistant.update_entity
+      target:
+        entity_id: sensor.telegram_notify_log
+      data: {}
+delete_last_notification:
+  alias: Delete last Telegram notification (all recipients)
+  description: Convenience alias for script.delete_notification_slot with slot 1
+    - deletes the most recently sent notification for everyone.
+  mode: single
+  sequence:
+  - action: script.delete_notification_slot
+    data:
+      slot: 1
