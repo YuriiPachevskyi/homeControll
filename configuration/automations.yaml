@@ -735,6 +735,9 @@
         - condition: state
           entity_id: switch.input_meater_switch
           state: unavailable
+      - condition: template
+        value_template: "{{ (as_timestamp(trigger.to_state.last_changed) - as_timestamp(trigger.from_state.last_changed))
+          >= 60 }}"
       sequence:
       - action: script.notify_all
         data:
