@@ -719,7 +719,13 @@
       - condition: state
         entity_id: switch.input_meater_switch
         state: unavailable
+      - condition: state
+        entity_id: input_boolean.grid_outage_notified
+        state: 'off'
       sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.grid_outage_notified
       - action: script.notify_all
         data:
           title: Мережа
@@ -735,10 +741,13 @@
         - condition: state
           entity_id: switch.input_meater_switch
           state: unavailable
-      - condition: template
-        value_template: "{{ (as_timestamp(trigger.to_state.last_changed) - as_timestamp(trigger.from_state.last_changed))
-          >= 60 }}"
+      - condition: state
+        entity_id: input_boolean.grid_outage_notified
+        state: 'on'
       sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.grid_outage_notified
       - action: script.notify_all
         data:
           title: Мережа
