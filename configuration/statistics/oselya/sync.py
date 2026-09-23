@@ -260,7 +260,8 @@ def rebuild_payments(objects_cfg: dict) -> dict:
                         units_paid += 1
                     else:
                         unpaid_labels.append(r["secondary_label"] or bc["label"])
-            status = ("paid" if units_total and units_paid == units_total else
+            # Nothing to pay (e.g. prepaid month, total_due 0) counts as paid.
+            status = ("paid" if units_paid == units_total else
                       "unpaid" if units_paid == 0 else "partial")
             y, m = period.split("-")
             agg_rows.append({
@@ -388,19 +389,23 @@ def sync_todo(objects_cfg: dict, payments: dict, todo_added: dict) -> None:
     # current link differs. Absolute URL, not a relative "/api/..." one - a
     # relative link inside a to-do item's description gets intercepted by HA's
     # own frontend router and just bounces to the home page instead of the PDF.
+    # The description is rendered as markdown, so it holds a short <a> (new tab,
+    # like the DAP table's ENERA act links) instead of the bare ~400-char URL.
     links = document_links()
 
     def link_for(todo_key: str) -> str | None:
         bill_full_key, period, _ = todo_key.split("|")
         path = links.get(f"{bill_full_key}_{period}")
-        return f"{HA_BASE_URL}{path}" if path else None
+        if not path:
+            return None
+        return f'<a href="{HA_BASE_URL}{path}" target="_blank" rel="noopener">🧾 Квитанція (PDF)</a>'
 
     for todo_key, text in todo_added.items():
         item = (current or {}).get(text)
-        url = link_for(todo_key)
-        if url and item and item.get("description") != url:
+        link = link_for(todo_key)
+        if link and item and item.get("description") != link:
             try:
-                ha_call("todo.update_item", {"entity_id": TODO_ENTITY, "item": item["uid"], "description": url})
+                ha_call("todo.update_item", {"entity_id": TODO_ENTITY, "item": item["uid"], "description": link})
             except Exception as e:
                 print(f"todo.update_item failed for {todo_key}: {e}")
 
@@ -408,11 +413,11 @@ def sync_todo(objects_cfg: dict, payments: dict, todo_added: dict) -> None:
         todo_key = entry["todo_key"]
         if todo_key in todo_added:
             continue
-        url = link_for(todo_key)
+        link = link_for(todo_key)
         text = f"{entry['object']} — {entry['purpose']} — {entry['period']} — {entry['amount']:.2f} грн"
         data = {"entity_id": TODO_ENTITY, "item": text}
-        if url:
-            data["description"] = url
+        if link:
+            data["description"] = link
         try:
             ha_call("todo.add_item", data)
             todo_added[todo_key] = text

@@ -31,3 +31,12 @@ input_select:
       - "2025"
       - "2026"
     initial: "2026"
+
+input_boolean:
+  # Payments dashboard tables: off = one row per month (object totals),
+  # on = each month also lists its bills (utility, concierge, late fee, ...)
+  # with their own status and receipt link. One switch for all tables.
+  oselya_payments_expanded:
+    name: "Payments - expand bills"
+    icon: mdi:unfold-more-horizontal
+    initial: false  # always start collapsed; automation oselya_payments_collapse_tables re-collapses after 5 min

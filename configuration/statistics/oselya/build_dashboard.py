@@ -22,38 +22,74 @@ OBJECTS_YAML = Path(__file__).parent / "objects.yaml"
 DASHBOARD_URL_PATH = "dashboard-payments"
 
 
-def table_content(obj_key: str, mobile: bool) -> str:
+def table_content(obj_key: str, bills: list, mobile: bool) -> str:
+    """Two-level table: a bold row per month with the object's totals and
+    ✅/🟡/⏳ status, and - when input_boolean.oselya_payments_expanded is on -
+    one row per bill under it (plus a separate row for its late fee/inflation
+    part when > 0, since that's paid separately). Each bill name links to its
+    receipt PDF (signed /api/documents link + target=_blank, same as the DAP
+    table's ENERA acts). `bills` is [[bill_key, label], ...] from objects.yaml.
+    """
     header = "| Період | До сплати | Статус |" if mobile else \
-        "| Період | Нарах. | Опл. | Борг | До сплати | Статус |"
-    sep = "|:--|--:|:--:|" if mobile else "|:--|--:|--:|--:|--:|:--:|"
-    # Partial status names exactly which bill(s) are still unpaid - otherwise
-    # 🟡 alone doesn't say what's missing.
-    status_expr = ("{{ '✅' if r.status == 'paid' else "
-                    "('🟡 ' + (r.unpaid_labels | join(', '))) if r.status == 'partial' "
-                    "else '⏳' }}")
+        "| Період | Нарах. | Опл. | До сплати | Статус |"
+    sep = "|:--|--:|:--:|" if mobile else "|:--|--:|--:|--:|:--:|"
+    bills_json = json.dumps(bills, ensure_ascii=False)
     # The year is shown once in the heading line below (it's already fixed by the
     # year-link buttons for the whole card), so the period column only needs the
-    # month - and the totals row just says "Разом", not "Разом 2026".
-    month_only = "r.label.split(' ')[0]"
+    # month - and the totals row just says "Разом", not "Разом 2026". Full month
+    # name: the column is already as wide as the bill names under it.
+    month = "**{{ months[r.period[5:7] | int - 1] }}**"
+    status = "{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}"
+    money = "{{ '%%.2f' %% %s }}"
+    bold = "**{{ '%%.2f' %% %s }}**"
+    def linked(text: str) -> str:  # `d` = this bill's receipt link, set in the loop below
+        return ("&nbsp;&nbsp;↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">"
+                + text + "</a>{% else %}" + text + "{% endif %}")
+    main_name = linked("{{ label }}")
+    sec_name = linked("{{ b.secondary_label }}")
+    b_status = "{{ '✅' if b.status == 'paid' else '⏳' }}"
+    s_status = "{{ '✅' if b.secondary_status == 'paid' else '⏳' }}"
     if mobile:
-        row = f"| {{{{ {month_only} }}}} | {{{{ '%.2f' % r.total_due }}}} | {status_expr} |"
+        month_row = f"| {month} | {bold % 'r.total_due'} | {status} |"
+        bill_row = f"| {main_name} | {money % 'b.total_due'} | {b_status} |"
+        sec_row = f"| {sec_name} | {money % 'b.secondary_due'} | {s_status} |"
         total_row = "| **Разом** | **{{ '%.2f' % (rows | sum(attribute='total_due')) }}** | |"
     else:
-        row = (f"| {{{{ {month_only} }}}} | {{{{ '%.2f' % r.accrued }}}} | {{{{ '%.2f' % r.paid }}}} | "
-               f"{{{{ '%.2f' % r.debt }}}} | {{{{ '%.2f' % r.total_due }}}} | {status_expr} |")
-        # Summing "Борг"/"До сплати" across months is meaningless (they're running
-        # balances, not period amounts) - the totals row only fills Нарах./Опл.
+        month_row = f"| {month} | {bold % 'r.accrued'} | {bold % 'r.paid'} | {bold % 'r.total_due'} | {status} |"
+        bill_row = (f"| {main_name} | {money % 'b.accrued'} | {money % 'b.paid'} | "
+                    f"{money % 'b.total_due'} | {b_status} |")
+        sec_row = f"| {sec_name} | | | {money % 'b.secondary_due'} | {s_status} |"
+        # "До сплати" is a running balance, not a period amount - summing it
+        # across months is meaningless, so the totals row only fills Нарах./Опл.
         total_row = ("| **Разом** | **{{ '%.2f' % (rows | sum(attribute='accrued')) }}** | "
-                      "**{{ '%.2f' % (rows | sum(attribute='paid')) }}** | | | |")
+                      "**{{ '%.2f' % (rows | sum(attribute='paid')) }}** | | |")
     return (
         "{%- set y = states('input_select.oselya_payments_year') -%}\n"
-        f"{{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {{}} -%}}\n"
+        "{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n"
+        "{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n"
+        "{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n"
         f"{{%- set rows = objs.get('{obj_key}', {{}}).get('rows', []) "
         "| selectattr('period', 'match', '^' + y) | list -%}\n"
+        "{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n"
+        "{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', "
+        "'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n"
         "**{{ y }} рік**\n\n"
         f"{header}\n{sep}\n"
         "{% for r in rows -%}\n"
-        f"{row}\n"
+        f"{month_row}\n"
+        "{% if expanded -%}\n"
+        f"{{% for bill_key, label in {bills_json} -%}}\n"
+        f"{{%- set b = (all_bills.get('{obj_key}.' ~ bill_key, {{}}).get('rows', []) "
+        "| selectattr('period', 'eq', r.period) | list | first) or none -%}\n"
+        "{%- if b -%}\n"
+        f"{{%- set d = docs.get('{obj_key}.' ~ bill_key ~ '_' ~ r.period) -%}}\n"
+        f"{bill_row}\n"
+        "{% if (b.secondary_due or 0) > 0 -%}\n"
+        f"{sec_row}\n"
+        "{% endif -%}\n"
+        "{%- endif -%}\n"
+        "{% endfor -%}\n"
+        "{% endif -%}\n"
         "{% endfor -%}\n"
         f"{total_row}\n\n"
         "грн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати"
@@ -101,17 +137,43 @@ def year_link(year: str) -> dict:
     }
 
 
+def expand_toggle() -> list:
+    """"Розгорнути"/"Згорнути" link for input_boolean.oselya_payments_expanded -
+    two conditional buttons so the label always says what a tap will do.
+    Styled like the year links. The helper is global (shared by every table
+    and every device/user viewing the dashboard).
+    """
+    def button(name: str, when: str) -> dict:
+        return {
+            "type": "conditional",
+            "conditions": [{"condition": "state", "entity": "input_boolean.oselya_payments_expanded", "state": when}],
+            "card": {
+                "type": "button", "name": name, "show_icon": False, "show_name": True, "show_state": False,
+                "tap_action": {"action": "call-service", "service": "input_boolean.toggle",
+                                "service_data": {"entity_id": "input_boolean.oselya_payments_expanded"}},
+                "card_mod": {"style": (
+                    "ha-card { box-shadow: none; border: none; background: none; min-height: 28px; padding: 0; }\n"
+                    ".info { font-weight: bold; text-decoration: underline; }\n"
+                )},
+            },
+        }
+    return [button("▸ Розгорнути по платежах", "off"), button("▾ Згорнути до місяців", "on")]
+
+
 def receipts_links_card() -> dict:
-    """Read-only list of currently-outstanding bills - NOT tappable/linked.
-    Every HTML-level attempt to make the PDF link behave safely on iPhone
-    (target=_blank, no target, `download`) either did nothing or - twice -
-    got the HA Companion App's WebView stuck with no way back. Plain text
-    until this gets revisited on a laptop, away from the phone entirely.
+    """Currently-outstanding bills, each linked to its receipt PDF the same way
+    the DAP energy table links ENERA acts: a signed, expiring /api/documents
+    link from sensor.document_links, opened with target=_blank. (The old
+    unauthenticated /local/ links are what got the iPhone Companion App's
+    WebView stuck - see memory: oselya_payments_system.)
     """
     content = (
         "{%- set items = state_attr('sensor.oselya_payments', 'outstanding') or [] -%}\n"
+        "{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n"
         "{% for i in items -%}\n"
-        "🧾 {{ i.object }} — {{ i.purpose }} — {{ i.period }} — {{ '%.2f' % i.amount }} грн\n"
+        "{%- set text = i.object ~ ' — ' ~ i.purpose ~ ' — ' ~ i.period ~ ' — ' ~ ('%.2f' % i.amount) ~ ' грн' -%}\n"
+        "🧾 {% if docs.get(i.receipt) %}<a href=\"{{ docs[i.receipt] }}\" target=\"_blank\" rel=\"noopener\">{{ text }}</a>"
+        "{% else %}{{ text }}{% endif %}\n"
         "{% endfor %}"
     )
     return {"type": "markdown", "title": "Квитанції", "content": content}
@@ -141,20 +203,23 @@ def build_view(objects_cfg: dict) -> dict:
         "cards": [
             {"type": "heading", "heading": "Огляд", "heading_style": "title"},
             {"type": "horizontal-stack", "cards": [year_link(y) for y in years]},
+            *expand_toggle(),
             summary_card(objects_cfg),
         ],
     }]
     for obj_key, obj_cfg in objects_cfg.items():
+        bills = [[k, b["label"]] for k, b in obj_cfg["bills"].items()]
         sections.append({
             "type": "grid",
             "cards": [
-                {"type": "heading", "heading": obj_cfg["label"], "heading_style": "title"},
+                {"type": "heading", "heading": obj_cfg["label"], "heading_style": "title",
+                 **({"icon": obj_cfg["icon"]} if obj_cfg.get("icon") else {})},
                 {"type": "conditional", "conditions": [{"condition": "screen", "media_query": "(min-width: 768px)"}],
                  "card": {"type": "markdown", "title": obj_cfg["label"],
-                          "content": table_content(obj_key, mobile=False)}},
+                          "content": table_content(obj_key, bills, mobile=False)}},
                 {"type": "conditional", "conditions": [{"condition": "screen", "media_query": "(max-width: 767px)"}],
                  "card": {"type": "markdown", "title": obj_cfg["label"],
-                          "content": table_content(obj_key, mobile=True),
+                          "content": table_content(obj_key, bills, mobile=True),
                           "card_mod": {"style": {"ha-markdown $": (
                               "table { width: 100%; font-size: 12px; }\n"
                               "th, td { padding: 2px 4px !important; }\n")}}}},

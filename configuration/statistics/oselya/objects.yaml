@@ -6,6 +6,8 @@
 # billed by two different legal entities). Adding a new object or bill here
 # is all that's needed for sync.py/build_dashboard.py to pick it up.
 #
+# object.icon: mdi:* icon shown in the dashboard section heading (optional).
+#
 # bill.source:
 #   oselya             - scraped from oselya.com.ua/cabinet; needs account_id
 #                        (see ~/.oselya_cabinet for the site login)
@@ -19,6 +21,7 @@
 objects:
   apartment_197:
     label: "Квартира 197"
+    icon: mdi:home-city
     bills:
       utility:
         label: "Комунальні"
@@ -30,6 +33,7 @@ objects:
         account_id: "os303014197"
   storage_39k:
     label: "Комірка 39k"
+    icon: mdi:package-variant-closed
     bills:
       utility:
         label: "Комунальні"
@@ -37,6 +41,7 @@ objects:
         account_id: "03014039k"
   parking_277:
     label: "Машиномісце 277"
+    icon: mdi:car
     bills:
       utility:
         label: "Комунальні"
@@ -44,6 +49,7 @@ objects:
         account_id: "0309277"
   parking_79:
     label: "Машиномісце 79"
+    icon: mdi:car
     bills:
       utility:
         label: "Комунальні"
