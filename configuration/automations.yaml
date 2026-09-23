@@ -978,3 +978,18 @@
           r.imp | round(0) | int, r.house | round(0) | int, r.net | round(0) | int)
           }}\n{%- endfor %}\n{{ '─' * 36 }}\n{{ '%-4s%6d%6d%7d%6d%+7d' % ('Сума', y.solar | round(0) | int, y.exp | round(0) | int, y.imp | round(0) | int, y.house | round(0) | int, y.net | round(0) | int) }}\n```\n\U0001F4B0 *Разом: {{ y.net | round(0) | int }} ₴*"
   mode: single
+- id: oselya_payments_todo_sync
+  alias: Oselya Payments - sync on to-do change
+  description: When an item in the "Payments" to-do list is added, removed, or checked
+    off, wait 10s (so a burst of clicks coalesces into one run) then run statistics/oselya/sync.py
+    to reconcile the payments table.
+  triggers:
+  - trigger: state
+    entity_id: todo.payments
+    for:
+      seconds: 10
+  conditions: []
+  actions:
+  - action: shell_command.oselya_sync
+    data: {}
+  mode: single

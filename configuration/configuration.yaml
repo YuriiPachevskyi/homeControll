@@ -241,4 +241,13 @@ shell_command:
   bizon_wakeup: 'wakeonlan 2c:f0:5d:7b:3e:89'
   notify_log_append: 'python3 /config/notify/notify_log.py append "{{ payload_b64 }}"'
   notify_log_remove: 'python3 /config/notify/notify_log.py remove {{ slot }}'
+  # Runs in the HA container's own Python (3.14), not the pipeline's host-side
+  # venv (3.13) - the venv's python3 symlink points at /usr/bin/python3, which
+  # only exists on the host, not inside the container. requests/PyYAML already
+  # ship with HA core; pypdf (pure-Python, zero deps) is vendored separately
+  # for the container via PYTHONPATH so it doesn't need reinstalling on every
+  # HA container update (see statistics/oselya/vendor/). --reconcile-only skips
+  # fetch_all() (needs ~/.oselya_cabinet, which only exists on the host, not
+  # in the container) - this trigger only needs to react to to-do checkboxes.
+  oselya_sync: 'PYTHONPATH=/config/statistics/oselya/vendor python3 /config/statistics/oselya/sync.py --reconcile-only >> /config/statistics/oselya/sync.log 2>&1'
 

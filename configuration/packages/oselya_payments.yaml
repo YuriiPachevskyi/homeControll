@@ -1,0 +1,33 @@
+command_line:
+  - sensor:
+      name: "Oselya Payments"
+      unique_id: oselya_payments
+      # Payment rows for the Payments dashboard, built by
+      # statistics/oselya/sync.py (cron). State = last update time.
+      # `objects` = per-property aggregate (paid/partial/unpaid) for the
+      # dashboard tables; `bills` = per-bill detail (kept for reference/debugging).
+      command: "cat /config/statistics/oselya/payments.json"
+      value_template: "{{ value_json.updated }}"
+      json_attributes:
+        - objects
+        - bills
+        - outstanding
+      scan_interval: 3600
+
+# Its attributes (bills + objects) exceed the Recorder's 16KB-per-state
+# attribute limit once a few years of data pile up - payments.json is the
+# real source of truth anyway, so there's nothing worth keeping in HA's own
+# state history for this entity. Excluding it just silences the warning.
+recorder:
+  exclude:
+    entities:
+      - sensor.oselya_payments
+
+input_select:
+  oselya_payments_year:
+    name: "Payments - year"
+    icon: mdi:calendar
+    options:
+      - "2025"
+      - "2026"
+    initial: "2026"
