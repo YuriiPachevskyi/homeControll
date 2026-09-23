@@ -11,6 +11,10 @@
 # bill.source:
 #   oselya             - scraped from oselya.com.ua/cabinet; needs account_id
 #                        (see ~/.oselya_cabinet for the site login)
+#   koec_mail          - electricity bill PDF from KOEC/ONDO, read from Gmail
+#                        over IMAP (read-only); needs account_id (checked
+#                        against the PDF), sender and mail_credentials (a
+#                        host-only file: address + Google app password)
 #   manual_fixed_rate  - no scraping; needs rate_periods: a list of
 #                        {rate, valid_from: "YYYY-MM", valid_to: "YYYY-MM"|null}
 #                        - sync.py synthesizes one row/month at `rate` for
@@ -31,6 +35,12 @@ objects:
         label: "Консьєрж"
         source: oselya
         account_id: "os303014197"
+      electricity:
+        label: "Електроенергія"
+        source: koec_mail
+        account_id: "000401151496"
+        sender: rahunok@sender.koec.com.ua
+        mail_credentials: ~/.yurii_mail
   storage_39k:
     label: "Комірка 39k"
     icon: mdi:package-variant-closed

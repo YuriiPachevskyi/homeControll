@@ -6,9 +6,10 @@ and reconcile items the user has checked off.
 
 Despite the directory name, this orchestrates bills from more than just
 Oselya now - objects.yaml's bill.source picks the fetcher (see sources.py):
-"oselya" (scraped PDF) or "manual_fixed_rate" (a rate that applies for a
-date range, entered by hand, with no ledger - the to-do checkbox is the only
-source of "paid" for those).
+"oselya" (scraped PDF), "koec_mail" (electricity bill PDF mailed by
+KOEC/ONDO, read from Gmail over IMAP) or "manual_fixed_rate" (a rate that
+applies for a date range, entered by hand, with no ledger - the to-do
+checkbox is the only source of "paid" for those).
 
 Key design point (see the plan / memory for the full reasoning): a bill's
 secondary invoice (secondary_due/secondary_label - "Інфляційна складова" or
@@ -17,10 +18,11 @@ NOT the same payment as the bill's main total_due, even though both are on
 one PDF. So every place a human acts on this data (to-do items, Telegram
 captions) must show them as two separate amounts, never summed.
 
-1. sources.fetch_oselya_bill() / manual_fixed_rate_rows() - get new rows
+1. sources.fetch_oselya_bill() / fetch_koec_mail_bill() /
+   manual_fixed_rate_rows() - get new rows
 2. rebuild_payments() - payments.json "bills" (per object.bill) + "objects"
    (aggregated per object, with a paid/partial/unpaid status per period)
-3. every Oselya receipt not yet in sent.json is sent to Telegram (PDF +
+3. every receipt PDF (any PDF_SOURCES bill) not yet in sent.json is sent to Telegram (PDF +
    caption, two amounts if there's a secondary_due); a failed send is
    retried on the next run
 4. any bill's *latest* period with an unpaid main and/or secondary amount
@@ -50,13 +52,16 @@ SENT = BASE / "sent.json"
 TODO_ADDED = BASE / "todo_added.json"
 OBJECTS_YAML = BASE / "objects.yaml"
 
-CHAT_IDS = ["612533502"]  # Yurii P only - his personal property bills
+# Yurii P + Kateryna (added 2026-09-23). A bare "<key>" in sent.json means
+# "delivered to everyone", so receipts sent before she was added are not resent.
+CHAT_IDS = ["612533502", "481606181"]
 TODO_ENTITY = "todo.payments"  # Local To-do list "Payments", added 2026-09-22
 # Real external hostname (Nginx Proxy Manager, see memory: fail2ban_nginx_ha_fix) -
 # a relative "/api/..." link inside a to-do item's description gets intercepted by
 # HA's own frontend router and just bounces to the home page instead of the PDF;
 # an absolute https:// URL forces a real browser navigation instead.
 HA_BASE_URL = "https://ha.yuriip4.duckdns.org"
+PDF_SOURCES = {"oselya", "koec_mail"}  # bill sources that come with a receipt PDF
 COMPLETED_RETENTION_DAYS = 30  # how long a paid item stays visible (checked off) before it's retired
 
 MONTH_UA = ["січень", "лютий", "березень", "квітень", "травень", "червень",
@@ -194,8 +199,13 @@ def fetch_all(objects_cfg: dict) -> None:
         oselya_client = client.OselyaClient(creds["email"], creds["password"])
         oselya_client.login()
     for bill_full_key, _, _, _, bill_cfg in iter_bills(objects_cfg):
-        if bill_cfg["source"] == "oselya":
-            sources.fetch_oselya_bill(oselya_client, bill_full_key, bill_cfg)
+        try:
+            if bill_cfg["source"] == "oselya":
+                sources.fetch_oselya_bill(oselya_client, bill_full_key, bill_cfg)
+            elif bill_cfg["source"] == "koec_mail":
+                sources.fetch_koec_mail_bill(bill_full_key, bill_cfg)
+        except Exception as e:  # one broken source must not block the others
+            print(f"fetch failed for {bill_full_key}: {e}")
 
 
 def _finish_row(bill_full_key: str, raw: dict, existing: dict) -> dict:
@@ -204,7 +214,7 @@ def _finish_row(bill_full_key: str, raw: dict, existing: dict) -> dict:
         **raw,
         "label": f"{MONTH_SHORT[int(m) - 1]} {y}",
         "receipt": receipt_key(bill_full_key, raw["period"]) if raw.get("account_id") else None,
-        "status": existing.get("status", "unpaid"),
+        "status": existing.get("status", "paid" if raw["total_due"] <= 0 else "unpaid"),
         "paid_date": existing.get("paid_date"),
         "secondary_status": existing.get(
             "secondary_status", "paid" if raw["secondary_due"] <= 0 else "unpaid"),
@@ -222,6 +232,8 @@ def rebuild_payments(objects_cfg: dict) -> dict:
         existing_periods = set(rows_by_period)
         if bill_cfg["source"] == "oselya":
             raw_rows = sources.parse_oselya_bill_rows(bill_full_key)
+        elif bill_cfg["source"] == "koec_mail":
+            raw_rows = sources.parse_koec_mail_bill_rows(bill_full_key)
         elif bill_cfg["source"] == "manual_fixed_rate":
             raw_rows = sources.manual_fixed_rate_rows(bill_cfg, existing_periods)
         else:
@@ -310,7 +322,7 @@ def rebuild_payments(objects_cfg: dict) -> dict:
 def notify_new_receipts(objects_cfg: dict, payments: dict, sent: set) -> int:
     failed = 0
     for bill_full_key, _, _, _, bill_cfg in iter_bills(objects_cfg):
-        if bill_cfg["source"] != "oselya":
+        if bill_cfg["source"] not in PDF_SOURCES:
             continue
         bill = payments["bills"][bill_full_key]
         for row in bill["rows"]:
@@ -444,7 +456,7 @@ def main() -> int:
     if "--mark-all-sent" in sys.argv:
         # One-time backfill: don't blast historical receipts to Telegram.
         for bill_full_key, _, _, _, bill_cfg in iter_bills(objects_cfg):
-            if bill_cfg["source"] != "oselya":
+            if bill_cfg["source"] not in PDF_SOURCES:
                 continue
             for row in payments["bills"][bill_full_key]["rows"]:
                 sent.add(f"receipt:{bill_full_key}:{row['period']}")
