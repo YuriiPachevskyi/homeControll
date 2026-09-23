@@ -87,6 +87,7 @@ shell_command:
   # up PYTHONPATH for the sync run itself.
   oselya_rate_set: 'python3 /config/statistics/oselya/rates.py set "{{ bill }}" "{{ amount }}" "{{ start }}"'
   oselya_rate_undo: 'python3 /config/statistics/oselya/rates.py undo'
+  oselya_remind_weekly: 'PYTHONPATH=/config/statistics/oselya/vendor python3 /config/statistics/oselya/remind.py --weekly >> /config/statistics/oselya/sync.log 2>&1'
 
 script:
   oselya_rate_save:
@@ -150,4 +151,48 @@ automation:
         target: {entity_id: input_select.oselya_rate_bill}
         data:
           options: "{{ state_attr('sensor.oselya_payments', 'rate_bills') }}"
+    mode: queued
+  # ---- Telegram reminders for open "Payments" to-do items (remind.py) ------
+  - id: oselya_payments_weekly_reminder
+    alias: "Oselya Payments - weekly Telegram reminder"
+    description: Every Monday at 10:00, resend a Telegram message with a
+      "Виконати" button for every to-do item still open (new items are
+      reminded by sync.py itself as soon as they appear).
+    triggers:
+      - trigger: time
+        at: "10:00:00"
+    conditions:
+      - condition: time
+        weekday: mon
+    actions:
+      - action: shell_command.oselya_remind_weekly
+    mode: single
+  - id: oselya_payments_paid_button
+    alias: "Oselya Payments - Telegram paid button"
+    description: A tap on "✅ Виконати" in a reminder (callback "/paid <uid>")
+      completes that to-do item; the to-do-change automation then records the
+      payment. The buttons are removed at once, the text is updated by the
+      next sync run.
+    triggers:
+      - trigger: event
+        event_type: telegram_callback
+        event_data:
+          command: /paid
+    actions:
+      - action: todo.update_item
+        continue_on_error: true
+        target: {entity_id: todo.payments}
+        data:
+          item: "{{ trigger.event.data.args[0] }}"
+          status: completed
+      - action: telegram_bot.answer_callback_query
+        data:
+          callback_query_id: "{{ trigger.event.data.id }}"
+          message: "✅ Відмічено як виконане"
+      - action: telegram_bot.edit_replymarkup
+        continue_on_error: true
+        data:
+          chat_id: "{{ trigger.event.data.chat_id }}"
+          message_id: "{{ trigger.event.data.message.message_id }}"
+          inline_keyboard: []
     mode: queued

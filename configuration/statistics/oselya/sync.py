@@ -525,6 +525,12 @@ def main() -> int:
     sync_todo(objects_cfg, payments, todo_added)
     refresh_ha_sensor()
 
+    import remind  # Telegram reminders for new open items (imports this module)
+    try:
+        remind.run()
+    except Exception as e:
+        print(f"reminders failed: {e}")
+
     return 1 if failed else 0
 
 
