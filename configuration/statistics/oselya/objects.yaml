@@ -50,6 +50,11 @@ objects:
         account_id: "000401151496"
         sender: rahunok@sender.koec.com.ua
         mail_credentials: ~/.yurii_mail
+      water:
+        label: "Вода"
+        source: brovk_water
+        account_id: "591479"
+        credentials: ~/.brovk_water_197
       trash:
         label: "Вивіз сміття"
         source: manual_fixed_rate
