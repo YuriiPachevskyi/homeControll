@@ -174,14 +174,6 @@ power_load_disable_device_duplicate:
               entity_id: binary_sensor.battery_charge_and_export_power_limit
               state:
               - 'on'
-            - condition: state
-              entity_id: binary_sensor.grid_voltage_trigger_limit
-              state:
-              - 'on'
-              for:
-                hours: 0
-                minutes: 0
-                seconds: 30
           sequence:
           - action: input_text.set_value
             target:
@@ -216,14 +208,6 @@ power_load_disable_device_duplicate:
               entity_id: binary_sensor.battery_charge_and_export_power_limit
               state:
               - 'on'
-            - condition: state
-              entity_id: binary_sensor.grid_voltage_trigger_limit
-              state:
-              - 'on'
-              for:
-                hours: 0
-                minutes: 0
-                seconds: 30
           sequence:
           - action: input_text.set_value
             target:
@@ -254,14 +238,6 @@ power_load_disable_device_duplicate:
               entity_id: binary_sensor.battery_charge_and_export_power_limit
               state:
               - 'on'
-            - condition: state
-              entity_id: binary_sensor.grid_voltage_trigger_limit
-              state:
-              - 'on'
-              for:
-                hours: 0
-                minutes: 0
-                seconds: 30
           sequence:
           - action: input_text.set_value
             target:
@@ -294,14 +270,6 @@ power_load_disable_device_duplicate:
               entity_id: binary_sensor.pv_5kw_10_lower_than_6kw
               state:
               - 'on'
-            - condition: state
-              entity_id: binary_sensor.grid_voltage_trigger_limit
-              state:
-              - 'on'
-              for:
-                hours: 0
-                minutes: 0
-                seconds: 30
           sequence:
           - action: input_text.set_value
             target:

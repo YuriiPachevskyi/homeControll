@@ -222,7 +222,9 @@
         %}\n    Night Idle\n  {% endif %}\n{% endif %}"
 - id: deye_state_controller
   alias: Deye State Controller
-  description: Applies settings based on current Deye System State
+  description: Applies settings based on current Deye System State. 5kW discharge
+    SOC for Morning Export, Max Solar and Evening Export comes from input_number.deye_5kw_discharge_soc
+    (changing it re-applies the settings).
   triggers:
   - trigger: state
     entity_id: input_select.deye_system_state
@@ -236,6 +238,9 @@
   - trigger: state
     entity_id: sensor.deye_6kw_battery
     id: battery_changed
+  - trigger: state
+    entity_id: input_number.deye_5kw_discharge_soc
+    id: soc_5kw_changed
   actions:
   - variables:
       current_state: '{{ states(''input_select.deye_system_state'') }}'
@@ -244,9 +249,11 @@
         max_discharge_power_5kw] | min }}'
       is_selling_6kw: '{{ is_state(''input_boolean.deye_6kw_battery_selling'', ''on'')
         }}'
+      export_soc_5kw: '{{ states(''input_number.deye_5kw_discharge_soc'') | int(70)
+        }}'
       config:
         Morning Export:
-          5kw_soc: 60
+          5kw_soc: '{{ export_soc_5kw }}'
           5kw_power: '{{ smart_limit }}'
           export_power: 5050
           6kw_soc: 40
@@ -254,7 +261,7 @@
           peak_shaving_6kw: 'on'
           general_automation: true
         Max Solar:
-          5kw_soc: 60
+          5kw_soc: '{{ export_soc_5kw }}'
           5kw_power: 350
           export_power: 5080
           6kw_soc: 40
@@ -270,7 +277,7 @@
           peak_shaving_6kw: 'on'
           general_automation: true
         Evening Export:
-          5kw_soc: 60
+          5kw_soc: '{{ export_soc_5kw }}'
           5kw_power: '{{ smart_limit }}'
           export_power: 5000
           6kw_soc: 70
