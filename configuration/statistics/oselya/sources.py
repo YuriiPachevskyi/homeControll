@@ -5,13 +5,17 @@ stays in sync.py so every source ends up in the same row shape.
 """
 import email
 import imaplib
-from datetime import date, timedelta
+import json
+from datetime import date, datetime, timedelta
 from email.header import decode_header, make_header
 from pathlib import Path
 
+import brovk_water
 import client
+import koec_cabinet
 import parse_koec
 import parse_receipt
+import rates
 
 RECEIPTS = Path(__file__).parent.parent / "documents" / "oselya"
 
@@ -118,24 +122,158 @@ def parse_koec_mail_bill_rows(bill_key: str) -> list[dict]:
     return rows
 
 
-def manual_fixed_rate_rows(bill_cfg: dict, existing_periods: set[str]) -> list[dict]:
-    """Synthesize rows for a manual_fixed_rate bill - one per month at the
-    period's rate, for any period in range that doesn't already have a row.
+FIRST_PERIOD = "2025-01"  # history starts here for every object
+
+
+def _cabinet_cache(bill_key: str) -> Path:
+    # Next to the PDFs: gitignored, backed up, and readable from the HA
+    # container (the --reconcile-only run has no cabinet credentials).
+    return RECEIPTS / f"{bill_key}.cabinet.json"
+
+
+def fetch_koec_cabinet_bill(bill_key: str, bill_cfg: dict) -> None:
+    """Refresh the cached bills/charges/payments tables from the KOEC cabinet
+    and save the latest bill's PDF (the only one the cabinet offers) as
+    <bill_key>_<period>.pdf, period taken from the PDF itself.
+    """
+    RECEIPTS.mkdir(parents=True, exist_ok=True)
+    cab = koec_cabinet.KoecCabinet(bill_cfg["credentials"])
+    # One year before FIRST_PERIOD so the first months' payments have context.
+    snap = cab.snapshot(int(FIRST_PERIOD[:4]) - 1)
+    cache = _cabinet_cache(bill_key)
+    cache.write_text(json.dumps(snap, ensure_ascii=False, indent=1))
+    cache.chmod(0o600)
+    pdf = cab.current_bill_pdf()
+    row = parse_koec.parse(pdf)
+    if row["account_id"] != bill_cfg["account_id"]:
+        print(f"{bill_key}: cabinet bill is for account {row['account_id']}, not saved")
+        return
+    target = RECEIPTS / f"{bill_key}_{row['period']}.pdf"
+    if not target.exists():
+        target.write_bytes(pdf)
+        target.chmod(0o600)
+        print(f"fetched {target.name}")
+
+
+def _prev_month(iso_date: str) -> str:
+    y, m = int(iso_date[:4]), int(iso_date[5:7])
+    return f"{y - 1}-12" if m == 1 else f"{y}-{m - 1:02d}"
+
+
+def parse_koec_cabinet_bill_rows(bill_key: str, bill_cfg: dict) -> list[dict]:
+    """Rows from the cached cabinet tables. A bill issued in month M is for
+    period M-1. It counts as paid when the payments made between its issue
+    date and the next bill's reach its amount, when there's nothing to pay,
+    or when a later bill is paid (a later bill's amount includes any debt
+    carried over). `source_paid` lets sync.py mark it paid without a to-do
+    checkmark.
+    """
+    cache = _cabinet_cache(bill_key)
+    if not cache.exists():
+        return []
+    snap = json.loads(cache.read_text())
+    bills, payments = snap["bills"], snap["payments"]
+    rows = []
+    for i, b in enumerate(bills):
+        until = bills[i + 1]["date"] if i + 1 < len(bills) else "9999-12-31"
+        window = [p for p in payments if b["date"] <= p["date"] < until]
+        paid_sum = round(sum(p["amount"] for p in window), 2)
+        fee = snap["fees"].get(_prev_month(b["date"]), {})
+        rows.append({
+            "period": _prev_month(b["date"]), "account_id": bill_cfg["account_id"],
+            "debt": 0.0, "avans": 0.0, "paid": paid_sum,
+            "accrued": fee.get("accrued", b["amount"]), "recalc": 0.0,
+            "total_due": b["amount"], "secondary_label": None, "secondary_due": 0.0,
+            "kwh": fee.get("kwh"),
+            "source_paid": b["amount"] <= 0.005 or paid_sum >= b["amount"] - 0.005,
+            "source_paid_date": window[-1]["date"] if window else None,
+        })
+    for i in range(len(rows) - 2, -1, -1):  # a paid later bill settles the earlier ones
+        if rows[i + 1]["source_paid"] and rows[i + 1]["total_due"] > 0:
+            rows[i]["source_paid"] = True
+    return [r for r in rows if r["period"] >= FIRST_PERIOD]
+
+
+def fetch_brovk_water_bill(bill_key: str, bill_cfg: dict) -> None:
+    """Merge the site's 12-month service tables into the cache (older months
+    drop off the site, the cache keeps them) and save last month's bill PDF
+    as <bill_key>_<period>.pdf.
+    """
+    RECEIPTS.mkdir(parents=True, exist_ok=True)
+    # The address is kept out of the (public) repo: with the account number it
+    # opens the account without a password.
+    creds = json.loads(Path(bill_cfg["credentials"]).expanduser().read_text())
+    site = brovk_water.BrovkWater(creds["address"], bill_cfg["account_id"])
+    cache = _cabinet_cache(bill_key)
+    snap = json.loads(cache.read_text()) if cache.exists() else {"services": {}}
+    for service in brovk_water.SERVICES:
+        rows = snap["services"].setdefault(service, {})
+        for r in site.service_table(service):
+            rows[r["period"]] = r
+    snap["fetched"] = datetime.now().isoformat(timespec="seconds")
+    cache.write_text(json.dumps(snap, ensure_ascii=False, indent=1))
+    cache.chmod(0o600)
+    pdf = site.last_month_bill_pdf(creds["print_name"])
+    bill = brovk_water.parse_bill(pdf)
+    if bill["account_id"] != bill_cfg["account_id"]:
+        print(f"{bill_key}: bill is for account {bill['account_id']}, not saved")
+        return
+    target = RECEIPTS / f"{bill_key}_{bill['period']}.pdf"
+    if not target.exists():
+        target.write_bytes(pdf)
+        target.chmod(0o600)
+        print(f"fetched {target.name}")
+
+
+def parse_brovk_water_bill_rows(bill_key: str, bill_cfg: dict) -> list[dict]:
+    """One row per period with the three services netted, as the printed bill
+    does: total_due = sum of month-end balances (negative = credit). Paid when
+    there's nothing to pay or later months' payments cover it.
+    """
+    cache = _cabinet_cache(bill_key)
+    if not cache.exists():
+        return []
+    services = json.loads(cache.read_text())["services"].values()
+    periods = sorted({p for rows in services for p in rows})
+    rows = []
+    for period in periods:
+        here = [rows_[period] for rows_ in services if period in rows_]
+        total = lambda k: round(sum(r[k] for r in here), 2)
+        rows.append({
+            "period": period, "account_id": bill_cfg["account_id"],
+            "debt": total("start"), "avans": 0.0, "paid": total("paid"),
+            "accrued": total("accrued"), "recalc": -total("recalc"),
+            "total_due": total("end"), "secondary_label": None, "secondary_due": 0.0,
+        })
+    for i, r in enumerate(rows):
+        later_paid = sum(x["paid"] for x in rows[i + 1:])
+        r["source_paid"] = r["total_due"] <= 0.005 or later_paid >= r["total_due"] - 0.005
+        r["source_paid_date"] = None
+    return [r for r in rows if r["period"] >= FIRST_PERIOD]
+
+
+def manual_fixed_rate_rows(bill_key: str) -> list[dict]:
+    """Rows for a manual_fixed_rate bill from its tariffs in rates.yaml (see
+    rates.py) - one per month at that month's rate, up to last month like the
+    other bills (August's bills arrive in September). Every month is
+    recomputed on each run, so editing a tariff also corrects months already
+    in the table; sync.py keeps their paid marks.
     No PDF, no ledger: paid/status is set entirely by the to-do checkbox.
     """
     today = date.today()
+    last = (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
     rows = []
-    for rp in bill_cfg.get("rate_periods", []):
+    for rp in rates.load().get(bill_key, []):
         vy, vm = (int(x) for x in rp["valid_from"].split("-"))
         if rp.get("valid_to"):
             ey, em = (int(x) for x in rp["valid_to"].split("-"))
         else:
-            ey, em = today.year, today.month
-        ey, em = min((ey, em), (today.year, today.month))
+            ey, em = last
+        ey, em = min((ey, em), last)
         y, m = vy, vm
         while (y, m) <= (ey, em):
             period = f"{y}-{m:02d}"
-            if period not in existing_periods:
+            if period >= FIRST_PERIOD:
                 rows.append({
                     "period": period, "account_id": None,
                     "debt": 0.0, "avans": 0.0, "paid": 0.0, "accrued": rp["rate"],

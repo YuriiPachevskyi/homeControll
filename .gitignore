@@ -22,6 +22,7 @@ configuration/statistics/oselya/.venv/
 configuration/statistics/oselya/payments.json
 configuration/statistics/oselya/sent.json
 configuration/statistics/oselya/todo_added.json
+configuration/statistics/oselya/rates_history.json
 configuration/statistics/oselya/sync.log
 configuration/statistics/oselya/vendor/
 configuration/.ha_token

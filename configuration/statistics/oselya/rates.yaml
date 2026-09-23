@@ -1,0 +1,10 @@
+# Fixed-rate bill tariffs (objects.yaml bills with source: manual_fixed_rate),
+# keyed "<object>.<bill>". Edited from the Payments dashboard ("Тарифи" tab),
+# which rewrites this whole file - comments other than this header are lost.
+# valid_from/valid_to are "YYYY-MM"; valid_to null = still in force.
+apartment_177.housing:
+- {rate: 508.0, valid_from: 2025-01, valid_to: null}
+apartment_177.trash:
+- {rate: 66.92, valid_from: 2025-01, valid_to: null}
+apartment_197.trash:
+- {rate: 66.89, valid_from: 2025-01, valid_to: null}

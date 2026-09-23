@@ -7,7 +7,11 @@ and reconcile items the user has checked off.
 Despite the directory name, this orchestrates bills from more than just
 Oselya now - objects.yaml's bill.source picks the fetcher (see sources.py):
 "oselya" (scraped PDF), "koec_mail" (electricity bill PDF mailed by
-KOEC/ONDO, read from Gmail over IMAP) or "manual_fixed_rate" (a rate that
+KOEC/ONDO, read from Gmail over IMAP), "koec_cabinet" (KOEC/ONDO household
+cabinet: bill/charge/payment tables + the latest bill's PDF; paid status
+comes from its payment history), "brovk_water" (КП Броваритепловодоенергія
+lookup by address + account: 12-month service tables + last month's bill
+PDF) or "manual_fixed_rate" (a rate that
 applies for a date range, entered by hand, with no ledger - the to-do
 checkbox is the only source of "paid" for those).
 
@@ -19,6 +23,7 @@ one PDF. So every place a human acts on this data (to-do items, Telegram
 captions) must show them as two separate amounts, never summed.
 
 1. sources.fetch_oselya_bill() / fetch_koec_mail_bill() /
+   fetch_koec_cabinet_bill() / fetch_brovk_water_bill() /
    manual_fixed_rate_rows() - get new rows
 2. rebuild_payments() - payments.json "bills" (per object.bill) + "objects"
    (aggregated per object, with a paid/partial/unpaid status per period)
@@ -43,6 +48,7 @@ from pathlib import Path
 import yaml
 
 import client
+import rates
 import sources
 
 BASE = Path(__file__).parent
@@ -61,7 +67,7 @@ TODO_ENTITY = "todo.payments"  # Local To-do list "Payments", added 2026-09-22
 # HA's own frontend router and just bounces to the home page instead of the PDF;
 # an absolute https:// URL forces a real browser navigation instead.
 HA_BASE_URL = "https://ha.yuriip4.duckdns.org"
-PDF_SOURCES = {"oselya", "koec_mail"}  # bill sources that come with a receipt PDF
+PDF_SOURCES = {"oselya", "koec_mail", "koec_cabinet", "brovk_water"}  # bill sources that come with a receipt PDF
 COMPLETED_RETENTION_DAYS = 30  # how long a paid item stays visible (checked off) before it's retired
 
 MONTH_UA = ["січень", "лютий", "березень", "квітень", "травень", "червень",
@@ -204,6 +210,10 @@ def fetch_all(objects_cfg: dict) -> None:
                 sources.fetch_oselya_bill(oselya_client, bill_full_key, bill_cfg)
             elif bill_cfg["source"] == "koec_mail":
                 sources.fetch_koec_mail_bill(bill_full_key, bill_cfg)
+            elif bill_cfg["source"] == "koec_cabinet":
+                sources.fetch_koec_cabinet_bill(bill_full_key, bill_cfg)
+            elif bill_cfg["source"] == "brovk_water":
+                sources.fetch_brovk_water_bill(bill_full_key, bill_cfg)
         except Exception as e:  # one broken source must not block the others
             print(f"fetch failed for {bill_full_key}: {e}")
 
@@ -216,6 +226,11 @@ def _finish_row(bill_full_key: str, raw: dict, existing: dict) -> dict:
         "receipt": receipt_key(bill_full_key, raw["period"]) if raw.get("account_id") else None,
         "status": existing.get("status", "paid" if raw["total_due"] <= 0 else "unpaid"),
         "paid_date": existing.get("paid_date"),
+        # A source with its own payment history (koec_cabinet) can confirm a
+        # payment, but never undo one - a to-do checkmark made before the bank
+        # transfer shows up in the cabinet (3-5 days) must stick.
+        **({"status": "paid", "paid_date": existing.get("paid_date") or raw.get("source_paid_date")}
+           if raw.get("source_paid") else {}),
         "secondary_status": existing.get(
             "secondary_status", "paid" if raw["secondary_due"] <= 0 else "unpaid"),
         "secondary_paid_date": existing.get("secondary_paid_date"),
@@ -234,8 +249,15 @@ def rebuild_payments(objects_cfg: dict) -> dict:
             raw_rows = sources.parse_oselya_bill_rows(bill_full_key)
         elif bill_cfg["source"] == "koec_mail":
             raw_rows = sources.parse_koec_mail_bill_rows(bill_full_key)
+        elif bill_cfg["source"] == "koec_cabinet":
+            raw_rows = sources.parse_koec_cabinet_bill_rows(bill_full_key, bill_cfg)
+        elif bill_cfg["source"] == "brovk_water":
+            raw_rows = sources.parse_brovk_water_bill_rows(bill_full_key, bill_cfg)
         elif bill_cfg["source"] == "manual_fixed_rate":
-            raw_rows = sources.manual_fixed_rate_rows(bill_cfg, existing_periods)
+            raw_rows = sources.manual_fixed_rate_rows(bill_full_key)
+            # Months no tariff covers any more (bill stopped/moved) are dropped.
+            keep = {r["period"] for r in raw_rows}
+            rows_by_period = {p: r for p, r in rows_by_period.items() if p in keep}
         else:
             raise ValueError(f"unknown bill source: {bill_cfg['source']!r}")
         for raw in raw_rows:
@@ -281,7 +303,9 @@ def rebuild_payments(objects_cfg: dict) -> dict:
                 "accrued": round(sum(r["accrued"] for r in rows_here), 2),
                 "paid": round(sum(r["paid"] for r in rows_here), 2),
                 "debt": round(sum(r["debt"] for r in rows_here), 2),
-                "total_due": round(sum(r["total_due"] + r["secondary_due"] for r in rows_here), 2),
+                # A credit (negative total_due, e.g. water overpaid) belongs to
+                # that one payee - it can't offset another bill's amount.
+                "total_due": round(sum(max(r["total_due"], 0) + r["secondary_due"] for r in rows_here), 2),
                 "status": status, "bills_total": units_total, "bills_paid": units_paid,
                 "unpaid_labels": unpaid_labels,
             })
@@ -313,8 +337,18 @@ def rebuild_payments(objects_cfg: dict) -> dict:
                 "receipt": row.get("receipt"),
             })
 
+    # For the dashboard's "Тарифи" tab: the tariff table and the bill picker.
+    fixed = [(f"{o['label']} — {b['label']}", f"{ok}.{bk}", o, b)
+             for ok, o in objects_cfg.items() for bk, b in o["bills"].items()
+             if b["source"] == "manual_fixed_rate"]
+    tariffs = rates.load()
+    rate_rows = [{"object": o["label"], "bill": b["label"], "rate": rp["rate"],
+                  "valid_from": rp["valid_from"], "valid_to": rp.get("valid_to")}
+                 for _, key, o, b in fixed for rp in sorted(tariffs.get(key, []), key=lambda r: r["valid_from"])]
+
     payments = {"updated": datetime.now().isoformat(timespec="seconds"),
-                "bills": bills, "objects": objects_out, "outstanding": outstanding}
+                "bills": bills, "objects": objects_out, "outstanding": outstanding,
+                "rates": rate_rows, "rate_bills": [label for label, _, _, _ in fixed]}
     PAYMENTS.write_text(json.dumps(payments, ensure_ascii=False, indent=1))
     return payments
 
@@ -366,6 +400,16 @@ def sync_todo(objects_cfg: dict, payments: dict, todo_added: dict) -> None:
             field = "status" if part == "main" else "secondary_status"
             date_field = "paid_date" if part == "main" else "secondary_paid_date"
             for row in payments["bills"][bill_full_key]["rows"]:
+                if row["period"] == period and part == "main" and row.get("source_paid") and not want_paid:
+                    # Paid according to the source itself: tick the item
+                    # instead of reverting the row.
+                    try:
+                        ha_call("todo.update_item", {"entity_id": TODO_ENTITY, "item": item["uid"],
+                                                     "status": "completed"})
+                        print(f"completed (paid per source): {todo_key}")
+                    except Exception as e:
+                        print(f"todo.update_item failed for {todo_key}: {e}")
+                    continue
                 if row["period"] == period and (row[field] == "paid") != want_paid:
                     row[field] = "paid" if want_paid else "unpaid"
                     row[date_field] = date.today().isoformat() if want_paid else None
@@ -423,10 +467,20 @@ def sync_todo(objects_cfg: dict, payments: dict, todo_added: dict) -> None:
 
     for entry in payments["outstanding"]:
         todo_key = entry["todo_key"]
+        text = f"{entry['object']} — {entry['purpose']} — {entry['period']} — {entry['amount']:.2f} грн"
         if todo_key in todo_added:
+            # The amount changed (a fixed-rate tariff was edited) - rename the
+            # open item so its text keeps matching the table.
+            item = (current or {}).get(todo_added[todo_key])
+            if item and todo_added[todo_key] != text and item.get("status") != "completed":
+                try:
+                    ha_call("todo.update_item", {"entity_id": TODO_ENTITY, "item": item["uid"], "rename": text})
+                    todo_added[todo_key] = text
+                    print(f"renamed to-do: {text}")
+                except Exception as e:
+                    print(f"todo.update_item (rename) failed for {todo_key}: {e}")
             continue
         link = link_for(todo_key)
-        text = f"{entry['object']} — {entry['purpose']} — {entry['period']} — {entry['amount']:.2f} грн"
         data = {"entity_id": TODO_ENTITY, "item": text}
         if link:
             data["description"] = link

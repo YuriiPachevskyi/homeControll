@@ -15,10 +15,19 @@
 #                        over IMAP (read-only); needs account_id (checked
 #                        against the PDF), sender and mail_credentials (a
 #                        host-only file: address + Google app password)
-#   manual_fixed_rate  - no scraping; needs rate_periods: a list of
-#                        {rate, valid_from: "YYYY-MM", valid_to: "YYYY-MM"|null}
-#                        - sync.py synthesizes one row/month at `rate` for
-#                        each period in range with no existing row; the
+#   koec_cabinet       - KOEC/ONDO household cabinet (ok.koec.com.ua): history
+#                        from its bill/charge/payment tables, PDF for the
+#                        latest bill only; paid status from its payment
+#                        history. Needs account_id and credentials (a
+#                        host-only JSON file: email, password, url)
+#   brovk_water        - КП "Броваритепловодоенергія" (debt.crewingcrm.com/brovk),
+#                        no login - address + account_id open the account, so
+#                        the address lives in `credentials` (host-only JSON:
+#                        address {settlement, street, house, apartment} as the
+#                        site spells them, print_name printed on the bill PDF)
+#   manual_fixed_rate  - no scraping; the tariffs live in rates.yaml (edited
+#                        from the dashboard's "Тарифи" tab, see rates.py) -
+#                        sync.py synthesizes one row/month at the rate; the
 #                        to-do checkbox is the only source of "paid" for
 #                        these (there's no ledger to poll)
 
@@ -41,6 +50,29 @@ objects:
         account_id: "000401151496"
         sender: rahunok@sender.koec.com.ua
         mail_credentials: ~/.yurii_mail
+      trash:
+        label: "Вивіз сміття"
+        source: manual_fixed_rate
+  apartment_177:
+    label: "Квартира 177"
+    icon: mdi:home-city
+    bills:
+      electricity:
+        label: "Електроенергія"
+        source: koec_cabinet
+        account_id: "000400941038"
+        credentials: ~/.koec_cabinet_177
+      water:
+        label: "Вода"
+        source: brovk_water
+        account_id: "575651"
+        credentials: ~/.brovk_water_177
+      trash:
+        label: "Вивіз сміття"
+        source: manual_fixed_rate
+      housing:
+        label: "ЖЕК"
+        source: manual_fixed_rate
   storage_39k:
     label: "Комірка 39k"
     icon: mdi:package-variant-closed

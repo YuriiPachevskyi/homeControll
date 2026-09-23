@@ -12,6 +12,8 @@ command_line:
         - objects
         - bills
         - outstanding
+        - rates
+        - rate_bills
       scan_interval: 3600
 
 # Its attributes (bills + objects) exceed the Recorder's 16KB-per-state
@@ -22,6 +24,11 @@ recorder:
   exclude:
     entities:
       - sensor.oselya_payments
+      # The tariff form's fields - their history is meaningless.
+      - input_select.oselya_rate_bill
+      - input_number.oselya_rate_amount
+      - input_datetime.oselya_rate_from
+      - input_text.oselya_rate_status
 
 input_select:
   oselya_payments_year:
@@ -31,6 +38,14 @@ input_select:
       - "2025"
       - "2026"
     initial: "2026"
+  oselya_rate_bill:
+    name: "Платіж"
+    icon: mdi:format-list-bulleted
+    # Real options come from sensor.oselya_payments' rate_bills, set by the
+    # "tariff bill picker options" automation below (objects.yaml is the only
+    # place bills are defined).
+    options:
+      - "—"
 
 input_boolean:
   # Payments dashboard tables: off = one row per month (object totals),
@@ -40,3 +55,99 @@ input_boolean:
     name: "Payments - expand bills"
     icon: mdi:unfold-more-horizontal
     initial: false  # always start collapsed; automation oselya_payments_collapse_tables re-collapses after 5 min
+
+# ---- "Тарифи" tab: edit fixed-rate (manual_fixed_rate) tariffs -------------
+# The form below writes statistics/oselya/rates.yaml through rates.py (see its
+# docstring for the rules), which then re-runs sync.py --reconcile-only.
+input_number:
+  oselya_rate_amount:
+    name: "Сума, грн (0 = припинити)"
+    icon: mdi:cash
+    min: 0
+    max: 100000
+    step: 0.01
+    mode: box
+    unit_of_measurement: "грн"
+
+input_datetime:
+  # Only the month counts - any day of it can be picked in the calendar.
+  oselya_rate_from:
+    name: "Діє з (будь-який день місяця)"
+    icon: mdi:calendar-start
+    has_date: true
+    has_time: false
+
+input_text:
+  oselya_rate_status:
+    name: "Результат збереження тарифу"
+    max: 255
+
+shell_command:
+  # Templated -> runs without a shell (no env prefix possible); rates.py sets
+  # up PYTHONPATH for the sync run itself.
+  oselya_rate_set: 'python3 /config/statistics/oselya/rates.py set "{{ bill }}" "{{ amount }}" "{{ start }}"'
+  oselya_rate_undo: 'python3 /config/statistics/oselya/rates.py undo'
+
+script:
+  oselya_rate_save:
+    alias: "Payments - save tariff"
+    icon: mdi:content-save
+    mode: single
+    sequence:
+      - action: input_text.set_value
+        target: {entity_id: input_text.oselya_rate_status}
+        data: {value: "⏳ Зберігаю…"}
+      - action: shell_command.oselya_rate_set
+        data:
+          bill: "{{ states('input_select.oselya_rate_bill') }}"
+          amount: "{{ states('input_number.oselya_rate_amount') }}"
+          start: "{{ states('input_datetime.oselya_rate_from')[:7] }}"
+        response_variable: result
+      - action: input_text.set_value
+        target: {entity_id: input_text.oselya_rate_status}
+        data:
+          value: >-
+            {{ (result.stdout if result.stdout else ('❌ Помилка: ' ~ (result.stderr or 'код ' ~ result.returncode)))[:255] }}
+      - action: homeassistant.update_entity
+        target: {entity_id: sensor.oselya_payments}
+
+  oselya_rate_undo:
+    alias: "Payments - undo last tariff change"
+    icon: mdi:undo
+    mode: single
+    sequence:
+      - action: input_text.set_value
+        target: {entity_id: input_text.oselya_rate_status}
+        data: {value: "⏳ Скасовую…"}
+      - action: shell_command.oselya_rate_undo
+        response_variable: result
+      - action: input_text.set_value
+        target: {entity_id: input_text.oselya_rate_status}
+        data:
+          value: >-
+            {{ (result.stdout if result.stdout else ('❌ Помилка: ' ~ (result.stderr or 'код ' ~ result.returncode)))[:255] }}
+      - action: homeassistant.update_entity
+        target: {entity_id: sensor.oselya_payments}
+
+automation:
+  - id: oselya_rate_bill_options
+    alias: "Oselya Payments - tariff bill picker options"
+    description: Keep input_select.oselya_rate_bill's options in sync with the
+      fixed-rate bills in objects.yaml (published as sensor.oselya_payments'
+      rate_bills). Only when they differ, so an open selection isn't reset.
+    triggers:
+      - trigger: homeassistant
+        event: start
+      - trigger: state
+        entity_id: sensor.oselya_payments
+    conditions:
+      - condition: template
+        value_template: >-
+          {% set want = state_attr('sensor.oselya_payments', 'rate_bills') or [] %}
+          {{ want | length > 0 and want != state_attr('input_select.oselya_rate_bill', 'options') }}
+    actions:
+      - action: input_select.set_options
+        target: {entity_id: input_select.oselya_rate_bill}
+        data:
+          options: "{{ state_attr('sensor.oselya_payments', 'rate_bills') }}"
+    mode: queued

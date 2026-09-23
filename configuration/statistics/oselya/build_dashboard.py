@@ -198,42 +198,131 @@ def build_todo_view() -> dict:
     }
 
 
+DESKTOP = {"condition": "screen", "media_query": "(min-width: 768px)"}
+MOBILE = {"condition": "screen", "media_query": "(max-width: 767px)"}
+
+
+def object_cards(obj_key: str, obj_cfg: dict, mobile: bool) -> list:
+    """Heading (with the object's icon) + its table. The heading is the only
+    title - the markdown card itself has none, so the name isn't shown twice."""
+    bills = [[k, b["label"]] for k, b in obj_cfg["bills"].items()]
+    table = {"type": "markdown", "content": table_content(obj_key, bills, mobile=mobile)}
+    if mobile:
+        table["card_mod"] = {"style": {"ha-markdown $": (
+            "table { width: 100%; font-size: 12px; }\n"
+            "th, td { padding: 2px 4px !important; }\n")}}
+    return [
+        {"type": "heading", "heading": obj_cfg["label"], "heading_style": "title",
+         **({"icon": obj_cfg["icon"]} if obj_cfg.get("icon") else {})},
+        table,
+    ]
+
+
 def build_view(objects_cfg: dict) -> dict:
     # Matches input_select.oselya_payments_year's options (packages/oselya_payments.yaml) -
     # update both places if a new year needs to show up.
     years = ["2025", "2026"]
-    sections = [{
-        "type": "grid",
-        "cards": [
-            {"type": "heading", "heading": "Огляд", "heading_style": "title"},
-            {"type": "horizontal-stack", "cards": [year_link(y) for y in years]},
-            *expand_toggle(),
-            summary_card(objects_cfg),
-        ],
-    }]
+    overview = [
+        {"type": "heading", "heading": "Огляд", "heading_style": "title"},
+        {"type": "horizontal-stack", "cards": [year_link(y) for y in years]},
+        *expand_toggle(),
+        summary_card(objects_cfg),
+    ]
+    # Desktop: a sections view lays sections out in rows, each as tall as its
+    # tallest section - one section per object left a big gap under the short
+    # overview next to Квартира 197's long table. So there are exactly two
+    # sections (= the two columns), and each object goes to whichever column
+    # is shorter so far. Height is estimated as 1 + number of bills (a month
+    # plus its bill rows when expanded); the overview counts as 1.5.
+    # objects.yaml order is kept within each column.
+    columns = [[], []]
+    heights = [1.5, 0.0]
+    for obj_key, obj_cfg in sorted(objects_cfg.items(), key=lambda kv: -len(kv[1]["bills"])):
+        i = heights.index(min(heights))
+        columns[i].append(obj_key)
+        heights[i] += 1 + len(obj_cfg["bills"])
+    order = list(objects_cfg)
+    sections = []
+    for i, keys in enumerate(columns):
+        cards = list(overview) if i == 0 else []
+        for obj_key in sorted(keys, key=order.index):
+            cards += object_cards(obj_key, objects_cfg[obj_key], mobile=False)
+        sections.append({"type": "grid", "visibility": [DESKTOP], "cards": cards})
+    # Mobile: one column, so the columns above would just stack - instead a
+    # single section in plain objects.yaml order (apartments first).
+    cards = list(overview)
     for obj_key, obj_cfg in objects_cfg.items():
-        bills = [[k, b["label"]] for k, b in obj_cfg["bills"].items()]
-        sections.append({
-            "type": "grid",
-            "cards": [
-                {"type": "heading", "heading": obj_cfg["label"], "heading_style": "title",
-                 **({"icon": obj_cfg["icon"]} if obj_cfg.get("icon") else {})},
-                {"type": "conditional", "conditions": [{"condition": "screen", "media_query": "(min-width: 768px)"}],
-                 "card": {"type": "markdown", "title": obj_cfg["label"],
-                          "content": table_content(obj_key, bills, mobile=False)}},
-                {"type": "conditional", "conditions": [{"condition": "screen", "media_query": "(max-width: 767px)"}],
-                 "card": {"type": "markdown", "title": obj_cfg["label"],
-                          "content": table_content(obj_key, bills, mobile=True),
-                          "card_mod": {"style": {"ha-markdown $": (
-                              "table { width: 100%; font-size: 12px; }\n"
-                              "th, td { padding: 2px 4px !important; }\n")}}}},
-            ],
-        })
+        cards += object_cards(obj_key, obj_cfg, mobile=True)
+    sections.append({"type": "grid", "visibility": [MOBILE], "cards": cards})
     return {
         # 2 (not 4) so each object's table card gets roughly half the screen
-        # width - enough room for all 6 columns without overflowing.
+        # width - enough room for all columns without overflowing.
         "type": "sections", "max_columns": 2, "title": "Таблиці", "path": "tables",
         "icon": "mdi:table", "sections": sections,
+    }
+
+
+def build_rates_view() -> dict:
+    """Fixed-rate (manual_fixed_rate) tariffs from rates.yaml, published as
+    sensor.oselya_payments' `rates`, plus a form to change them: bill +
+    amount + first month -> script.oselya_rate_save -> rates.py (the rules
+    are in its docstring). The result line comes back in
+    input_text.oselya_rate_status.
+    """
+    table = (
+        "{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', "
+        "'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n"
+        "{%- macro month(p) -%}{{ months[p[5:7] | int - 1] ~ ' ' ~ p[:4] if p else '—' }}{%- endmacro -%}\n"
+        "| Об'єкт | Платіж | Сума, грн | Діє з | Діє до |\n|:--|:--|--:|:--|:--|\n"
+        "{% for r in state_attr('sensor.oselya_payments', 'rates') or [] -%}\n"
+        "| {{ r.object }} | {{ r.bill }} | {{ '%.2f' % r.rate }} | {{ month(r.valid_from) }} | {{ month(r.valid_to) }} |\n"
+        "{% endfor %}\n"
+        "Суми, яких немає звідки взяти автоматично. Оплату відмічай галочкою у списку «Payments». "
+        "«—» у «Діє до» означає, що тариф чинний зараз."
+    )
+    help_text = (
+        "Нова сума діє **з вказаного місяця**: попередній тариф закривається місяцем раніше, "
+        "старі місяці лишаються зі старою сумою.\n\n"
+        "- **0** — платіж припиняється з цього місяця.\n"
+        "- **Минулий місяць** — виправляє суму вже створених місяців (позначки «оплачено» зберігаються).\n"
+        "- **Скасувати останню зміну** — повертає тарифи до стану перед останнім збереженням "
+        "(можна натискати кілька разів, пам'ятає 20 змін).\n"
+        "- Новий *вид* платежу (не зміну суми) додає Claude в objects.yaml."
+    )
+    status = ("{%- set s = states('input_text.oselya_rate_status') -%}"
+              "{{ s if s not in ['unknown', 'unavailable', ''] else '' }}")
+    return {
+        "type": "sections", "max_columns": 2, "title": "Тарифи", "path": "rates",
+        "icon": "mdi:tag-text-outline",
+        "sections": [
+            {"type": "grid", "cards": [
+                {"type": "heading", "heading": "Фіксовані тарифи", "heading_style": "title"},
+                {"type": "markdown", "content": table},
+            ]},
+            {"type": "grid", "cards": [
+                {"type": "heading", "heading": "Змінити тариф", "heading_style": "title",
+                 "icon": "mdi:pencil"},
+                # tap_action none: tapping a field's name would otherwise open
+                # HA's more-info dialog with the helper's history graph.
+                {"type": "entities", "entities": [
+                    {"entity": e, "tap_action": {"action": "none"}}
+                    for e in ("input_select.oselya_rate_bill", "input_number.oselya_rate_amount",
+                              "input_datetime.oselya_rate_from")
+                ]},
+                {"type": "horizontal-stack", "cards": [
+                    {"type": "button", "name": "Зберегти", "icon": "mdi:content-save",
+                     "show_state": False, "icon_height": "32px",
+                     "tap_action": {"action": "perform-action", "perform_action": "script.oselya_rate_save",
+                                    "confirmation": {"text": "Зберегти новий тариф?"}}},
+                    {"type": "button", "name": "Скасувати останню зміну", "icon": "mdi:undo",
+                     "show_state": False, "icon_height": "32px",
+                     "tap_action": {"action": "perform-action", "perform_action": "script.oselya_rate_undo",
+                                    "confirmation": {"text": "Повернути тарифи до стану перед останнім збереженням?"}}},
+                ]},
+                {"type": "markdown", "content": status},
+                {"type": "markdown", "content": help_text},
+            ]},
+        ],
     }
 
 
@@ -259,11 +348,11 @@ def main():
     ha = HA()
     msg = ha.call({"type": "lovelace/config", "url_path": DASHBOARD_URL_PATH})
     config = msg["result"]
-    config["views"] = ([v for v in config["views"] if v.get("path") not in ("tables", "todo")]
-                        + [build_todo_view(), build_view(objects_cfg)])
+    config["views"] = ([v for v in config["views"] if v.get("path") not in ("tables", "todo", "rates")]
+                        + [build_todo_view(), build_view(objects_cfg), build_rates_view()])
     msg = ha.call({"type": "lovelace/config/save", "url_path": DASHBOARD_URL_PATH, "config": config})
     assert msg.get("success"), msg
-    print(f"rebuilt 'todo' + 'tables' views with {len(objects_cfg)} object(s)")
+    print(f"rebuilt 'todo' + 'tables' + 'rates' views with {len(objects_cfg)} object(s)")
 
 
 if __name__ == "__main__":
