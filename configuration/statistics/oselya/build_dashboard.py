@@ -79,8 +79,12 @@ def table_content(obj_key: str, bills: list, mobile: bool) -> str:
         f"{month_row}\n"
         "{% if expanded -%}\n"
         f"{{% for bill_key, label in {bills_json} -%}}\n"
-        f"{{%- set b = (all_bills.get('{obj_key}.' ~ bill_key, {{}}).get('rows', []) "
-        "| selectattr('period', 'eq', r.period) | list | first) or none -%}\n"
+        # No `| first` here: the frontend renders in strict mode, where `first`
+        # of an empty list (a month this bill has no receipt for) is an error
+        # that blanks the whole card.
+        f"{{%- set found = all_bills.get('{obj_key}.' ~ bill_key, {{}}).get('rows', []) "
+        "| selectattr('period', 'eq', r.period) | list -%}\n"
+        "{%- set b = found[0] if found else none -%}\n"
         "{%- if b -%}\n"
         f"{{%- set d = docs.get('{obj_key}.' ~ bill_key ~ '_' ~ r.period) -%}}\n"
         f"{bill_row}\n"
