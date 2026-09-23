@@ -23,46 +23,46 @@ DASHBOARD_URL_PATH = "dashboard-payments"
 
 
 def table_content(obj_key: str, bills: list, mobile: bool) -> str:
-    """Two-level table: a bold row per month with the object's totals and
-    ✅/🟡/⏳ status, and - when input_boolean.oselya_payments_expanded is on -
-    one row per bill under it (plus a separate row for its late fee/inflation
-    part when > 0, since that's paid separately). Each bill name links to its
+    """An object's payments for the selected year: a header table, then per
+    month an HTML <details> (click-to-expand in the markdown card without any
+    JS, per device) whose <summary> is a one-row table (month, accrued, paid,
+    due, ✅/🟡/⏳) and whose body is that month's bill rows in the same
+    columns - plus a separate row for a late fee/inflation part when > 0,
+    since that's paid separately. All the tables share fixed column widths
+    (table_css()), so they line up like one. Each bill name links to its
     receipt PDF (signed /api/documents link + target=_blank, same as the DAP
-    table's ENERA acts). `bills` is [[bill_key, label], ...] from objects.yaml.
+    table's ENERA acts). input_boolean.oselya_payments_expanded opens every
+    month at once. `bills` is [[bill_key, label], ...] from objects.yaml.
     """
-    header = "| Період | До сплати | Статус |" if mobile else \
-        "| Період | Нарах. | Опл. | До сплати | Статус |"
-    sep = "|:--|--:|:--:|" if mobile else "|:--|--:|--:|--:|:--:|"
     bills_json = json.dumps(bills, ensure_ascii=False)
-    # The year is shown once in the heading line below (it's already fixed by the
-    # year-link buttons for the whole card), so the period column only needs the
-    # month - and the totals row just says "Разом", not "Разом 2026". Full month
-    # name: the column is already as wide as the bill names under it.
-    month = "**{{ months[r.period[5:7] | int - 1] }}**"
     status = "{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}"
-    money = "{{ '%%.2f' %% %s }}"
-    bold = "**{{ '%%.2f' %% %s }}**"
-    def linked(text: str) -> str:  # `d` = this bill's receipt link, set in the loop below
-        return ("&nbsp;&nbsp;↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">"
-                + text + "</a>{% else %}" + text + "{% endif %}")
-    main_name = linked("{{ label }}")
-    sec_name = linked("{{ b.secondary_label }}")
     b_status = "{{ '✅' if b.status == 'paid' else '⏳' }}"
     s_status = "{{ '✅' if b.secondary_status == 'paid' else '⏳' }}"
+    money = "{{ '%%.2f' %% %s }}"
+    bold = "<b>{{ '%%.2f' %% %s }}</b>"
+
+    def linked(text: str) -> str:  # `d` = this bill's receipt link, set in the loop below
+        return ("↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">"
+                + text + "</a>{% else %}" + text + "{% endif %}")
+
+    def row(cells: list, tag: str = "td") -> str:
+        return "<tr>" + "".join(f"<{tag}>{c}</{tag}>" for c in cells) + "</tr>"
+    month = "<b>{{ months[r.period[5:7] | int - 1] }}</b>"
     if mobile:
-        month_row = f"| {month} | {bold % 'r.total_due'} | {status} |"
-        bill_row = f"| {main_name} | {money % 'b.total_due'} | {b_status} |"
-        sec_row = f"| {sec_name} | {money % 'b.secondary_due'} | {s_status} |"
-        total_row = "| **Разом** | **{{ '%.2f' % (rows | sum(attribute='total_due')) }}** | |"
+        head = row(["Період", "До сплати", "Статус"], "th")
+        month_row = row([month, bold % "r.total_due", status])
+        bill_row = row([linked("{{ label }}"), money % "b.total_due", b_status])
+        sec_row = row([linked("{{ b.secondary_label }}"), money % "b.secondary_due", s_status])
+        total_row = row(["<b>Разом</b>", "<b>{{ '%.2f' % (rows | sum(attribute='total_due')) }}</b>", ""])
     else:
-        month_row = f"| {month} | {bold % 'r.accrued'} | {bold % 'r.paid'} | {bold % 'r.total_due'} | {status} |"
-        bill_row = (f"| {main_name} | {money % 'b.accrued'} | {money % 'b.paid'} | "
-                    f"{money % 'b.total_due'} | {b_status} |")
-        sec_row = f"| {sec_name} | | | {money % 'b.secondary_due'} | {s_status} |"
+        head = row(["Період", "Нарах.", "Опл.", "До сплати", "Статус"], "th")
+        month_row = row([month, bold % "r.accrued", bold % "r.paid", bold % "r.total_due", status])
+        bill_row = row([linked("{{ label }}"), money % "b.accrued", money % "b.paid", money % "b.total_due", b_status])
+        sec_row = row([linked("{{ b.secondary_label }}"), "", "", money % "b.secondary_due", s_status])
         # "До сплати" is a running balance, not a period amount - summing it
         # across months is meaningless, so the totals row only fills Нарах./Опл.
-        total_row = ("| **Разом** | **{{ '%.2f' % (rows | sum(attribute='accrued')) }}** | "
-                      "**{{ '%.2f' % (rows | sum(attribute='paid')) }}** | | |")
+        total_row = row(["<b>Разом</b>", "<b>{{ '%.2f' % (rows | sum(attribute='accrued')) }}</b>",
+                         "<b>{{ '%.2f' % (rows | sum(attribute='paid')) }}</b>", "", ""])
     return (
         "{%- set y = states('input_select.oselya_payments_year') -%}\n"
         "{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n"
@@ -74,10 +74,9 @@ def table_content(obj_key: str, bills: list, mobile: bool) -> str:
         "{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', "
         "'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n"
         "**{{ y }} рік**\n\n"
-        f"{header}\n{sep}\n"
+        f"<table>{head}</table>\n"
         "{% for r in rows -%}\n"
-        f"{month_row}\n"
-        "{% if expanded -%}\n"
+        f"<details{{{{ ' open' if expanded }}}}><summary><table>{month_row}</table></summary><table>\n"
         f"{{% for bill_key, label in {bills_json} -%}}\n"
         # No `| first` here: the frontend renders in strict mode, where `first`
         # of an empty list (a month this bill has no receipt for) is an error
@@ -88,15 +87,37 @@ def table_content(obj_key: str, bills: list, mobile: bool) -> str:
         "{%- if b -%}\n"
         f"{{%- set d = docs.get('{obj_key}.' ~ bill_key ~ '_' ~ r.period) -%}}\n"
         f"{bill_row}\n"
-        "{% if (b.secondary_due or 0) > 0 -%}\n"
+        "{%- if (b.secondary_due or 0) > 0 %}\n"
         f"{sec_row}\n"
-        "{% endif -%}\n"
         "{%- endif -%}\n"
+        "{%- endif -%}\n"
+        "{% endfor %}\n"
+        "</table></details>\n"
         "{% endfor -%}\n"
-        "{% endif -%}\n"
-        "{% endfor -%}\n"
-        f"{total_row}\n\n"
-        "грн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати"
+        f"<table>{total_row}</table>\n\n"
+        "грн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі"
+    )
+
+
+def table_css(mobile: bool) -> str:
+    """Fixed, shared column widths so the separate tables line up; the month
+    row gets its own ▸/▾ marker (the native one sits outside the table)."""
+    widths = ["44%", "32%", "24%"] if mobile else ["31%", "17%", "17%", "19%", "16%"]
+    cols = "".join(f"th:nth-child({i + 1}), td:nth-child({i + 1}) {{ width: {w}; }}\n"
+                   for i, w in enumerate(widths))
+    return (
+        "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\n"
+        + cols +
+        "th, td { padding: 3px 6px !important; text-align: right; }\n"
+        "th:first-child, td:first-child { text-align: left; }\n"
+        "th:last-child, td:last-child { text-align: center; }\n"
+        "summary { list-style: none; cursor: pointer; }\n"
+        "summary::-webkit-details-marker { display: none; }\n"
+        "summary td:first-child::before { content: '▸ '; }\n"
+        "details[open] > summary td:first-child::before { content: '▾ '; }\n"
+        "details[open] > table td:first-child { padding-left: 18px !important; }\n"
+        "details { border-top: 1px solid var(--divider-color); }\n"
+        + ("table { font-size: 12px; }\n" if mobile else "")
     )
 
 
@@ -206,11 +227,8 @@ def object_cards(obj_key: str, obj_cfg: dict, mobile: bool) -> list:
     """Heading (with the object's icon) + its table. The heading is the only
     title - the markdown card itself has none, so the name isn't shown twice."""
     bills = [[k, b["label"]] for k, b in obj_cfg["bills"].items()]
-    table = {"type": "markdown", "content": table_content(obj_key, bills, mobile=mobile)}
-    if mobile:
-        table["card_mod"] = {"style": {"ha-markdown $": (
-            "table { width: 100%; font-size: 12px; }\n"
-            "th, td { padding: 2px 4px !important; }\n")}}
+    table = {"type": "markdown", "content": table_content(obj_key, bills, mobile=mobile),
+             "card_mod": {"style": {"ha-markdown $": table_css(mobile)}}}
     return [
         {"type": "heading", "heading": obj_cfg["label"], "heading_style": "title",
          **({"icon": obj_cfg["icon"]} if obj_cfg.get("icon") else {})},
@@ -348,7 +366,7 @@ def main():
     ha = HA()
     msg = ha.call({"type": "lovelace/config", "url_path": DASHBOARD_URL_PATH})
     config = msg["result"]
-    config["views"] = ([v for v in config["views"] if v.get("path") not in ("tables", "todo", "rates")]
+    config["views"] = ([v for v in config["views"] if v.get("path") not in ("tables", "tables2", "todo", "rates")]
                         + [build_todo_view(), build_view(objects_cfg), build_rates_view()])
     msg = ha.call({"type": "lovelace/config/save", "url_path": DASHBOARD_URL_PATH, "config": config})
     assert msg.get("success"), msg
