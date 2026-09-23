@@ -53,7 +53,7 @@ OBJECTS_YAML = BASE / "objects.yaml"
 CHAT_IDS = ["612533502"]  # Yurii P only - his personal property bills
 TODO_ENTITY = "todo.payments"  # Local To-do list "Payments", added 2026-09-22
 # Real external hostname (Nginx Proxy Manager, see memory: fail2ban_nginx_ha_fix) -
-# a relative "/local/..." link inside a to-do item's description gets intercepted by
+# a relative "/api/..." link inside a to-do item's description gets intercepted by
 # HA's own frontend router and just bounces to the home page instead of the PDF;
 # an absolute https:// URL forces a real browser navigation instead.
 HA_BASE_URL = "https://ha.yuriip4.duckdns.org"
@@ -62,7 +62,6 @@ COMPLETED_RETENTION_DAYS = 30  # how long a paid item stays visible (checked off
 MONTH_UA = ["січень", "лютий", "березень", "квітень", "травень", "червень",
             "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"]
 MONTH_SHORT = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"]
-WWW_RECEIPTS = CONFIG / "www" / "oselya_receipts"
 
 
 def load_objects() -> dict:
@@ -76,21 +75,26 @@ def iter_bills(objects_cfg: dict):
             yield f"{obj_key}.{bill_key}", obj_key, obj_cfg, bill_key, bill_cfg
 
 
-def receipt_url(bill_full_key: str, period: str) -> str | None:
-    """Copy the matching receipt PDF into www/ and return its /local/ URL, if fetched.
+def receipt_key(bill_full_key: str, period: str) -> str | None:
+    """Key of the receipt PDF in sensor.document_links' "oselya" map, if fetched.
 
-    Mirrors energy/monthly_table.py's act_url() - HA's /local/ static server
-    doesn't follow symlinks, so the file is copied, not linked.
+    The PDF itself stays in statistics/documents/oselya/ and is served behind
+    HA auth by custom_components/documents via a signed, expiring link.
     """
-    src = sources.RECEIPTS / f"{bill_full_key}_{period}.pdf"
-    if not src.exists():
-        return None
-    WWW_RECEIPTS.mkdir(parents=True, exist_ok=True)
-    dest = WWW_RECEIPTS / f"{bill_full_key}_{period}.pdf"
-    if not dest.exists() or dest.stat().st_size != src.stat().st_size:
-        import shutil
-        shutil.copy2(src, dest)
-    return f"/local/oselya_receipts/{bill_full_key}_{period}.pdf"
+    key = f"{bill_full_key}_{period}"
+    return key if (sources.RECEIPTS / f"{key}.pdf").exists() else None
+
+
+def document_links() -> dict:
+    """Current signed receipt links ({key: "/api/documents/...?authSig=..."})."""
+    req = urllib.request.Request(
+        "http://localhost:8123/api/states/sensor.document_links",
+        headers={"Authorization": f"Bearer {get_ha_token()}"})
+    try:
+        return json.load(urllib.request.urlopen(req, timeout=20))["attributes"].get("oselya", {})
+    except Exception as e:
+        print(f"reading sensor.document_links failed, to-do links left as-is: {e}")
+        return {}
 
 
 def bot_url() -> str:
@@ -199,7 +203,7 @@ def _finish_row(bill_full_key: str, raw: dict, existing: dict) -> dict:
     row = {
         **raw,
         "label": f"{MONTH_SHORT[int(m) - 1]} {y}",
-        "receipt_url": receipt_url(bill_full_key, raw["period"]) if raw.get("account_id") else None,
+        "receipt": receipt_key(bill_full_key, raw["period"]) if raw.get("account_id") else None,
         "status": existing.get("status", "unpaid"),
         "paid_date": existing.get("paid_date"),
         "secondary_status": existing.get(
@@ -293,7 +297,7 @@ def rebuild_payments(objects_cfg: dict) -> dict:
                 "todo_key": f"{bill_full_key}|{row['period']}|{part}",
                 "object": obj_cfg["label"], "purpose": purpose,
                 "period": row["label"], "amount": round(amount, 2),
-                "receipt_url": row["receipt_url"],
+                "receipt": row.get("receipt"),
             })
 
     payments = {"updated": datetime.now().isoformat(timespec="seconds"),
@@ -379,17 +383,36 @@ def sync_todo(objects_cfg: dict, payments: dict, todo_added: dict) -> None:
     # payments["outstanding"] (built by rebuild_payments) is exactly this same
     # "latest period, still owed" set as structured data - reuse it rather than
     # re-deriving the same condition twice.
+    # Receipt links are signed and expire (and die on every HA restart), so the
+    # description of an item already on the list is refreshed whenever the
+    # current link differs. Absolute URL, not a relative "/api/..." one - a
+    # relative link inside a to-do item's description gets intercepted by HA's
+    # own frontend router and just bounces to the home page instead of the PDF.
+    links = document_links()
+
+    def link_for(todo_key: str) -> str | None:
+        bill_full_key, period, _ = todo_key.split("|")
+        path = links.get(f"{bill_full_key}_{period}")
+        return f"{HA_BASE_URL}{path}" if path else None
+
+    for todo_key, text in todo_added.items():
+        item = (current or {}).get(text)
+        url = link_for(todo_key)
+        if url and item and item.get("description") != url:
+            try:
+                ha_call("todo.update_item", {"entity_id": TODO_ENTITY, "item": item["uid"], "description": url})
+            except Exception as e:
+                print(f"todo.update_item failed for {todo_key}: {e}")
+
     for entry in payments["outstanding"]:
         todo_key = entry["todo_key"]
         if todo_key in todo_added:
             continue
+        url = link_for(todo_key)
         text = f"{entry['object']} — {entry['purpose']} — {entry['period']} — {entry['amount']:.2f} грн"
-        # Absolute URL, not a relative "/local/..." one - a relative link inside a
-        # to-do item's description gets intercepted by HA's own frontend router and
-        # just bounces to the home page instead of opening the PDF.
         data = {"entity_id": TODO_ENTITY, "item": text}
-        if entry["receipt_url"]:
-            data["description"] = f"{HA_BASE_URL}{entry['receipt_url']}"
+        if url:
+            data["description"] = url
         try:
             ha_call("todo.add_item", data)
             todo_added[todo_key] = text

@@ -14,14 +14,13 @@ display-ready: per month, a "Сума <year>" row after each year and a "Всь�
 row when more than one year is covered. The current month is included and
 marked partial. Rebuilding from statistics every time is cheap, so nothing
 needs to be appended by hand when a month ends.
-Each month row also gets an "act" URL when the matching ENERA act PDF has been
-synced (statistics/enera/acts/*-YYMM-*.pdf, see statistics/enera/sync.py):
-the file is copied as www/enera_acts/YYYY-MM.pdf (HA's /local/ static server
-doesn't follow symlinks, and the dashboard table links to it so tapping a
-month downloads the act) - the dashboard reads the url via r.act.
+Each month row also gets an "act" key ("YYYY-MM") when the matching ENERA act
+PDF has been synced (statistics/documents/enera/*-YYMM-*.pdf, see
+statistics/enera/sync.py). The dashboard looks the link up by that key in
+sensor.document_links (custom_components/documents), which serves the PDF
+behind HA auth via a signed, expiring link - never from www/.
 """
 import json
-import shutil
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -31,8 +30,7 @@ TZ = ZoneInfo("Europe/Kyiv")
 BASE = Path(__file__).parent
 OUT = BASE / "monthly_energy.json"
 TARIFFS = BASE.parent / "statistics" / "enera" / "tariffs.json"
-ACTS_DIR = BASE.parent / "statistics" / "enera" / "acts"
-WWW_ACTS_DIR = BASE.parent / "www" / "enera_acts"
+ACTS_DIR = BASE.parent / "statistics" / "documents" / "enera"
 START = (2025, 9)  # green tariff starts here; nothing was paid for export before
 DAY_T, NIGHT_T, NIGHT_FROM, NIGHT_TO, TAX, FALLBACK = 4.32, 2.16, 23, 7, 0.77, 5.2353
 NAMES = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"]
@@ -47,17 +45,10 @@ IDS = {
 TOKEN = (Path.home() / ".ha_token").read_text().strip()
 
 
-def act_url(y: int, mo: int) -> str | None:
-    """Copy the matching ENERA act PDF into www/ and return its /local/ URL, if synced."""
+def act_key(y: int, mo: int) -> str | None:
+    """"YYYY-MM" if the ENERA act for that month has been synced, else None."""
     code = f"{y % 100:02d}{mo:02d}"
-    match = next(ACTS_DIR.glob(f"*-{code}-*.pdf"), None)
-    if not match:
-        return None
-    WWW_ACTS_DIR.mkdir(parents=True, exist_ok=True)
-    dest = WWW_ACTS_DIR / f"{y}-{mo:02d}.pdf"
-    if not dest.exists() or dest.stat().st_size != match.stat().st_size:
-        shutil.copy2(match, dest)
-    return f"/local/enera_acts/{y}-{mo:02d}.pdf"
+    return f"{y}-{mo:02d}" if next(ACTS_DIR.glob(f"*-{code}-*.pdf"), None) else None
 
 
 def api(path: str, body: dict) -> dict:
@@ -110,7 +101,7 @@ def main() -> None:
             rows.append({"kind": "month", "label": f"{NAMES[mo - 1]} {y}" + (" ⏳" if partial else ""),
                          "solar": round(solar, 1), "exp": round(exp, 1), "imp": round(imp, 1),
                          "house": round(house, 1), "boiler": None if boiler is None else round(boiler, 1),
-                         "net": round(net), "act": act_url(y, mo)})
+                         "net": round(net), "act": act_key(y, mo)})
             t = ytot.setdefault(y, {"solar": 0.0, "exp": 0.0, "imp": 0.0, "house": 0.0, "boiler": None, "net": 0.0})
             for k, v in (("solar", solar), ("exp", exp), ("imp", imp), ("house", house), ("net", net)):
                 t[k] += v

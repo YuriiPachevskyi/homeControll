@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse ENERA settlement acts (enera/acts/*.pdf) into enera/tariffs.json.
+"""Parse ENERA settlement acts (statistics/documents/enera/*.pdf) into enera/tariffs.json.
 
 tariffs.json is keyed by the billing month ("YYYY-MM") and holds only numbers
 (no names, EIC codes or contract numbers), so it is safe to keep in git:
@@ -20,7 +20,7 @@ from pathlib import Path
 from pypdf import PdfReader
 
 BASE = Path(__file__).parent
-ACTS_DIR = BASE / "acts"
+ACTS_DIR = BASE.parent / "documents" / "enera"
 OUT = BASE / "tariffs.json"
 
 

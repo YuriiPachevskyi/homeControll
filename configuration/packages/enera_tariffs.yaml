@@ -3,7 +3,7 @@ command_line:
       name: "ENERA Green Tariffs"
       unique_id: enera_green_tariffs
       # Per-month green tariff (UAH/kWh excl. VAT) parsed from the utility acts
-      # in statistics/enera/acts by statistics/enera/parse_acts.py. Attributes:
+      # in statistics/documents/enera by statistics/enera/parse_acts.py. Attributes:
       # tariffs {YYYY-MM: value}, latest. The monthly/annual energy reports
       # price a month at green tariff x 0.77 (18% PDFO + 5% military levy withheld).
       command: "python3 /config/statistics/enera/ha_tariffs.py"

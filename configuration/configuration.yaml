@@ -251,3 +251,7 @@ shell_command:
   # in the container) - this trigger only needs to react to to-do checkboxes.
   oselya_sync: 'PYTHONPATH=/config/statistics/oselya/vendor python3 /config/statistics/oselya/sync.py --reconcile-only >> /config/statistics/oselya/sync.log 2>&1'
 
+
+# Serves statistics/documents/ (ENERA acts, Oselya receipts) behind HA auth and
+# publishes signed, expiring links in sensor.document_links.
+documents:

@@ -9,7 +9,7 @@ from pathlib import Path
 import client
 import parse_receipt
 
-RECEIPTS = Path(__file__).parent / "receipts"
+RECEIPTS = Path(__file__).parent.parent / "documents" / "oselya"
 
 
 def months_to_try(now: date):
@@ -22,8 +22,8 @@ def months_to_try(now: date):
 
 
 def fetch_oselya_bill(oselya_client: client.OselyaClient, bill_key: str, bill_cfg: dict) -> None:
-    """Download any not-yet-fetched monthly PDF for this account into receipts/."""
-    RECEIPTS.mkdir(exist_ok=True)
+    """Download any not-yet-fetched monthly PDF for this account into statistics/documents/oselya/."""
+    RECEIPTS.mkdir(parents=True, exist_ok=True)
     for y, m in months_to_try(date.today()):
         target = RECEIPTS / f"{bill_key}_{y}-{m:02d}.pdf"
         if target.exists():

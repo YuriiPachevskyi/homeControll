@@ -4,7 +4,7 @@
 Credentials come from ~/.enera_mail (mode 600): line 1 = Gmail address,
 line 2 = Gmail app password. Optional line 3 = IMAP host (default imap.gmail.com).
 
-PDFs are saved to enera/acts/<YYYY-MM-DD>_<original name>.pdf, named by the
+PDFs are saved to statistics/documents/enera/<YYYY-MM-DD>_<original name>.pdf, named by the
 email date. Already saved files are skipped, so the script is safe to re-run.
 """
 import email
@@ -16,7 +16,7 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 SENDER = "info-bill@vin.enera.ua"
-ACTS_DIR = Path(__file__).parent / "acts"
+ACTS_DIR = Path(__file__).parent.parent / "documents" / "enera"
 CREDS = Path.home() / ".enera_mail"
 
 
@@ -51,7 +51,7 @@ def fetch(since_days: int | None = None) -> list[Path]:
     since_days limits the IMAP search to recent mail, so the hourly cron run
     does not download the whole history every time.
     """
-    ACTS_DIR.mkdir(exist_ok=True)
+    ACTS_DIR.mkdir(parents=True, exist_ok=True)
     imap = connect()
 
     criteria = ["FROM", f'"{SENDER}"']

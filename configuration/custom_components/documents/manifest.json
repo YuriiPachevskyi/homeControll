@@ -1,0 +1,9 @@
+{
+  "domain": "documents",
+  "name": "Documents",
+  "codeowners": [],
+  "dependencies": ["http"],
+  "documentation": "https://github.com/",
+  "iot_class": "local_polling",
+  "version": "1.0.0"
+}

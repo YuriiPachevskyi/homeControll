@@ -2,7 +2,7 @@
 """Hourly job (cron): pick up new ENERA acts, refresh tariffs, send the PDF,
 and forward planned-outage notices from the utility cabinet (esvitlo.py).
 
-1. fetch_acts.fetch()   - new PDFs from the mailbox into enera/acts/
+1. fetch_acts.fetch()   - new PDFs from the mailbox into statistics/documents/enera/
 2. parse_acts           - rebuild enera/tariffs.json (also fixes months that
                           failed to parse earlier)
 3. every act not yet in enera/sent.json is sent to Telegram (PDF + caption with
@@ -26,7 +26,7 @@ import fetch_acts
 import parse_acts
 
 BASE = Path(__file__).parent
-CONFIG = BASE.parent
+CONFIG = BASE.parent.parent  # .../configuration (statistics/enera moved a level deeper on 2026-09-22)
 SENT = BASE / "sent.json"
 CHAT_IDS = [
     "612533502",  # Yurii P
