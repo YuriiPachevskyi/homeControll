@@ -17,6 +17,7 @@ configuration/statistics/enera/sent.json
 configuration/statistics/enera/sync.log
 configuration/energy/monthly_table.log
 configuration/energy/monthly_energy.json
+configuration/energy/dam_prices_cache.json
 configuration/statistics/oselya/.venv/
 configuration/statistics/oselya/payments.json
 configuration/statistics/oselya/sent.json

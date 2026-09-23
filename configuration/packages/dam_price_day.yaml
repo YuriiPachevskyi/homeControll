@@ -1,0 +1,71 @@
+# Day picker for the "Ціна РДН" table on the DAP dashboard: today's (and
+# tomorrow's) prices come from the live entsoe sensor, earlier days' prices
+# and every day's hourly export/house energy from sensor.dam_price_day,
+# filled by energy/dam_day.py (ENTSO-E API, cached; recorder statistics).
+input_datetime:
+  dam_price_day:
+    name: "DAM price day"
+    has_date: true
+    has_time: false
+    icon: mdi:calendar
+
+command_line:
+  - sensor:
+      name: "DAM Price Day"
+      unique_id: dam_price_day
+      command: "python3 /config/energy/dam_day.py {{ states('input_datetime.dam_price_day') }}"
+      value_template: "{{ value_json.date }}"
+      json_attributes:
+        - hours
+        - avg
+        - energy
+        - error
+      command_timeout: 30
+      # Also re-run right after the date changes (automation below). The poll
+      # keeps today's energy current; for a past day it is a cheap cache + DB read.
+      scan_interval: 600
+
+script:
+  dam_price_day_shift:
+    alias: "DAM price day shift"
+    mode: queued
+    fields:
+      days:
+        description: "Days to move (negative = back); 0 = today"
+        example: -1
+    sequence:
+      - variables:
+          # one template: script variables are rendered to strings between entries
+          target: >-
+            {% set today = now().date() %}
+            {% set cur = states('input_datetime.dam_price_day') | as_datetime %}
+            {% set d = today if days | int == 0 or cur is none else (cur + timedelta(days=days | int)).date() %}
+            {{ [d, today] | min }}
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.dam_price_day
+        data:
+          date: "{{ target }}"
+
+automation:
+  - id: dam_price_day_refresh
+    alias: "DAM price day refresh"
+    mode: restart
+    triggers:
+      - trigger: state
+        entity_id: input_datetime.dam_price_day
+    actions:
+      - action: homeassistant.update_entity
+        target:
+          entity_id: sensor.dam_price_day
+  - id: dam_price_day_midnight
+    alias: "DAM price day back to today at midnight"
+    triggers:
+      - trigger: time
+        at: "00:00:30"
+    actions:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.dam_price_day
+        data:
+          date: "{{ now().date() }}"
