@@ -48,20 +48,19 @@ every update, then restart Home Assistant:
    Setup no longer logs in up front (upstream did when the stored session
    looked stale) - the first real refresh logs in if needed, after patch 5
    has picked the route.
-   Slow-changing data is served from a store and refetched only by the
-   first refresh after its boundary (HA local = Kyiv time):
-   - timetable weeks (also the calendars' lookups): daily after 07:30 -
-     the morning run, so substitutions for today/tomorrow show up;
-   - attendances: daily after 18:30 - the evening run, after school;
-   - marks, mark categories and comments, homework-module tasks and
-     parent-teacher conferences (all empty for an early-school class so
-     far): daily after 18:30 - the evening run;
-   - attendance types and the reference data (subjects, teachers,
-     classrooms, free days, ...; upstream: daily): weekly, after Sunday
-     18:30 - the Sunday evening run.
+   Everything the sensors show is read on every scheduled refresh (3x a
+   day). Only near-static data is kept longer: attendance types and the
+   reference data (subjects, teachers, classrooms, free days, ...;
+   upstream: daily) are refetched weekly, after Sunday 18:30 Kyiv (the
+   Sunday evening run). Timetable weeks and attendances count as fresh
+   until the next refresh slot (07:30 / 13:30 / 18:30 Kyiv), so a calendar
+   left open (it re-asks every few minutes, day and night) costs at most
+   one request per viewed week per slot; a failed lookup is not retried
+   for 15 min.
    Requests go one at a time (upstream sent up to 9 in parallel, each a new
    connection through the proxy) so they reuse one connection, each after a
-   random 0.5-2.5 s pause, and every request (login included - upstream sent
+   random 2-6 s pause (a full refresh takes about 2 minutes), and every
+   request (login included - upstream sent
    aiohttp's own User-Agent there) carries the browser User-Agent and a
    Polish Accept-Language. Together with the random ±20 min schedule and
    weekends' single evening refresh (packages/librus.yaml) it looks like a
@@ -273,7 +272,7 @@ def patch_route() -> None:
 CACHE_MARKER = f"{MARKER}: data cache"
 CACHE_DEF = "    async def _async_update_data(self) -> LibrusData:\n"
 CACHE_RENAMED = f"    async def _async_update_data_upstream(self) -> LibrusData:  # {CACHE_MARKER}\n"
-CACHE_VERSION = "cache-v6"  # bump when CACHE_FUNC changes: re-applies the block in place
+CACHE_VERSION = "cache-v8"  # bump when CACHE_FUNC changes: re-applies the block in place
 CACHE_FUNC = f"""
 
 # --- {CACHE_MARKER} (librus/apply_local_patches.py, patch 6, {CACHE_VERSION}) ---
@@ -303,8 +302,13 @@ def _hc_daily_boundary(hour: int, minute: int):
     return boundary if boundary <= now else boundary - timedelta(days=1)
 
 
-def _hc_morning():  # the 07:40-08:20 Kyiv scheduled refresh is the first one after it
-    return _hc_daily_boundary(7, 30)
+def _hc_this_refresh():
+    # The latest refresh slot start (07:30 / 13:30 / 18:30 Kyiv - each
+    # scheduled refresh runs 10-50 min after one): every scheduled refresh
+    # reads the data again, while calendar lookups in between (an open tab
+    # re-asks every few minutes, day and night) reuse it - at most one
+    # request per week viewed per slot.
+    return max(_hc_daily_boundary(h, 30) for h in (7, 13, 18))
 
 
 def _hc_evening():  # the 18:40-19:20 Kyiv scheduled refresh is the first one after it
@@ -318,7 +322,15 @@ async def _hc_weekly(client, key, fetch, boundary=_hc_week_boundary):
     hit = store.get(key)
     if hit is not None and hit[0] >= boundary():
         return hit[1]
-    payload = await fetch()
+    failed = client.__dict__.setdefault("_hc_failed", {{}}).get(key)
+    if failed is not None and dt_util.now() - failed[0] < timedelta(minutes=15):
+        raise failed[1]  # don't retry a failed lookup on every calendar re-ask
+    try:
+        payload = await fetch()
+    except Exception as err:
+        client._hc_failed[key] = (dt_util.now(), err)
+        raise
+    client._hc_failed.pop(key, None)
     store[key] = (dt_util.now(), payload)
     old = dt_util.now() - timedelta(weeks=8)
     for k in [k for k, v in store.items() if v[0] < old]:
@@ -333,7 +345,7 @@ _hc_orig_request_url = LibrusApiClient._async_request_url
 
 
 async def _hc_attendances(self):
-    return await _hc_weekly(self, "attendances", lambda: _hc_orig_attendances(self), _hc_evening)
+    return await _hc_weekly(self, "attendances", lambda: _hc_orig_attendances(self), _hc_this_refresh)
 
 
 async def _hc_attendance_types(self):
@@ -343,17 +355,23 @@ async def _hc_attendance_types(self):
 async def _hc_timetable(self, week_start):
     # also serves the calendar entities' on-demand week lookups
     return await _hc_weekly(self, ("timetable", week_start.isoformat()),
-                            lambda: _hc_orig_timetable(self, week_start), _hc_morning)
+                            lambda: _hc_orig_timetable(self, week_start), _hc_this_refresh)
 
 
 async def _hc_request_url(self, *args, **kwargs):
     # One request at a time: upstream fires up to 9 in parallel (9 new
-    # connections through the proxy); sequential requests reuse one. A short
-    # random pause before each, like someone clicking through the diary.
+    # connections through the proxy); sequential requests reuse one. A random
+    # 2-6 s pause before each, like someone clicking through the diary - a
+    # full refresh (~30 requests) takes about 2 minutes.
     import random
     lock = self.__dict__.setdefault("_hc_request_lock", asyncio.Lock())
     async with lock:
-        await asyncio.sleep(random.uniform(0.5, 2.5))
+        # Requests outside a refresh (calendar weeks, message bodies) right
+        # after a restart served from the cache have no route yet.
+        chosen = self.__dict__.get("_hc_route_at")
+        if chosen is None or dt_util.utcnow() - chosen > timedelta(minutes=30):
+            await _choose_route(self)
+        await asyncio.sleep(random.uniform(2.0, 6.0))
         return await _hc_orig_request_url(self, *args, **kwargs)
 
 
@@ -361,26 +379,14 @@ def _hc_browser_headers(session) -> None:
     # Session-wide defaults so every request - including the login GETs,
     # which upstream sends with aiohttp's own "Python/3.x aiohttp/3.x"
     # User-Agent - looks like the same desktop browser, set up in Poland.
+    # HA hands the session a read-only mapping - replace it with a copy.
+    from multidict import CIMultiDict
     from .librus_api.const import USER_AGENT
-    session._default_headers["User-Agent"] = USER_AGENT
-    session._default_headers["Accept-Language"] = "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7"
+    headers = CIMultiDict(session._default_headers)
+    headers["User-Agent"] = USER_AGENT
+    headers["Accept-Language"] = "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7"
+    session._default_headers = headers
 
-
-# Evening-daily: empty for an early-school class so far (no marks, no
-# homework-module tasks, rare conferences) - checked once a day in case
-# something appears, instead of on every refresh.
-def _hc_evening_daily(name):
-    orig = getattr(LibrusApiClient, name)
-
-    async def wrapper(self):
-        return await _hc_weekly(self, name, lambda: orig(self), _hc_evening)
-    wrapper.__name__ = f"_hc_{{name}}"
-    return wrapper
-
-
-for _hc_name in ("async_get_grades", "async_get_grade_categories", "async_get_grade_comments",
-                 "async_get_homework_assignments", "async_get_parent_teacher_conferences"):
-    setattr(LibrusApiClient, _hc_name, _hc_evening_daily(_hc_name))
 
 LibrusApiClient.async_get_attendances = _hc_attendances
 LibrusApiClient.async_get_attendance_types = _hc_attendance_types
@@ -396,6 +402,7 @@ async def _choose_route(client) -> None:
     # "rpi5"}}) on every refresh; the Telegram automation in
     # packages/librus.yaml notices when it differs from the last one.
     await _hc_orig_choose_route(client)
+    client._hc_route_at = dt_util.utcnow()
     hass = client.__dict__.get("_hc_hass")
     if hass is not None:
         hass.bus.async_fire("librus_route", {{"route": "rpi5" if client._session._default_proxy else "direct"}})
@@ -452,8 +459,11 @@ async def _async_update_data_cached(self) -> LibrusData:
             if dt_util.utcnow() - cached[0] < _CACHE_MAX_AGE_ON_START:
                 _LOGGER.info("Librus: using cached data from %s, no request", dt_util.as_local(cached[0]))
                 return cached[1]
-    _hc_browser_headers(self._client._session)
     self._client._hc_hass = self.hass
+    try:
+        _hc_browser_headers(self._client._session)
+    except Exception as err:  # never let cosmetics break a refresh
+        _LOGGER.warning("Librus: browser headers not set: %s", err)
     try:
         data = await self._async_update_data_upstream()
     except ConfigEntryAuthFailed:
