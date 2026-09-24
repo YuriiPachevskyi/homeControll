@@ -77,10 +77,19 @@ VIEWS = [
 
 def calendar_view(calendars: list[str]) -> dict:
     """Week list (listWeek) over the integration's calendars (timetable, agenda, free
-    days) - replaces the generic sidebar Calendar panel, which shows only
-    these anyway."""
-    return {"type": "panel", "title": "Календар", "path": "calendar", "icon": "mdi:calendar-month",
-            "cards": [{"type": "calendar", "initial_view": "listWeek", "entities": calendars}]}
+    days) plus the HA Local Calendar(s) for activities outside Librus (music
+    etc.) - replaces the generic sidebar Calendar panel. The calendar card
+    can edit/delete an existing local event but not create one, so a button
+    opens the Calendar panel (hidden from the sidebar, still reachable) for
+    "Add event"."""
+    add = {"type": "markdown", "text_only": True,
+           "content": "<ha-icon icon=\"mdi:calendar-plus\"></ha-icon> [Додати заняття (музика, гуртки)](/calendar)"}
+    # sections view, one full-width column: a panel view only stretches a
+    # single card to the screen height, and a stack shrinks the calendar
+    cal = {"type": "calendar", "initial_view": "listWeek", "entities": calendars,
+           "grid_options": {"columns": "full", "rows": 12}}
+    return {"type": "sections", "max_columns": 1, "title": "Календар", "path": "calendar",
+            "icon": "mdi:calendar-month", "sections": [{"type": "grid", "cards": [add, cal]}]}
 
 
 class HA:
@@ -110,6 +119,9 @@ def main():
     calendars = sorted(e["entity_id"] for e in registry
                        if e["platform"] == "librus_synergia" and e["entity_id"].startswith("calendar."))
     assert calendars, "no librus_synergia calendars found"
+    # activities added by hand in HA (Local Calendar "Гуртки")
+    calendars += sorted(e["entity_id"] for e in registry
+                        if e["platform"] == "local_calendar" and e["entity_id"].startswith("calendar."))
     views = VIEWS[:2] + [calendar_view(calendars)] + VIEWS[2:]
     msg = ha.call({"type": "lovelace/config/save", "url_path": URL_PATH,
                    "config": {"title": "Librus", "views": views}})

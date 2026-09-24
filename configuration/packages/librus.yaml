@@ -41,6 +41,27 @@ automation:
           - condition: time
             weekday: [mon, tue, wed, thu, fri]
     actions:
+      # School free days (holidays, breaks - whatever the school entered in
+      # Librus; the integration's free-days calendar, read from the data it
+      # already has - no Librus request) get only the evening run, like
+      # weekends. The calendar is looked up by its suffix - its entity id
+      # carries the child's name.
+      - if:
+          - condition: template
+            value_template: "{{ trigger.id != 'evening' }}"
+        then:
+          - action: calendar.get_events
+            target:
+              entity_id: >-
+                {{ states.calendar | map(attribute='entity_id')
+                   | select('search', '_free_days$') | list }}
+            data:
+              duration:
+                minutes: 1
+            response_variable: free_days
+          - condition: template
+            value_template: >-
+              {{ free_days.values() | map(attribute='events') | sum(start=[]) | count == 0 }}
       # 0-40 min random wait -> the refresh lands 20 min before to 20 min after
       - delay:
           seconds: "{{ range(0, 2400) | random }}"
@@ -199,6 +220,87 @@ automation:
                       file: "{{ repeat.item }}"
     mode: queued
 
+  - id: librus_update_available_notify
+    alias: "Librus - HACS update available (Telegram)"
+    description: A new version of the Librus integration or its cards showed up
+      in HACS. Installing it wipes our local patches (librus/apply_local_patches.py)
+      - remind Yurii what to do after the update.
+    triggers:
+      - trigger: state
+        entity_id:
+          - update.librus_synergia_unofficial_update
+          - update.librus_synergia_cards_update
+        from: "off"
+        to: "on"
+    actions:
+      - action: telegram_bot.send_message
+        continue_on_error: true
+        target:
+          entity_id: notify.yurii_p
+        data:
+          title: Librus
+          parse_mode: plain_text
+          message: |-
+            🕐 {{ now().strftime('%H:%M') }} 🆕 Оновлення {{ state_attr(trigger.entity_id, 'friendly_name') | regex_replace(' [Uu]pdate$', '') }}: {{ state_attr(trigger.entity_id, 'installed_version') }} → {{ state_attr(trigger.entity_id, 'latest_version') }}
+            Після встановлення: apply_local_patches.py + перезапуск HA
+    mode: queued
+
+  - id: librus_local_patches_missing_notify
+    alias: "Librus - local patches missing (Telegram)"
+    description: sensor.librus_local_patches lists the integration/cards files
+      that lost our patch markers - i.e. a HACS update replaced them. Without
+      the patches the integration polls Librus every 20 min (the reason Librus
+      blocked us) and has no rpi5 fallback route. Tell Yurii to re-run
+      librus/apply_local_patches.py.
+    triggers:
+      - trigger: state
+        entity_id: sensor.librus_local_patches
+        for:
+          minutes: 5
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.to_state.state not in ['ok', 'unknown', 'unavailable'] }}
+    actions:
+      - action: telegram_bot.send_message
+        continue_on_error: true
+        target:
+          entity_id: notify.yurii_p
+        data:
+          title: Librus
+          parse_mode: plain_text
+          message: |-
+            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus без наших правок: {{ trigger.to_state.state }}
+            Запусти apply_local_patches.py і перезапусти HA
+    mode: single
+
+  - id: gurtki_reminder_notify
+    alias: "Гуртки - reminder 1 h before (Telegram)"
+    description: Activities outside Librus (music etc.) that Yurii/Kateryna add
+      to the HA Local Calendar "Гуртки" (shown on the Librus dashboard's
+      Calendar tab) - remind both on Telegram an hour before each one. The
+      school is in Poland, so the start time is given in Polish time (Kyiv
+      minus 1 h all year).
+    triggers:
+      - trigger: calendar
+        entity_id: calendar.gurtki
+        event: start
+        offset: "-1:00:00"
+    actions:
+      - action: telegram_bot.send_message
+        continue_on_error: true
+        target:
+          entity_id:
+            - notify.yurii_p
+            - notify.kateryna
+        data:
+          title: Гуртки
+          parse_mode: plain_text
+          message: |-
+            🕐 {{ now().strftime('%H:%M') }} 🎵 Через годину: {{ trigger.calendar_event.summary }}
+            Початок о {{ (as_timestamp(trigger.calendar_event.start) - 3600) | timestamp_custom('%H:%M') }} за Польщею{{ (' · ' ~ trigger.calendar_event.location) if trigger.calendar_event.location else '' }}
+    mode: queued
+
 input_select:
   librus_route:
     # Last route a Librus refresh used - kept by librus_route_changed_notify.
@@ -215,3 +317,26 @@ input_datetime:
     has_date: true
     has_time: true
     icon: mdi:update
+
+command_line:
+  - sensor:
+      # "ok", or the Librus integration/cards files that have fewer
+      # "homeControll local patch" markers than expected - a HACS update
+      # replaced them. Expected counts = markers after apply_local_patches.py;
+      # update them when a patch is added or dropped. Local files only, no
+      # Librus request.
+      name: "Librus local patches"
+      unique_id: librus_local_patches
+      icon: mdi:bandage
+      command: >-
+        m=""; for e in custom_components/librus_synergia/__init__.py:1
+        custom_components/librus_synergia/calendar.py:1
+        custom_components/librus_synergia/coordinator.py:8
+        custom_components/librus_synergia/sensor.py:3
+        custom_components/librus_synergia/services.py:1
+        custom_components/librus_synergia/librus_api/client.py:1
+        www/community/ha-librus-synergia-cards/librus-synergia-cards.js:2;
+        do f=${e%:*}; n=$(grep -c "homeControll local patch" "/config/$f" 2>/dev/null);
+        [ "${n:-0}" -ge "${e##*:}" ] || m="$m ${f##*/}"; done; echo "${m:-ok}"
+      value_template: "{{ value | trim }}"
+      scan_interval: 1800

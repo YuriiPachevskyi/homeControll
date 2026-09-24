@@ -2,7 +2,10 @@
 """Re-apply homeControll's local patches to the HACS-installed Librus
 integration (custom_components/librus_synergia, MichalZaniewicz/
 ha-librus-synergia). A HACS update overwrites them - run this again after
-every update, then restart Home Assistant:
+every update, then restart Home Assistant. sensor.librus_local_patches
+(packages/librus.yaml) counts the "homeControll local patch" markers per
+file and Telegrams Yurii when they are gone - keep its expected counts in
+step when a patch is added or dropped:
 
     python3 /home/yurii/docker/homeControll/configuration/librus/apply_local_patches.py
 
