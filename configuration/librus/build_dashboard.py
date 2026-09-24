@@ -76,11 +76,11 @@ VIEWS = [
 
 
 def calendar_view(calendars: list[str]) -> dict:
-    """Month grid over the integration's calendars (timetable, agenda, free
+    """Week list (listWeek) over the integration's calendars (timetable, agenda, free
     days) - replaces the generic sidebar Calendar panel, which shows only
     these anyway."""
     return {"type": "panel", "title": "Календар", "path": "calendar", "icon": "mdi:calendar-month",
-            "cards": [{"type": "calendar", "initial_view": "dayGridMonth", "entities": calendars}]}
+            "cards": [{"type": "calendar", "initial_view": "listWeek", "entities": calendars}]}
 
 
 class HA:
