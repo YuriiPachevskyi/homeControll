@@ -69,3 +69,27 @@ automation:
           entity_id: input_datetime.dam_price_day
         data:
           date: "{{ now().date() }}"
+  - id: dam_price_table_autocollapse
+    alias: "DAM price table - collapse again"
+    description: The hourly price/energy table on the DAP tab is collapsed by
+      default (current hour + totals); tapping its heading expands it via
+      input_boolean.dam_price_table_expanded, which is global, so fold it back
+      after 10 minutes.
+    triggers:
+      - trigger: state
+        entity_id: input_boolean.dam_price_table_expanded
+        to: "on"
+        for:
+          minutes: 10
+    actions:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.dam_price_table_expanded
+    mode: single
+
+input_boolean:
+  dam_price_table_expanded:
+    # Tap on the "Ціна РДН та енергія по годинах" heading (DAP tab) shows all
+    # hours; off = just the current hour and the totals row.
+    name: "DAM price table expanded"
+    icon: mdi:unfold-more-horizontal
