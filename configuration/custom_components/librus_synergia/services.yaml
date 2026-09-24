@@ -1,0 +1,48 @@
+refresh:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: librus_synergia
+
+get_message:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: librus_synergia
+    message_id:
+      required: true
+      example: "186536"
+      selector:
+        text:
+    mailbox:
+      required: false
+      example: "inbox"
+      default: "inbox"
+      selector:
+        select:
+          options:
+            - "inbox"
+            - "substitutions"
+            - "alerts"
+            - "notes"
+            - "absences"
+            - "justifications"
+            - "trash"
+
+get_grades:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: librus_synergia
+    subject_id:
+      required: false
+      example: 42005
+      selector:
+        number:
+          mode: box

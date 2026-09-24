@@ -1,0 +1,213 @@
+"""Constants for the Librus Synergia (unofficial) integration."""
+
+from __future__ import annotations
+
+from homeassistant.const import Platform
+
+DOMAIN = "librus_synergia"
+
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR]
+
+# The session (see librus_api.LibrusSessionData) is cookie-based with a
+# ~24h lifetime and no separate refresh grant - unlike a bearer-token API,
+# staying logged in silently requires the password, so (unlike ha-suunto's
+# revocable-session-key-only model) it is persisted here too. Only the
+# cookie jar and login timestamp are the model's *addition* over a plain
+# password store - see librus_api/client.py's class docstring.
+CONF_COOKIES = "cookies"
+CONF_SESSION_LOGGED_IN_AT = "session_logged_in_at"
+
+DEFAULT_SCAN_INTERVAL_MINUTES = 20
+MIN_SCAN_INTERVAL_MINUTES = 10
+MAX_SCAN_INTERVAL_MINUTES = 180
+
+# Optional overnight window (off by default) where the coordinator skips
+# the network round-trip entirely and just returns its last-known data -
+# nothing meaningful changes while a family is asleep, and this is an
+# unofficial API worth being modest with (same spirit as the scan_interval
+# option's own "keep this modest" description). Off by default so nobody's
+# entities silently go stale overnight without having opted in.
+CONF_QUIET_HOURS_ENABLED = "quiet_hours_enabled"
+DEFAULT_QUIET_HOURS_ENABLED = False
+CONF_QUIET_HOURS_START = "quiet_hours_start"
+DEFAULT_QUIET_HOURS_START = "23:00:00"
+CONF_QUIET_HOURS_END = "quiet_hours_end"
+DEFAULT_QUIET_HOURS_END = "06:00:00"
+
+# When False (set via the options flow), the coordinator skips the whole
+# Wiadomości (private messages) subsystem - its separate wiadomosci.librus.pl
+# session bootstrap plus the per-cycle unread-count/list calls. The Unread
+# messages sensor then reports `unavailable`, exactly as it already does for
+# a school that hasn't enabled the module.
+CONF_MESSAGES_ENABLED = "messages_enabled"
+DEFAULT_MESSAGES_ENABLED = True
+
+# Same "skip the fetch, sensor goes unavailable" shape as CONF_MESSAGES_
+# ENABLED above, extended to the other optional (non-core) data groups.
+# `coordinator.py`'s `_maybe()` helper skips the network call entirely when
+# one of these is False - the existing defensive parsers already treat an
+# empty `{}` payload identically to a genuinely-empty account, so no extra
+# special-casing was needed to wire these up.
+CONF_ANNOUNCEMENTS_ENABLED = "announcements_enabled"
+DEFAULT_ANNOUNCEMENTS_ENABLED = True
+CONF_BEHAVIOUR_GRADES_ENABLED = "behaviour_grades_enabled"
+DEFAULT_BEHAVIOUR_GRADES_ENABLED = True
+CONF_DESCRIPTIVE_GRADES_ENABLED = "descriptive_grades_enabled"
+DEFAULT_DESCRIPTIVE_GRADES_ENABLED = True
+CONF_FREE_DAYS_ENABLED = "free_days_enabled"
+DEFAULT_FREE_DAYS_ENABLED = True
+
+# The student's own number in the class register ("numer w dzienniku") -
+# CONFIRMED (via szkolny-android's reference source) that Librus's API does
+# not expose this anywhere at all; even that reference app just asks the
+# user to type it in once via a settings dialog rather than fetching it.
+# Genuinely optional and unset by default (no DEFAULT_* - absent means "not
+# configured", distinct from any real roster number) so the Lucky number
+# sensor's `is_yours` attribute can stay `None` ("unknown, not configured")
+# rather than falsely reporting `False` for a family that never set this.
+CONF_STUDENT_NUMBER = "student_number"
+
+# Labels for the SUPPLEMENTARY (tier 2, `return_exceptions=True`) endpoints
+# fetched by `coordinator.py::_async_fetch_core_payloads`, in the exact
+# order passed to that method's second `asyncio.gather()` call - used for
+# the warning logged when one fails, and for the matching repair-issue id
+# (see `coordinator.py::optional_endpoint_issue_id`). Keep in sync with
+# that gather() call. Public (not underscore-prefixed) since `__init__.py`
+# also needs it, to clear any repair issues for a removed config entry.
+OPTIONAL_ENDPOINT_LABELS = (
+    "Grades/Comments",
+    "HomeWorkAssignments",
+    "BehaviourGrades/Points",
+    "BehaviourGrades/Points/Comments",
+    "DescriptiveGrades",
+    "ParentTeacherConferences",
+)
+
+# Labels for TIER 1's own degradable endpoints - `Me` is deliberately NOT
+# here (kept as a separate, always-fatal fetch ahead of this tier - if we
+# can't even identify who the account belongs to, something is genuinely
+# wrong, not just "a module this account type doesn't have"). In the
+# exact order passed to `_async_fetch_core_payloads`' first
+# `asyncio.gather()` call (Me excluded). Public for the same reason as
+# OPTIONAL_ENDPOINT_LABELS - `__init__.py` also needs it, and it shares
+# that same repair-issue tracking/translation key (see
+# `coordinator.py::_degrade_core_payload`).
+#
+# BUG FIX (issue #5, reported live): a preschool-account login only has
+# the Wiadomości module enabled - `Attendances/Types` 403'd (a module this
+# account type genuinely doesn't have, confirmed by the reporter checking
+# the real Synergia web UI independently) and took down the ENTIRE setup,
+# even though Grades/Attendances/etc. simply don't apply to that account
+# and Wiadomości (what the reporter actually needed) would have worked
+# fine. Previously only `Timetables` had this "confirmed 403 = module
+# unavailable, degrade gracefully" treatment (issue #4); generalized here
+# to the whole core tier since the SAME class of report would otherwise
+# just recur with a different endpoint name for the next limited-access
+# account type.
+#
+# NOTE: the two "Timetable (this week/next week)" entries below
+# structurally can never show up as degraded - `_fetch_timetable_or_
+# unpublished` already catches its own confirmed 403 and returns `{}`
+# BEFORE `_degrade_core_payload` ever sees an exception for those two
+# gather positions, so they'll only ever be observed as a (harmless,
+# no-op) "recovery". The REAL Timetable tracking happens under the
+# plain "Timetable" label (singular, no week suffix) inside
+# `_fetch_timetable_or_unpublished` itself - see
+# MISC_DEGRADABLE_ENDPOINT_LABELS below. Kept here anyway (rather than
+# reworking the gather's positional zip) since a stray "recovered" call
+# for a label that was never marked failing is a complete no-op.
+CORE_ENDPOINT_LABELS = (
+    "Grades",
+    "Grades/Categories",
+    "Notes",
+    "Attendances",
+    "Attendances/Types",
+    "Timetable (this week)",
+    "Timetable (next week)",
+    "HomeWorks",
+    "SchoolNotices",
+)
+
+# Labels for `_async_refresh_reference_data`'s own 10-call gather, in the
+# exact order that gather lists them - subject/teacher/classroom/school/
+# class/homework-category/free-days-x2/note-category/behaviour-grade-
+# category lookups. Public (moved here from coordinator.py, code review)
+# for the same __init__.py-cleanup reason as the other *_LABELS tuples -
+# this tier's degrades are now tracked the same way as core/supplementary
+# (see coordinator.py::_degrade_reference_result) after a real gap: an
+# account with several reference-data endpoints failing (e.g. Classes,
+# while Schools worked) was invisible in diagnostics before this, which
+# is exactly the account this whole degrade-tracking feature was built to
+# debug (issue #5's live feedback round).
+REFERENCE_DATA_ENDPOINT_LABELS = (
+    "Subjects",
+    "Teachers",
+    "Classrooms",
+    "Schools",
+    "Classes",
+    "HomeworkCategories",
+    "SchoolFreeDays",
+    "ClassFreeDays",
+    "NoteCategories",
+    "BehaviourGradeCategories",
+    "Lessons",
+)
+
+# The handful of degradable fetches that don't belong to any of the three
+# gather-based tiers above - each one guards its own single call (or
+# small asyncio.gather()) with its own try/except rather than a shared
+# gather, but still feeds the SAME degraded_endpoints/repair-issue
+# tracking. "Timetable" is the ACTUAL tracked label for timetable
+# degrades (see CORE_ENDPOINT_LABELS' own note above for why the two
+# per-week labels there are dead weight). "Messages" covers the bootstrap
+# + inbox/unread-count fetch; "Messages/Secondary" covers the
+# substitutions/alerts/justifications mailboxes, tracked separately since
+# `_async_get_messages` already isolates that failure from the primary
+# inbox fetch (see its own docstring - the v0.4.13 all-or-nothing bug).
+MISC_DEGRADABLE_ENDPOINT_LABELS = (
+    "Timetable",
+    "LuckyNumbers",
+    "Messages",
+    "Messages/Secondary",
+)
+
+# Repair issue translation keys - see repairs.py for what each one means and
+# when it's raised/cleared.
+ISSUE_SCHOOL_YEAR_ROLLOVER = "school_year_rollover"
+ISSUE_OPTIONAL_ENDPOINT_DEGRADED = "optional_endpoint_degraded"
+
+# The daily lucky number ("szczęśliwy numerek") is normally published by this
+# local hour; the coordinator avoids re-polling it before then once today's
+# value is already cached. Mirrors ha-suunto's approach of special-casing a
+# single slow-moving field inside the normal coordinator instead of adding a
+# second one.
+LUCKY_NUMBER_PUBLISH_HOUR = 15
+
+# New-item bus events. Seen-id bookkeeping is in-memory only (see
+# coordinator.py's `_fire_for_new_ids`) - a HA restart just re-seeds
+# quietly, so there's nothing to prune across restarts.
+EVENT_NEW_GRADE = f"{DOMAIN}_new_grade"
+EVENT_NEW_ANNOUNCEMENT = f"{DOMAIN}_new_announcement"
+EVENT_NEW_NOTE = f"{DOMAIN}_new_note"
+EVENT_NEW_MESSAGE = f"{DOMAIN}_new_message"
+# Fires for a new entry in the Agenda ("HomeWorks") feed - tests, trips,
+# events. Carries the resolved subject + category name so an automation
+# can filter e.g. category == "Sprawdzian" without its own lookup.
+EVENT_NEW_HOMEWORK = f"{DOMAIN}_new_homework"
+# Fires for a newly-seen real absence record (excused or not - `excused`
+# in the payload says which). Seeded silently on the first sync.
+EVENT_NEW_ABSENCE = f"{DOMAIN}_new_absence"
+# Fires when a lesson on today's date or later newly turns up cancelled or
+# as a substitution vs. the previous poll (seeded silently on the first
+# sync, same as the *_new_* events). Signature-keyed on date+period+kind,
+# so re-announcing the same known disruption every cycle doesn't happen.
+EVENT_TIMETABLE_CHANGED = f"{DOMAIN}_timetable_changed"
+# Fires for a handful of objective, data-derived gamification milestones
+# (first 6, N good grades in a row, N days without an absence/negative
+# note - see coordinator.py::_check_achievements) - deliberately NOT an
+# invented points/scoring system, which would have no basis in anything
+# Librus actually reports. Each achievement key fires at most once (seeded
+# silently on the first sync, same as every other *_new_*/_changed event).
+EVENT_ACHIEVEMENT_UNLOCKED = f"{DOMAIN}_achievement_unlocked"
+
+ATTR_SUBJECT_ID = "subject_id"

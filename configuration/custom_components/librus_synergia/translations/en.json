@@ -1,0 +1,171 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Librus Synergia (unofficial)",
+        "description": "Log in with your Librus login (e.g. \"1234567u\") and password. This uses Librus's private web API and may violate Librus's Terms of Service - use your own account at your own risk. Your session normally expires after about a day with no way to silently renew it without your password, so - unlike some integrations - your password IS stored (alongside the session) to allow unattended daily refresh; it never leaves your Home Assistant instance.",
+        "data": {
+          "username": "Login",
+          "password": "Password"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate Librus Synergia",
+        "description": "The saved session for {login} could not be renewed. Enter the password again to log in.",
+        "data": {
+          "password": "Password"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Librus Synergia",
+        "description": "Fix the login or password for this entry. The login must still belong to the same Librus account this entry was set up for.",
+        "data": {
+          "username": "Login",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Login was rejected. Check the login/password.",
+      "captcha_needed": "Librus is asking for a captcha, which this integration cannot solve automatically. Try again later, or log in once via the official Librus app/website first.",
+      "account_action_required": "Your Librus account needs an action on Librus's own site first (accept rules, or change your password), then try again.",
+      "cannot_connect": "Could not reach the Librus servers.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This Librus account is already configured.",
+      "reauth_successful": "Re-authentication was successful.",
+      "reconfigure_successful": "Reconfiguration was successful.",
+      "unique_id_mismatch": "This login belongs to a different Librus account than the one this entry was set up for. Remove and re-add the integration instead if you meant to add a new student."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Librus Synergia options",
+        "data": {
+          "scan_interval": "Poll interval (minutes)",
+          "messages_enabled": "Fetch private messages (Wiadomości)",
+          "announcements_enabled": "Fetch announcements (ogłoszenia)",
+          "behaviour_grades_enabled": "Fetch behaviour grade (ocena zachowania)",
+          "descriptive_grades_enabled": "Fetch descriptive grades",
+          "free_days_enabled": "Fetch free days calendar",
+          "student_number": "Student's number in the class register",
+          "quiet_hours_enabled": "Enable quiet hours (skip polling overnight)",
+          "quiet_hours_start": "Quiet hours start",
+          "quiet_hours_end": "Quiet hours end"
+        },
+        "data_description": {
+          "scan_interval": "How often to refresh grades, attendance, timetable and announcements. Keep this modest - it is an unofficial API.",
+          "messages_enabled": "When off, the Unread messages sensor goes unavailable and no messages calls are made - fewer requests to Librus.",
+          "announcements_enabled": "When off, the Unread announcements sensor goes unavailable and no SchoolNotices calls are made.",
+          "behaviour_grades_enabled": "When off, the Behaviour grade sensor goes unavailable and no BehaviourGrades calls are made.",
+          "descriptive_grades_enabled": "When off, the Descriptive grades sensor goes unavailable and no DescriptiveGrades calls are made.",
+          "free_days_enabled": "When off, the Free days calendar entity is not created and no free-days calls are made.",
+          "student_number": "Optional - Librus's API doesn't expose this anywhere, so it has to be entered by hand. When set, the Lucky number sensor shows whether it's your number. Leave blank to disable.",
+          "quiet_hours_enabled": "When on, no data is fetched from Librus during the window below - entities just keep their last known state overnight.",
+          "quiet_hours_start": "Only used while quiet hours are enabled above.",
+          "quiet_hours_end": "Only used while quiet hours are enabled above. Can be earlier than the start time (e.g. 23:00 -> 06:00) to span midnight."
+        }
+      }
+    }
+  },
+  "issues": {
+    "school_year_rollover": {
+      "title": "School year end date looks out of date",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reload to re-check the school year",
+            "description": "The cached school year end date ({end_date}) is over a month in the past. This usually updates automatically within 24 hours as Librus publishes the new school year's class record, but if it hasn't yet, reload the integration now to force an immediate re-check."
+          }
+        }
+      }
+    },
+    "optional_endpoint_degraded": {
+      "title": "\"{label}\" has not responded in over a week",
+      "description": "The \"{label}\" endpoint has failed on every attempt since {since}. This is often harmless - some schools/account types don't have every Librus module, and this integration already treats that as normal - but a full week of unbroken failures can also mean something changed (a permission change, or Librus reworking that endpoint). This is informational only and can be safely dismissed; it will reappear if the endpoint keeps failing."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "overall_average": { "name": "Overall grade average" },
+      "subject_average": { "name": "{subject} average" },
+      "attendance": { "name": "Absences" },
+      "unexcused_absences": { "name": "Unexcused absences" },
+      "next_lesson": { "name": "Next lesson" },
+      "current_lesson": { "name": "Current lesson" },
+      "next_exam": { "name": "Next exam" },
+      "lucky_number": { "name": "Lucky number" },
+      "unread_announcements": { "name": "Unread announcements" },
+      "behaviour_notices": { "name": "Behaviour notices" },
+      "unread_messages": { "name": "Unread messages" },
+      "school": { "name": "School" },
+      "school_class": { "name": "Class" },
+      "homework_assignments": { "name": "Homework assignments" },
+      "behaviour_grade": { "name": "Behaviour grade" },
+      "descriptive_grades": { "name": "Descriptive grades" },
+      "attendance_streak": { "name": "Attendance streak" },
+      "behaviour_streak": { "name": "Good behaviour streak" },
+      "good_grade_streak": { "name": "Good grades streak" },
+      "rank": {
+        "name": "Rank",
+        "state": {
+          "bronze": "Bronze",
+          "silver": "Silver",
+          "gold": "Gold",
+          "diamond": "Diamond"
+        }
+      }
+    },
+    "calendar": {
+      "timetable": { "name": "Timetable" },
+      "agenda": { "name": "Agenda" },
+      "free_days": { "name": "Free days" }
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh now",
+      "description": "Force an immediate data refresh instead of waiting for the next poll.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The student to refresh. Leave empty to refresh every configured student."
+        }
+      }
+    },
+    "get_message": {
+      "name": "Get message",
+      "description": "Fetches ONE message's full, untruncated content from Librus. This marks the message as read on Librus's servers, exactly like opening it in the Librus app or website - only call this for a message a person has actually chosen to open, never automatically or on a schedule.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Librus Synergia device (student) to fetch the message from."
+        },
+        "message_id": {
+          "name": "Message ID",
+          "description": "The message's id, from the Unread messages sensor's \"recent\" attribute."
+        },
+        "mailbox": {
+          "name": "Mailbox",
+          "description": "Which mailbox the message is in. Defaults to \"inbox\" - use \"substitutions\" or \"alerts\" for a message from the Unread messages sensor's \"substitutions_recent\" or \"alerts_recent\" attribute."
+        }
+      }
+    },
+    "get_grades": {
+      "name": "Get grades",
+      "description": "Returns every grade for a student in one response, optionally filtered to one subject - instead of reading each subject sensor's own \"grades\" attribute separately.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Librus Synergia device (student) to fetch grades for."
+        },
+        "subject_id": {
+          "name": "Subject ID",
+          "description": "Limit to one subject's grades, using the subject average sensor's \"subject_id\" attribute. Leave empty for every subject."
+        }
+      }
+    }
+  }
+}
