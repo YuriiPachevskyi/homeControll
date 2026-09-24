@@ -6,7 +6,8 @@ time; it replaces the whole dashboard config through the HA WebSocket API
 (never .storage directly - see memory: homecontroll_dashboard_live_edit).
 
 The cards find the child's device on their own (one student), so they need
-no entity ids. Their labels follow each user's HA language (Polish or
+no entity ids; the "Календар" tab looks its calendar entities up at run
+time, so no child-identifying ids end up in git. Their labels follow each user's HA language (Polish or
 English built in); subject names carry a Ukrainian translation from
 librus/subjects_uk.json (see apply_local_patches.py).
 
@@ -74,6 +75,14 @@ VIEWS = [
 ]
 
 
+def calendar_view(calendars: list[str]) -> dict:
+    """Month grid over the integration's calendars (timetable, agenda, free
+    days) - replaces the generic sidebar Calendar panel, which shows only
+    these anyway."""
+    return {"type": "panel", "title": "Календар", "path": "calendar", "icon": "mdi:calendar-month",
+            "cards": [{"type": "calendar", "initial_view": "dayGridMonth", "entities": calendars}]}
+
+
 class HA:
     def __init__(self):
         self.ws = websocket.create_connection("ws://localhost:8123/api/websocket", timeout=10)
@@ -97,10 +106,15 @@ def main():
                        "icon": "mdi:school", "show_in_sidebar": True, "require_admin": False, "mode": "storage"})
         assert msg.get("success"), msg
         print("created dashboard", URL_PATH)
+    registry = ha.call({"type": "config/entity_registry/list"})["result"]
+    calendars = sorted(e["entity_id"] for e in registry
+                       if e["platform"] == "librus_synergia" and e["entity_id"].startswith("calendar."))
+    assert calendars, "no librus_synergia calendars found"
+    views = VIEWS[:2] + [calendar_view(calendars)] + VIEWS[2:]
     msg = ha.call({"type": "lovelace/config/save", "url_path": URL_PATH,
-                   "config": {"title": "Librus", "views": VIEWS}})
+                   "config": {"title": "Librus", "views": views}})
     assert msg.get("success"), msg
-    print(f"saved {len(VIEWS)} views: " + ", ".join(v["title"] for v in VIEWS))
+    print(f"saved {len(views)} views: " + ", ".join(v["title"] for v in views))
 
 
 if __name__ == "__main__":
