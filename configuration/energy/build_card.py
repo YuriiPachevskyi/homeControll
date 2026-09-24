@@ -3,7 +3,8 @@
 `dashboard-deye` from sensor.monthly_energy_table (energy/monthly_table.py).
 
 One table for everything: a row per year (its totals), each an HTML
-<details> that opens that year's months in the same columns (click-to-expand
+<details> that opens that year's months in the same columns, the year's
+totals then moving under its last month (click-to-expand
 without JS, same trick as the Payments tables), then the "Всього" row.
 The title is a section heading above the card; tapping it toggles
 input_boolean.monthly_energy_expanded, which opens every year at once.
@@ -88,7 +89,10 @@ def content(phone: bool) -> str:
         f"{month_label}\n"
         + row("{% if acts.get(r.get('act')) %}<a href=\"{{ acts[r.act] }}\" target=\"_blank\" "
               "rel=\"noopener\">{{ lbl }}</a>{% else %}{{ lbl }}{% endif %}", "r", False) + "\n"
-        "{% endfor %}</table></details>\n"
+        "{% endfor %}"
+        # an open year repeats its totals under its last month; the summary
+        # row on top then shows only the year (see css)
+        + row("<b>{{ y }}</b>", "s", True) + "</table></details>\n"
         "{% endfor -%}\n"
         "{% for t in rows if t.kind == 'total' %}"
         f"<table>{row('<b>Всього</b>', 't', True)}</table>"
@@ -122,6 +126,10 @@ def css(phone: bool) -> str:
         "summary td:first-child::before { content: '▸ '; }\n"
         "details[open] > summary td:first-child::before { content: '▾ '; }\n"
         "details[open] > table td:first-child { padding-left: 16px !important; }\n"
+        "details[open] > summary td:not(:first-child) { font-size: 0; }\n"
+        "details[open] > summary td:not(:first-child) * { display: none; }\n"
+        "details[open] > table tr:last-child td { border-top: 2px solid var(--divider-color) !important; }\n"
+        "details[open] > table tr:last-child td:first-child { padding-left: 6px !important; }\n"
         + colours
         # styled like the Payments tables ("Квартира 197"): bold headers aligned
         # left with a small icon before the name, numbers right-aligned
