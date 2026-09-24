@@ -83,6 +83,17 @@ every update, then restart Home Assistant:
    12:55 Polish time, 13 min away. It is now read in HA's zone
    (hass.config.time_zone) and shown in the browser's. The .gz copy HA
    serves is rebuilt; the resource URL gets a cache-busting "&hc=" suffix.
+9. Message attachments: upstream only lists their names ("open in the
+   Librus app"). Found live on 2026-09-24: GET wiadomosci.librus.pl/api/
+   attachments/<attachment id>/messages/<message id> -> {data:
+   {downloadLink: sandbox.librus.pl/GetFile/<key>}}; that page (loaded
+   first, like a browser) redirects to <link>/get, which returns the file.
+   services.py gets a coordinator/client download method (same Wiadomosci
+   session recovery as get_message) and an authenticated HTTP view
+   /api/librus_synergia/attachment/<message id>/<attachment id> (served
+   inline, last 5 files kept in memory for an hour). The cards make each
+   attachment clickable: they sign that path (auth/sign_path) and open it in
+   a new tab.
 
 Idempotent (each patch carries a marker). If upstream code changed so an
 expected line is missing, it stops with an error instead of guessing.
@@ -576,6 +587,144 @@ def patch_cards() -> None:
     print("cards: start_time zone patched (bump the Lovelace resource URL so browsers reload it)")
 
 
+ATT_MARKER = f"{MARKER}: attachments"
+ATT_FUNC = f'''
+
+# --- {ATT_MARKER} (librus/apply_local_patches.py, patch 9) ---
+import asyncio as _hc_asyncio
+import re as _hc_re
+import time as _hc_time
+from urllib.parse import quote as _hc_quote
+
+from aiohttp import web as _hc_web
+from homeassistant.components.http import HomeAssistantView as _HcView
+from homeassistant.const import CONF_PASSWORD as _HC_CONF_PASSWORD
+from homeassistant.helpers.http import KEY_HASS as _HC_KEY_HASS
+
+from .librus_api import LibrusSessionExpiredError as _HcExpired
+from .librus_api.client import LibrusApiClient as _HcClient
+from .librus_api.const import MESSAGES_BASE_URL as _HC_MSG_BASE
+
+
+async def _hc_client_download(self, message_id: str, attachment_id: str):
+    info = await self._async_request_url(f"{{_HC_MSG_BASE}}/attachments/{{attachment_id}}/messages/{{message_id}}")
+    link = ((info or {{}}).get("data") or {{}}).get("downloadLink")
+    if not link:
+        raise LibrusError(f"No download link for attachment {{attachment_id}}")
+    async with self._session.get(link) as resp:  # the "Pobieranie plików" page a browser loads first
+        await resp.read()
+    await _hc_asyncio.sleep(1.5)
+    async with self._session.get(link.rstrip("/") + "/get") as resp:
+        if resp.status != 200:
+            raise LibrusError(f"Attachment download failed: HTTP {{resp.status}}")
+        return await resp.read(), resp.headers.get("Content-Type", ""), resp.headers.get("Content-Disposition", "")
+
+
+_HcClient.async_download_attachment = _hc_client_download
+
+
+async def _hc_coordinator_download(self, message_id: str, attachment_id: str):
+    try:
+        return await self._client.async_download_attachment(message_id, attachment_id)
+    except _HcExpired:  # same recovery as async_fetch_message
+        await self._client.async_ensure_session_valid(self.config_entry.data[_HC_CONF_PASSWORD], force=True)
+        self._messages_bootstrapped = False
+        self._messages_available = await self._client.async_bootstrap_messages()
+        self._messages_bootstrapped = True
+        return await self._client.async_download_attachment(message_id, attachment_id)
+
+
+LibrusDataUpdateCoordinator.async_download_attachment = _hc_coordinator_download
+_HC_ATT_CACHE: dict = {{}}
+
+
+class _HcAttachmentView(_HcView):
+    url = "/api/librus_synergia/attachment/{{message_id}}/{{attachment_id}}"
+    name = "api:librus_synergia:attachment"
+    requires_auth = True  # the cards open it through a signed path
+
+    async def get(self, request, message_id: str, attachment_id: str):
+        if not (message_id.isdigit() and attachment_id.isdigit()):
+            return _hc_web.Response(status=400)
+        hass = request.app[_HC_KEY_HASS]
+        entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        if not entries:
+            return _hc_web.Response(status=503, text="Librus is not loaded")
+        key = (message_id, attachment_id)
+        hit = _HC_ATT_CACHE.get(key)
+        if hit is None or _hc_time.time() - hit[0] > 3600:
+            try:
+                body, ctype, disp = await entries[0].runtime_data.async_download_attachment(message_id, attachment_id)
+            except Exception as err:
+                _LOGGER.warning("Librus attachment %s/%s: %s", message_id, attachment_id, err)
+                return _hc_web.Response(status=502, text="Could not download the attachment from Librus")
+            match = _hc_re.search(r\'filename="?([^";]+)"?\', disp or "")
+            hit = (_hc_time.time(), body, (ctype or "application/octet-stream").split(";")[0].strip(),
+                   match.group(1) if match else f"attachment-{{attachment_id}}")
+            _HC_ATT_CACHE[key] = hit
+            for old in sorted(_HC_ATT_CACHE, key=lambda k: _HC_ATT_CACHE[k][0])[:-5]:
+                del _HC_ATT_CACHE[old]
+        _, body, ctype, filename = hit
+        return _hc_web.Response(body=body, content_type=ctype, headers={{
+            "Content-Disposition": f"inline; filename*=UTF-8\'\'{{_hc_quote(filename)}}",
+            "Cache-Control": "private, max-age=3600",
+        }})
+
+
+_hc_orig_setup_services = async_setup_services
+
+
+def async_setup_services(hass: HomeAssistant) -> None:
+    _hc_orig_setup_services(hass)
+    if not hass.data.get("_hc_librus_attachment_view"):
+        hass.http.register_view(_HcAttachmentView())
+        hass.data["_hc_librus_attachment_view"] = True
+'''
+CARDS_ATT_MARKER = f"/* {MARKER}: attachments */"
+CARDS_ATT_HELPER = (CARDS_ATT_MARKER + "\nasync function __hcOpenAttachment(h,m,a){"
+                    "const w=window.open(\"\",\"_blank\");"
+                    "try{const r=await h.callWS({type:\"auth/sign_path\","
+                    "path:`/api/librus_synergia/attachment/${m.id}/${a.id}`,expires:600});"
+                    "if(w)w.location.href=r.path;else window.location.href=r.path}"
+                    "catch(e){if(w)w.close();alert(\"Librus: \"+(e&&e.message||e))}}\n")
+CARDS_ATT_EDITS = [  # (old, new, expected count)
+    ('${i.attachments.map(e=>R`<div class="attachment">',
+     '${i.attachments.map(e=>R`<div class="attachment" style="cursor:pointer" @click=${()=>__hcOpenAttachment(t,i,e)}>', 1),
+    ('${a.attachments.map(e=>R`<div class="attachment">',
+     '${a.attachments.map(e=>R`<div class="attachment" style="cursor:pointer" @click=${()=>__hcOpenAttachment(t,a,e)}>', 1),
+    ('"card.messages.attachment_notice":"Attached - open in the Librus app to download"',
+     '"card.messages.attachment_notice":"Click a file to open it"', 1),
+    ('"card.messages.attachment_notice":"Załącznik - pobierz w aplikacji Librus"',
+     '"card.messages.attachment_notice":"Kliknij plik, aby go otworzyć"', 1),
+]
+
+
+def patch_attachments() -> None:
+    """Patch 9 - see the module docstring."""
+    import gzip
+    path = INTEGRATION / "services.py"
+    text = path.read_text(encoding="utf-8")
+    if ATT_MARKER in text:
+        print("services.py: attachments already patched")
+    else:
+        path.write_text(text + ATT_FUNC, encoding="utf-8")
+        print("services.py: attachments patched")
+    text = CARDS.read_text(encoding="utf-8")
+    if CARDS_ATT_MARKER in text:
+        print("cards: attachments already patched")
+        return
+    for old, new, count in CARDS_ATT_EDITS:
+        if text.count(old) != count:
+            sys.exit(f"cards: expected {count}x {old!r} - upstream changed, patch not applied")
+        text = text.replace(old, new)
+    text = CARDS_ATT_HELPER + text
+    CARDS.write_text(text, encoding="utf-8")
+    gz = CARDS.with_name(CARDS.name + ".gz")
+    if gz.exists():
+        gz.write_bytes(gzip.compress(text.encode("utf-8"), 9))
+    print("cards: attachments patched (bump the Lovelace resource URL so browsers reload it)")
+
+
 def patch_file(name: str, edits: list[tuple[str, str]]) -> str:
     path = INTEGRATION / name
     text = path.read_text(encoding="utf-8")
@@ -609,6 +758,7 @@ def main() -> None:
     patch_cache()
     patch_school_date()
     patch_cards()
+    patch_attachments()
     print("Restart Home Assistant for the patches to take effect.")
 
 

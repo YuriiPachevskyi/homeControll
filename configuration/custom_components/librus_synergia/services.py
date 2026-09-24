@@ -207,3 +207,94 @@ def async_unload_services(hass: HomeAssistant) -> None:
     for service in (SERVICE_GET_MESSAGE, SERVICE_REFRESH, SERVICE_GET_GRADES):
         if hass.services.has_service(DOMAIN, service):
             hass.services.async_remove(DOMAIN, service)
+
+
+# --- homeControll local patch: attachments (librus/apply_local_patches.py, patch 9) ---
+import asyncio as _hc_asyncio
+import re as _hc_re
+import time as _hc_time
+from urllib.parse import quote as _hc_quote
+
+from aiohttp import web as _hc_web
+from homeassistant.components.http import HomeAssistantView as _HcView
+from homeassistant.const import CONF_PASSWORD as _HC_CONF_PASSWORD
+from homeassistant.helpers.http import KEY_HASS as _HC_KEY_HASS
+
+from .librus_api import LibrusSessionExpiredError as _HcExpired
+from .librus_api.client import LibrusApiClient as _HcClient
+from .librus_api.const import MESSAGES_BASE_URL as _HC_MSG_BASE
+
+
+async def _hc_client_download(self, message_id: str, attachment_id: str):
+    info = await self._async_request_url(f"{_HC_MSG_BASE}/attachments/{attachment_id}/messages/{message_id}")
+    link = ((info or {}).get("data") or {}).get("downloadLink")
+    if not link:
+        raise LibrusError(f"No download link for attachment {attachment_id}")
+    async with self._session.get(link) as resp:  # the "Pobieranie plików" page a browser loads first
+        await resp.read()
+    await _hc_asyncio.sleep(1.5)
+    async with self._session.get(link.rstrip("/") + "/get") as resp:
+        if resp.status != 200:
+            raise LibrusError(f"Attachment download failed: HTTP {resp.status}")
+        return await resp.read(), resp.headers.get("Content-Type", ""), resp.headers.get("Content-Disposition", "")
+
+
+_HcClient.async_download_attachment = _hc_client_download
+
+
+async def _hc_coordinator_download(self, message_id: str, attachment_id: str):
+    try:
+        return await self._client.async_download_attachment(message_id, attachment_id)
+    except _HcExpired:  # same recovery as async_fetch_message
+        await self._client.async_ensure_session_valid(self.config_entry.data[_HC_CONF_PASSWORD], force=True)
+        self._messages_bootstrapped = False
+        self._messages_available = await self._client.async_bootstrap_messages()
+        self._messages_bootstrapped = True
+        return await self._client.async_download_attachment(message_id, attachment_id)
+
+
+LibrusDataUpdateCoordinator.async_download_attachment = _hc_coordinator_download
+_HC_ATT_CACHE: dict = {}
+
+
+class _HcAttachmentView(_HcView):
+    url = "/api/librus_synergia/attachment/{message_id}/{attachment_id}"
+    name = "api:librus_synergia:attachment"
+    requires_auth = True  # the cards open it through a signed path
+
+    async def get(self, request, message_id: str, attachment_id: str):
+        if not (message_id.isdigit() and attachment_id.isdigit()):
+            return _hc_web.Response(status=400)
+        hass = request.app[_HC_KEY_HASS]
+        entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        if not entries:
+            return _hc_web.Response(status=503, text="Librus is not loaded")
+        key = (message_id, attachment_id)
+        hit = _HC_ATT_CACHE.get(key)
+        if hit is None or _hc_time.time() - hit[0] > 3600:
+            try:
+                body, ctype, disp = await entries[0].runtime_data.async_download_attachment(message_id, attachment_id)
+            except Exception as err:
+                _LOGGER.warning("Librus attachment %s/%s: %s", message_id, attachment_id, err)
+                return _hc_web.Response(status=502, text="Could not download the attachment from Librus")
+            match = _hc_re.search(r'filename="?([^";]+)"?', disp or "")
+            hit = (_hc_time.time(), body, (ctype or "application/octet-stream").split(";")[0].strip(),
+                   match.group(1) if match else f"attachment-{attachment_id}")
+            _HC_ATT_CACHE[key] = hit
+            for old in sorted(_HC_ATT_CACHE, key=lambda k: _HC_ATT_CACHE[k][0])[:-5]:
+                del _HC_ATT_CACHE[old]
+        _, body, ctype, filename = hit
+        return _hc_web.Response(body=body, content_type=ctype, headers={
+            "Content-Disposition": f"inline; filename*=UTF-8''{_hc_quote(filename)}",
+            "Cache-Control": "private, max-age=3600",
+        })
+
+
+_hc_orig_setup_services = async_setup_services
+
+
+def async_setup_services(hass: HomeAssistant) -> None:
+    _hc_orig_setup_services(hass)
+    if not hass.data.get("_hc_librus_attachment_view"):
+        hass.http.register_view(_HcAttachmentView())
+        hass.data["_hc_librus_attachment_view"] = True
