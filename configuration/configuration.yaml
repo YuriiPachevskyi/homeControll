@@ -7,6 +7,9 @@ switch: !include switches_i2c.yaml
 
 homeassistant:
   packages: !include_dir_named packages
+  # Librus message attachments saved for Telegram (librus/apply_local_patches.py patch 6)
+  allowlist_external_dirs:
+    - /config/librus/attachments
 
 template:
   - sensor:

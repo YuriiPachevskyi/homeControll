@@ -30,3 +30,4 @@ configuration/.ha_token
 configuration/notify/notify_log.json
 configuration/statistics/diagram/
 configuration/.cache/brands/integrations/documents/
+configuration/librus/attachments/

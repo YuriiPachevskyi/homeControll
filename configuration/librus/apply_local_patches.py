@@ -67,6 +67,13 @@ every update, then restart Home Assistant:
    parent checking the diary, not a poller.
    Each refresh fires a `librus_route` event (route: direct / rpi5) after
    patch 5 has chosen; packages/librus.yaml sends Telegram when it changes.
+   New grades / inbox messages (vs the previous data - the cache after a
+   restart, so nothing is re-announced) fire `librus_news` {grades,
+   messages}; packages/librus.yaml sends them to Telegram. For each new
+   message the full text is fetched (which marks it read in Librus - the
+   user chose that) and its attachments are saved under
+   /config/librus/attachments/<message id>/ (allowlisted, not in git, kept
+   two weeks) so Telegram can send them as documents.
    A successful refresh fires `librus_refreshed` - packages/librus.yaml
    alerts on Telegram when none came for over 30 h (stale cached data).
 7. School date: "today" (today's lessons, tomorrow, is_today, the week
@@ -283,7 +290,7 @@ def patch_route() -> None:
 CACHE_MARKER = f"{MARKER}: data cache"
 CACHE_DEF = "    async def _async_update_data(self) -> LibrusData:\n"
 CACHE_RENAMED = f"    async def _async_update_data_upstream(self) -> LibrusData:  # {CACHE_MARKER}\n"
-CACHE_VERSION = "cache-v8"  # bump when CACHE_FUNC changes: re-applies the block in place
+CACHE_VERSION = "cache-v10"  # bump when CACHE_FUNC changes: re-applies the block in place
 CACHE_FUNC = f"""
 
 # --- {CACHE_MARKER} (librus/apply_local_patches.py, patch 6, {CACHE_VERSION}) ---
@@ -419,6 +426,76 @@ async def _choose_route(client) -> None:
         hass.bus.async_fire("librus_route", {{"route": "rpi5" if client._session._default_proxy else "direct"}})
 
 
+def _hc_news(old, new) -> dict:
+    # New grades (descriptive + regular) and new inbox messages in `new`
+    # compared with the previous data - for the Telegram notification
+    # (packages/librus.yaml). At most 10 of each (a school-year reset or a
+    # changed account must not flood the chat).
+    subjects = new.subjects or {{}}
+    seen_d = {{g.id for g in old.descriptive_grades}}
+    seen_g = {{g.id for g in old.grades}}
+    seen_m = {{m.id for m in old.messages}}
+    grades = [
+        {{"subject": subjects.get(g.subject_id, "?"), "value": g.value, "date": (g.add_date or "")[:16]}}
+        for g in new.descriptive_grades if g.id not in seen_d
+    ] + [
+        {{"subject": subjects.get(g.subject_id, "?"), "value": g.value, "date": (g.add_date or "")[:16]}}
+        for g in new.grades if g.id not in seen_g
+    ]
+    messages = [m for m in new.messages if m.id not in seen_m and m.mailbox == "inbox"]
+    return {{"grades": grades[:10], "messages": messages[:10]}}
+
+
+_HC_ATT_DIR = "/config/librus/attachments"  # allowlist_external_dirs in configuration.yaml; not in git
+
+
+def _hc_save_attachment(message_id: str, filename: str, body: bytes) -> str:
+    import os
+    import time
+    folder = os.path.join(_HC_ATT_DIR, message_id)
+    os.makedirs(folder, exist_ok=True)
+    safe = "".join(ch if ch.isalnum() or ch in " ._-()" else "_" for ch in filename).strip() or "attachment"
+    path = os.path.join(folder, safe)
+    with open(path, "wb") as fh:
+        fh.write(body)
+    for root, _dirs, files in os.walk(_HC_ATT_DIR, topdown=False):  # keep two weeks
+        for name in files:
+            full = os.path.join(root, name)
+            if time.time() - os.path.getmtime(full) > 14 * 86400:
+                os.remove(full)
+        if root != _HC_ATT_DIR and not os.listdir(root):
+            os.rmdir(root)
+    return path
+
+
+async def _hc_announce(coordinator, news) -> None:
+    # Full text + attachments of each new message (opening it marks it read
+    # in Librus - the user chose that), then one `librus_news` event.
+    messages = []
+    for m in news["messages"]:
+        item = {{"sender": m.sender_name, "topic": m.topic, "content": m.content, "files": []}}
+        try:
+            raw = await coordinator.async_fetch_message(m.mailbox, m.id)
+            detail = (raw or {{}}).get("data") or {{}}
+            item["content"] = decode_message_content(detail.get("Message", "")) or m.content
+            for att in detail.get("attachments") or []:
+                if not isinstance(att, dict) or att.get("id") is None:
+                    continue
+                name = att.get("filename") or f"attachment-{{att['id']}}"
+                try:
+                    body, _ctype, _disp = await coordinator.async_download_attachment(m.id, str(att["id"]))
+                    item["files"].append(await coordinator.hass.async_add_executor_job(
+                        _hc_save_attachment, m.id, name, body))
+                except Exception as err:
+                    _LOGGER.warning("Librus news: attachment %s of message %s not downloaded: %s", name, m.id, err)
+        except Exception as err:
+            _LOGGER.warning("Librus news: message %s not opened (%s) - sending the preview", m.id, err)
+        if len(item["content"] or "") > 3500:
+            item["content"] = item["content"][:3500].rstrip() + "…"
+        messages.append(item)
+    coordinator.hass.bus.async_fire("librus_news", {{"grades": news["grades"], "messages": messages}})
+
+
 def _cache_path(coordinator) -> str:
     return coordinator.hass.config.path(".storage", f"librus_cache_{{coordinator.config_entry.entry_id}}.pickle")
 
@@ -486,6 +563,14 @@ async def _async_update_data_cached(self) -> LibrusData:
         _LOGGER.warning("Librus refresh failed (%s) - keeping the previous data", err)
         return fallback
     self.hass.bus.async_fire("librus_refreshed", {{}})  # packages/librus.yaml: stale-data alert
+    previous = self.data if self.data is not None else (cached[1] if cached else None)
+    if previous is not None:
+        try:
+            news = _hc_news(previous, data)
+            if news["grades"] or news["messages"]:  # packages/librus.yaml: Telegram
+                self.hass.async_create_background_task(_hc_announce(self, news), "librus_news")
+        except Exception as err:
+            _LOGGER.warning("Librus news not computed: %s", err)
     try:
         await self.hass.async_add_executor_job(_cache_write, path, data, _cache_extras(self))
     except Exception as err:

@@ -79,7 +79,7 @@ automation:
             - notify.kateryna
         data:
           title: Librus
-          message: >-
+          message: |-
             {% if route == 'direct' -%}
             🕐 {{ now().strftime('%H:%M') }} ✅ Librus знову доступний з України
             Маршрут: напряму з rpi4
@@ -126,11 +126,78 @@ automation:
             - notify.kateryna
         data:
           title: Librus
-          message: >-
+          message: |-
             🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus не оновлюється!!!
             Останнє оновлення: {{ as_datetime(state_attr('input_datetime.librus_last_refresh', 'timestamp')) | as_local
             | as_timestamp | timestamp_custom('%d.%m %H:%M') if state_attr('input_datetime.librus_last_refresh', 'timestamp') else 'невідомо' }}
     mode: single
+
+  - id: librus_news_notify
+    alias: "Librus - new grades and messages (Telegram)"
+    description: >-
+      After each successful refresh the integration fires
+      `librus_news` with the grades and inbox messages that were not there
+      before (local patch 6; compared with the previous data, so restarts
+      re-announce nothing). Grades - one Telegram message. Letters - one
+      message each with the full text, then its attachments as documents
+      (saved under /config/librus/attachments by the patch). To Yurii and
+      Kateryna only (not notify_all - that one also goes to Nataliya).
+    triggers:
+      - trigger: event
+        event_type: librus_news
+    actions:
+      - variables:
+          grades: "{{ trigger.event.data.grades | default([]) }}"
+          messages: "{{ trigger.event.data.messages | default([]) }}"
+      - if:
+          - condition: template
+            value_template: "{{ grades | count > 0 }}"
+        then:
+          - action: telegram_bot.send_message
+            continue_on_error: true
+            target:
+              entity_id:
+                - notify.yurii_p
+                - notify.kateryna
+            data:
+              title: Librus
+              parse_mode: plain_text
+              message: |-
+                🕐 {{ now().strftime('%H:%M') }} ⭐ {{ 'Нова оцінка' if grades | count == 1 else 'Нові оцінки (' ~ grades | count ~ ')' }}!!!
+                {%- for g in grades %}
+                {{ g.subject }}: {{ g.value }}
+                {%- endfor %}
+      # one Telegram message per letter (full text), then its attachments
+      - repeat:
+          for_each: "{{ messages }}"
+          sequence:
+            - action: telegram_bot.send_message
+              continue_on_error: true
+              target:
+                entity_id:
+                  - notify.yurii_p
+                  - notify.kateryna
+              data:
+                title: Librus
+                parse_mode: plain_text
+                message: |-
+                  🕐 {{ now().strftime('%H:%M') }} ✉️ Новий лист!!!
+                  {{ repeat.item.sender }}: {{ repeat.item.topic }}{{ (' 📎 ' ~ repeat.item.files | count) if repeat.item.files else '' }}
+
+
+                  {{ repeat.item.content }}
+            - repeat:
+                for_each: "{{ repeat.item.files }}"
+                sequence:
+                  - action: telegram_bot.send_document
+                    continue_on_error: true
+                    target:
+                      entity_id:
+                        - notify.yurii_p
+                        - notify.kateryna
+                    data:
+                      file: "{{ repeat.item }}"
+    mode: queued
 
 input_select:
   librus_route:
