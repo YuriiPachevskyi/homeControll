@@ -10,3 +10,10 @@ command_line:
         - rows
         - updated
       scan_interval: 3600
+
+input_boolean:
+  monthly_energy_expanded:
+    # Tap on the "Генерація" heading above the energy table (energy/build_card.py)
+    # opens every year's months at once; global, shared by every device.
+    name: "Energy table expanded"
+    icon: mdi:unfold-more-horizontal
