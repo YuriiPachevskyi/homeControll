@@ -1003,17 +1003,23 @@
   mode: single
 - id: oselya_receipt_links_refresh
   alias: Oselya Payments - refresh receipt links
-  description: sensor.document_links re-signs its links daily and on every HA restart
+  description: 'sensor.document_links re-signs its links daily and on every HA restart
     (the old ones stop working then), so re-run statistics/oselya/sync.py --reconcile-only
     to put the fresh receipt links into the "Payments" to-do item descriptions. The
-    1-minute wait lets startup settle.
+    1-minute wait lets startup settle. Also runs on HA start: a restart re-signs every
+    link but usually leaves the sensor''s state (the file count) unchanged, so the
+    state trigger alone misses it.'
   triggers:
   - trigger: state
     entity_id: sensor.document_links
     for:
       minutes: 1
+  - trigger: homeassistant
+    event: start
   conditions: []
   actions:
+  - delay:
+      minutes: 1
   - action: shell_command.oselya_sync
     data: {}
   mode: single
