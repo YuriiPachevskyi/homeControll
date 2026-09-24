@@ -14,6 +14,10 @@ display-ready: per month, a "Сума <year>" row after each year and a "Всь�
 row when more than one year is covered. The current month is included and
 marked partial. Rebuilding from statistics every time is cheap, so nothing
 needs to be appended by hand when a month ends.
+Each row also carries what the house's consumption cost: "potential" is the
+income if the house had used nothing (all of it exported, no import: saldo
+export - import + house, paid at the green tariff), "house_cost" is
+potential - net. Shown as a second table under the main one.
 Each month row also gets an "act" key ("YYYY-MM") when the matching ENERA act
 PDF has been synced (statistics/documents/enera/*-YYMM-*.pdf, see
 statistics/enera/sync.py). The dashboard looks the link up by that key in
@@ -32,6 +36,7 @@ OUT = BASE / "monthly_energy.json"
 TARIFFS = BASE.parent / "statistics" / "enera" / "tariffs.json"
 ACTS_DIR = BASE.parent / "statistics" / "documents" / "enera"
 START = (2025, 9)  # green tariff starts here; nothing was paid for export before
+MONEY = ("net", "potential", "house_cost")  # whole hryvnias in the output
 DAY_T, NIGHT_T, NIGHT_FROM, NIGHT_TO, TAX, FALLBACK = 4.32, 2.16, 23, 7, 0.77, 5.2353
 NAMES = ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"]
 IDS = {
@@ -90,20 +95,25 @@ def main() -> None:
         if a:
             solar = a["pv5"] + a["pv6"]
             exp, imp, house = a["exp"], a["imp"], a["house"]
+            g = tariffs.get(f"{y}-{mo:02d}")
+            green = g * TAX if g else fallback
             if house > solar:  # deficit month: generation offsets consumption, export is not paid
                 bl = ((imp - a["night_imp"]) * DAY_T + a["night_imp"] * NIGHT_T) / imp if imp > 0 else DAY_T
                 net = -(house - solar) * bl
             else:
-                g = tariffs.get(f"{y}-{mo:02d}")
-                net = (exp - imp) * (g * TAX if g else fallback)
+                net = (exp - imp) * green
+            potential = (exp - imp + house) * green
             boiler = a["boiler"] if a["boiler_rows"] else None
             partial = (y, mo) == (now.year, now.month)
             rows.append({"kind": "month", "label": f"{NAMES[mo - 1]} {y}" + (" ⏳" if partial else ""),
                          "solar": round(solar, 1), "exp": round(exp, 1), "imp": round(imp, 1),
                          "house": round(house, 1), "boiler": None if boiler is None else round(boiler, 1),
-                         "net": round(net), "act": act_key(y, mo)})
-            t = ytot.setdefault(y, {"solar": 0.0, "exp": 0.0, "imp": 0.0, "house": 0.0, "boiler": None, "net": 0.0})
-            for k, v in (("solar", solar), ("exp", exp), ("imp", imp), ("house", house), ("net", net)):
+                         "net": round(net), "potential": round(potential), "house_cost": round(potential - net),
+                         "act": act_key(y, mo)})
+            t = ytot.setdefault(y, {"solar": 0.0, "exp": 0.0, "imp": 0.0, "house": 0.0, "boiler": None, "net": 0.0,
+                                    "potential": 0.0, "house_cost": 0.0})
+            for k, v in (("solar", solar), ("exp", exp), ("imp", imp), ("house", house), ("net", net),
+                         ("potential", potential), ("house_cost", potential - net)):
                 t[k] += v
             if boiler is not None:
                 t["boiler"] = (t["boiler"] or 0.0) + boiler
@@ -114,17 +124,17 @@ def main() -> None:
         if (mo == 1 or (y, mo) > (now.year, now.month)) and (y - (1 if mo == 1 else 0)) in ytot:
             yy = y - 1 if mo == 1 else y
             rows.append({"kind": "sum", "label": f"Сума {yy}",
-                         **{k: (None if v is None else round(v, 1)) for k, v in ytot[yy].items() if k != "net"},
-                         "net": round(ytot[yy]["net"])})
+                         **{k: (None if v is None else round(v, 1)) for k, v in ytot[yy].items()},
+                         **{k: round(ytot[yy][k]) for k in MONEY}})
     if len(ytot) > 1:
-        tot = {k: None for k in ("solar", "exp", "imp", "house", "boiler", "net")}
+        tot = {k: None for k in ("solar", "exp", "imp", "house", "boiler", *MONEY)}
         for t in ytot.values():
             for k in tot:
                 if t[k] is not None:
                     tot[k] = (tot[k] or 0.0) + t[k]
         rows.append({"kind": "total", "label": "Всього",
-                     **{k: (None if v is None else round(v, 1)) for k, v in tot.items() if k != "net"},
-                     "net": round(tot["net"])})
+                     **{k: (None if v is None else round(v, 1)) for k, v in tot.items()},
+                     **{k: round(tot[k]) for k in MONEY}})
 
     tmp = OUT.with_suffix(".tmp")
     tmp.write_text(json.dumps({"updated": now.isoformat(timespec="minutes"), "rows": rows}, ensure_ascii=False, indent=1))
