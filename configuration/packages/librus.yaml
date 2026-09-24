@@ -1,0 +1,150 @@
+# Librus Synergia (school e-diary) - see configuration/librus/.
+#
+# The integration's own polling (every 20 min, dozens of Librus requests
+# each time, around the clock) got the HA server's IP blocked by Librus on
+# 2026-09-24. So its polling is switched off (config entry system option
+# "Enable polling updates" = off) and Librus is refreshed only three times a
+# day: around 07:00, 13:00 and 18:00 Polish time - each run starts at a
+# random moment within +-20 min of that, so the requests don't hit Librus
+# at the same second every day. On Saturdays and Sundays (no school) only
+# the evening refresh runs - the Sunday one also brings the weekly data
+# (see librus/apply_local_patches.py patch 6). HA runs on Kyiv time, which is
+# one hour ahead of Warsaw all year (both switch DST on the same EU dates).
+# Between refreshes the next/current lesson and next exam sensors recompute
+# "now" every minute from the cached data (local patch 4 in
+# librus/apply_local_patches.py) - no Librus request.
+#
+# No entity ids here on purpose - they carry the child's name and this repo
+# is public.
+automation:
+  - id: librus_scheduled_refresh
+    alias: "Librus - refresh 3x a day"
+    description: Fetch fresh data from Librus around 07:00, 13:00 and 18:00
+      Polish time (08:00/14:00/19:00 Kyiv), each at a random moment within
+      +-20 min - one refresh of every loaded Librus entry (the integration's
+      own refresh service, debounced).
+    triggers:
+      - trigger: time
+        at: "07:40:00"
+        id: morning
+      - trigger: time
+        at: "13:40:00"
+        id: midday
+      - trigger: time
+        at: "18:40:00"
+        id: evening
+    conditions:
+      - condition: or
+        conditions:
+          - condition: trigger
+            id: evening
+          - condition: time
+            weekday: [mon, tue, wed, thu, fri]
+    actions:
+      # 0-40 min random wait -> the refresh lands 20 min before to 20 min after
+      - delay:
+          seconds: "{{ range(0, 2400) | random }}"
+      - action: librus_synergia.refresh
+    mode: single
+
+  - id: librus_route_changed_notify
+    alias: "Librus - route changed (Telegram)"
+    description: Every Librus refresh fires a `librus_route` event with the route
+      it used - "direct" (from this server, Ukraine) or "rpi5" (the fallback
+      proxy on raspberrypi5 in Poland, local patch 5/6). When it differs from
+      the last one (input_select.librus_route), tell Yurii and Kateryna on
+      Telegram - only on a change. Not notify_all - that one also goes to
+      Nataliya.
+    triggers:
+      - trigger: event
+        event_type: librus_route
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.event.data.route in ['direct', 'rpi5']
+             and trigger.event.data.route != states('input_select.librus_route') }}
+    actions:
+      - variables:
+          route: "{{ trigger.event.data.route }}"
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.librus_route
+        data:
+          option: "{{ route }}"
+      - action: telegram_bot.send_message
+        continue_on_error: true
+        target:
+          entity_id:
+            - notify.yurii_p
+            - notify.kateryna
+        data:
+          title: Librus
+          message: >-
+            {% if route == 'direct' -%}
+            🕐 {{ now().strftime('%H:%M') }} ✅ Librus знову доступний з України
+            Маршрут: напряму з rpi4
+            {%- else -%}
+            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus недоступний з України
+            Маршрут: через rpi5 (Польща)
+            {%- endif %}
+    mode: queued
+
+  - id: librus_refreshed_mark
+    alias: "Librus - remember last successful refresh"
+    description: Every successful Librus refresh fires `librus_refreshed` (local
+      patch 6); keep its time for the stale-data alert below.
+    triggers:
+      - trigger: event
+        event_type: librus_refreshed
+    actions:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.librus_last_refresh
+        data:
+          timestamp: "{{ now().timestamp() }}"
+    mode: queued
+
+  - id: librus_stale_data_alert
+    alias: "Librus - stale data alert (Telegram)"
+    description: The dashboard keeps showing cached data when a refresh fails
+      (local patch 6), so a failure is silent. Every evening after the last
+      scheduled refresh, if none succeeded for over 30 h (weekends have only
+      the evening run, ~24 h apart), tell Yurii and Kateryna.
+    triggers:
+      - trigger: time
+        at: "20:00:00"
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ now().timestamp() - (state_attr('input_datetime.librus_last_refresh', 'timestamp') or 0) > 30 * 3600 }}
+    actions:
+      - action: telegram_bot.send_message
+        continue_on_error: true
+        target:
+          entity_id:
+            - notify.yurii_p
+            - notify.kateryna
+        data:
+          title: Librus
+          message: >-
+            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus не оновлюється!!!
+            Останнє оновлення: {{ as_datetime(state_attr('input_datetime.librus_last_refresh', 'timestamp')) | as_local
+            | as_timestamp | timestamp_custom('%d.%m %H:%M') if state_attr('input_datetime.librus_last_refresh', 'timestamp') else 'невідомо' }}
+    mode: single
+
+input_select:
+  librus_route:
+    # Last route a Librus refresh used - kept by librus_route_changed_notify.
+    name: "Librus route"
+    options:
+      - direct
+      - rpi5
+    icon: mdi:routes
+
+input_datetime:
+  librus_last_refresh:
+    # Time of the last successful Librus refresh - kept by librus_refreshed_mark.
+    name: "Librus last refresh"
+    has_date: true
+    has_time: true
+    icon: mdi:update

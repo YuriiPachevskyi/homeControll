@@ -80,8 +80,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: LibrusConfigEntry) -> bo
     # fresh session from the login the flow itself performed - only force a
     # login here if that session looks stale (e.g. a HA restart long after
     # the last refresh, or the cookies didn't come through intact).
-    if not client.is_session_valid():
-        await client.async_login(entry.data[CONF_PASSWORD])
+    # homeControll local patch: data cache: no up-front login - the first real refresh logs in
+    # if needed, after the route is chosen (or is served from the cache).
 
     scan_interval_minutes = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_MINUTES)
     coordinator = LibrusDataUpdateCoordinator(

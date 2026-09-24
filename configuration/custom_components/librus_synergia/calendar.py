@@ -313,7 +313,7 @@ class LibrusAgendaCalendar(CoordinatorEntity[LibrusDataUpdateCoordinator], Calen
     def event(self) -> CalendarEvent | None:
         if self.coordinator.data is None:
             return None
-        today = dt_util.now().date()
+        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
         upcoming = [
             event
             for item in self.coordinator.data.homeworks
@@ -377,7 +377,7 @@ class LibrusFreeDaysCalendar(CoordinatorEntity[LibrusDataUpdateCoordinator], Cal
     def event(self) -> CalendarEvent | None:
         if self.coordinator.data is None:
             return None
-        today = dt_util.now().date()
+        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
         upcoming = [
             event
             for item in self.coordinator.data.free_days

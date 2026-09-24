@@ -464,7 +464,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             self._messages_bootstrapped = True
             return await self._client.async_get_message(mailbox, message_id)
 
-    async def _async_update_data(self) -> LibrusData:
+    async def _async_update_data_upstream(self) -> LibrusData:  # homeControll local patch: data cache
         assert self.config_entry is not None
         # `self.data is not None` guard: the FIRST refresh always runs for
         # real, even if it happens to land inside the quiet-hours window -
@@ -477,6 +477,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         # entirely, not just the parsing - see _in_quiet_hours.
         if self.data is not None and self._in_quiet_hours():
             return self.data
+        await _choose_route(self._client)  # homeControll local patch: fallback route
         try:
             await self._client.async_ensure_session_valid(self.config_entry.data[CONF_PASSWORD])
         except LibrusAuthError as err:
@@ -484,7 +485,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         except LibrusError as err:
             raise UpdateFailed(str(err)) from err
 
-        today = dt_util.now().date()
+        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
         week_start = today - timedelta(days=today.weekday())
         next_week_start = week_start + timedelta(days=7)
 
@@ -952,7 +953,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         now = dt_util.utcnow()
         if (
             self._reference_data_fetched_at is not None
-            and now - self._reference_data_fetched_at < timedelta(hours=24)
+            and self._reference_data_fetched_at >= _hc_week_boundary()  # homeControll local patch: data cache: weekly
         ):
             return
         free_days_enabled = self._feature_enabled(CONF_FREE_DAYS_ENABLED, DEFAULT_FREE_DAYS_ENABLED)
@@ -1040,7 +1041,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 end_date = date.fromisoformat(end_school_year[:10])
             except ValueError:
                 end_date = None
-        if end_date is not None and dt_util.now().date() - end_date >= self._SCHOOL_YEAR_ROLLOVER_GRACE:
+        if end_date is not None and dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date() - end_date >= self._SCHOOL_YEAR_ROLLOVER_GRACE:
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -2214,3 +2215,221 @@ _SUBJECTS_UK = _load_subjects_uk()
 
 def _translate_subjects(names: dict) -> dict:
     return {k: f"{v} ({_SUBJECTS_UK[v]})" if v in _SUBJECTS_UK else v for k, v in names.items()}
+
+
+# --- homeControll local patch: fallback route (librus/apply_local_patches.py, patch 5) ---
+_FALLBACK_PROXY = "http://100.102.244.45:8888"  # tinyproxy on raspberrypi5 (PL), Tailscale-only
+
+
+async def _choose_route(client) -> None:
+    """Direct if synergia.librus.pl:443 accepts a TCP connection, otherwise
+    the session's default proxy is the raspberrypi5 fallback."""
+    try:
+        _reader, writer = await asyncio.wait_for(asyncio.open_connection("synergia.librus.pl", 443), 8)
+        writer.close()
+        proxy = None
+    except (OSError, asyncio.TimeoutError):
+        proxy = _FALLBACK_PROXY
+    session = client._session
+    if getattr(session, "_default_proxy", None) != proxy:
+        _LOGGER.warning("Librus route: %s", f"via {proxy}" if proxy else "direct")
+    session._default_proxy = proxy
+
+
+# --- homeControll local patch: data cache (librus/apply_local_patches.py, patch 6, cache-v6) ---
+_CACHE_MAX_AGE_ON_START = timedelta(hours=24)
+# Coordinator state kept across restarts so a restart never refetches it.
+_CACHE_EXTRA_ATTRS = (
+    "_reference_data_fetched_at", "_cached_subjects", "_cached_teachers", "_cached_classrooms",
+    "_cached_lesson_subjects", "_cached_school", "_cached_class", "_cached_homework_categories",
+    "_cached_free_days", "_cached_note_categories", "_cached_behaviour_grade_categories",
+    "_cached_lucky_number", "_lucky_number_fetched_date",
+)
+
+
+def _hc_week_boundary():
+    """The most recent Sunday 18:30 (HA local time) - weekly data fetched
+    before it is stale. The Sunday evening scheduled refresh (18:40-19:20
+    Kyiv) is the first one after it."""
+    now = dt_util.now()
+    boundary = (now - timedelta(days=(now.weekday() - 6) % 7)).replace(hour=18, minute=30, second=0, microsecond=0)
+    return boundary if boundary <= now else boundary - timedelta(days=7)
+
+
+def _hc_daily_boundary(hour: int, minute: int):
+    """The most recent HH:MM (HA local time) - data fetched before it is stale."""
+    now = dt_util.now()
+    boundary = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    return boundary if boundary <= now else boundary - timedelta(days=1)
+
+
+def _hc_morning():  # the 07:40-08:20 Kyiv scheduled refresh is the first one after it
+    return _hc_daily_boundary(7, 30)
+
+
+def _hc_evening():  # the 18:40-19:20 Kyiv scheduled refresh is the first one after it
+    return _hc_daily_boundary(18, 30)
+
+
+async def _hc_weekly(client, key, fetch, boundary=_hc_week_boundary):
+    """Serve `key` from the client's store unless it is missing or was
+    fetched before `boundary()` (default: the last Sunday evening)."""
+    store = client.__dict__.setdefault("_hc_weekly", {})
+    hit = store.get(key)
+    if hit is not None and hit[0] >= boundary():
+        return hit[1]
+    payload = await fetch()
+    store[key] = (dt_util.now(), payload)
+    old = dt_util.now() - timedelta(weeks=8)
+    for k in [k for k, v in store.items() if v[0] < old]:
+        del store[k]
+    return payload
+
+
+_hc_orig_attendances = LibrusApiClient.async_get_attendances
+_hc_orig_attendance_types = LibrusApiClient.async_get_attendance_types
+_hc_orig_timetable = LibrusApiClient.async_get_timetable
+_hc_orig_request_url = LibrusApiClient._async_request_url
+
+
+async def _hc_attendances(self):
+    return await _hc_weekly(self, "attendances", lambda: _hc_orig_attendances(self), _hc_evening)
+
+
+async def _hc_attendance_types(self):
+    return await _hc_weekly(self, "attendance_types", lambda: _hc_orig_attendance_types(self))
+
+
+async def _hc_timetable(self, week_start):
+    # also serves the calendar entities' on-demand week lookups
+    return await _hc_weekly(self, ("timetable", week_start.isoformat()),
+                            lambda: _hc_orig_timetable(self, week_start), _hc_morning)
+
+
+async def _hc_request_url(self, *args, **kwargs):
+    # One request at a time: upstream fires up to 9 in parallel (9 new
+    # connections through the proxy); sequential requests reuse one. A short
+    # random pause before each, like someone clicking through the diary.
+    import random
+    lock = self.__dict__.setdefault("_hc_request_lock", asyncio.Lock())
+    async with lock:
+        await asyncio.sleep(random.uniform(0.5, 2.5))
+        return await _hc_orig_request_url(self, *args, **kwargs)
+
+
+def _hc_browser_headers(session) -> None:
+    # Session-wide defaults so every request - including the login GETs,
+    # which upstream sends with aiohttp's own "Python/3.x aiohttp/3.x"
+    # User-Agent - looks like the same desktop browser, set up in Poland.
+    from .librus_api.const import USER_AGENT
+    session._default_headers["User-Agent"] = USER_AGENT
+    session._default_headers["Accept-Language"] = "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7"
+
+
+# Evening-daily: empty for an early-school class so far (no marks, no
+# homework-module tasks, rare conferences) - checked once a day in case
+# something appears, instead of on every refresh.
+def _hc_evening_daily(name):
+    orig = getattr(LibrusApiClient, name)
+
+    async def wrapper(self):
+        return await _hc_weekly(self, name, lambda: orig(self), _hc_evening)
+    wrapper.__name__ = f"_hc_{name}"
+    return wrapper
+
+
+for _hc_name in ("async_get_grades", "async_get_grade_categories", "async_get_grade_comments",
+                 "async_get_homework_assignments", "async_get_parent_teacher_conferences"):
+    setattr(LibrusApiClient, _hc_name, _hc_evening_daily(_hc_name))
+
+LibrusApiClient.async_get_attendances = _hc_attendances
+LibrusApiClient.async_get_attendance_types = _hc_attendance_types
+LibrusApiClient.async_get_timetable = _hc_timetable
+LibrusApiClient._async_request_url = _hc_request_url
+
+
+_hc_orig_choose_route = _choose_route
+
+
+async def _choose_route(client) -> None:
+    # Patch 5's route choice + a "librus_route" event ({"route": "direct" |
+    # "rpi5"}) on every refresh; the Telegram automation in
+    # packages/librus.yaml notices when it differs from the last one.
+    await _hc_orig_choose_route(client)
+    hass = client.__dict__.get("_hc_hass")
+    if hass is not None:
+        hass.bus.async_fire("librus_route", {"route": "rpi5" if client._session._default_proxy else "direct"})
+
+
+def _cache_path(coordinator) -> str:
+    return coordinator.hass.config.path(".storage", f"librus_cache_{coordinator.config_entry.entry_id}.pickle")
+
+
+def _cache_read(path: str):
+    import os
+    import pickle
+    try:
+        with open(path, "rb") as fh:
+            saved = pickle.load(fh)
+    except FileNotFoundError:
+        return None
+    except Exception as err:  # e.g. the models changed after an update
+        _LOGGER.warning("Librus cache %s unreadable (%s) - ignoring it", os.path.basename(path), err)
+        return None
+    return saved if len(saved) == 3 else (*saved, {})  # v1 files had no extras
+
+
+def _cache_write(path: str, data, extras) -> None:
+    import os
+    import pickle
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as fh:
+        pickle.dump((dt_util.utcnow(), data, extras), fh)
+    os.replace(tmp, path)
+
+
+def _cache_restore(coordinator, extras) -> None:
+    for attr, value in extras.get("coordinator", {}).items():
+        if hasattr(coordinator, attr):
+            setattr(coordinator, attr, value)
+    coordinator._client.__dict__.setdefault("_hc_weekly", {}).update(extras.get("weekly", {}))
+
+
+def _cache_extras(coordinator) -> dict:
+    return {
+        "coordinator": {a: getattr(coordinator, a) for a in _CACHE_EXTRA_ATTRS if hasattr(coordinator, a)},
+        "weekly": dict(coordinator._client.__dict__.get("_hc_weekly", {})),
+    }
+
+
+async def _async_update_data_cached(self) -> LibrusData:
+    path = _cache_path(self)
+    cached = None
+    if self.data is None:  # first refresh since HA (re)started / the entry was set up
+        cached = await self.hass.async_add_executor_job(_cache_read, path)
+        if cached is not None:
+            _cache_restore(self, cached[2])
+            if dt_util.utcnow() - cached[0] < _CACHE_MAX_AGE_ON_START:
+                _LOGGER.info("Librus: using cached data from %s, no request", dt_util.as_local(cached[0]))
+                return cached[1]
+    _hc_browser_headers(self._client._session)
+    self._client._hc_hass = self.hass
+    try:
+        data = await self._async_update_data_upstream()
+    except ConfigEntryAuthFailed:
+        raise
+    except Exception as err:
+        fallback = self.data if self.data is not None else (cached[1] if cached else None)
+        if fallback is None:
+            raise
+        _LOGGER.warning("Librus refresh failed (%s) - keeping the previous data", err)
+        return fallback
+    self.hass.bus.async_fire("librus_refreshed", {})  # packages/librus.yaml: stale-data alert
+    try:
+        await self.hass.async_add_executor_job(_cache_write, path, data, _cache_extras(self))
+    except Exception as err:
+        _LOGGER.warning("Librus cache not saved: %s", err)
+    return data
+
+
+LibrusDataUpdateCoordinator._async_update_data = _async_update_data_cached

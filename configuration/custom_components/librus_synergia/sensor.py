@@ -12,12 +12,26 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import UnitOfTime
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 from zoneinfo import ZoneInfo as _ZoneInfo  # homeControll local patch: school time zone
 _SCHOOL_TZ = _ZoneInfo("Europe/Warsaw")
+
+
+class _MinuteTick:  # homeControll local patch: minute tick
+    """Re-write the state every minute from cached data (no Librus request)."""
+
+    async def async_added_to_hass(self) -> None:
+        from datetime import timedelta as _timedelta
+        from homeassistant.helpers.event import async_track_time_interval
+        await super().async_added_to_hass()
+        self.async_on_remove(async_track_time_interval(self.hass, self._minute_tick, _timedelta(minutes=1)))
+
+    @callback
+    def _minute_tick(self, _now) -> None:
+        self.async_write_ha_state()
 
 from . import LibrusConfigEntry, librus_device_info
 from .const import (
@@ -768,7 +782,7 @@ class LibrusAttendanceStreakSensor(LibrusSensorBase):
             return None
         data = self.coordinator.data
         return days_since_last_absence(
-            data.attendances, data.attendance_types, data.school_class, dt_util.now().date()
+            data.attendances, data.attendance_types, data.school_class, dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
         )
 
 
@@ -790,7 +804,7 @@ class LibrusBehaviourStreakSensor(LibrusSensorBase):
         if self.coordinator.data is None:
             return None
         data = self.coordinator.data
-        return days_since_last_negative_note(data.notes, data.school_class, dt_util.now().date())
+        return days_since_last_negative_note(data.notes, data.school_class, dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date())
 
 
 class LibrusGoodGradeStreakSensor(LibrusSensorBase):
@@ -924,7 +938,7 @@ class LibrusLuckyNumberSensor(LibrusSensorBase):
         )
         return {
             "day": day,
-            "is_today": day == dt_util.now().date().isoformat() if day else None,
+            "is_today": day == dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date().isoformat() if day else None,
             "student_number": student_number,
             "is_yours": is_yours,
         }
@@ -1328,7 +1342,7 @@ class LibrusClassSensor(LibrusSensorBase):
         }
 
 
-class LibrusNextLessonSensor(LibrusSensorBase):
+class LibrusNextLessonSensor(_MinuteTick, LibrusSensorBase):
     """The next lesson that will actually take place (cancelled slots are
     skipped). State is the subject name; attributes carry the start/end
     time, `minutes_until`, teacher, classroom and whether it's a
@@ -1378,7 +1392,7 @@ class LibrusNextLessonSensor(LibrusSensorBase):
         return attrs
 
 
-class LibrusCurrentLessonSensor(LibrusSensorBase):
+class LibrusCurrentLessonSensor(_MinuteTick, LibrusSensorBase):
     """The lesson happening right now (`unknown` during breaks / outside
     school hours). State is the subject name; attributes carry `minutes_left`
     and the same teacher/classroom/period detail as the Next lesson
@@ -1417,7 +1431,7 @@ class LibrusCurrentLessonSensor(LibrusSensorBase):
         return attrs
 
 
-class LibrusNextExamSensor(LibrusSensorBase):
+class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):
     """Date of the next graded assessment ("sprawdzian" and friends) from
     the Agenda feed. State is a date (`device_class: date`); attributes
     carry `days_until`, the subject, the category name, the description and
@@ -1437,7 +1451,7 @@ class LibrusNextExamSensor(LibrusSensorBase):
         if self.coordinator.data is None:
             return []
         data = self.coordinator.data
-        today = dt_util.now().date()
+        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
         out: list[tuple[date, HomeworkEventData]] = []
         for item in data.homeworks:
             if not item.date:
@@ -1472,7 +1486,7 @@ class LibrusNextExamSensor(LibrusSensorBase):
         if not upcoming:
             return None
         data = self.coordinator.data
-        today = dt_util.now().date()
+        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
         day, item = upcoming[0]
 
         def _subject(it: HomeworkEventData) -> str | None:

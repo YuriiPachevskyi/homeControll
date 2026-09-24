@@ -1,3 +1,5 @@
+/* homeControll local patch: server-zone start_time */
+function __hcSrvDate(s,h){const naive=String(s).replace(" ","T");try{const tz=h&&h.config&&h.config.time_zone,u=new Date(naive+"Z");if(!tz||isNaN(u.getTime()))return new Date(naive);const p={};for(const x of new Intl.DateTimeFormat("en-US",{timeZone:tz,hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",second:"numeric"}).formatToParts(u))p[x.type]=x.value;const asUtc=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);return new Date(u.getTime()-(asUtc-u.getTime()))}catch(e){return new Date(naive)}}
 function e(e,t,i,a){var s,r=arguments.length,n=r<3?t:null===a?a=Object.getOwnPropertyDescriptor(t,i):a;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)n=Reflect.decorate(e,t,i,a);else for(var o=e.length-1;o>=0;o--)(s=e[o])&&(n=(r<3?s(n):r>3?s(t,i,n):s(t,i))||n);return r>3&&n&&Object.defineProperty(t,i,n),n}"function"==typeof SuppressedError&&SuppressedError;
 /**
  * @license
@@ -2383,13 +2385,13 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         letter-spacing: 0.03em;
         text-transform: uppercase;
       }
-    `],e([me()],oi.prototype,"_config",void 0),e([me()],oi.prototype,"_events",void 0),oi=e([he("librus-today-lessons-card")],oi);let ci=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-next-lesson-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.timetable?i.states[t.timetable]:void 0,s=a?.attributes.message,r=a?.attributes.start_time;if(!a||!s||!r)return this._message("mdi:clock-outline",ze(i,"card.next_lesson.empty"));const n=new Date(r.replace(" ","T")),o=new Date,c="on"===a.state,d=qe(n,o),l=a.attributes.location,h=a.attributes.description;return R`
+    `],e([me()],oi.prototype,"_config",void 0),e([me()],oi.prototype,"_events",void 0),oi=e([he("librus-today-lessons-card")],oi);let ci=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-next-lesson-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.timetable?i.states[t.timetable]:void 0,s=a?.attributes.message,r=a?.attributes.start_time;if(!a||!s||!r)return this._message("mdi:clock-outline",ze(i,"card.next_lesson.empty"));const n=new Date(__hcSrvDate(r,i)),o=new Date,c="on"===a.state,d=qe(n,o),l=a.attributes.location,h=a.attributes.description;return R`
       <ha-card class="tile" @click=${vt(this,this._config.tap_action,t.timetable)}>
         <div class="icon-badge ${c?"good":""}"><ha-icon icon="mdi:clock-outline"></ha-icon></div>
         <div class="tile-body">
           <div class="subj">${s}</div>
           <div class="meta">
-            ${c?ze(i,"label.now"):`${Re(r.replace(" ","T"))} · ${je(i,d)}`}
+            ${c?ze(i,"label.now"):`${Re(__hcSrvDate(r,i))} · ${je(i,d)}`}
             ${l?` · ${l}`:""}${h?` · ${h}`:""}
           </div>
         </div>
@@ -2820,7 +2822,7 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
                 <span class="dot ${l?"good":"neutral"}"></span>
                 <div class="body">
                   <div class="row1">${c}</div>
-                  ${l?q:R`<div class="item-text">${je(i,qe(new Date(d.replace(" ","T")),new Date))}</div>`}
+                  ${l?q:R`<div class="item-text">${je(i,qe(new Date(__hcSrvDate(d,i)),new Date))}</div>`}
                 </div>
               </div>
             `:q}
