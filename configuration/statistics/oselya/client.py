@@ -16,7 +16,7 @@ BASE_URL = "https://oselya.com.ua"
 USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 
-CREDS = Path.home() / ".oselya_cabinet"
+CREDS = Path.home() / ".secrets" / "oselya_cabinet"
 
 
 class LoginError(RuntimeError):
@@ -44,7 +44,7 @@ class OselyaClient:
             "LoginForm[rememberMe]": "0",
         }, timeout=20)
         if "/logout" not in r.text:
-            raise LoginError("login failed - check ~/.oselya_cabinet credentials")
+            raise LoginError("login failed - check ~/.secrets/oselya_cabinet credentials")
 
     def _select_account(self, account_id: str) -> None:
         # Re-selecting is cheap and avoids relying on it staying sticky across calls.

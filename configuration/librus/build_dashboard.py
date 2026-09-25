@@ -18,7 +18,7 @@ from pathlib import Path
 
 import websocket
 
-TOKEN = (Path.home() / ".ha_token").read_text().strip()
+TOKEN = (Path.home() / ".secrets" / "ha_token").read_text().strip()
 URL_PATH = "dashboard-librus"
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Download PDF attachments from ENERA (info-bill@vin.enera.ua) emails.
 
-Credentials come from ~/.enera_mail (mode 600): line 1 = Gmail address,
+Credentials come from ~/.secrets/enera_mail (mode 600): line 1 = Gmail address,
 line 2 = Gmail app password. Optional line 3 = IMAP host (default imap.gmail.com).
 
 PDFs are saved to statistics/documents/enera/<YYYY-MM-DD>_<original name>.pdf, named by the
@@ -17,7 +17,7 @@ from pathlib import Path
 
 SENDER = "info-bill@vin.enera.ua"
 ACTS_DIR = Path(__file__).parent.parent / "documents" / "enera"
-CREDS = Path.home() / ".enera_mail"
+CREDS = Path.home() / ".secrets" / "enera_mail"
 
 
 def safe_name(name: str) -> str:

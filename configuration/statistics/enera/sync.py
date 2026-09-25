@@ -138,7 +138,7 @@ def caption_for(path: Path) -> str:
 
 def refresh_ha_sensor(entity_id: str = "sensor.enera_green_tariffs") -> None:
     try:
-        token = (Path.home() / ".ha_token").read_text().strip()
+        token = (Path.home() / ".secrets" / "ha_token").read_text().strip()
         req = urllib.request.Request(
             "http://localhost:8123/api/services/homeassistant/update_entity",
             data=json.dumps({"entity_id": entity_id}).encode(),

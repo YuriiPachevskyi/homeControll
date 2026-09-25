@@ -24,7 +24,7 @@ ADDRESS = re.compile(r"за адресою:\s*(.+?),\s*особовий раху
 # The repo is public, so the addresses stay out of it. No file = forward
 # everything to everyone; a notice without a parseable address also goes to
 # everyone, so a format change never hides an outage.
-WATCH_FILE = Path.home() / ".esvitlo_watch"
+WATCH_FILE = Path.home() / ".secrets" / "esvitlo_watch"
 
 
 def watched() -> list[tuple[str, list[str] | None]]:

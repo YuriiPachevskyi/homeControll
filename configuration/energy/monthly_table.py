@@ -47,7 +47,7 @@ IDS = {
     "house": "sensor.home_load_energy",
     "boiler": "sensor.boiler_ten_energy_total",
 }
-TOKEN = (Path.home() / ".ha_token").read_text().strip()
+TOKEN = (Path.home() / ".secrets" / "ha_token").read_text().strip()
 
 
 def act_key(y: int, mo: int) -> str | None:

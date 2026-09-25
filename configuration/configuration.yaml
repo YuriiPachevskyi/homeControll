@@ -250,7 +250,7 @@ shell_command:
   # ship with HA core; pypdf (pure-Python, zero deps) is vendored separately
   # for the container via PYTHONPATH so it doesn't need reinstalling on every
   # HA container update (see statistics/oselya/vendor/). --reconcile-only skips
-  # fetch_all() (needs ~/.oselya_cabinet, which only exists on the host, not
+  # fetch_all() (needs ~/.secrets/oselya_cabinet, which only exists on the host, not
   # in the container) - this trigger only needs to react to to-do checkboxes.
   oselya_sync: 'PYTHONPATH=/config/statistics/oselya/vendor python3 /config/statistics/oselya/sync.py --reconcile-only >> /config/statistics/oselya/sync.log 2>&1'
 

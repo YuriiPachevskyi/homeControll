@@ -17,7 +17,7 @@ from pathlib import Path
 import websocket
 import yaml
 
-TOKEN = (Path.home() / ".ha_token").read_text().strip()
+TOKEN = (Path.home() / ".secrets" / "ha_token").read_text().strip()
 OBJECTS_YAML = Path(__file__).parent / "objects.yaml"
 DASHBOARD_URL_PATH = "dashboard-payments"
 

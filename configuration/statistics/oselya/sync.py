@@ -176,15 +176,15 @@ def caption_for(label: str, row: dict) -> str:
 
 
 def get_ha_token() -> str:
-    """~/.ha_token only exists on the host - this script also runs inside
-    the HA container (via shell_command, triggered by the to-do-change
+    """~/.secrets/ha_token only exists on the host - this script also runs
+    inside the HA container (via shell_command, triggered by the to-do-change
     automation), which only has /config bind-mounted, not the host $HOME.
     A copy lives at CONFIG/.ha_token (gitignored) for that case.
     """
-    for candidate in (Path.home() / ".ha_token", CONFIG / ".ha_token"):
+    for candidate in (Path.home() / ".secrets" / "ha_token", CONFIG / ".ha_token"):
         if candidate.exists():
             return candidate.read_text().strip()
-    raise FileNotFoundError("no .ha_token found (checked $HOME and CONFIG)")
+    raise FileNotFoundError("no .ha_token found (checked ~/.secrets and CONFIG)")
 
 
 def refresh_ha_sensor(entity_id: str = "sensor.oselya_payments") -> None:
@@ -513,7 +513,7 @@ def sync_todo(objects_cfg: dict, payments: dict, todo_added: dict) -> None:
 def main() -> int:
     objects_cfg = load_objects()
     reconcile_only = "--reconcile-only" in sys.argv
-    # Skip fetch_all() (needs ~/.oselya_cabinet - login credentials that only
+    # Skip fetch_all() (needs ~/.secrets/oselya_cabinet - login credentials that only
     # exist on the host, not inside the HA container) when this run was
     # triggered by the to-do-change automation: it only needs to reconcile
     # to-do checkboxes against already-downloaded/parsed data, not fetch

@@ -29,7 +29,7 @@ from pathlib import Path
 
 import websocket
 
-TOKEN = (Path.home() / ".ha_token").read_text().strip()
+TOKEN = (Path.home() / ".secrets" / "ha_token").read_text().strip()
 URL_PATH, VIEW_PATH = "dashboard-deye", "monthly-energy"
 TITLE = "Генерація"
 EXPANDED = "input_boolean.monthly_energy_expanded"  # packages/monthly_energy_table.yaml

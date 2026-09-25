@@ -10,7 +10,7 @@
 #
 # bill.source:
 #   oselya             - scraped from oselya.com.ua/cabinet; needs account_id
-#                        (see ~/.oselya_cabinet for the site login)
+#                        (see ~/.secrets/oselya_cabinet for the site login)
 #   koec_mail          - electricity bill PDF from KOEC/ONDO, read from Gmail
 #                        over IMAP (read-only); needs account_id (checked
 #                        against the PDF), sender and mail_credentials (a
@@ -49,12 +49,12 @@ objects:
         source: koec_mail
         account_id: "000401151496"
         sender: rahunok@sender.koec.com.ua
-        mail_credentials: ~/.yurii_mail
+        mail_credentials: ~/.secrets/yurii_mail
       water:
         label: "Вода"
         source: brovk_water
         account_id: "591479"
-        credentials: ~/.brovk_water_197
+        credentials: ~/.secrets/brovk_water_197
       trash:
         label: "Вивіз сміття"
         source: manual_fixed_rate
@@ -66,12 +66,12 @@ objects:
         label: "Електроенергія"
         source: koec_cabinet
         account_id: "000400941038"
-        credentials: ~/.koec_cabinet_177
+        credentials: ~/.secrets/koec_cabinet_177
       water:
         label: "Вода"
         source: brovk_water
         account_id: "575651"
-        credentials: ~/.brovk_water_177
+        credentials: ~/.secrets/brovk_water_177
       trash:
         label: "Вивіз сміття"
         source: manual_fixed_rate
