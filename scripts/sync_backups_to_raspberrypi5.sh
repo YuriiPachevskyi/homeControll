@@ -30,3 +30,26 @@ PRUNE_CMD="cd \"$DEST_PATH\" && ls -1t -- *.tar 2>/dev/null | tail -n +${SKIP} |
 ssh -o BatchMode=yes -o ConnectTimeout=10 "$DEST_HOST" "$PRUNE_CMD" \
     && logger -t "$LOG_TAG" "pruned old backups on ${DEST_HOST}, keeping newest ${KEEP}" \
     || logger -t "$LOG_TAG" "FAILED to prune old backups on ${DEST_HOST}"
+
+# Host-only secrets (~/.secrets: HA token, mail/cabinet logins, ...) - never
+# in git, so this is their only copy off this machine. Encrypted with gpg
+# (AES-256) using ~/.secrets/backup_passphrase, which the user keeps outside
+# this server too; the passphrase itself is left out of the archive. The HA
+# backup encryption password (only in .storage/backup) is refreshed into
+# ~/.secrets/ha_backup_password first, so the HA backups above can be opened
+# after losing this machine. One dated file per day, newest $KEEP kept.
+# Restore: gpg -d secrets-<date>.tar.gpg | tar -x -C ~
+SECRETS_DIR="/home/yurii/.secrets"
+SECRETS_DEST_PATH="/home/yurii/work/raspberrypi4/secrets"
+(
+    umask 077
+    python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["data"]["config"]["create_backup"]["password"], end="")' \
+        /home/yurii/docker/homeControll/configuration/.storage/backup > "$SECRETS_DIR/ha_backup_password"
+    tar -C /home/yurii --exclude=.secrets/backup_passphrase -cf - .secrets \
+        | gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-file "$SECRETS_DIR/backup_passphrase" \
+              --symmetric --cipher-algo AES256 -o - \
+        | ssh -o BatchMode=yes -o ConnectTimeout=10 "$DEST_HOST" \
+              "umask 077; mkdir -p '$SECRETS_DEST_PATH' && cat > '$SECRETS_DEST_PATH/secrets-$(date +%F).tar.gpg' \
+               && cd '$SECRETS_DEST_PATH' && ls -1t -- secrets-*.tar.gpg | tail -n +$((KEEP + 1)) | xargs -r rm -f --"
+) && logger -t "$LOG_TAG" "synced encrypted secrets to ${DEST_HOST}:${SECRETS_DEST_PATH}" \
+  || logger -t "$LOG_TAG" "FAILED to sync encrypted secrets to ${DEST_HOST}:${SECRETS_DEST_PATH}"
