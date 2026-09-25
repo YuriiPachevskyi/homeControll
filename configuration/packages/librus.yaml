@@ -148,7 +148,7 @@ automation:
     actions:
       - variables:
           msg: |-
-            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus не оновлюється!!!
+            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus не оновлюється
             Останнє оновлення: {{ as_datetime(state_attr('input_datetime.librus_last_refresh', 'timestamp')) | as_local
             | as_timestamp | timestamp_custom('%d.%m %H:%M') if state_attr('input_datetime.librus_last_refresh', 'timestamp') else 'невідомо' }}
       - action: telegram_bot.send_message
@@ -191,7 +191,7 @@ automation:
         then:
           - variables:
               msg: |-
-                🕐 {{ now().strftime('%H:%M') }} ⭐ {{ 'Нова оцінка' if grades | count == 1 else 'Нові оцінки (' ~ grades | count ~ ')' }}!!!
+                🕐 {{ now().strftime('%H:%M') }} ⭐ {{ 'Нова оцінка' if grades | count == 1 else 'Нові оцінки (' ~ grades | count ~ ')' }}
                 {%- for g in grades %}
                 {{ g.subject }}: {{ g.value }}
                 {%- endfor %}
@@ -219,7 +219,7 @@ automation:
           sequence:
             - variables:
                 headline: |-
-                  🕐 {{ now().strftime('%H:%M') }} ✉️ Новий лист!!!
+                  🕐 {{ now().strftime('%H:%M') }} ✉️ Новий лист
                   {{ repeat.item.sender }}: {{ repeat.item.topic }}{{ (' 📎 ' ~ repeat.item.files | count) if repeat.item.files else '' }}
                 # a failed send leaves response_variable untouched - reset it
                 # so the previous letter's message ids are never logged again
@@ -230,14 +230,14 @@ automation:
                 entity_id:
                   - notify.yurii_p
                   - notify.kateryna
+              # the letter text is an expandable quote: collapsed to a couple
+              # of lines until tapped (HTML mode, so everything is escaped)
               data:
                 title: Librus
-                parse_mode: plain_text
+                parse_mode: html
                 message: |-
-                  {{ headline }}
-
-
-                  {{ repeat.item.content }}
+                  {{ headline | e }}
+                  <blockquote expandable>{{ repeat.item.content | e }}</blockquote>
                 inline_keyboard:
                   - "🇺🇦 Переклад:/librus_translate"
               response_variable: sent
@@ -272,7 +272,8 @@ automation:
       A tap on "🇺🇦 Переклад" under a letter (callback "/librus_translate")
       translates the letter (the lines after "Новий лист") from Polish to
       Ukrainian via rest_command.librus_translate and appends it to the same
-      Telegram message; the edit drops the button. If Polish + Ukrainian don't
+      Telegram message, both as collapsed (expandable) quotes like the
+      original letter; the edit drops the button. If Polish + Ukrainian don't
       fit Telegram's 4096-char limit, the translation comes as a reply
       instead. Only the tapped letter is sent to the translator.
     triggers:
@@ -293,6 +294,18 @@ automation:
             {%- set ns = namespace(start=0) -%}
             {%- for l in lines -%}{%- if ns.start == 0 and 'Новий лист' in l -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
             {{ lines[ns.start:] | join('\n') | trim }}
+          # the edit rebuilds the HTML: header lines (title, time, sender:
+          # topic) as text, the letter itself back into a collapsed quote
+          header: >-
+            {%- set lines = original.split('\n') -%}
+            {%- set ns = namespace(start=0) -%}
+            {%- for l in lines -%}{%- if ns.start == 0 and 'Новий лист' in l -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
+            {{ lines[:ns.start + 1] | join('\n') }}
+          letter: >-
+            {%- set lines = original.split('\n') -%}
+            {%- set ns = namespace(start=0) -%}
+            {%- for l in lines -%}{%- if ns.start == 0 and 'Новий лист' in l -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
+            {{ lines[ns.start + 1:] | join('\n') | trim }}
       - action: rest_command.librus_translate
         continue_on_error: true
         response_variable: tr
@@ -318,12 +331,12 @@ automation:
                 data:
                   chat_id: "{{ trigger.event.data.chat_id }}"
                   message_id: "{{ trigger.event.data.message.message_id }}"
-                  parse_mode: plain_text
+                  parse_mode: html
                   message: |-
-                    {{ original }}
-
+                    {{ header | e }}
+                    <blockquote expandable>{{ letter | e }}</blockquote>
                     🇺🇦 Переклад:
-                    {{ translation }}
+                    <blockquote expandable>{{ translation | e }}</blockquote>
         default:
           - action: telegram_bot.edit_replymarkup
             continue_on_error: true
@@ -335,10 +348,10 @@ automation:
             data:
               chat_id: "{{ trigger.event.data.chat_id }}"
               reply_to_message_id: "{{ trigger.event.data.message.message_id }}"
-              parse_mode: plain_text
+              parse_mode: html
               message: |-
                 🇺🇦 Переклад:
-                {{ translation[:4000] }}
+                <blockquote expandable>{{ translation[:4000] | e }}</blockquote>
     mode: queued
 
   - id: librus_update_available_notify

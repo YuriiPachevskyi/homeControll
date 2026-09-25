@@ -698,7 +698,7 @@
       - action: script.notify_all
         data:
           title: Бойлер
-          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F525 Бойлер нагрівся!!!{%
+          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F525 Бойлер нагрівся{%
             if surplus_power_available %} Збільште потужність на макс{% endif %}\nСпожив
             сьогодні: {{ states('sensor.boiler_ten_energy_estimate_daily') | float(0)
             | round(1) }} кВт⋅год"
@@ -714,7 +714,7 @@
           entity_id: input_boolean.boiler_boost_suggested
       - action: script.notify_all
         data:
-          title: Нагадування
+          title: Бойлер
           message: '{{ ''\U0001F550'' }} {{ now().strftime(''%H:%M'') }} Бойлер на
             Еко'
     - conditions:
@@ -884,9 +884,9 @@
       sequence:
       - action: script.notify_all
         data:
-          title: Підсумки місяця
-          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4CA !!!{{ month_name
-            | capitalize }} {{ report_year }}!!!\n\n☀️ Сонце сумарно: {{ solar | round(1)
+          title: Звіт
+          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4CA {{ month_name
+            | capitalize }} {{ report_year }}\n\n☀️ Сонце сумарно: {{ solar | round(1)
             }} kWh\n{%- if deficit_month %}\n\U0001F4E4 Експорт: {{ grid_export |
             round(1) }} kWh\n\U0001F4E5 Імпорт: {{ grid_import | round(1) }} kWh\n\U0001F4B8
             *До сплати: {{ payable | round(0) | int }} ₴*\n   \U0001F319 Вночі: {{
@@ -904,7 +904,7 @@
     default:
     - action: script.notify_all
       data:
-        title: Підсумки місяця
+        title: Звіт
         message: "\U0001F550 {{ now().strftime('%H:%M') }} ⚠️ Не вдалося сформувати
           підсумки за {{ month_name }} {{ report_year }}: немає даних статистики"
   - if:
@@ -968,11 +968,11 @@
           ns.house, 'net': ns.net, 'months': ns.months} | tojson }}"
     - action: script.notify_all
       data:
-        title: Підсумки року
+        title: Звіт
         message: "{%- set y = year_data if year_data is mapping else year_data | from_json
-          -%}\n\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4C5 !!!{{ report_year
+          -%}\n\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4C5 {{ report_year
           }} рік{% if report_month | int < 12 %} (січень–{{ month_name }}){% endif
-          %}!!!\n\n☀️ Сонце сумарно: {{ y.solar | round(1) }} kWh\n\U0001F4E4 Експорт:
+          %}\n\n☀️ Сонце сумарно: {{ y.solar | round(1) }} kWh\n\U0001F4E4 Експорт:
           {{ y.exp | round(1) }} kWh\n\U0001F4E5 Імпорт: {{ y.imp | round(1) }} kWh\n\U0001F4B0
           *Дохід від експорту: {{ y.net | round(0) | int }} ₴*\n\U0001F3E0 Спожито:
           {{ y.house | round(1) }} kWh\n\n```\n{{ '%-4s%6s%6s%7s%6s%7s' % ('Міс.',

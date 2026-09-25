@@ -56,7 +56,8 @@ def _text(item: dict, done: bool = False) -> str:
     head = " — ".join(parts[:2]) if len(parts) >= 4 else item["summary"]
     tail = " — ".join(parts[2:]) if len(parts) >= 4 else ""
     mark = "✅ Оплачено" if done else "🧾 До оплати"
-    return f"{mark}\n<b>{html.escape(head)}</b>" + (f"\n{html.escape(tail)}" if tail else "")
+    # First line = category title, like HA's telegram_bot `title`.
+    return f"Платежі\n{mark}\n<b>{html.escape(head)}</b>" + (f"\n{html.escape(tail)}" if tail else "")
 
 
 def _keyboard(item: dict) -> dict:
@@ -95,7 +96,7 @@ def _close_completed(items: list[dict], state: dict) -> None:
         item = by_uid.get(uid, {"summary": entry["summary"]})
         done = uid in by_uid  # still on the list = completed; gone = deleted
         for chat, message_id in entry["messages"]:
-            text = _text(item, done=True) if done else f"🗑 Задачу видалено\n<s>{html.escape(entry['summary'])}</s>"
+            text = _text(item, done=True) if done else f"Платежі\n🗑 Задачу видалено\n<s>{html.escape(entry['summary'])}</s>"
             r = _bot("editMessageText", chat_id=chat, message_id=message_id, text=text, parse_mode="HTML")
             if not r.get("ok") and "not modified" not in (r.get("description") or ""):
                 print(f"edit FAILED for {entry['summary']}: {r.get('description')}")

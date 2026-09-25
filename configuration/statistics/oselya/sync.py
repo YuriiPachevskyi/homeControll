@@ -165,7 +165,7 @@ def deliver(key: str, send_one, sent: set, title: str, message: str) -> int:
 def caption_for(label: str, row: dict) -> str:
     now = datetime.now().strftime("%H:%M")
     y, m = row["period"].split("-")
-    title = f"🕐 {now} 🧾 {label} — {MONTH_UA[int(m) - 1]} {y}!!!"
+    title = f"🕐 {now} 🧾 {label} — {MONTH_UA[int(m) - 1]} {y}"
     lines = [title]
     if row["total_due"] > 0:
         lines.append(f"💰 *До сплати: {row['total_due']:.2f} ₴*")
@@ -380,7 +380,8 @@ def notify_new_receipts(objects_cfg: dict, payments: dict, sent: set) -> int:
                 continue
             msg_key = f"receipt:{bill_full_key}:{row['period']}"
             caption = caption_for(bill["label"], row)
-            n = deliver(msg_key, lambda chat, p=pdf, c=caption: send_pdf_to(p, c, chat), sent,
+            # First line = category title, like HA's telegram_bot `title`.
+            n = deliver(msg_key, lambda chat, p=pdf, c=caption: send_pdf_to(p, f"Платежі\n{c}", chat), sent,
                         "Платежі", caption.replace("*", ""))
             if n:
                 failed += n

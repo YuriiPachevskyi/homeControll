@@ -92,19 +92,20 @@ def log_notification(title: str, message: str, chats: list) -> None:
     refresh_ha_sensor("sensor.telegram_notify_log")
 
 
-def deliver(key: str, send_one, sent: set, title: str, message: str) -> int:
+def deliver(key: str, send_one, sent: set, title: str, message: str,
+            chat_ids: list[str] | None = None) -> int:
     """Send to each chat that has not got `key` yet; return the number of failures.
 
     Progress is stored per chat ("<key>@<chat>") so a failure for one person
     never makes the others receive the message twice. A bare `key` means
     "delivered to everyone" (this is how entries from before the family chats
-    were added are read).
+    were added are read). `chat_ids` narrows the recipients (default: all).
     """
     if key in sent:
         return 0
     failed = 0
     chats = []
-    for chat in CHAT_IDS:
+    for chat in chat_ids or CHAT_IDS:
         tag = f"{key}@{chat}"
         if tag in sent:
             continue
@@ -129,9 +130,9 @@ def caption_for(path: Path) -> str:
         month, rec = parse_acts.parse(path)
     except Exception as e:  # layout changed - still deliver the PDF
         print(f"parse failed for {path.name}: {e}")
-        return f"🕐 {now} 📄 Акт!!!\nСуму не вдалося прочитати автоматично"
+        return f"🕐 {now} 📄 Новий акт\nСуму не вдалося прочитати автоматично"
     y, m = month.split("-")
-    title = f"🕐 {now} 📄 Акт за {MONTHS[int(m) - 1]} {y}!!!"
+    title = f"🕐 {now} 📄 {MONTHS[int(m) - 1].capitalize()} {y}"  # "Акт" is the title line
     if rec.get("green_tariff"):
         return f"{title}\n💰 *До виплати: {rec['payout']:.2f} ₴*"
     return f"{title}\n*Виплати немає*"
@@ -164,8 +165,9 @@ def main() -> int:
     failed = 0
     for pdf in acts():
         caption = caption_for(pdf) if pdf.name not in sent else ""
-        n = deliver(pdf.name, lambda chat, p=pdf, c=caption: send_pdf_to(p, c, chat), sent,
-                    "ENERA", caption.replace("*", ""))
+        # First line = category title, like HA's telegram_bot `title`.
+        n = deliver(pdf.name, lambda chat, p=pdf, c=caption: send_pdf_to(p, f"Акт\n{c}", chat), sent,
+                    "Акт", caption.replace("*", ""))
         if n:
             failed += n
             print(f"send FAILED for {pdf.name} to {n} chat(s), will retry")
@@ -173,8 +175,8 @@ def main() -> int:
             print(f"sent {pdf.name}")
 
     # Planned outage notices from the utility cabinet (short text, no PDF).
-    for key, text in esvitlo.new_notices(sent):
-        n = deliver(key, lambda chat, t=text: send_text_to(t, chat), sent, "Світло", text)
+    for key, text, chats in esvitlo.new_notices(sent):
+        n = deliver(key, lambda chat, t=text: send_text_to(f"Світло\n{t}", chat), sent, "Світло", text, chats)
         if n:
             failed += n
             print(f"outage notice send FAILED to {n} chat(s), will retry")

@@ -16,20 +16,42 @@ WINDOW = re.compile(
     r"з (\d\d)-(\d\d)-(\d{4}) (\d\d:\d\d) по (\d\d)-(\d\d)-(\d{4}) (\d\d:\d\d)"
 )
 ADDRESS = re.compile(r"за адресою:\s*(.+?),\s*особовий рахунок")
-# Only notices for the addresses in this host-only file (one per line, e.g.
-# "Назва 10", matched against "вул. <street> <house>") are forwarded; the
-# mailbox also gets notices for other accounts of the same owner. The repo is
-# public, so the address stays out of it. No file = forward everything; a
-# notice without a parseable address is still forwarded, so a format change
-# never hides an outage.
+# Only notices for the addresses in this host-only file are forwarded; the
+# mailbox gets notices for several accounts of the same owner. One address per
+# line, matched against "вул. <street> <house>", optionally followed by
+# "| <chat_id>,<chat_id>" to send that address to those chats only:
+#     Назва 10
+#     Інша назва 19 | 123456789
+# The repo is public, so the addresses stay out of it. No file = forward
+# everything to everyone; a notice without a parseable address also goes to
+# everyone, so a format change never hides an outage.
 WATCH_FILE = Path.home() / ".esvitlo_watch"
 
 
-def watched() -> list[str]:
+def watched() -> list[tuple[str, list[str] | None]]:
+    """[(address, chat ids or None = everyone)] from WATCH_FILE."""
     try:
-        return [l.strip() for l in WATCH_FILE.read_text().splitlines() if l.strip()]
+        lines = WATCH_FILE.read_text().splitlines()
     except FileNotFoundError:
         return []
+    out = []
+    for line in filter(None, (l.strip() for l in lines)):
+        addr, _, chats = line.partition("|")
+        ids = [c.strip() for c in chats.split(",") if c.strip()]
+        out.append((addr.strip(), ids or None))
+    return out
+
+
+def recipients(addr: str, watch: list) -> list[str] | None | bool:
+    """Chat ids for a notice at `addr`: None = everyone, False = not watched."""
+    if not addr or not watch:
+        return None
+    hits = [chats for a, chats in watch if a in addr]
+    if not hits:
+        return False
+    if any(chats is None for chats in hits):
+        return None
+    return sorted({c for chats in hits for c in chats})
 
 
 def body_text(msg) -> str:
@@ -56,17 +78,18 @@ def format_notice(text: str) -> str:
     now = datetime.now().strftime("%H:%M")
     w = WINDOW.search(text)
     if not w:
-        return f"🕐 {now} ⚡ Лист про відключення світла!!!\nДеталі в пошті"
+        return f"🕐 {now} ⚡ Лист про відключення світла\nДеталі в пошті"
     d1, m1, _y1, t1, d2, m2, _y2, t2 = w.groups()
     if (d1, m1) == (d2, m2):
         title, span = f"{d1}.{m1}", f"{t1}–{t2}"
     else:
         title, span = f"{d1}.{m1}–{d2}.{m2}", f"з {d1}.{m1} {t1} до {d2}.{m2} {t2}"
-    return f"🕐 {now} ⚡ Відключення світла {title}!!!\n{street(text)}{span}"
+    return f"🕐 {now} ⚡ Відключення світла {title}\n{street(text)}{span}"
 
 
-def new_notices(sent: set[str], since_days: int = 45) -> list[tuple[str, str]]:
-    """Return [(dedupe key, message text)] for notices not yet forwarded."""
+def new_notices(sent: set[str], since_days: int = 45) -> list[tuple[str, str, list[str] | None]]:
+    """Return [(dedupe key, message text, chat ids or None = everyone)] for
+    notices not yet forwarded."""
     from datetime import date, timedelta
     imap = fetch_acts.connect()
     since = (date.today() - timedelta(days=since_days)).strftime("%d-%b-%Y")
@@ -80,9 +103,9 @@ def new_notices(sent: set[str], since_days: int = 45) -> list[tuple[str, str]]:
         if key in sent:
             continue
         text = body_text(msg)
-        addr = street(text)
-        if addr and watch and not any(w in addr for w in watch):
+        chats = recipients(street(text), watch)
+        if chats is False:
             continue
-        out.append((key, format_notice(text)))
+        out.append((key, format_notice(text), chats))
     imap.logout()
     return out
