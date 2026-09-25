@@ -5,7 +5,6 @@ the street and house number and the outage window are forwarded.
 """
 import email
 import re
-from datetime import datetime
 from email.header import decode_header, make_header
 from pathlib import Path
 
@@ -75,16 +74,15 @@ def street(text: str) -> str:
 
 def format_notice(text: str) -> str:
     """Two-line message in the house style; generic fallback if unparsable."""
-    now = datetime.now().strftime("%H:%M")
     w = WINDOW.search(text)
     if not w:
-        return f"🕐 {now} ⚡ Лист про відключення світла\nДеталі в пошті"
+        return f"⚡ Лист про відключення світла\nДеталі в пошті"
     d1, m1, _y1, t1, d2, m2, _y2, t2 = w.groups()
     if (d1, m1) == (d2, m2):
         title, span = f"{d1}.{m1}", f"{t1}–{t2}"
     else:
         title, span = f"{d1}.{m1}–{d2}.{m2}", f"з {d1}.{m1} {t1} до {d2}.{m2} {t2}"
-    return f"🕐 {now} ⚡ Відключення світла {title}\n{street(text)}{span}"
+    return f"⚡ Відключення світла {title}\n{street(text)}{span}"
 
 
 def new_notices(sent: set[str], since_days: int = 45) -> list[tuple[str, str, list[str] | None]]:

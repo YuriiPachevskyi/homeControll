@@ -698,7 +698,7 @@
       - action: script.notify_all
         data:
           title: Бойлер
-          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F525 Бойлер нагрівся{%
+          message: "\U0001F525 Бойлер нагрівся{%
             if surplus_power_available %} Збільште потужність на макс{% endif %}\nСпожив
             сьогодні: {{ states('sensor.boiler_ten_energy_estimate_daily') | float(0)
             | round(1) }} кВт⋅год"
@@ -715,8 +715,7 @@
       - action: script.notify_all
         data:
           title: Бойлер
-          message: '{{ ''\U0001F550'' }} {{ now().strftime(''%H:%M'') }} Бойлер на
-            Еко'
+          message: "\U0001F514 Бойлер на Еко"
     - conditions:
       - condition: trigger
         id: lost
@@ -736,7 +735,7 @@
       - action: script.notify_all
         data:
           title: Мережа
-          message: "\U0001F550 {{ now().strftime('%H:%M') }} ⚡ Електроживлення зникло"
+          message: "⚡ Електроживлення зникло"
     - conditions:
       - condition: trigger
         id: restored
@@ -758,7 +757,7 @@
       - action: script.notify_all
         data:
           title: Мережа
-          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4A1 Електроживлення
+          message: "\U0001F4A1 Електроживлення
             відновлено"
 - id: '1788815476602'
   alias: Boiler Energy Sensor Refresh
@@ -885,7 +884,7 @@
       - action: script.notify_all
         data:
           title: Звіт
-          message: "\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4CA {{ month_name
+          message: "\U0001F4CA {{ month_name
             | capitalize }} {{ report_year }}\n\n☀️ Сонце сумарно: {{ solar | round(1)
             }} kWh\n{%- if deficit_month %}\n\U0001F4E4 Експорт: {{ grid_export |
             round(1) }} kWh\n\U0001F4E5 Імпорт: {{ grid_import | round(1) }} kWh\n\U0001F4B8
@@ -905,7 +904,7 @@
     - action: script.notify_all
       data:
         title: Звіт
-        message: "\U0001F550 {{ now().strftime('%H:%M') }} ⚠️ Не вдалося сформувати
+        message: "⚠️ Не вдалося сформувати
           підсумки за {{ month_name }} {{ report_year }}: немає даних статистики"
   - if:
     - condition: template
@@ -970,7 +969,7 @@
       data:
         title: Звіт
         message: "{%- set y = year_data if year_data is mapping else year_data | from_json
-          -%}\n\U0001F550 {{ now().strftime('%H:%M') }} \U0001F4C5 {{ report_year
+          -%}\n\U0001F4C5 {{ report_year
           }} рік{% if report_month | int < 12 %} (січень–{{ month_name }}){% endif
           %}\n\n☀️ Сонце сумарно: {{ y.solar | round(1) }} kWh\n\U0001F4E4 Експорт:
           {{ y.exp | round(1) }} kWh\n\U0001F4E5 Імпорт: {{ y.imp | round(1) }} kWh\n\U0001F4B0

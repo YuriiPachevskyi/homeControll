@@ -89,10 +89,10 @@ automation:
           route: "{{ trigger.event.data.route }}"
           msg: |-
             {% if route == 'direct' -%}
-            🕐 {{ now().strftime('%H:%M') }} ✅ Librus знову доступний з України
+            ✅ Librus знову доступний з України
             Маршрут: напряму з rpi4
             {%- else -%}
-            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus недоступний з України
+            ⚠️ Librus недоступний з України
             Маршрут: через rpi5 (Польща)
             {%- endif %}
       - action: input_select.select_option
@@ -148,7 +148,7 @@ automation:
     actions:
       - variables:
           msg: |-
-            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus не оновлюється
+            ⚠️ Librus не оновлюється
             Останнє оновлення: {{ as_datetime(state_attr('input_datetime.librus_last_refresh', 'timestamp')) | as_local
             | as_timestamp | timestamp_custom('%d.%m %H:%M') if state_attr('input_datetime.librus_last_refresh', 'timestamp') else 'невідомо' }}
       - action: telegram_bot.send_message
@@ -178,8 +178,7 @@ automation:
       message each with the full text, then its attachments as documents
       (saved under /config/librus/attachments by the patch). To Yurii and
       Kateryna; grades also to the daughter, letters not (not notify_all - that one
-      also goes to Nataliya). The clock is Polish time (Kyiv minus 1 h), as
-      the readers are in Poland.
+      also goes to Nataliya).
     triggers:
       - trigger: event
         event_type: librus_news
@@ -193,7 +192,7 @@ automation:
         then:
           - variables:
               msg: |-
-                🕐 {{ (now() - timedelta(hours=1)).strftime('%H:%M') }} ⭐ {{ 'Нова оцінка' if grades | count == 1 else 'Нові оцінки (' ~ grades | count ~ ')' }}
+                ⭐ {{ 'Нова оцінка' if grades | count == 1 else 'Нові оцінки (' ~ grades | count ~ ')' }}
                 {%- for g in grades %}
                 {{ g.subject }}: {{ g.value }}
                 {%- endfor %}
@@ -222,7 +221,7 @@ automation:
           sequence:
             - variables:
                 headline: |-
-                  🕐 {{ (now() - timedelta(hours=1)).strftime('%H:%M') }} ✉️ Новий лист
+                  ✉️ Новий лист
                   {{ repeat.item.sender }}: {{ repeat.item.topic }}{{ (' 📎 ' ~ repeat.item.files | count) if repeat.item.files else '' }}
                 # a failed send leaves response_variable untouched - reset it
                 # so the previous letter's message ids are never logged again
@@ -372,7 +371,7 @@ automation:
     actions:
       - variables:
           msg: |-
-            🕐 {{ now().strftime('%H:%M') }} 🆕 Оновлення {{ state_attr(trigger.entity_id, 'friendly_name') | regex_replace(' [Uu]pdate$', '') }}: {{ state_attr(trigger.entity_id, 'installed_version') }} → {{ state_attr(trigger.entity_id, 'latest_version') }}
+            🆕 Оновлення {{ state_attr(trigger.entity_id, 'friendly_name') | regex_replace(' [Uu]pdate$', '') }}: {{ state_attr(trigger.entity_id, 'installed_version') }} → {{ state_attr(trigger.entity_id, 'latest_version') }}
             Після встановлення: apply_local_patches.py + перезапуск HA
       - action: telegram_bot.send_message
         continue_on_error: true
@@ -409,7 +408,7 @@ automation:
     actions:
       - variables:
           msg: |-
-            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus без наших правок: {{ trigger.to_state.state }}
+            ⚠️ Librus без наших правок: {{ trigger.to_state.state }}
             Запусти apply_local_patches.py і перезапусти HA
       - action: telegram_bot.send_message
         continue_on_error: true
@@ -433,8 +432,9 @@ automation:
       to the HA Local Calendar "Гуртки" (shown on the Librus dashboard's
       Calendar tab) - remind Yurii, Kateryna and the daughter on Telegram 30 minutes before
       each one. The
-      school is in Poland, so both the clock and the start time are Polish
-      time (Kyiv minus 1 h all year), like the grade/letter messages.
+      school is in Poland, so the start time is given in Polish time (Kyiv
+      minus 1 h all year). Messages carry no send time of their own -
+      Telegram shows it in each reader's zone.
     triggers:
       - trigger: calendar
         entity_id: calendar.gurtki
@@ -443,7 +443,7 @@ automation:
     actions:
       - variables:
           msg: |-
-            🕐 {{ (now() - timedelta(hours=1)).strftime('%H:%M') }} 🎵 Через 30 хвилин: {{ trigger.calendar_event.summary }}
+            🎵 Через 30 хвилин: {{ trigger.calendar_event.summary }}
             Початок о {{ (as_timestamp(trigger.calendar_event.start) - 3600) | timestamp_custom('%H:%M') }}{{ (' · ' ~ trigger.calendar_event.location) if trigger.calendar_event.location else '' }}
       - action: telegram_bot.send_message
         continue_on_error: true

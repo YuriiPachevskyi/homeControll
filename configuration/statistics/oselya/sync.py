@@ -163,9 +163,8 @@ def deliver(key: str, send_one, sent: set, title: str, message: str) -> int:
 
 
 def caption_for(label: str, row: dict) -> str:
-    now = datetime.now().strftime("%H:%M")
     y, m = row["period"].split("-")
-    title = f"🕐 {now} 🧾 {label} — {MONTH_UA[int(m) - 1]} {y}"
+    title = f"🧾 {label} — {MONTH_UA[int(m) - 1]} {y}"
     lines = [title]
     if row["total_due"] > 0:
         lines.append(f"💰 *До сплати: {row['total_due']:.2f} ₴*")

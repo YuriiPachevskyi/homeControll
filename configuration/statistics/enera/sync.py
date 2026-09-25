@@ -18,7 +18,6 @@ import subprocess
 import sys
 import urllib.parse
 import urllib.request
-from datetime import datetime
 from pathlib import Path
 
 import esvitlo
@@ -125,14 +124,13 @@ def deliver(key: str, send_one, sent: set, title: str, message: str,
 
 def caption_for(path: Path) -> str:
     """Two-line message in the house style; falls back to a plain title."""
-    now = datetime.now().strftime("%H:%M")
     try:
         month, rec = parse_acts.parse(path)
     except Exception as e:  # layout changed - still deliver the PDF
         print(f"parse failed for {path.name}: {e}")
-        return f"🕐 {now} 📄 Новий акт\nСуму не вдалося прочитати автоматично"
+        return f"📄 Новий акт\nСуму не вдалося прочитати автоматично"
     y, m = month.split("-")
-    title = f"🕐 {now} 📄 {MONTHS[int(m) - 1].capitalize()} {y}"  # "Акт" is the title line
+    title = f"📄 {MONTHS[int(m) - 1].capitalize()} {y}"  # "Акт" is the title line
     if rec.get("green_tariff"):
         return f"{title}\n💰 *До виплати: {rec['payout']:.2f} ₴*"
     return f"{title}\n*Виплати немає*"
