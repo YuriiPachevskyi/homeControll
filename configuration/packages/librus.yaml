@@ -178,7 +178,8 @@ automation:
       message each with the full text, then its attachments as documents
       (saved under /config/librus/attachments by the patch). To Yurii and
       Kateryna; grades also to the daughter, letters not (not notify_all - that one
-      also goes to Nataliya).
+      also goes to Nataliya). The clock is Polish time (Kyiv minus 1 h), as
+      the readers are in Poland.
     triggers:
       - trigger: event
         event_type: librus_news
@@ -192,7 +193,7 @@ automation:
         then:
           - variables:
               msg: |-
-                🕐 {{ now().strftime('%H:%M') }} ⭐ {{ 'Нова оцінка' if grades | count == 1 else 'Нові оцінки (' ~ grades | count ~ ')' }}
+                🕐 {{ (now() - timedelta(hours=1)).strftime('%H:%M') }} ⭐ {{ 'Нова оцінка' if grades | count == 1 else 'Нові оцінки (' ~ grades | count ~ ')' }}
                 {%- for g in grades %}
                 {{ g.subject }}: {{ g.value }}
                 {%- endfor %}
@@ -221,7 +222,7 @@ automation:
           sequence:
             - variables:
                 headline: |-
-                  🕐 {{ now().strftime('%H:%M') }} ✉️ Новий лист
+                  🕐 {{ (now() - timedelta(hours=1)).strftime('%H:%M') }} ✉️ Новий лист
                   {{ repeat.item.sender }}: {{ repeat.item.topic }}{{ (' 📎 ' ~ repeat.item.files | count) if repeat.item.files else '' }}
                 # a failed send leaves response_variable untouched - reset it
                 # so the previous letter's message ids are never logged again
@@ -432,8 +433,8 @@ automation:
       to the HA Local Calendar "Гуртки" (shown on the Librus dashboard's
       Calendar tab) - remind Yurii, Kateryna and the daughter on Telegram 30 minutes before
       each one. The
-      school is in Poland, so the start time is given in Polish time (Kyiv
-      minus 1 h all year).
+      school is in Poland, so both the clock and the start time are Polish
+      time (Kyiv minus 1 h all year), like the grade/letter messages.
     triggers:
       - trigger: calendar
         entity_id: calendar.gurtki
@@ -442,8 +443,8 @@ automation:
     actions:
       - variables:
           msg: |-
-            🕐 {{ now().strftime('%H:%M') }} 🎵 Через 30 хвилин: {{ trigger.calendar_event.summary }}
-            Початок о {{ (as_timestamp(trigger.calendar_event.start) - 3600) | timestamp_custom('%H:%M') }} за Польщею{{ (' · ' ~ trigger.calendar_event.location) if trigger.calendar_event.location else '' }}
+            🕐 {{ (now() - timedelta(hours=1)).strftime('%H:%M') }} 🎵 Через 30 хвилин: {{ trigger.calendar_event.summary }}
+            Початок о {{ (as_timestamp(trigger.calendar_event.start) - 3600) | timestamp_custom('%H:%M') }}{{ (' · ' ~ trigger.calendar_event.location) if trigger.calendar_event.location else '' }}
       - action: telegram_bot.send_message
         continue_on_error: true
         target:
