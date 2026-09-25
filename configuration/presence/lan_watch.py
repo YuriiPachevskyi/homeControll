@@ -7,21 +7,22 @@ table, which also covers devices behind the MiWiFi repeater (wired bridge
 port). "Known" devices are the router's static DHCP hosts (the named ones).
 
 1. Phone presence. Each phone in PHONES (by its router host name, or by MAC
-   when it has no static host there) becomes
-   device_tracker.<name> via MQTT discovery (retained): state "home"/"not_home",
-   attribute "since" = when that state really started (arrival time, or the
-   last time the phone was seen before it left). A phone counts as gone only
-   after AWAY_AFTER without being seen, so short Wi-Fi sleeps don't flap. The
-   automation "Phone back on the network" uses "since" for its 10 h / 6 h
-   rule. If a router can't be reached, its phones keep their last state.
+   when it has no static host there) becomes device_tracker.<name> via MQTT
+   discovery (retained): state "home"/"not_home", attribute "since" = when
+   that state really started (arrival time, or the last time the phone was
+   seen before it left). A phone counts as gone only after AWAY_AFTER without
+   being seen, so short Wi-Fi sleeps don't flap. The automation "Phone back
+   on the network" uses "since" for its 10 h rule (realme-6: 5 daytime
+   hours). If a router can't be reached, its phones keep their last state.
 
 2. New devices. An active MAC that is not a static host on its router, not a
-   tracked phone, not an ignored vendor and has never been seen before triggers script.notify_new_device in HA (Telegram to Yurii)
-   once, with its IP/hostname from the DHCP lease, vendor (IEEE OUI list) and
-   how it is connected. The alert waits up to NEW_DEVICE_WAIT for the DHCP
-   lease so the IP is usually there. Every MAC ever seen is kept in
-   state.json, so each device is reported only once. The first run on a router
-   only records what is already there (seeded_routers), without alerts.
+   tracked phone, not an ignored vendor and has never been seen before
+   triggers script.notify_new_device in HA (Telegram to Yurii) once, with its
+   IP/hostname from the DHCP lease, vendor (IEEE OUI list) and how it is
+   connected. The alert waits up to NEW_DEVICE_WAIT for the DHCP lease so the
+   IP is usually there. Every MAC ever seen is kept in state.json, so each
+   device is reported only once. The first run on a router only records what
+   is already there (seeded_routers), without alerts.
 
 State between runs: presence/state.json. stdlib + mosquitto_pub only.
 """
@@ -220,9 +221,6 @@ def main():
         state = {}
 
     track_phones(state, now, snapshots)
-    # openwrtn was seeded before seeded_routers existed.
-    if "seen_macs" in state and "seeded_routers" not in state:
-        state["seeded_routers"] = ["openwrtn"]
     try:
         for router in NEW_DEVICE_IGNORE_VENDORS:
             if router in snapshots:
