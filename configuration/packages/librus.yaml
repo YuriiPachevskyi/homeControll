@@ -177,7 +177,8 @@ automation:
       re-announce nothing). Grades - one Telegram message. Letters - one
       message each with the full text, then its attachments as documents
       (saved under /config/librus/attachments by the patch). To Yurii and
-      Kateryna only (not notify_all - that one also goes to Nataliya).
+      Kateryna; grades also to the daughter, letters not (not notify_all - that one
+      also goes to Nataliya).
     triggers:
       - trigger: event
         event_type: librus_news
@@ -201,6 +202,7 @@ automation:
               entity_id:
                 - notify.yurii_p
                 - notify.kateryna
+                - notify.daughter
             data:
               title: Librus
               parse_mode: plain_text
@@ -428,7 +430,8 @@ automation:
     alias: "Гуртки - reminder 30 min before (Telegram)"
     description: Activities outside Librus (music etc.) that Yurii/Kateryna add
       to the HA Local Calendar "Гуртки" (shown on the Librus dashboard's
-      Calendar tab) - remind both on Telegram 30 minutes before each one. The
+      Calendar tab) - remind Yurii, Kateryna and the daughter on Telegram 30 minutes before
+      each one. The
       school is in Poland, so the start time is given in Polish time (Kyiv
       minus 1 h all year).
     triggers:
@@ -447,6 +450,7 @@ automation:
           entity_id:
             - notify.yurii_p
             - notify.kateryna
+            - notify.daughter
         data:
           title: Гуртки
           parse_mode: plain_text
