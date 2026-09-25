@@ -1,0 +1,107 @@
+# LAN alerts, Telegram to Yurii only. Fed by presence/lan_watch.py (cron,
+# every minute), which watches the openwrtn (home) and openwrtk routers.
+#
+# Phone back: a tracked phone shows up after being away for more than 10 hours
+# (realme-6 on openwrtk: 5 hours, see away_hours below).
+# The trackers come from lan_watch.py via MQTT discovery; their "since"
+# attribute is when the phone was last seen before it left, so the threshold
+# survives HA restarts. One message per return: it fires only on the
+# not_home -> home transition.
+#
+# New device (both routers): lan_watch.py calls script.notify_new_device once
+# for every MAC that is not a static DHCP host on its router, not a tracked
+# phone and was never seen before (TCL devices on openwrtk are ignored).
+script:
+  notify_new_device:
+    alias: Notify new LAN device
+    description: Telegram to Yurii about an unknown device on the home LAN (called by presence/lan_watch.py).
+    fields:
+      hostname:
+        description: DHCP hostname or "—"
+      ip:
+        description: IP address or "—"
+      mac:
+        description: MAC address
+      vendor:
+        description: Vendor from the IEEE OUI list
+      link:
+        description: How it is connected (Wi-Fi band, or wire/repeater)
+      router:
+        description: Router that saw it (openwrtn or openwrtk)
+    mode: queued
+    sequence:
+      - variables:
+          title: Пристрій
+          message: |-
+            🆕 Новий пристрій у мережі
+            Ім'я: {{ hostname }}
+            IP: {{ ip }}
+            MAC: {{ mac }}
+            Виробник: {{ vendor }}
+            Підключення: {{ link }}
+            Роутер: {{ router | default('—') }}
+      - action: telegram_bot.send_message
+        continue_on_error: true
+        target:
+          entity_id: notify.yurii_p
+        data:
+          title: "{{ title }}"
+          message: "{{ message }}"
+        response_variable: send_result
+      - action: script.notify_log_record
+        data:
+          title: "{{ title }}"
+          message: "{{ message }}"
+          chats: "{{ send_result.chats | default([]) if send_result is defined else [] }}"
+
+automation:
+  - id: phone_back_on_network
+    alias: Phone back on the network
+    description: Notifies Yurii when HUAWEIP30 or POCO-M5s joins the home LAN after 10+ hours away, or realme-6 joins openwrtk after 5+ hours.
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id:
+          - device_tracker.huaweip30
+          - device_tracker.poco_m5s
+          - device_tracker.realme_6
+        from: not_home
+        to: home
+    conditions:
+      - condition: template
+        # realme-6 drops Wi-Fi while its owner sleeps, so for it 23:00-08:00
+        # does not count as away time (counted in 10-minute steps).
+        value_template: >-
+          {% set away_hours = {'device_tracker.realme_6': 5}.get(trigger.entity_id, 10) %}
+          {% set skip_night = trigger.entity_id in ['device_tracker.realme_6'] %}
+          {% set since = trigger.from_state.attributes.since | default(none) %}
+          {% if since is none %}
+            false
+          {% elif not skip_night %}
+            {{ now() - as_datetime(since) > timedelta(hours=away_hours) }}
+          {% else %}
+            {% set start = as_local(as_datetime(since)) %}
+            {% set ns = namespace(minutes=0) %}
+            {% for i in range(((now() - start).total_seconds() // 600) | int) %}
+              {% set hour = (start + timedelta(minutes=10 * i)).hour %}
+              {% if 8 <= hour < 23 %}{% set ns.minutes = ns.minutes + 10 %}{% endif %}
+            {% endfor %}
+            {{ ns.minutes > away_hours * 60 }}
+          {% endif %}
+    actions:
+      - variables:
+          title: Телефон
+          message: "📱 {{ trigger.to_state.name }} з'явився в мережі"
+      - action: telegram_bot.send_message
+        continue_on_error: true
+        target:
+          entity_id: notify.yurii_p
+        data:
+          title: "{{ title }}"
+          message: "{{ message }}"
+        response_variable: send_result
+      - action: script.notify_log_record
+        data:
+          title: "{{ title }}"
+          message: "{{ message }}"
+          chats: "{{ send_result.chats | default([]) if send_result is defined else [] }}"
