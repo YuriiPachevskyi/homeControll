@@ -6,18 +6,16 @@ now: associated Wi-Fi stations on both radios plus the br-lan forwarding
 table, which also covers devices behind the MiWiFi repeater (wired bridge
 port). "Known" devices are the router's static DHCP hosts (the named ones).
 
-1. Phone presence. Each phone in PHONES (by its router host name, or by MAC
-   when it has no static host there) becomes device_tracker.<name> via MQTT
-   discovery (retained): state "home"/"not_home", attribute "since" = when
-   that state really started (arrival time, or the last time the phone was
-   seen before it left). A phone counts as gone only after AWAY_AFTER without
+1. Phone presence. Each phone in PHONES (by its router's static host name)
+   becomes device_tracker.<name> via MQTT discovery (retained): state
+   "home"/"not_home", attribute "since" = when that state really started
+   (arrival time, or the last time the phone was seen before it left). A phone counts as gone only after AWAY_AFTER without
    being seen, so short Wi-Fi sleeps don't flap. The automation "Phone back
    on the network" uses "since" for its 10 h rule (realme-6: 5 daytime
    hours). If a router can't be reached, its phones keep their last state.
 
-2. New devices. An active MAC that is not a static host on its router, not a
-   tracked phone, not an ignored vendor and has never been seen before
-   triggers script.notify_new_device in HA (Telegram to Yurii) once, with its
+2. New devices. An active MAC that is not a static host on its router, not
+   an ignored vendor and has never been seen before triggers script.notify_new_device in HA (Telegram to Yurii) once, with its
    IP/hostname from the DHCP lease, vendor (IEEE OUI list) and how it is
    connected. The alert waits up to NEW_DEVICE_WAIT for the DHCP lease so the
    IP is usually there. Every MAC ever seen is kept in state.json, so each
@@ -33,11 +31,11 @@ import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# (router, name, MAC or None to look the MAC up by the router's static host name)
+# (router, static DHCP host name on that router)
 PHONES = [
-    ("openwrtn", "HUAWEIP30", None),
-    ("openwrtn", "POCO-M5s", None),
-    ("openwrtk", "realme-6", "b6:8b:99:14:34:22"),
+    ("openwrtn", "HUAWEIP30"),
+    ("openwrtn", "POCO-M5s"),
+    ("openwrtk", "realme-6"),
 ]
 ROUTERS = ["openwrtn", "openwrtk"]
 # Vendors never reported as new, per router (substring of the IEEE OUI name).
@@ -132,11 +130,11 @@ def ha_script(name, data):
 
 def track_phones(state, now, snapshots):
     phones = state.setdefault("phones", {})
-    for router, name, mac in PHONES:
+    for router, name in PHONES:
         if router not in snapshots:
             continue
         known, _, links = snapshots[router]
-        mac = mac or {n: m for m, n in known.items()}.get(name)
+        mac = {n: m for m, n in known.items()}.get(name)
         if not mac:
             print(f"{now:%F %T} {name}: no static DHCP host with this name on {router}")
             continue
@@ -174,10 +172,9 @@ def watch_new_devices(state, now, router, known, leases, links):
     first_run = router not in seeded
     seen = state.setdefault("seen_macs", {})
     pending = state.setdefault("pending_new", {}).setdefault(router, {})
-    phone_macs = {mac for _, _, mac in PHONES if mac}
     ignore_vendors = NEW_DEVICE_IGNORE_VENDORS.get(router, [])
     for mac in links:
-        if mac in known or mac in seen or mac in phone_macs:
+        if mac in known or mac in seen:
             continue
         if any(v.lower() in vendor(mac).lower() for v in ignore_vendors):
             continue

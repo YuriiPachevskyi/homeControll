@@ -9,8 +9,8 @@
 # not_home -> home transition.
 #
 # New device (both routers): lan_watch.py calls script.notify_new_device once
-# for every MAC that is not a static DHCP host on its router, not a tracked
-# phone and was never seen before (TCL devices on openwrtk are ignored).
+# for every MAC that is not a static DHCP host on its router and was never
+# seen before (TCL devices on openwrtk are ignored).
 script:
   notify_new_device:
     alias: Notify new LAN device
