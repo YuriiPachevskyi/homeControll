@@ -207,6 +207,8 @@ automation:
 
 
                   {{ repeat.item.content }}
+                inline_keyboard:
+                  - "🇺🇦 Переклад:/librus_translate"
             - repeat:
                 for_each: "{{ repeat.item.files }}"
                 sequence:
@@ -218,6 +220,81 @@ automation:
                         - notify.kateryna
                     data:
                       file: "{{ repeat.item }}"
+    mode: queued
+
+  - id: librus_translate_button
+    alias: "Librus - translate a letter on tap (Telegram)"
+    description: >-
+      A tap on "🇺🇦 Переклад" under a letter (callback "/librus_translate")
+      translates the letter (the lines after "Новий лист") from Polish to
+      Ukrainian via rest_command.librus_translate and appends it to the same
+      Telegram message; the edit drops the button. If Polish + Ukrainian don't
+      fit Telegram's 4096-char limit, the translation comes as a reply
+      instead. Only the tapped letter is sent to the translator.
+    triggers:
+      - trigger: event
+        event_type: telegram_callback
+        event_data:
+          command: /librus_translate
+    actions:
+      - action: telegram_bot.answer_callback_query
+        continue_on_error: true
+        data:
+          callback_query_id: "{{ trigger.event.data.id }}"
+          message: "Перекладаю…"
+      - variables:
+          original: "{{ trigger.event.data.message.text | default('') }}"
+          body: >-
+            {%- set lines = original.split('\n') -%}
+            {%- set ns = namespace(start=0) -%}
+            {%- for l in lines -%}{%- if ns.start == 0 and 'Новий лист' in l -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
+            {{ lines[ns.start:] | join('\n') | trim }}
+      - action: rest_command.librus_translate
+        continue_on_error: true
+        response_variable: tr
+        data:
+          text: "{{ body }}"
+      - variables:
+          translation: >-
+            {%- set c = tr.content if tr is defined and tr.status == 200 else none -%}
+            {{ (c[0] if c is not string and c is not none else '') | trim }}
+      - choose:
+          - conditions: "{{ translation == '' }}"
+            sequence:
+              - action: telegram_bot.send_message
+                continue_on_error: true
+                data:
+                  chat_id: "{{ trigger.event.data.chat_id }}"
+                  reply_to_message_id: "{{ trigger.event.data.message.message_id }}"
+                  parse_mode: plain_text
+                  message: "⚠️ Не вдалося перекласти, спробуй ще раз пізніше"
+          - conditions: "{{ (original | length) + (translation | length) + 20 <= 4096 }}"
+            sequence:
+              - action: telegram_bot.edit_message
+                data:
+                  chat_id: "{{ trigger.event.data.chat_id }}"
+                  message_id: "{{ trigger.event.data.message.message_id }}"
+                  parse_mode: plain_text
+                  message: |-
+                    {{ original }}
+
+                    🇺🇦 Переклад:
+                    {{ translation }}
+        default:
+          - action: telegram_bot.edit_replymarkup
+            continue_on_error: true
+            data:
+              chat_id: "{{ trigger.event.data.chat_id }}"
+              message_id: "{{ trigger.event.data.message.message_id }}"
+              inline_keyboard: []
+          - action: telegram_bot.send_message
+            data:
+              chat_id: "{{ trigger.event.data.chat_id }}"
+              reply_to_message_id: "{{ trigger.event.data.message.message_id }}"
+              parse_mode: plain_text
+              message: |-
+                🇺🇦 Переклад:
+                {{ translation[:4000] }}
     mode: queued
 
   - id: librus_update_available_notify
@@ -275,17 +352,17 @@ automation:
     mode: single
 
   - id: gurtki_reminder_notify
-    alias: "Гуртки - reminder 1 h before (Telegram)"
+    alias: "Гуртки - reminder 30 min before (Telegram)"
     description: Activities outside Librus (music etc.) that Yurii/Kateryna add
       to the HA Local Calendar "Гуртки" (shown on the Librus dashboard's
-      Calendar tab) - remind both on Telegram an hour before each one. The
+      Calendar tab) - remind both on Telegram 30 minutes before each one. The
       school is in Poland, so the start time is given in Polish time (Kyiv
       minus 1 h all year).
     triggers:
       - trigger: calendar
         entity_id: calendar.gurtki
         event: start
-        offset: "-1:00:00"
+        offset: "-0:30:00"
     actions:
       - action: telegram_bot.send_message
         continue_on_error: true
@@ -297,9 +374,20 @@ automation:
           title: Гуртки
           parse_mode: plain_text
           message: |-
-            🕐 {{ now().strftime('%H:%M') }} 🎵 Через годину: {{ trigger.calendar_event.summary }}
+            🕐 {{ now().strftime('%H:%M') }} 🎵 Через 30 хвилин: {{ trigger.calendar_event.summary }}
             Початок о {{ (as_timestamp(trigger.calendar_event.start) - 3600) | timestamp_custom('%H:%M') }} за Польщею{{ (' · ' ~ trigger.calendar_event.location) if trigger.calendar_event.location else '' }}
     mode: queued
+
+# Polish -> Ukrainian for the "Переклад" button (librus_translate_button).
+# Google's Chrome-extension endpoint: no key; the plain translate.googleapis
+# "gtx" one answers this IP with 429. Response: ["<translation>"].
+rest_command:
+  librus_translate:
+    url: "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=pl&tl=uk"
+    method: post
+    content_type: application/x-www-form-urlencoded
+    payload: "q={{ text | urlencode }}"
+    timeout: 30
 
 input_select:
   librus_route:
