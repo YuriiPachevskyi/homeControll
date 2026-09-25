@@ -55,6 +55,8 @@ BASE = Path(__file__).parent
 CONFIG = BASE.parent.parent  # .../configuration
 PAYMENTS = BASE / "payments.json"
 SENT = BASE / "sent.json"
+sys.path.insert(0, str(CONFIG / "notify"))
+import notify_log  # noqa: E402  (dashboard "Сповіщення" log)
 TODO_ADDED = BASE / "todo_added.json"
 OBJECTS_YAML = BASE / "objects.yaml"
 
@@ -114,7 +116,8 @@ def bot_url() -> str:
     return f"https://api.telegram.org/bot{token}"
 
 
-def send_pdf_to(path: Path, caption: str, chat: str) -> bool:
+def send_pdf_to(path: Path, caption: str, chat: str) -> int | None:
+    """Return the Telegram message_id on success, None on failure."""
     for cap, mode in ((caption, "Markdown"), (caption.replace("*", ""), None)):
         cmd = ["curl", "-s", "-m", "60", "-F", f"chat_id={chat}", "-F", f"caption={cap}",
                "-F", f"document=@{path}", f"{bot_url()}/sendDocument"]
@@ -122,28 +125,40 @@ def send_pdf_to(path: Path, caption: str, chat: str) -> bool:
             cmd[-1:-1] = ["-F", f"parse_mode={mode}"]
         r = subprocess.run(cmd, capture_output=True, text=True)
         try:
-            if json.loads(r.stdout).get("ok", False):
-                return True
+            resp = json.loads(r.stdout)
+            if resp.get("ok", False):
+                return resp["result"]["message_id"]
         except json.JSONDecodeError:
             pass
-    return False
+    return None
 
 
-def deliver(key: str, send_one, sent: set) -> int:
+def log_notification(title: str, message: str, chats: list) -> None:
+    """Add a row to the dashboard's "Сповіщення" log (delete button there)."""
+    notify_log.add(title, message, chats)
+    refresh_ha_sensor("sensor.telegram_notify_log")
+
+
+def deliver(key: str, send_one, sent: set, title: str, message: str) -> int:
     if key in sent:
         return 0
     failed = 0
+    chats = []
     for chat in CHAT_IDS:
         tag = f"{key}@{chat}"
         if tag in sent:
             continue
-        if send_one(chat):
+        message_id = send_one(chat)
+        if message_id:
             sent.add(tag)
+            chats.append({"chat_id": int(chat), "message_id": message_id})
         else:
             failed += 1
     if not failed:
         sent.add(key)
     SENT.write_text(json.dumps(sorted(sent), indent=1))
+    if chats:
+        log_notification(title, message, chats)
     return failed
 
 
@@ -173,12 +188,12 @@ def get_ha_token() -> str:
     raise FileNotFoundError("no .ha_token found (checked $HOME and CONFIG)")
 
 
-def refresh_ha_sensor() -> None:
+def refresh_ha_sensor(entity_id: str = "sensor.oselya_payments") -> None:
     try:
         token = get_ha_token()
         req = urllib.request.Request(
             "http://localhost:8123/api/services/homeassistant/update_entity",
-            data=json.dumps({"entity_id": "sensor.oselya_payments"}).encode(),
+            data=json.dumps({"entity_id": entity_id}).encode(),
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
         urllib.request.urlopen(req, timeout=20)
     except Exception as e:
@@ -365,7 +380,8 @@ def notify_new_receipts(objects_cfg: dict, payments: dict, sent: set) -> int:
                 continue
             msg_key = f"receipt:{bill_full_key}:{row['period']}"
             caption = caption_for(bill["label"], row)
-            n = deliver(msg_key, lambda chat, p=pdf, c=caption: send_pdf_to(p, c, chat), sent)
+            n = deliver(msg_key, lambda chat, p=pdf, c=caption: send_pdf_to(p, c, chat), sent,
+                        "Платежі", caption.replace("*", ""))
             if n:
                 failed += n
                 print(f"send FAILED for {msg_key} to {n} chat(s), will retry")

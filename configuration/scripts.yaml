@@ -409,15 +409,40 @@ notify_all:
       title: '{{ title }}'
       message: '{{ message }}'
     response_variable: send_result
+  - action: script.notify_log_record
+    data:
+      title: '{{ title }}'
+      message: '{{ message }}'
+      chats: '{{ send_result.chats | default([]) if send_result is defined else [] }}'
+notify_log_record:
+  alias: Log a sent Telegram notification
+  description: Adds a sent notification to notify/notify_log.json so it shows on
+    the "Сповіщення" dashboard tab and can be deleted for everyone. Call it right
+    after any telegram_bot.send_* that bypasses script.notify_all, passing the
+    `chats` list from its response_variable (for several messages that belong
+    together, e.g. a letter and its attachments, pass all of their chats in one
+    list - one row, one delete). Does nothing for an empty list.
+  fields:
+    title:
+      description: Notification title
+      example: Librus
+    message:
+      description: Notification text, as shown in the log
+      example: New grade
+    chats:
+      description: '[{chat_id, message_id}, ...] from the send response'
+      example: '[{"chat_id": 612533502, "message_id": 123}]'
+  mode: queued
+  max: 50
+  sequence:
   - if:
     - condition: template
-      value_template: "{{ send_result is defined and (send_result.chats | default([]))
-        | count > 0 }}"
+      value_template: '{{ chats is defined and chats | count > 0 }}'
     then:
     - action: shell_command.notify_log_append
       data:
         payload_b64: "{{ ({'ts': now().strftime('%Y-%m-%d %H:%M:%S'), 'title': title,
-          'message': message, 'chats': send_result.chats} | tojson) | base64_encode }}"
+          'message': message, 'chats': chats} | tojson) | base64_encode }}"
     - action: homeassistant.update_entity
       target:
         entity_id: sensor.telegram_notify_log

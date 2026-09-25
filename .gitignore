@@ -28,6 +28,7 @@ configuration/statistics/oselya/sync.log
 configuration/statistics/oselya/vendor/
 configuration/.ha_token
 configuration/notify/notify_log.json
+configuration/notify/.notify_log.lock
 configuration/statistics/diagram/
 configuration/.cache/brands/integrations/documents/
 configuration/librus/attachments/

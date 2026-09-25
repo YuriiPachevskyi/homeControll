@@ -87,6 +87,14 @@ automation:
     actions:
       - variables:
           route: "{{ trigger.event.data.route }}"
+          msg: |-
+            {% if route == 'direct' -%}
+            🕐 {{ now().strftime('%H:%M') }} ✅ Librus знову доступний з України
+            Маршрут: напряму з rpi4
+            {%- else -%}
+            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus недоступний з України
+            Маршрут: через rpi5 (Польща)
+            {%- endif %}
       - action: input_select.select_option
         target:
           entity_id: input_select.librus_route
@@ -100,14 +108,13 @@ automation:
             - notify.kateryna
         data:
           title: Librus
-          message: |-
-            {% if route == 'direct' -%}
-            🕐 {{ now().strftime('%H:%M') }} ✅ Librus знову доступний з України
-            Маршрут: напряму з rpi4
-            {%- else -%}
-            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus недоступний з України
-            Маршрут: через rpi5 (Польща)
-            {%- endif %}
+          message: "{{ msg }}"
+        response_variable: sent
+      - action: script.notify_log_record
+        data:
+          title: Librus
+          message: "{{ msg }}"
+          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
     mode: queued
 
   - id: librus_refreshed_mark
@@ -139,6 +146,11 @@ automation:
         value_template: >-
           {{ now().timestamp() - (state_attr('input_datetime.librus_last_refresh', 'timestamp') or 0) > 30 * 3600 }}
     actions:
+      - variables:
+          msg: |-
+            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus не оновлюється!!!
+            Останнє оновлення: {{ as_datetime(state_attr('input_datetime.librus_last_refresh', 'timestamp')) | as_local
+            | as_timestamp | timestamp_custom('%d.%m %H:%M') if state_attr('input_datetime.librus_last_refresh', 'timestamp') else 'невідомо' }}
       - action: telegram_bot.send_message
         continue_on_error: true
         target:
@@ -147,10 +159,13 @@ automation:
             - notify.kateryna
         data:
           title: Librus
-          message: |-
-            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus не оновлюється!!!
-            Останнє оновлення: {{ as_datetime(state_attr('input_datetime.librus_last_refresh', 'timestamp')) | as_local
-            | as_timestamp | timestamp_custom('%d.%m %H:%M') if state_attr('input_datetime.librus_last_refresh', 'timestamp') else 'невідомо' }}
+          message: "{{ msg }}"
+        response_variable: sent
+      - action: script.notify_log_record
+        data:
+          title: Librus
+          message: "{{ msg }}"
+          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
     mode: single
 
   - id: librus_news_notify
@@ -174,6 +189,12 @@ automation:
           - condition: template
             value_template: "{{ grades | count > 0 }}"
         then:
+          - variables:
+              msg: |-
+                🕐 {{ now().strftime('%H:%M') }} ⭐ {{ 'Нова оцінка' if grades | count == 1 else 'Нові оцінки (' ~ grades | count ~ ')' }}!!!
+                {%- for g in grades %}
+                {{ g.subject }}: {{ g.value }}
+                {%- endfor %}
           - action: telegram_bot.send_message
             continue_on_error: true
             target:
@@ -183,15 +204,26 @@ automation:
             data:
               title: Librus
               parse_mode: plain_text
-              message: |-
-                🕐 {{ now().strftime('%H:%M') }} ⭐ {{ 'Нова оцінка' if grades | count == 1 else 'Нові оцінки (' ~ grades | count ~ ')' }}!!!
-                {%- for g in grades %}
-                {{ g.subject }}: {{ g.value }}
-                {%- endfor %}
-      # one Telegram message per letter (full text), then its attachments
+              message: "{{ msg }}"
+            response_variable: sent
+          - action: script.notify_log_record
+            data:
+              title: Librus
+              message: "{{ msg }}"
+              chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
+      # one Telegram message per letter (full text), then its attachments;
+      # the letter and its attachments share one "Сповіщення" log row, so one
+      # delete removes them all (letter_chats is updated from the inner repeat)
       - repeat:
           for_each: "{{ messages }}"
           sequence:
+            - variables:
+                headline: |-
+                  🕐 {{ now().strftime('%H:%M') }} ✉️ Новий лист!!!
+                  {{ repeat.item.sender }}: {{ repeat.item.topic }}{{ (' 📎 ' ~ repeat.item.files | count) if repeat.item.files else '' }}
+                # a failed send leaves response_variable untouched - reset it
+                # so the previous letter's message ids are never logged again
+                sent: {}
             - action: telegram_bot.send_message
               continue_on_error: true
               target:
@@ -202,16 +234,20 @@ automation:
                 title: Librus
                 parse_mode: plain_text
                 message: |-
-                  🕐 {{ now().strftime('%H:%M') }} ✉️ Новий лист!!!
-                  {{ repeat.item.sender }}: {{ repeat.item.topic }}{{ (' 📎 ' ~ repeat.item.files | count) if repeat.item.files else '' }}
+                  {{ headline }}
 
 
                   {{ repeat.item.content }}
                 inline_keyboard:
                   - "🇺🇦 Переклад:/librus_translate"
+              response_variable: sent
+            - variables:
+                letter_chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
             - repeat:
                 for_each: "{{ repeat.item.files }}"
                 sequence:
+                  - variables:
+                      doc_sent: {}
                   - action: telegram_bot.send_document
                     continue_on_error: true
                     target:
@@ -220,6 +256,14 @@ automation:
                         - notify.kateryna
                     data:
                       file: "{{ repeat.item }}"
+                    response_variable: doc_sent
+                  - variables:
+                      letter_chats: "{{ letter_chats + (doc_sent.chats | default([]) if doc_sent is defined else []) }}"
+            - action: script.notify_log_record
+              data:
+                title: Librus
+                message: "{{ headline }}"
+                chats: "{{ letter_chats }}"
     mode: queued
 
   - id: librus_translate_button
@@ -310,6 +354,10 @@ automation:
         from: "off"
         to: "on"
     actions:
+      - variables:
+          msg: |-
+            🕐 {{ now().strftime('%H:%M') }} 🆕 Оновлення {{ state_attr(trigger.entity_id, 'friendly_name') | regex_replace(' [Uu]pdate$', '') }}: {{ state_attr(trigger.entity_id, 'installed_version') }} → {{ state_attr(trigger.entity_id, 'latest_version') }}
+            Після встановлення: apply_local_patches.py + перезапуск HA
       - action: telegram_bot.send_message
         continue_on_error: true
         target:
@@ -317,9 +365,13 @@ automation:
         data:
           title: Librus
           parse_mode: plain_text
-          message: |-
-            🕐 {{ now().strftime('%H:%M') }} 🆕 Оновлення {{ state_attr(trigger.entity_id, 'friendly_name') | regex_replace(' [Uu]pdate$', '') }}: {{ state_attr(trigger.entity_id, 'installed_version') }} → {{ state_attr(trigger.entity_id, 'latest_version') }}
-            Після встановлення: apply_local_patches.py + перезапуск HA
+          message: "{{ msg }}"
+        response_variable: sent
+      - action: script.notify_log_record
+        data:
+          title: Librus
+          message: "{{ msg }}"
+          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
     mode: queued
 
   - id: librus_local_patches_missing_notify
@@ -339,6 +391,10 @@ automation:
         value_template: >-
           {{ trigger.to_state.state not in ['ok', 'unknown', 'unavailable'] }}
     actions:
+      - variables:
+          msg: |-
+            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus без наших правок: {{ trigger.to_state.state }}
+            Запусти apply_local_patches.py і перезапусти HA
       - action: telegram_bot.send_message
         continue_on_error: true
         target:
@@ -346,9 +402,13 @@ automation:
         data:
           title: Librus
           parse_mode: plain_text
-          message: |-
-            🕐 {{ now().strftime('%H:%M') }} ⚠️ Librus без наших правок: {{ trigger.to_state.state }}
-            Запусти apply_local_patches.py і перезапусти HA
+          message: "{{ msg }}"
+        response_variable: sent
+      - action: script.notify_log_record
+        data:
+          title: Librus
+          message: "{{ msg }}"
+          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
     mode: single
 
   - id: gurtki_reminder_notify
@@ -364,6 +424,10 @@ automation:
         event: start
         offset: "-0:30:00"
     actions:
+      - variables:
+          msg: |-
+            🕐 {{ now().strftime('%H:%M') }} 🎵 Через 30 хвилин: {{ trigger.calendar_event.summary }}
+            Початок о {{ (as_timestamp(trigger.calendar_event.start) - 3600) | timestamp_custom('%H:%M') }} за Польщею{{ (' · ' ~ trigger.calendar_event.location) if trigger.calendar_event.location else '' }}
       - action: telegram_bot.send_message
         continue_on_error: true
         target:
@@ -373,9 +437,13 @@ automation:
         data:
           title: Гуртки
           parse_mode: plain_text
-          message: |-
-            🕐 {{ now().strftime('%H:%M') }} 🎵 Через 30 хвилин: {{ trigger.calendar_event.summary }}
-            Початок о {{ (as_timestamp(trigger.calendar_event.start) - 3600) | timestamp_custom('%H:%M') }} за Польщею{{ (' · ' ~ trigger.calendar_event.location) if trigger.calendar_event.location else '' }}
+          message: "{{ msg }}"
+        response_variable: sent
+      - action: script.notify_log_record
+        data:
+          title: Гуртки
+          message: "{{ msg }}"
+          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
     mode: queued
 
 # Polish -> Ukrainian for the "Переклад" button (librus_translate_button).

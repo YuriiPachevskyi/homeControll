@@ -7,6 +7,7 @@ import email
 import re
 from datetime import datetime
 from email.header import decode_header, make_header
+from pathlib import Path
 
 import fetch_acts
 
@@ -15,6 +16,20 @@ WINDOW = re.compile(
     r"з (\d\d)-(\d\d)-(\d{4}) (\d\d:\d\d) по (\d\d)-(\d\d)-(\d{4}) (\d\d:\d\d)"
 )
 ADDRESS = re.compile(r"за адресою:\s*(.+?),\s*особовий рахунок")
+# Only notices for the addresses in this host-only file (one per line, e.g.
+# "Назва 10", matched against "вул. <street> <house>") are forwarded; the
+# mailbox also gets notices for other accounts of the same owner. The repo is
+# public, so the address stays out of it. No file = forward everything; a
+# notice without a parseable address is still forwarded, so a format change
+# never hides an outage.
+WATCH_FILE = Path.home() / ".esvitlo_watch"
+
+
+def watched() -> list[str]:
+    try:
+        return [l.strip() for l in WATCH_FILE.read_text().splitlines() if l.strip()]
+    except FileNotFoundError:
+        return []
 
 
 def body_text(msg) -> str:
@@ -57,12 +72,17 @@ def new_notices(sent: set[str], since_days: int = 45) -> list[tuple[str, str]]:
     since = (date.today() - timedelta(days=since_days)).strftime("%d-%b-%Y")
     _, data = imap.search(None, "FROM", f'"{SENDER}"', "SINCE", since)
     out = []
+    watch = watched()
     for num in data[0].split():
         _, md = imap.fetch(num, "(RFC822)")
         msg = email.message_from_bytes(md[0][1])
         key = "esvitlo:" + str(make_header(decode_header(msg.get("Message-ID", num.decode()))))
         if key in sent:
             continue
-        out.append((key, format_notice(body_text(msg))))
+        text = body_text(msg)
+        addr = street(text)
+        if addr and watch and not any(w in addr for w in watch):
+            continue
+        out.append((key, format_notice(text)))
     imap.logout()
     return out

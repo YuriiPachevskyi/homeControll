@@ -69,14 +69,20 @@ def _keyboard(item: dict) -> dict:
 
 def _send(item: dict, state: dict) -> None:
     entry = state.setdefault(item["uid"], {"summary": item["summary"], "messages": []})
+    chats = []
     for chat in REMIND_CHAT_IDS:
         r = _bot("sendMessage", chat_id=chat, text=_text(item), parse_mode="HTML",
                  reply_markup=_keyboard(item))
         if r.get("ok"):
             entry["messages"].append([chat, r["result"]["message_id"]])
+            chats.append({"chat_id": int(chat), "message_id": r["result"]["message_id"]})
             print(f"reminded {chat}: {item['summary']}")
         else:
             print(f"reminder to {chat} FAILED for {item['summary']}: {r.get('description')}")
+    if chats:
+        # A later "paid" edit of a message deleted from the dashboard just fails
+        # with "message to edit not found" in _close_completed - harmless.
+        sync.log_notification("Платежі", f"🧾 До оплати: {item['summary']}", chats)
 
 
 def _close_completed(items: list[dict], state: dict) -> None:
