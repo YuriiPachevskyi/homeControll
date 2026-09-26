@@ -17,7 +17,7 @@ three of them, the matching ₴ amount under it in small type: Сонце -
 potential (the station's income at the green tariff), Експорт - net income
 (what the meter's saldo really paid), Будинок - house_cost (the house's bill:
 import at night / day tariffs + its own solar at the ENERA green tariff, see
-monthly_table.py; the year and total rows add its share in %, desktop only), split into
+monthly_table.py; the year and total rows add its share in %), split into
 those three parts in ₴ (SOURCES) above the ₴ total, deficit months only.
 Month names link to the ENERA act PDF when there is one (signed link from
 sensor.document_links). Always the compact layout (short names, smaller
@@ -119,7 +119,7 @@ def content(phone: bool) -> str:
 
     def row(first: str, var: str, bold: bool) -> str:
         return ("<tr><td>" + first + "</td>"
-                + "".join(f"<td>{cell(k, m, kind, var, bold, bold and not phone)}</td>" for k, m, _, _, _, _, kind in cols)
+                + "".join(f"<td>{cell(k, m, kind, var, bold, bold)}</td>" for k, m, _, _, _, _, kind in cols)
                 + "</tr>")
     names = "<tr><th>Період</th>" + "".join(
         f"<th><ha-icon icon=\"mdi:{icon}\"></ha-icon> {pname if phone else name}"
