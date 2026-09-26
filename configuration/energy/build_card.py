@@ -14,9 +14,11 @@ tables: bold left-aligned headers with a small coloured icon before the name,
 short month labels ("Вер 26"). Columns
 Сонце / Експорт / Імпорт / Бойлер / Будинок; each cell shows kWh and, for
 three of them, the matching ₴ amount under it in small type: Сонце -
-potential (income if the house had used nothing), Експорт - net income,
-Будинок - house_cost (what its consumption cost; the year and total rows add
-its share in %, desktop only).
+potential (the station's income at the green tariff), Експорт - net income
+(what the meter's saldo really paid), Будинок - house_cost (the house's bill:
+import at night / day tariffs + its own solar and its share of the losses at
+the green tariff, see monthly_table.py; the year and total rows add its share in %, desktop only), split into
+those three parts in ₴ (SOURCES) above the ₴ total, deficit months only.
 Month names link to the ENERA act PDF when there is one (signed link from
 sensor.document_links). Always the compact layout (short names, smaller
 type): the Home view is masonry, its columns are ~370px even on desktop.
@@ -49,6 +51,11 @@ COLUMNS = [
 # Бойлер is left out: 5 columns don't fit the ~500px card (and it only has data
 # from Sep 2026 anyway); kept in COLUMNS so it is easy to bring back
 SKIP = {"boiler"}
+# in a deficit month the Будинок cell also splits its ₴ into night import /
+# day import / solar, each in its own colour; <em> because ha-markdown strips
+# class attributes (coloured by position, see css)
+SOURCES = [("cost_night", "weather-night", "#5c6bc0"), ("cost_day", "white-balance-sunny", "#ef6c00"),
+           ("cost_solar", "solar-power-variant", "#f9a825")]
 
 
 def cols_for(phone: bool) -> list:
@@ -60,6 +67,11 @@ def cell(kwh: str, money: str | None, kind: str | None, var: str, bold: bool, wi
     text = f"{{{{ ({v} | round(0) | int) if {v} is not none else '–' }}}}"
     if bold:
         text = f"<b>{text}</b>"
+    if kwh == "house":  # deficit months only: house_cost split by source (monthly_table.py), total under it
+        text += (f"{{% if {var}.cost_night is defined %}}"
+                 + "".join(f"<br><em><ha-icon icon=\"mdi:{icon}\"></ha-icon>{{{{ {var}.{key} }}}} ₴</em>"
+                           for key, icon, _ in SOURCES)
+                 + "{% endif %}")
     if money:
         m = f"{var}.{money}"
         amount = f"{{{{ '%+d' % {m} }}}}" if kind == "net" else f"{{{{ {m} }}}}"
@@ -67,6 +79,47 @@ def cell(kwh: str, money: str | None, kind: str | None, var: str, bold: bool, wi
                  "{% endif %}") if kind == "cost" and with_share else ""
         text += f"<br><small>{amount} ₴{share}</small>"
     return text
+
+
+# gas vs the electric boiler: m³ price, kWh of heat in 1 m³, boiler efficiency;
+# the heat for one full 80 l boiler (15 -> 55 °C)
+GAS_PRICE, GAS_KWH, GAS_EFF, BOILER_KWH = 12, 9.3, 0.9, 3.7
+# plain-language legend under the table, written for someone who is not into
+# energy (the user's mother-in-law); the ₴/kWh is the last full month's
+EXPLAIN = (
+    "{%- set full = rows | selectattr('kind', 'eq', 'month') | rejectattr('label', 'search', '⏳') | list -%}\n"
+    "{%- set m = full | last if full else none -%}\n"
+    "<b>Як читати таблицю</b>\n\n"
+    "☀️ <b>Сонце</b> — скільки електрики зробили наші панелі (кВт·год). "
+    "Сіре число під ним — скільки ця електрика коштує грошима.\n\n"
+    "⬆️ <b>Експорт</b> — скільки віддали в мережу. Зелене число — скільки нам за це "
+    "реально заплатили. Якщо там мінус — це ми доплатили за світло.\n\n"
+    "⬇️ <b>Імпорт</b> — скільки взяли з мережі (вночі й коли не вистачало сонця).\n\n"
+    "🏠 <b>Будинок</b> — скільки електрики спожив будинок. Червоне число — скільки б це "
+    "коштувало, якби будинок купував усю електрику: з мережі за звичайним тарифом "
+    "(вночі 2,16 ₴, вдень 4,32 ₴), а від наших панелей — за ціною, за яку ми її продаємо.\n\n"
+    "Натисніть на рік — побачите його місяці; на назву місяця — акт від ENERA.\n"
+    "{%- if m and m.house > 0 -%}\n"
+    "{%- set el = m.house_cost / m.house -%}\n"
+    f"{{%- set gas = {GAS_PRICE} / ({GAS_KWH} * {GAS_EFF}) -%}}\n"
+    "{%- set mon, yr = m.label.split(' ')[0], m.label.split(' ')[1] -%}\n"
+    "{%- set where = {'Січ': 'січні', 'Лют': 'лютому', 'Бер': 'березні', 'Кві': 'квітні', 'Тра': 'травні',"
+    " 'Чер': 'червні', 'Лип': 'липні', 'Сер': 'серпні', 'Вер': 'вересні', 'Жов': 'жовтні',"
+    " 'Лис': 'листопаді', 'Гру': 'грудні'} %}"
+    "\n\n<b>Гріти воду: газ чи електрика?</b>\n\n"
+    "У {{ where[mon] }} {{ yr }} 1 кВт·год електрики для будинку коштувала "
+    "<b>{{ ('%.2f' % el) | replace('.', ',') }} ₴</b>. Це ціна, за яку цю електрику можна було б продати, "
+    "разом із тим, що губиться в батареях та інверторах.\n\n"
+    f"1 м³ газу коштує {GAS_PRICE} ₴ і дає стільки ж тепла, як ~{f"{GAS_KWH * GAS_EFF:.1f}".replace(".", ",")} кВт·год "
+    "електрики. Тобто тепло від газу — <b>{{ ('%.2f' % gas) | replace('.', ',') }} ₴</b> за ту саму кількість.\n\n"
+    "👉 Газом приблизно <b>в {{ ((el / gas) | round(1) | string) | replace('.', ',') }} раза дешевше</b>.\n\n"
+    "Приклад: нагріти повний бойлер (80 л, з 15 до 55 °C) — "
+    f"електрикою ≈ <b>{{{{ ({BOILER_KWH} * el) | round(0) | int }}}} ₴</b>, "
+    f"газом ≈ <b>{{{{ ({BOILER_KWH} * gas) | round(0) | int }}}} ₴</b>.\n\n"
+    "Але коли сонця дуже багато, батареї повні і продати нікуди (або немає світла) — "
+    "ця електрика нічого не коштує. Тоді система сама вмикає бойлер, і гріти ним вигідно.\n"
+    "{%- endif %}"
+)
 
 
 def content(phone: bool) -> str:
@@ -100,14 +153,14 @@ def content(phone: bool) -> str:
         "{% for t in rows if t.kind == 'total' %}"
         f"<table>{row('<b>Всього</b>', 't', True)}</table>"
         "{% endfor %}\n\n"
-        "<small>клік по «Генерація» — усі місяці · по року — його місяці · посилання на місяці — акти ENERA</small>"
+        + EXPLAIN
     )
 
 
 def css(phone: bool) -> str:
     cols = cols_for(phone)
     n = len(cols)
-    first = 18
+    first = 22 if phone else 18  # phone: room for "Вер 26 ⏳" after the month indent
     other = (100 - first) / n
     colours = "".join(f"ha-icon[icon=\"mdi:{icon}\"] {{ color: {colour}; }}\n"
                       for _, _, icon, colour, *_ in COLUMNS)
@@ -120,6 +173,9 @@ def css(phone: bool) -> str:
         "th { font-weight: normal; vertical-align: bottom; text-align: right !important; }\n"
         "th:first-child { text-align: left !important; }\n"
         "td small { color: var(--secondary-text-color); }\n"
+        "td em { font-style: normal; font-size: smaller; white-space: nowrap; }\n"
+        "td em ha-icon[icon] { --mdc-icon-size: 12px; color: inherit; margin-right: 2px; }\n"
+        + "".join(f"td em:nth-of-type({i + 1}) {{ color: {c}; }}\n" for i, (_, _, c) in enumerate(SOURCES))
         # ha-markdown strips class attributes, so colour the ₴ lines by column
         + "".join(f"td:nth-child({i + 2}) small {{ color: {c}; }}\n"
                   for i, (_, _, _, _, _, _, kind) in enumerate(cols)
