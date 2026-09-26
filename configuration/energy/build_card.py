@@ -48,12 +48,16 @@ COLUMNS = [
     ("boiler", None, "water-boiler", "#e91e63", "Бойлер", "Бойл.", None),
     ("house", "house_cost", "home-lightning-bolt", "#ff9800", "Будинок", "Буд.", "cost"),
 ]
-# Бойлер is left out: 5 columns don't fit the ~500px card (and it only has data
-# from Sep 2026 anyway); kept in COLUMNS so it is easy to bring back
+# columns left out of the table: Бойлер as its own column did not fit the phone,
+# it is shown inside the Будинок cell instead ("143 (46)", see cell())
 SKIP = {"boiler"}
+# relative column widths: kWh-only columns hold short numbers, Будинок carries
+# "12428 ₴ (21%)"
+NARROW = {"imp": 0.75, "house": 1.25}
 # in a deficit month the Будинок cell also splits its ₴ into night import /
 # day import / solar, each in its own colour; <em> because ha-markdown strips
 # class attributes (coloured by position, see css)
+BOILER_COLOUR = "#66bb6a"  # green: the boiler runs on surplus solar
 SOURCES = [("cost_night", "weather-night", "#5c6bc0"), ("cost_day", "white-balance-sunny", "#ef6c00"),
            ("cost_solar", "solar-power-variant", "#f9a825")]
 
@@ -65,6 +69,8 @@ def cols_for(phone: bool) -> list:
 def cell(kwh: str, money: str | None, kind: str | None, var: str, bold: bool, with_share: bool) -> str:
     v = f"{var}.{kwh}"
     text = f"{{{{ ({v} | round(0) | int) if {v} is not none else '–' }}}}"
+    if kwh == "house":  # the boiler's share of it, in its own colour (<i>, see css)
+        text += f"{{% if {var}.boiler is not none %}} <i>({{{{ {var}.boiler | round(0) | int }}}})</i>{{% endif %}}"
     if bold:
         text = f"<b>{text}</b>"
     if kwh == "house":  # deficit months only: house_cost split by source (monthly_table.py), total under it
@@ -88,29 +94,31 @@ GAS_PRICE, GAS_KWH, GAS_EFF, BOILER_KWH = 12, 9.3, 0.9, 3.7
 # boiler cheaper on gas or on electricity; the ₴/kWh is the last full month's
 # ENERA green tariff after tax (what a kWh of our solar sells for). The user
 # cut the column legend that used to precede it.
+# "Вер" -> "Вересень"
+MONTH_NAME = ("{%- set month_name = {'Січ': 'Січень', 'Лют': 'Лютий', 'Бер': 'Березень', 'Кві': 'Квітень',"
+              " 'Тра': 'Травень', 'Чер': 'Червень', 'Лип': 'Липень', 'Сер': 'Серпень', 'Вер': 'Вересень',"
+              " 'Жов': 'Жовтень', 'Лис': 'Листопад', 'Гру': 'Грудень'} %}")
+# the "143 (46)" legend, with the latest month that has boiler data
+BOILER_NOTE = (
+    "{%- set bm = rows | selectattr('kind', 'eq', 'month') | rejectattr('boiler', 'none') | list | last"
+    " if rows | selectattr('kind', 'eq', 'month') | rejectattr('boiler', 'none') | list else none -%}\n"
+    + MONTH_NAME +
+    "{%- if bm %}<p>{{ month_name[bm.label.split(' ')[0]] }}, спожито <b>{{ bm.house | round(0) | int }} kWh</b>, "
+    "з них <b><i>{{ bm.boiler | round(0) | int }} kWh</i></b> — бойлер.</p>\n\n{% endif %}"
+)
 EXPLAIN = (
     "{%- set full = rows | selectattr('kind', 'eq', 'month') | rejectattr('label', 'search', '⏳') | list -%}\n"
     "{%- set m = full | last if full else none -%}\n"
     "{%- if m and m.green -%}\n"
     "{%- set el = m.green -%}\n"
     f"{{%- set gas = {GAS_PRICE} / ({GAS_KWH} * {GAS_EFF}) -%}}\n"
-    "{%- set mon, yr = m.label.split(' ')[0], m.label.split(' ')[1] -%}\n"
-    "{%- set where = {'Січ': 'січні', 'Лют': 'лютому', 'Бер': 'березні', 'Кві': 'квітні', 'Тра': 'травні',"
-    " 'Чер': 'червні', 'Лип': 'липні', 'Сер': 'серпні', 'Вер': 'вересні', 'Жов': 'жовтні',"
-    " 'Лис': 'листопаді', 'Гру': 'грудні'} %}"
-    "\n\n<b>Гріти воду: газ чи електрика?</b>\n\n"
-    "У {{ where[mon] }} {{ yr }} ENERA купувала в нас 1 кВт·год за "
-    "<b>{{ ('%.2f' % el) | replace('.', ',') }} ₴</b> (зелений тариф, уже без податків). "
-    "Стільки коштує кожна кВт·год, яку ми не продали, а витратили на бойлер.\n\n"
-    f"1 м³ газу коштує {GAS_PRICE} ₴ і дає стільки ж тепла, як ~{f"{GAS_KWH * GAS_EFF:.1f}".replace(".", ",")} кВт·год "
-    "електрики. Тобто тепло від газу — <b>{{ ('%.2f' % gas) | replace('.', ',') }} ₴</b> за ту саму кількість.\n\n"
-    "👉 Газом приблизно <b>в {{ ((el / gas) | round(1) | string) | replace('.', ',') }} раза дешевше</b>.\n\n"
-    "Приклад: нагріти повний бойлер (80 л, з 15 до 55 °C) — "
-    f"електрикою ≈ <b>{{{{ ({BOILER_KWH} * el) | round(0) | int }}}} ₴</b>, "
-    f"газом ≈ <b>{{{{ ({BOILER_KWH} * gas) | round(0) | int }}}} ₴</b>.\n\n"
-    "Але коли сонця дуже багато, батареї повні і продати нікуди (або немає світла) — "
-    "ця електрика нічого не коштує. Тоді система сама вмикає бойлер, і гріти ним вигідно.\n"
-    "{%- endif %}"
+    "\nНагріти 80 л води (з 15 до 55 °C):\n"
+    f"- електричним бойлером: {f"{BOILER_KWH:g}".replace(".", ",")} кВт·год × {{{{ ('%.2f' % el) | replace('.', ',') }}}} ₴ ≈ "
+    f"<b>{{{{ ({BOILER_KWH} * el) | round(0) | int }}}} ₴</b>\n"
+    f"- газовим котлом: {{{{ ('%.2f' % ({BOILER_KWH} / ({GAS_KWH} * {GAS_EFF}))) | replace('.', ',') }}}} м³ × {GAS_PRICE} ₴ ≈ "
+    f"<b>{{{{ ({BOILER_KWH} * gas) | round(0) | int }}}} ₴</b>\n"
+    "{%- endif %}\n\n"
+    "<p>Бойлер в автоматичному режимі споживає тільки надлишкову потужність яку не можна продати!</p>"
 )
 
 
@@ -145,26 +153,30 @@ def content(phone: bool) -> str:
         "{% for t in rows if t.kind == 'total' %}"
         f"<table>{row('<b>Всього</b>', 't', True)}</table>"
         "{% endfor %}\n\n"
+        + BOILER_NOTE
         + EXPLAIN
     )
 
 
 def css(phone: bool) -> str:
     cols = cols_for(phone)
-    n = len(cols)
-    first = 22 if phone else 18  # phone: room for "Вер 26 ⏳" after the month indent
-    other = (100 - first) / n
+    first = 17  # just "Вер 26 ⏳" after the month indent
+    weights = [NARROW.get(c[0], 1.0) for c in cols]
+    unit = (100 - first) / sum(weights)
     colours = "".join(f"ha-icon[icon=\"mdi:{icon}\"] {{ color: {colour}; }}\n"
                       for _, _, icon, colour, *_ in COLUMNS)
     return (
         "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\n"
-        f"th, td {{ width: {other:.2f}%; padding: {'2px 2px' if phone else '3px 6px'} !important; text-align: right; }}\n"
+        + "".join(f"th:nth-child({i + 2}), td:nth-child({i + 2}) {{ width: {w * unit:.2f}%; }}\n"
+                  for i, w in enumerate(weights)) +
+        f"th, td {{ padding: {'2px 2px' if phone else '3px 6px'} !important; text-align: right; }}\n"
         f"th:first-child, td:first-child {{ width: {first}%; text-align: left; white-space: nowrap; }}\n"
         "th, td { border: 1px solid var(--divider-color) !important; border-top: none !important; white-space: nowrap; box-sizing: border-box; }\n"
         "th { border-top: 1px solid var(--divider-color) !important; }\n"
         "th { font-weight: normal; vertical-align: bottom; text-align: right !important; }\n"
         "th:first-child { text-align: left !important; }\n"
         "td small { color: var(--secondary-text-color); }\n"
+        f"i {{ font-style: normal; color: {BOILER_COLOUR}; }}\n"
         "td em { font-style: normal; font-size: smaller; white-space: nowrap; }\n"
         "td em ha-icon[icon] { --mdc-icon-size: 12px; color: inherit; margin-right: 2px; }\n"
         + "".join(f"td em:nth-of-type({i + 1}) {{ color: {c}; }}\n" for i, (_, _, c) in enumerate(SOURCES))
@@ -176,7 +188,7 @@ def css(phone: bool) -> str:
         "summary::-webkit-details-marker { display: none; }\n"
         "summary td:first-child::before { content: '▸ '; }\n"
         "details[open] > summary td:first-child::before { content: '▾ '; }\n"
-        "details[open] > table td:first-child { padding-left: 16px !important; }\n"
+        "details[open] > table td:first-child { padding-left: 10px !important; }\n"
         "details[open] > summary td:not(:first-child) { font-size: 0; }\n"
         "details[open] > summary td:not(:first-child) * { display: none; }\n"
         "details[open] > table tr:last-child td { border-top: 2px solid var(--divider-color) !important; }\n"
@@ -188,6 +200,11 @@ def css(phone: bool) -> str:
         "th, td { padding: 3px 6px !important; }\n"
         "ha-icon { --mdc-icon-size: 16px; vertical-align: text-bottom; }\n"
         + ("table { font-size: 12px; }\n" if phone else "")
+        # the boiler / gas note under the table: tight and small, so "≈ 19 ₴"
+        # stays on its line on a phone
+        + "p, ul { margin: 2px 0 !important; font-size: 12px; }\n"
+        "ul { padding-left: 18px; }\n"
+        "table + p { margin-top: 6px !important; }\n"
     )
 
 
