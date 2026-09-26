@@ -16,8 +16,8 @@ short month labels ("Вер 26"). Columns
 three of them, the matching ₴ amount under it in small type: Сонце -
 potential (the station's income at the green tariff), Експорт - net income
 (what the meter's saldo really paid), Будинок - house_cost (the house's bill:
-import at night / day tariffs + its own solar and its share of the losses at
-the green tariff, see monthly_table.py; the year and total rows add its share in %, desktop only), split into
+import at night / day tariffs + its own solar at the ENERA green tariff, see
+monthly_table.py; the year and total rows add its share in %, desktop only), split into
 those three parts in ₴ (SOURCES) above the ₴ total, deficit months only.
 Month names link to the ENERA act PDF when there is one (signed link from
 sensor.document_links). Always the compact layout (short names, smaller
@@ -84,32 +84,24 @@ def cell(kwh: str, money: str | None, kind: str | None, var: str, bold: bool, wi
 # gas vs the electric boiler: m³ price, kWh of heat in 1 m³, boiler efficiency;
 # the heat for one full 80 l boiler (15 -> 55 °C)
 GAS_PRICE, GAS_KWH, GAS_EFF, BOILER_KWH = 12, 9.3, 0.9, 3.7
-# plain-language legend under the table, written for someone who is not into
-# energy (the user's mother-in-law); the ₴/kWh is the last full month's
+# plain-language note under the table (for the user's mother-in-law): is the
+# boiler cheaper on gas or on electricity; the ₴/kWh is the last full month's
+# ENERA green tariff after tax (what a kWh of our solar sells for). The user
+# cut the column legend that used to precede it.
 EXPLAIN = (
     "{%- set full = rows | selectattr('kind', 'eq', 'month') | rejectattr('label', 'search', '⏳') | list -%}\n"
     "{%- set m = full | last if full else none -%}\n"
-    "<b>Як читати таблицю</b>\n\n"
-    "☀️ <b>Сонце</b> — скільки електрики зробили наші панелі (кВт·год). "
-    "Сіре число під ним — скільки ця електрика коштує грошима.\n\n"
-    "⬆️ <b>Експорт</b> — скільки віддали в мережу. Зелене число — скільки нам за це "
-    "реально заплатили. Якщо там мінус — це ми доплатили за світло.\n\n"
-    "⬇️ <b>Імпорт</b> — скільки взяли з мережі (вночі й коли не вистачало сонця).\n\n"
-    "🏠 <b>Будинок</b> — скільки електрики спожив будинок. Червоне число — скільки б це "
-    "коштувало, якби будинок купував усю електрику: з мережі за звичайним тарифом "
-    "(вночі 2,16 ₴, вдень 4,32 ₴), а від наших панелей — за ціною, за яку ми її продаємо.\n\n"
-    "Натисніть на рік — побачите його місяці; на назву місяця — акт від ENERA.\n"
-    "{%- if m and m.house > 0 -%}\n"
-    "{%- set el = m.house_cost / m.house -%}\n"
+    "{%- if m and m.green -%}\n"
+    "{%- set el = m.green -%}\n"
     f"{{%- set gas = {GAS_PRICE} / ({GAS_KWH} * {GAS_EFF}) -%}}\n"
     "{%- set mon, yr = m.label.split(' ')[0], m.label.split(' ')[1] -%}\n"
     "{%- set where = {'Січ': 'січні', 'Лют': 'лютому', 'Бер': 'березні', 'Кві': 'квітні', 'Тра': 'травні',"
     " 'Чер': 'червні', 'Лип': 'липні', 'Сер': 'серпні', 'Вер': 'вересні', 'Жов': 'жовтні',"
     " 'Лис': 'листопаді', 'Гру': 'грудні'} %}"
     "\n\n<b>Гріти воду: газ чи електрика?</b>\n\n"
-    "У {{ where[mon] }} {{ yr }} 1 кВт·год електрики для будинку коштувала "
-    "<b>{{ ('%.2f' % el) | replace('.', ',') }} ₴</b>. Це ціна, за яку цю електрику можна було б продати, "
-    "разом із тим, що губиться в батареях та інверторах.\n\n"
+    "У {{ where[mon] }} {{ yr }} ENERA купувала в нас 1 кВт·год за "
+    "<b>{{ ('%.2f' % el) | replace('.', ',') }} ₴</b> (зелений тариф, уже без податків). "
+    "Стільки коштує кожна кВт·год, яку ми не продали, а витратили на бойлер.\n\n"
     f"1 м³ газу коштує {GAS_PRICE} ₴ і дає стільки ж тепла, як ~{f"{GAS_KWH * GAS_EFF:.1f}".replace(".", ",")} кВт·год "
     "електрики. Тобто тепло від газу — <b>{{ ('%.2f' % gas) | replace('.', ',') }} ₴</b> за ту саму кількість.\n\n"
     "👉 Газом приблизно <b>в {{ ((el / gas) | round(1) | string) | replace('.', ',') }} раза дешевше</b>.\n\n"

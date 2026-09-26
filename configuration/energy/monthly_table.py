@@ -17,14 +17,12 @@ marked partial. Rebuilding from statistics every time is cheap, so nothing
 needs to be appended by hand when a month ends.
 Each row also treats the station and the house as two separate parties:
 "potential" is the station's income at the green tariff (export - import +
-house + the house's share of the losses); "house_cost" is what the house
-pays: its grid import at the night / day tariffs plus its own solar
-(house - import) and its share of the losses at the green tariff.
-Battery/inverter losses (solar + import - export - house) are split by
-house / (house + export): in winter the batteries work for the house, in
-summer mostly for export, and that part stays with the station.
+house: the export plus the solar the house used); "house_cost" is what the
+house pays: its grid import at the night / day tariffs plus its own solar
+(house - import) at the green tariff. Battery/inverter losses are charged to
+nobody. "green" is the month's green tariff after tax (UAH/kWh).
 A deficit month also gets "cost_night" / "cost_day" / "cost_solar", the three
-parts of house_cost (23-07 night import / day import / own solar + losses share).
+parts of house_cost (23-07 night import / day import / own solar).
 Each month row also gets an "act" key ("YYYY-MM") when the matching ENERA act
 PDF has been synced (statistics/documents/enera/*-YYMM-*.pdf, see
 statistics/enera/sync.py). The dashboard looks the link up by that key in
@@ -105,23 +103,18 @@ def main() -> None:
             g = tariffs.get(f"{y}-{mo:02d}")
             green = g * TAX if g else fallback
             night = a["night_imp"]
-            # battery/inverter losses, shared in proportion to who got the useful
-            # energy: in winter the batteries work for the house, in summer for export
-            losses = max(solar + imp - exp - house, 0.0)
-            house_losses = losses * house / (house + exp) if house + exp > 0 else 0.0
-            # the station's income at the green tariff: the export, the solar the
-            # house used and the house's share of the losses
-            potential = (exp - imp + house + house_losses) * green
+            # the station's income at the green tariff: the export plus the solar
+            # the house used; battery/inverter losses are charged to nobody
+            potential = (exp - imp + house) * green
             if imp > exp:  # deficit month: the meter's saldo is billed at day/night tariffs, export is not paid
                 bl = ((imp - night) * DAY_T + night * NIGHT_T) / imp
                 net = -(imp - exp) * bl
             else:
                 net = (exp - imp) * green
             # the house as a separate customer: grid import at day/night tariffs,
-            # its own solar (house - import) and its share of the losses bought
-            # at the green tariff
+            # its own solar (house - import) at the ENERA green tariff
             c_night, c_day = night * NIGHT_T, (imp - night) * DAY_T
-            c_solar = (max(house - imp, 0.0) + house_losses) * green
+            c_solar = max(house - imp, 0.0) * green
             house_cost = c_night + c_day + c_solar
             split = ({"cost_night": round(c_night), "cost_day": round(c_day), "cost_solar": round(c_solar)}
                      if imp > exp else None)
@@ -131,7 +124,7 @@ def main() -> None:
                          "solar": round(solar, 1), "exp": round(exp, 1), "imp": round(imp, 1),
                          "house": round(house, 1), "boiler": None if boiler is None else round(boiler, 1),
                          "net": round(net), "potential": round(potential), "house_cost": round(house_cost),
-                         "act": act_key(y, mo), **(split or {})})
+                         "green": round(green, 4), "act": act_key(y, mo), **(split or {})})
             t = ytot.setdefault(y, {"solar": 0.0, "exp": 0.0, "imp": 0.0, "house": 0.0, "boiler": None, "net": 0.0,
                                     "potential": 0.0, "house_cost": 0.0})
             for k, v in (("solar", solar), ("exp", exp), ("imp", imp), ("house", house), ("net", net),
