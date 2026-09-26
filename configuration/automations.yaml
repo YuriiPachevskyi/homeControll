@@ -796,8 +796,8 @@
     long-term statistics - period "day"/"month" return an extra bucket for the next
     month's first day, so they must not be used here. Export and grid purchases are
     priced at 5.2353 (green tariff 6.7991 minus 18% PDFO and 5% military levy). In
-    months when house load exceeds solar generation, generation self-compensates consumption,
-    so (house - solar) is billed at the weighted average of day 4.32 and night (23:00-07:00)
+    months when grid import exceeds export, the meter's saldo (import - export, as in
+    the ENERA act) is billed at the weighted average of day 4.32 and night (23:00-07:00)
     2.16, weighted by the month's actual grid import per zone, and export is not paid
     separately. On Jan 1 only, right after it, sends the summary of the full previous
     year with a per-month table. Both messages show house consumption in kWh; the
@@ -867,13 +867,13 @@
         []) -%} {%- set h = as_local(as_datetime(r.start)).hour -%} {%- if (h >= night_from
         or h < night_to) and r.change is not none -%}{%- set ns.v = ns.v + r.change
         -%}{%- endif -%} {%- endfor -%}{{ ns.v }}'
-      deficit_month: '{{ house > solar }}'
+      deficit_month: '{{ grid_import > grid_export }}'
       blended_tariff: '{{ ((grid_import - import_night) * day_tariff + import_night
         * night_tariff) / grid_import if grid_import > 0 else day_tariff }}'
-      payable: '{{ (house - solar) * blended_tariff }}'
-      night_kwh: '{{ (house - solar) * import_night / grid_import if grid_import >
+      payable: '{{ (grid_import - grid_export) * blended_tariff }}'
+      night_kwh: '{{ (grid_import - grid_export) * import_night / grid_import if grid_import >
         0 else 0 }}'
-      day_kwh: '{{ (house - solar) - night_kwh }}'
+      day_kwh: '{{ (grid_import - grid_export) - night_kwh }}'
       import_cost: '{{ grid_import * tariff }}'
   - choose:
     - conditions:
@@ -950,14 +950,14 @@
           {}).get('%d-%02d' % (report_year | int, mo)) | float(0)) * tax_factor) or
           fallback_tariff -%}{%- set ns.solar = ns.solar + s -%}\n  {%- set ns.exp
           = ns.exp + e -%}\n  {%- set ns.imp = ns.imp + im -%}\n  {%- set ns.house
-          = ns.house + ho -%}\n  {%- if ho > s -%}\n    {%- set nn = namespace(v=0)
+          = ns.house + ho -%}\n  {%- if im > e -%}\n    {%- set nn = namespace(v=0)
           -%}\n    {%- for r in hourly -%}\n      {%- set t = as_local(as_datetime(r.start))
           -%}\n      {%- if t.month == mo and (t.hour >= night_from or t.hour < night_to)
           and r.change is not none -%}{%- set nn.v = nn.v + r.change -%}{%- endif
           -%}\n    {%- endfor -%}\n    {%- set bl = ((im - nn.v) * day_tariff + nn.v
           * night_tariff) / im if im > 0 else day_tariff -%}\n    {%- set ns.net =
-          ns.net - (ho - s) * bl -%}\n    {%- set ns.months = ns.months + [{'month':
-          mo, 'solar': s, 'exp': e, 'imp': im, 'house': ho, 'net': -(ho - s) * bl}]
+          ns.net - (im - e) * bl -%}\n    {%- set ns.months = ns.months + [{'month':
+          mo, 'solar': s, 'exp': e, 'imp': im, 'house': ho, 'net': -(im - e) * bl}]
           -%}\n    {%- else -%}\n    {%- set ns.net = ns.net + (e - im) * tar -%}\n
           \   {%- set ns.months = ns.months + [{'month': mo, 'solar': s, 'exp': e,
           'imp': im, 'house': ho, 'net': (e - im) * tar}] -%}\n  {%- endif -%}\n{%-
