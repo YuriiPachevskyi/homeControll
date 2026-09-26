@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
-"""Rebuild the energy table card on the "monthly-energy" view of
-`dashboard-deye` from sensor.monthly_energy_table (energy/monthly_table.py).
+"""Rebuild the energy table card at the end of the Home view of the
+Overview dashboard from sensor.monthly_energy_table (energy/monthly_table.py).
 
 One table for everything: a row per year (its totals), each an HTML
 <details> that opens that year's months in the same columns, the year's
 totals then moving under its last month (click-to-expand
 without JS, same trick as the Payments tables), then the "Всього" row.
-The title is a section heading above the card; tapping it toggles
+The title is a heading above the table; tapping it toggles
 input_boolean.monthly_energy_expanded, which opens every year at once.
-Styled like the Payments tables and, like them, one ~500px column wide
-(sections view): bold left-aligned headers with a small coloured icon before
-the name, short month labels ("Вер 26"). Columns
+Heading and table are one vertical-stack, found again by MARKER and replaced
+in place, so the rest of the view is left alone. Styled like the Payments
+tables: bold left-aligned headers with a small coloured icon before the name,
+short month labels ("Вер 26"). Columns
 Сонце / Експорт / Імпорт / Бойлер / Будинок; each cell shows kWh and, for
 three of them, the matching ₴ amount under it in small type: Сонце -
 potential (income if the house had used nothing), Експорт - net income,
 Будинок - house_cost (what its consumption cost; the year and total rows add
 its share in %, desktop only).
 Month names link to the ENERA act PDF when there is one (signed link from
-sensor.document_links). Desktop and phone get separate conditional cards
-(phone: short names, smaller type). No Бойлер column (see SKIP).
+sensor.document_links). Always the compact layout (short names, smaller
+type): the Home view is masonry, its columns are ~370px even on desktop.
+No Бойлер column (see SKIP).
 
 Edits go through the HA WebSocket API, never .storage directly (see memory:
 homecontroll_dashboard_live_edit). Idempotent - re-run any time.
@@ -30,7 +32,8 @@ from pathlib import Path
 import websocket
 
 TOKEN = (Path.home() / ".secrets" / "ha_token").read_text().strip()
-URL_PATH, VIEW_PATH = "dashboard-deye", "monthly-energy"
+URL_PATH, VIEW_PATH = None, "default_view"  # None = Overview (lovelace)
+MARKER = "sensor.monthly_energy_table"  # how the card is found again
 TITLE = "Генерація"
 EXPANDED = "input_boolean.monthly_energy_expanded"  # packages/monthly_energy_table.yaml
 
@@ -153,11 +156,11 @@ def headings() -> list:
     return [heading("▸", "off"), heading("▾", "on")]
 
 
-def card(phone: bool) -> dict:
-    query = "(max-width: 767px)" if phone else "(min-width: 768px)"
-    return {"type": "conditional", "conditions": [{"condition": "screen", "media_query": query}],
-            "card": {"type": "markdown", "content": content(phone),
-                     "card_mod": {"style": {"ha-markdown $": css(phone)}}}}
+def card() -> dict:
+    return {"type": "vertical-stack", "cards": [
+        *headings(),
+        {"type": "markdown", "content": content(phone=True),
+         "card_mod": {"style": {"ha-markdown $": css(phone=True)}}}]}
 
 
 class HA:
@@ -181,13 +184,14 @@ def main():
     ha = HA()
     config = ha.call({"type": "lovelace/config", "url_path": URL_PATH})
     view = next(v for v in config["views"] if v.get("path") == VIEW_PATH)
-    # A sections view keeps the card one column wide (~500px, like the
-    # Payments tables) instead of stretching it over the whole screen.
-    view.pop("cards", None)
-    view.update({"type": "sections", "max_columns": 4,
-                 "sections": [{"type": "grid", "cards": [*headings(), card(phone=False), card(phone=True)]}]})
+    cards = view["cards"]
+    old = [i for i, c in enumerate(cards) if MARKER in json.dumps(c)]
+    if old:
+        cards[old[0]] = card()
+    else:
+        cards.append(card())
     ha.call({"type": "lovelace/config/save", "url_path": URL_PATH, "config": config})
-    print(f"rebuilt the energy table on {URL_PATH}/{VIEW_PATH}")
+    print(f"{'replaced' if old else 'added'} the energy table on {VIEW_PATH}")
 
 
 if __name__ == "__main__":
