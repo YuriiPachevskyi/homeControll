@@ -14,6 +14,9 @@ configuration.yaml):
 Host scripts that call the Bot API directly (statistics/enera, statistics/oselya)
 import this file and call add(). Writes are serialised with a file lock.
 
+Only messages sent to two or more chats are logged: one sent to a single
+person (e.g. LAN watch alerts to Yurii) is left for them to delete in Telegram.
+
 Stdlib only, no dependencies. The newest entry is always index 0.
 """
 import base64
@@ -51,6 +54,10 @@ def save(rows: list) -> None:
 
 def append(payload_b64: str) -> None:
     entry = json.loads(base64.b64decode(payload_b64))
+    # A message that reached only one person is theirs to delete in Telegram;
+    # the log is for deleting a notification for everyone.
+    if len({c.get("chat_id") for c in entry.get("chats", [])}) < 2:
+        return
     with locked():
         rows = load()
         rows.insert(0, entry)
