@@ -1,0 +1,13 @@
+# Keep the Recorder DB lean: the solarman integration polls both Deyes every
+# ~5 s, and these diagnostic entities were writing ~170k rows each per 10 days
+# while their history is useless (connection is always "on", update_interval
+# is just the poll jitter). Packages concatenate exclude lists, so this merges
+# with the exclusions in oselya_payments.yaml.
+recorder:
+  # Detailed state history for 5 days (default 10); long-term statistics
+  # (Energy dashboard, hourly/daily graphs) are kept separately and unaffected.
+  purge_keep_days: 5
+  exclude:
+    entity_globs:
+      - binary_sensor.deye_*_connection
+      - sensor.deye_*_update_interval

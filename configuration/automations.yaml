@@ -620,7 +620,7 @@
 - id: '1788451374111'
   alias: All notifications
   triggers:
-  - entity_id: sensor.deye_6kw_load_l1_power
+  - entity_id: sensor.deye_6kw_load_power
     below: 450
     for:
       minutes: 3
