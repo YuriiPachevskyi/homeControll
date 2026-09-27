@@ -45,7 +45,7 @@ COLUMNS = [
     ("solar", "potential", "solar-power-variant", "#ffc107", "Сонце", "Сонце", "money"),
     ("exp", "net", "transmission-tower-export", "#4caf50", "Експорт", "Експ.", "net"),
     ("imp", None, "transmission-tower-import", "#44739e", "Імпорт", "Імп.", None),
-    ("boiler", None, "water-boiler", "#e91e63", "Бойлер", "Бойл.", None),
+    ("boiler", None, "water-boiler", "#ffc107", "Бойлер", "Бойл.", None),
     ("house", "house_cost", "home-lightning-bolt", "#ff9800", "Будинок", "Буд.", "cost"),
 ]
 # columns left out of the table: Бойлер as its own column did not fit the phone,
@@ -103,8 +103,12 @@ BOILER_NOTE = (
     "{%- set bm = rows | selectattr('kind', 'eq', 'month') | rejectattr('boiler', 'none') | list | last"
     " if rows | selectattr('kind', 'eq', 'month') | rejectattr('boiler', 'none') | list else none -%}\n"
     + MONTH_NAME +
-    "{%- if bm %}<p>{{ month_name[bm.label.split(' ')[0]] }}, спожито <b>{{ bm.house | round(0) | int }} kWh</b>, "
-    "з них <b><i>{{ bm.boiler | round(0) | int }} kWh</i></b> — бойлер.</p>\n\n{% endif %}"
+    "{%- if bm %}<p>{{ month_name[bm.label.split(' ')[0]] }}, <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: <b>{{ bm.house | round(0) | int }} kWh</b>, "
+    "з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>: <b><i>{{ bm.boiler | round(0) | int }} kWh</i></b>.<br>"
+    "Експорт, <ha-icon icon=\"mdi:transmission-tower-export\"></ha-icon>: <b>{{ bm.exp | round(0) | int }} kWh</b>, "
+    "сальдо: <b>{{ (bm.exp - bm.imp) | round(0) | int }} kWh</b>"  # export - import, what ENERA pays for
+    "{% if bm.net is not none %} <small>({{ '%+d' % bm.net }} ₴)</small>{% endif %}.</p>\n\n"
+    "<p>Бойлер в автоматичному режимі споживає надлишкову потужність!</p>\n\n{% endif %}"
 )
 EXPLAIN = (
     "{%- set full = rows | selectattr('kind', 'eq', 'month') | rejectattr('label', 'search', '⏳') | list -%}\n"
@@ -117,8 +121,7 @@ EXPLAIN = (
     f"<b>{{{{ ({BOILER_KWH} * el) | round(0) | int }}}} ₴</b>\n"
     f"- газовим котлом: {{{{ ('%.2f' % ({BOILER_KWH} / ({GAS_KWH} * {GAS_EFF}))) | replace('.', ',') }}}} м³ × {GAS_PRICE} ₴ ≈ "
     f"<b>{{{{ ({BOILER_KWH} * gas) | round(0) | int }}}} ₴</b>\n"
-    "{%- endif %}\n\n"
-    "<p>Бойлер в автоматичному режимі споживає тільки надлишкову потужність яку не можна продати!</p>"
+    "{%- endif %}"
 )
 
 
@@ -205,6 +208,8 @@ def css(phone: bool) -> str:
         + "p, ul { margin: 2px 0 !important; font-size: 12px; }\n"
         "ul { padding-left: 18px; }\n"
         "table + p { margin-top: 6px !important; }\n"
+        "p + p { margin-top: 8px !important; }\n"
+        "p small { font-size: inherit; color: #4caf50; }\n"  # the export ₴, green like in the table
     )
 
 
