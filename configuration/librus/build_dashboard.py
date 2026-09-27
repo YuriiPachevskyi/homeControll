@@ -50,7 +50,11 @@ VIEWS = [
         section("День", "mdi:clock-outline", [card("bell-schedule-card"), card("free-days-card")]),
     ]),
     view("Повідомлення", "messages", "mdi:email", [
-        section("Повідомлення", "mdi:email-outline", [card("messages-card", max_items=15)], span=2),
+        # a click in the list opens the letter in our reader card above it
+        # (www/librus-message-reader.js): editable/copyable text + "Переклад"
+        section("Повідомлення", "mdi:email-outline", [
+            {"type": "custom:librus-message-reader-card", "grid_options": {"columns": "full"}},
+            card("messages-card", max_items=15, grid_options={"columns": "full"})], span=2),
         section("Оголошення і заміни", "mdi:bullhorn", [
             card("announcements-card"), card("substitutions-card")]),
     ]),
@@ -85,9 +89,12 @@ def calendar_view(calendars: list[str]) -> dict:
     add = {"type": "markdown", "text_only": True,
            "content": "<ha-icon icon=\"mdi:calendar-plus\"></ha-icon> [Додати заняття (музика, гуртки)](/calendar)"}
     # sections view, one full-width column: a panel view only stretches a
-    # single card to the screen height, and a stack shrinks the calendar
+    # single card to the screen height, and a stack shrinks the calendar.
+    # fill_screen (www/calendar-card-fix.js) ends the card at the bottom of
+    # the screen - a fixed row count hid later events below the card's fold
+    # on a phone.
     cal = {"type": "calendar", "initial_view": "listWeek", "entities": calendars,
-           "grid_options": {"columns": "full", "rows": 12}}
+           "fill_screen": True, "grid_options": {"columns": "full"}}
     return {"type": "sections", "max_columns": 1, "title": "Календар", "path": "calendar",
             "icon": "mdi:calendar-month", "sections": [{"type": "grid", "cards": [add, cal]}]}
 
