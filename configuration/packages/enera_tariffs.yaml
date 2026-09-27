@@ -12,3 +12,17 @@ command_line:
         - tariffs
         - latest
       scan_interval: 3600
+
+template:
+  - sensor:
+      - name: "ENERA Export Price"
+        unique_id: enera_export_price
+        # Net export price for the Energy dashboard's grid compensation: the
+        # latest act's green tariff x 0.77 (after tax), 5.2353 (July 2026) until
+        # the tariffs sensor has data. It moves when a new act is synced, so a
+        # month is priced at the last known tariff until its own act arrives.
+        unit_of_measurement: "UAH/kWh"
+        icon: mdi:cash-plus
+        state: >
+          {{ (((state_attr('sensor.enera_green_tariffs', 'latest') | float(0)) * 0.77)
+              or 5.2353) | round(4) }}
