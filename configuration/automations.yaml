@@ -344,7 +344,9 @@
         value: '{{ s[''6kw_power''] }}'
     - action: input_number.set_value
       target:
-        entity_id: input_number.export_deye_5kw_power
+        entity_id:
+        - input_number.export_deye_5kw_power
+        - input_number.export_deye_5kw_power_base
       data:
         value: '{{ s[''export_power''] }}'
     - if:

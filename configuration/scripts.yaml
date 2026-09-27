@@ -23,6 +23,23 @@ power_load_disable_device_duplicate:
               - switch.1563_heating_ten_1_5_kwh
               - switch.1564_heating_ten_3_kwh
             data: {}
+        - alias: 'High Power: Export back to state value'
+          conditions:
+          - condition: template
+            value_template: '{{ states(''input_number.export_deye_5kw_power'') | float(0)
+              > states(''input_number.export_deye_5kw_power_base'') | float(0) }}'
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: 'High Power: Export -> {{ states(''input_number.export_deye_5kw_power_base'')
+                | int(0) }}W ({{ now().strftime(''%H:%M:%S'') }})'
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.export_deye_5kw_power
+            data:
+              value: '{{ states(''input_number.export_deye_5kw_power_base'') | float(0) }}'
         - alias: 'High Power: Boiler 1.2 -> 0.8'
           conditions:
           - condition: state
@@ -282,6 +299,37 @@ power_load_disable_device_duplicate:
           - action: switch.turn_on
             target:
               entity_id: switch.1561_boiler_ten_1_2_kwh
+        - alias: 'Restore: Export 5.5kW'
+          conditions:
+          - condition: numeric_state
+            entity_id: input_number.export_deye_5kw_power
+            below: 5500
+          - condition: numeric_state
+            entity_id: input_number.export_deye_5kw_power_base
+            above: 1000
+          - condition: or
+            conditions:
+            - condition: state
+              entity_id: binary_sensor.battery_charge_and_export_power_limit
+              state: 'on'
+              for:
+                seconds: 30
+            - condition: state
+              entity_id: binary_sensor.pv_5kw_10_lower_than_6kw
+              state: 'on'
+              for:
+                seconds: 30
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: 'Restore: Export 5.5kW ({{ now().strftime(''%H:%M:%S'') }})'
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.export_deye_5kw_power
+            data:
+              value: 5500
         - alias: 'Restore: Bedroom AC ON'
           conditions:
           - condition: not
