@@ -99,7 +99,7 @@ def receipt_key(bill_full_key: str, period: str) -> str | None:
 
 
 def document_links() -> dict:
-    """Current signed receipt links ({key: "/api/documents/...?authSig=..."})."""
+    """Current signed receipt links ({key: "/api/documents/...?docSig=..."})."""
     req = urllib.request.Request(
         "http://localhost:8123/api/states/sensor.document_links",
         headers={"Authorization": f"Bearer {get_ha_token()}"})

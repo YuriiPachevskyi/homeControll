@@ -6,7 +6,6 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from homeassistant.components.http.auth import async_sign_path
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -15,6 +14,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util import dt as dt_util
 
 from .const import DOCUMENTS_ROOT, KINDS, LINK_EXPIRATION, RESIGN_AFTER, SCAN_INTERVAL
+from .signing import sign_path
 
 # ENERA act file names carry the billed month as YYMM: ..._11780675-2509-77.pdf
 ENERA_MONTH = re.compile(r"-(\d{2})(\d{2})-\d+\.pdf$")
@@ -84,11 +84,8 @@ class DocumentLinksSensor(SensorEntity):
             for name in names:
                 if (key := link_key(kind, name)) is None:
                     continue
-                links[key] = async_sign_path(
-                    self.hass,
-                    f"/api/documents/{kind}/{quote(name)}",
-                    LINK_EXPIRATION,
-                    use_content_user=True,
+                links[key] = sign_path(
+                    self.hass, f"/api/documents/{kind}/{quote(name)}", LINK_EXPIRATION
                 )
             attrs[kind] = links
         attrs["expires"] = (now + LINK_EXPIRATION).isoformat()

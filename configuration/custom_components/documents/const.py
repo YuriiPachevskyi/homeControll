@@ -14,3 +14,10 @@ KINDS = ("enera", "oselya")
 LINK_EXPIRATION = timedelta(days=7)
 RESIGN_AFTER = timedelta(days=1)
 SCAN_INTERVAL = timedelta(hours=1)
+
+# Links are signed with our own secret, persisted in .storage, so a link keeps
+# working until it expires - HA's own authSig secret is regenerated on every
+# restart, which killed links already sent to Telegram.
+SIGN_QUERY_PARAM = "docSig"
+STORAGE_KEY = "documents.sign_secret"
+STORAGE_VERSION = 1
