@@ -15,10 +15,11 @@ short month labels ("Вер 26"). Columns
 Сонце / Експорт / Імпорт / Бойлер / Будинок; each cell shows kWh and, for
 three of them, the matching ₴ amount under it in small type: Сонце -
 potential (the station's income at the green tariff), Експорт - net income
-(what the meter's saldo really paid), Будинок - house_cost (the house's bill:
-import at night / day tariffs + its own solar at the ENERA green tariff, see
-monthly_table.py; the year and total rows add its share in %), split into
-those three parts in ₴ (SOURCES) above the ₴ total, deficit months only.
+(what the meter's saldo really paid), Будинок - house_cost (= Сонце - Експорт,
+what the house's consumption took from the station: a deficit month's saldo at
+night / day tariffs, the rest at the ENERA green tariff, see monthly_table.py;
+the year and total rows add its share in %), split into those three parts in
+₴ (SOURCES) above the ₴ total, deficit months only.
 Month names link to the ENERA act PDF when there is one (signed link from
 sensor.document_links). Always the compact layout (short names, smaller
 type): the Home view is masonry, its columns are ~370px even on desktop.

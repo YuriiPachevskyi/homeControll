@@ -18,11 +18,15 @@ needs to be appended by hand when a month ends.
 Each row also treats the station and the house as two separate parties:
 "potential" is the station's income at the green tariff (export - import +
 house: the export plus the solar the house used); "house_cost" is what the
-house pays: its grid import at the night / day tariffs plus its own solar
-(house - import) at the green tariff. Battery/inverter losses are charged to
-nobody. "green" is the month's green tariff after tax (UAH/kWh).
+house's consumption took from it: potential - net, so Будинок + Експорт =
+Сонце in ₴. With net metering every imported kWh just cancels an exported one,
+so in a surplus month the whole house is worth the green tariff; in a deficit
+month the meter's saldo (import - export) is billed at the night / day tariffs
+and the rest of the house at the green tariff. Battery/inverter losses are
+charged to nobody. "green" is the month's green tariff after tax (UAH/kWh).
 A deficit month also gets "cost_night" / "cost_day" / "cost_solar", the three
-parts of house_cost (23-07 night import / day import / own solar).
+parts of house_cost (saldo split by the 23-07 night / day import share, and
+the rest of the house at the green tariff).
 Each month row also gets an "act" key ("YYYY-MM") when the matching ENERA act
 PDF has been synced (statistics/documents/enera/*-YYMM-*.pdf, see
 statistics/enera/sync.py). The dashboard looks the link up by that key in
@@ -111,10 +115,13 @@ def main() -> None:
                 net = -(imp - exp) * bl
             else:
                 net = (exp - imp) * green
-            # the house as a separate customer: grid import at day/night tariffs,
-            # its own solar (house - import) at the ENERA green tariff
-            c_night, c_day = night * NIGHT_T, (imp - night) * DAY_T
-            c_solar = max(house - imp, 0.0) * green
+            # what the house took from the station: potential - net, so the ₴ add up
+            # (Будинок + Експорт = Сонце); only a deficit month's saldo is billed
+            # at the night / day tariffs, split by the month's night import share
+            saldo = max(imp - exp, 0.0)
+            c_night = saldo * night / imp * NIGHT_T if imp else 0.0
+            c_day = saldo * (imp - night) / imp * DAY_T if imp else 0.0
+            c_solar = (house - saldo) * green
             house_cost = c_night + c_day + c_solar
             split = ({"cost_night": round(c_night), "cost_day": round(c_day), "cost_solar": round(c_solar)}
                      if imp > exp else None)
@@ -152,6 +159,10 @@ def main() -> None:
                      **{k: round(tot[k]) for k in MONEY}})
 
     tmp = OUT.with_suffix(".tmp")
+    for r in rows:  # from the rounded numbers, so the shown ₴ add up to the hryvnia
+        r["house_cost"] = r["potential"] - r["net"]
+        if "cost_solar" in r:
+            r["cost_solar"] = r["house_cost"] - r["cost_night"] - r["cost_day"]
     tmp.write_text(json.dumps({"updated": now.isoformat(timespec="minutes"), "rows": rows}, ensure_ascii=False, indent=1))
     tmp.replace(OUT)
     try:  # tell HA to re-read the file now instead of on its own hourly poll
