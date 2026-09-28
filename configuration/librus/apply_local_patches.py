@@ -293,7 +293,7 @@ def patch_route() -> None:
 CACHE_MARKER = f"{MARKER}: data cache"
 CACHE_DEF = "    async def _async_update_data(self) -> LibrusData:\n"
 CACHE_RENAMED = f"    async def _async_update_data_upstream(self) -> LibrusData:  # {CACHE_MARKER}\n"
-CACHE_VERSION = "cache-v10"  # bump when CACHE_FUNC changes: re-applies the block in place
+CACHE_VERSION = "cache-v11"  # bump when CACHE_FUNC changes: re-applies the block in place
 CACHE_FUNC = f"""
 
 # --- {CACHE_MARKER} (librus/apply_local_patches.py, patch 6, {CACHE_VERSION}) ---
@@ -514,7 +514,36 @@ def _cache_read(path: str):
     except Exception as err:  # e.g. the models changed after an update
         _LOGGER.warning("Librus cache %s unreadable (%s) - ignoring it", os.path.basename(path), err)
         return None
+    _hc_fill_new_fields(saved)
     return saved if len(saved) == 3 else (*saved, {{}})  # v1 files had no extras
+
+
+def _hc_fill_new_fields(root) -> None:
+    # A cache pickled by an older integration version lacks the fields a newer
+    # one added to its (slots) dataclasses - e.g. LessonData.teacher_ids in
+    # v0.7.8 - and reading them raises AttributeError (the timetable calendar
+    # failed to load). Give every missing field its declared default.
+    import dataclasses
+    seen = set()
+    stack = [root]
+    while stack:
+        obj = stack.pop()
+        if id(obj) in seen:
+            continue
+        seen.add(id(obj))
+        if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+            for f in dataclasses.fields(obj):
+                try:
+                    stack.append(getattr(obj, f.name))
+                except AttributeError:
+                    if f.default is not dataclasses.MISSING:
+                        object.__setattr__(obj, f.name, f.default)
+                    elif f.default_factory is not dataclasses.MISSING:
+                        object.__setattr__(obj, f.name, f.default_factory())
+        elif isinstance(obj, dict):
+            stack.extend(obj.values())
+        elif isinstance(obj, (list, tuple, set, frozenset)):
+            stack.extend(obj)
 
 
 def _cache_write(path: str, data, extras) -> None:
