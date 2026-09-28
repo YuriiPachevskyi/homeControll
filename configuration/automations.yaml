@@ -486,7 +486,10 @@
   max: 3
 - id: '1773316386421'
   alias: Grid power
-  description: ''
+  description: Drives the power load cascade one step per run. Every 30 s normally;
+    under high power it steps every 15 s and a new overload (on for 5 s) triggers
+    it right away, but never sooner than 15 s after the previous run, so the next
+    step sees the measured effect of the previous one (Deye polls every 10 s).
   triggers:
   - entity_id:
     - script.power_load_disable_device_duplicate
@@ -497,15 +500,48 @@
       minutes: 0
       seconds: 30
     trigger: state
+    id: tick
+  - entity_id:
+    - script.power_load_disable_device_duplicate
+    from:
+    to:
+    for:
+      seconds: 15
+    trigger: state
+    id: tick_fast
+  - trigger: state
+    entity_id: binary_sensor.any_device_high_power
+    to: 'on'
+    for:
+      seconds: 5
+    id: overload
   - event: start
     trigger: homeassistant
+  - trigger: event
+    event_type: automation_reloaded
   - trigger: state
     entity_id:
     - binary_sensor.battery_charge_and_export_power_limit
     to:
     - 'on'
     enabled: false
-  conditions: []
+  conditions:
+  - condition: or
+    conditions:
+    - condition: not
+      conditions:
+      - condition: trigger
+        id:
+        - tick_fast
+        - overload
+    - condition: and
+      conditions:
+      - condition: state
+        entity_id: binary_sensor.any_device_high_power
+        state: 'on'
+      - condition: template
+        value_template: '{{ now() - states.script.power_load_disable_device_duplicate.last_changed
+          >= timedelta(seconds=15) }}'
   actions:
   - action: script.power_load_disable_device_duplicate
     data: {}
