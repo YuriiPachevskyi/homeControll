@@ -13,7 +13,7 @@ homeassistant:
 
 template:
   # Sums of both inverters: a state-based template re-renders on every change of
-  # either source (2x per poll), so recalculate once per poll cycle instead.
+  # either source (2x per poll), so recalculate every 10 s instead.
   - trigger:
       - trigger: time_pattern
         seconds: "/10"
