@@ -10,6 +10,10 @@ __VIEWSTATE, then apartment + account number + "Пошук". The server answers
 The account has three services (water/sewage + two monthly subscription
 fees), each with its own 12-month table; the printed bill nets all three
 into one amount. A bill PDF can only be generated for the last month.
+
+Water meter readings are entered in a separate pop-up form
+(WebForms/WebFormVM.aspx?prm=D=<house id>$L=<account>$N=<apartment>$S=VODA)
+that opens directly by that URL, without the address cascade - see MeterForm.
 """
 import html
 import re
@@ -84,6 +88,15 @@ class BrovkWater:
                     ("start", "accrued", "recalc", "subsidy", "paid", "end"), map(_num, c[1:7])))})
         return out
 
+    def meter_form_url(self) -> str:
+        """URL of the account's meter readings form (the button only answers
+        with a window.open script)."""
+        t = self._post(self.page, **{F + "ButtonVMPOKAZ": "Введення нових показників водомірів"})
+        m = re.search(r"window\.open\('([^']+WebFormVM\.aspx[^']+)'", t)
+        if not m:
+            raise WaterError("meter readings form link not found")
+        return html.unescape(m.group(1))
+
     def last_month_bill_pdf(self, print_name: str) -> bytes:
         """Generate and download last month's bill (the only month the site offers)."""
         t = self._post(self.page, **{F + "DropDownListUSL": "VODA", F + "ButtonPrint": "Друк рахунка"})
@@ -101,6 +114,55 @@ class BrovkWater:
         if pdf.headers.get("content-type", "").split(";")[0] != "application/pdf":
             raise WaterError(f"bill download returned {pdf.headers.get('content-type')}")
         return pdf.content
+
+
+class MeterForm:
+    """The meter readings form: one row per meter with the reading on file
+    ("Показники у базі даних") and the range the site accepts for a new one
+    (its RangeValidator: from on-file - 1 up to on-file + a few hundred m³).
+    """
+
+    def __init__(self, url: str):
+        self.url = url
+        self.s = requests.Session()
+        self.s.headers["User-Agent"] = UA
+        self.s.cookies.set("change_lang", "ukr")  # labels come in Russian otherwise
+        self._load(self.s.get(url, timeout=60))
+
+    def _load(self, r: requests.Response) -> None:
+        r.raise_for_status()
+        t = self.page = r.text
+        label = lambda name: html.unescape(re.sub(r"<[^>]+>", "", (re.search(
+            r'id="MainContent_' + name + r'"[^>]*>(.*?)</span>', t, re.S) or [None, ""])[1])).strip()
+        js = lambda n, attr: (re.search(r"RangeValidatorVM" + n + r"\." + attr + r' = "([^"]*)"', t) or [None, None])[1]
+        period = re.search(r'id="CalcMonthLabel"[^>]*>([^<]*)', t)
+        self.period = html.unescape(period.group(1)).removesuffix(" р.").strip() if period else None
+        self.meters = []
+        for n in sorted(set(re.findall(r'id="MainContent_TextBoxVM_POSLED_POKAZ_(\d+)"', t)), key=int):
+            kind = label(f"LabelVM_GOR_VM_{n}")
+            self.meters.append({
+                "n": int(n), "name": label(f"LabelVM_NUMBER_{n}"), "model": label(f"LabelVM_N_SCHETCHIKA_{n}"),
+                "serial": label(f"LabelVM_SN_SCHET_{n}"), "check_date": label(f"LabelVM_DATA_PROV_SCHET_{n}") or None,
+                "kind": "hot" if kind.startswith(("Гар", "Гор")) else "cold" if kind.startswith("Хол") else kind,
+                "previous": _num(label(f"LabelVM_PRED_POKAZ_{n}")),
+                "min": float(js(n, "minimumvalue")) if js(n, "minimumvalue") else None,
+                "max": float(js(n, "maximumvalue")) if js(n, "maximumvalue") else None,
+            })
+        if not self.meters:
+            raise WaterError("no meters in the readings form")
+
+    def submit(self, values: dict[int, float]) -> None:
+        """Enter new readings ({meter n: m³}; meters left out keep their
+        on-file value), then reload the form from the response."""
+        data = {**_fields(self.page), "__EVENTTARGET": "", "__EVENTARGUMENT": "",
+                F + "ButtonOk": "Внести показники"}
+        for m in self.meters:
+            v = values.get(m["n"], m["previous"])
+            data[f"{F}TextBoxVM_POSLED_POKAZ_{m['n']}"] = f"{v:.3f}".replace(".", ",")
+        action = re.search(r'<form method="post" action="\./([^"]+)"', self.page)
+        url = URL + "WebForms/" + html.unescape(action.group(1)) if action else self.url
+        self.response = self.s.post(url, data=data, timeout=60)
+        self._load(self.s.get(self.url, timeout=60))
 
 
 def parse_bill(pdf_bytes: bytes) -> dict:

@@ -34,3 +34,6 @@ configuration/notify/.notify_log.lock
 configuration/statistics/diagram/
 configuration/.cache/brands/integrations/documents/
 configuration/librus/attachments/
+configuration/statistics/oselya/meters.json
+configuration/statistics/oselya/meter_readings.json
+configuration/statistics/oselya/meter_submit_response.html

@@ -13,6 +13,7 @@ from pathlib import Path
 import brovk_water
 import client
 import koec_cabinet
+import meters
 import parse_koec
 import parse_receipt
 import rates
@@ -210,9 +211,13 @@ def fetch_brovk_water_bill(bill_key: str, bill_cfg: dict) -> None:
         rows = snap["services"].setdefault(service, {})
         for r in site.service_table(service):
             rows[r["period"]] = r
+    # The meter readings form opens by this URL alone, so meters.py (in the HA
+    # container, which has no address) takes it from here.
+    snap["meter_form"] = site.meter_form_url()
     snap["fetched"] = datetime.now().isoformat(timespec="seconds")
     cache.write_text(json.dumps(snap, ensure_ascii=False, indent=1))
     cache.chmod(0o600)
+    meters.refresh_bill(bill_key)  # submitted readings that reached the site's database
     pdf = site.last_month_bill_pdf(creds["print_name"])
     bill = brovk_water.parse_bill(pdf)
     if bill["account_id"] != bill_cfg["account_id"]:

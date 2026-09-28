@@ -10,7 +10,13 @@ here sends the XHR headers and un-escapes that JS string.
 
 Only the latest bill is available as a PDF (/home/bill.pdf); older months
 exist only as table rows.
+
+Meter readings are entered on /home/readings/osr - a plain form (one input
+per tariff zone, whole kWh only, a date from the last few days) that the
+cabinet passes straight on to the distribution operator; the page then
+shows them as the latest "(А) абонентські" readings. See readings_form().
 """
+import html as html_lib
 import json
 import re
 from datetime import date, datetime
@@ -100,6 +106,44 @@ class KoecCabinet:
                 out.append({"date": datetime.strptime(c[1], "%d.%m.%Y").date().isoformat(),
                             "amount": _num(c[3])})
         return out
+
+    def readings_form(self) -> dict:
+        """The readings form: {date (of the latest readings), dates (allowed
+        for new ones, newest first), zones: [{n, name, previous, month_start}],
+        precision, token, action}."""
+        t = self.s.get(BASE + "/home/readings/osr", timeout=90).text
+        form = re.search(r'(?s)<form id="new_readings_form_osr" action="([^"]+)".*?</form>', t)
+        if not form:
+            raise CabinetError("readings form not found")
+        f = form.group(0)
+        prev_date = re.search(r'(?s)class="prev-readings-cell">\s*<b class="main-data">([\d.]+)</b>', f)
+        zones = []
+        for m in re.finditer(r'(?s)<tr class="zone zone--(\d+)">\s*<th>([^<]*)</th>(.*?)</tr>', f):
+            prev = re.search(r'data-zone="' + m.group(1) + r'">\s*([\d.,]+)', m.group(3))
+            last = re.search(r'data-zone-last="' + m.group(1) + r'">\s*([\d.,]+)', m.group(3))
+            zones.append({"n": int(m.group(1)), "name": html_lib.unescape(m.group(2)).strip(),
+                          "previous": _num(prev.group(1)) if prev else None,
+                          "month_start": _num(last.group(1)) if last else None})
+        if not zones:
+            raise CabinetError("no meter zones in the readings form")
+        precision = re.search(r'data-precision="(\d+)"', f)
+        return {
+            "date": datetime.strptime(prev_date.group(1), "%d.%m.%Y").date().isoformat() if prev_date else None,
+            "dates": re.findall(r'<option value="(\d{4}-\d\d-\d\d)"', f),
+            "zones": zones, "precision": int(precision.group(1)) if precision else 0,
+            "token": re.search(r'name="authenticity_token" value="([^"]+)"', f).group(1),
+            "action": html_lib.unescape(form.group(1)),
+        }
+
+    def submit_readings(self, form: dict, values: dict[int, float], day: str) -> requests.Response:
+        """Send new readings ({zone n: kWh}) dated `day` (one of form["dates"])."""
+        data = {"utf8": "✓", "authenticity_token": form["token"], "readings[date]": day,
+                "commit": "Зберегти показники"}
+        for n, v in values.items():
+            data[f"readings[counter][{n}]"] = f"{v:.{form['precision']}f}"
+        r = self.s.post(BASE + form["action"], data=data, timeout=90)
+        r.raise_for_status()
+        return r
 
     def current_bill_pdf(self) -> bytes:
         r = self.s.get(BASE + "/home/bill.pdf", timeout=90)

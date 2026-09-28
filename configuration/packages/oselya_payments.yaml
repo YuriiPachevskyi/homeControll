@@ -15,6 +15,24 @@ command_line:
         - rates
         - rate_bills
       scan_interval: 3600
+  - sensor:
+      name: "Oselya Meters"
+      unique_id: oselya_meters
+      # "Лічильники" tab: the chosen point's meters (a bill with a readings
+      # form - water, electricity) as the supplier's site has them + our last
+      # submissions, the picker's options and each point's meter names.
+      # Written by statistics/oselya/meters.py (script.oselya_meter_load/_submit).
+      command: "cat /config/statistics/oselya/meters.json"
+      value_template: "{{ value_json.updated }}"
+      json_attributes:
+        - point
+        - label
+        - info
+        - meters
+        - history
+        - points
+        - layouts
+      scan_interval: 86400
 
 # Its attributes (bills + objects) exceed the Recorder's 16KB-per-state
 # attribute limit once a few years of data pile up - payments.json is the
@@ -29,6 +47,13 @@ recorder:
       - input_number.oselya_rate_amount
       - input_datetime.oselya_rate_from
       - input_text.oselya_rate_status
+      # The meter readings form's fields.
+      - sensor.oselya_meters
+      - input_select.oselya_meter_point
+      - input_number.oselya_meter_1
+      - input_number.oselya_meter_2
+      - input_number.oselya_meter_3
+      - input_text.oselya_meter_status
 
 input_select:
   oselya_payments_year:
@@ -44,6 +69,14 @@ input_select:
     # Real options come from sensor.oselya_payments' rate_bills, set by the
     # "tariff bill picker options" automation below (objects.yaml is the only
     # place bills are defined).
+    options:
+      - "—"
+  # "Лічильники" tab: "<object> — <bill>" for every bill with a readings
+  # form; real options come from sensor.oselya_meters' `points`, set by the
+  # "meter picker options" automation below.
+  oselya_meter_point:
+    name: "Лічильник"
+    icon: mdi:counter
     options:
       - "—"
 
@@ -68,6 +101,30 @@ input_number:
     step: 0.01
     mode: box
     unit_of_measurement: "грн"
+  # "Лічильники" tab: new readings, prefilled with the ones on file. Generic
+  # slots in the site's meter order (water: cold, hot; electricity: day,
+  # night); the dashboard labels them per point.
+  oselya_meter_1:
+    name: "Показник 1"
+    icon: mdi:counter
+    min: 0
+    max: 9999999
+    step: 0.001
+    mode: box
+  oselya_meter_2:
+    name: "Показник 2"
+    icon: mdi:counter
+    min: 0
+    max: 9999999
+    step: 0.001
+    mode: box
+  oselya_meter_3:
+    name: "Показник 3"
+    icon: mdi:counter
+    min: 0
+    max: 9999999
+    step: 0.001
+    mode: box
 
 input_datetime:
   # Only the month counts - any day of it can be picked in the calendar.
@@ -81,12 +138,24 @@ input_text:
   oselya_rate_status:
     name: "Результат збереження тарифу"
     max: 255
+  oselya_meter_status:
+    name: "Результат передачі показників"
+    max: 255
 
 shell_command:
   # Templated -> runs without a shell (no env prefix possible); rates.py sets
   # up PYTHONPATH for the sync run itself.
   oselya_rate_set: 'python3 /config/statistics/oselya/rates.py set "{{ bill }}" "{{ amount }}" "{{ start }}"'
   oselya_rate_undo: 'python3 /config/statistics/oselya/rates.py undo'
+  # Meter readings on the suppliers' sites (meters.py, see its docstring). Run
+  # on the host over ssh: the sites' logins/addresses stay in ~/.secrets
+  # there. point is "<object>.<bill>" (from sensor.oselya_meters' points).
+  oselya_meter_load: >-
+    ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes
+    yurii@127.0.0.1 "cd /home/yurii/docker/homeControll/configuration/statistics/oselya && .venv/bin/python meters.py load '{{ point }}'"
+  oselya_meter_submit: >-
+    ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes
+    yurii@127.0.0.1 "cd /home/yurii/docker/homeControll/configuration/statistics/oselya && .venv/bin/python meters.py submit '{{ point }}' {{ values }}"
   oselya_remind_weekly: 'PYTHONPATH=/config/statistics/oselya/vendor python3 /config/statistics/oselya/remind.py --weekly >> /config/statistics/oselya/sync.log 2>&1'
 
 script:
@@ -130,7 +199,98 @@ script:
       - action: homeassistant.update_entity
         target: {entity_id: sensor.oselya_payments}
 
+  oselya_meter_load:
+    alias: "Payments - load meter readings"
+    icon: mdi:refresh
+    mode: restart
+    variables:
+      point: "{{ (state_attr('sensor.oselya_meters', 'points') or {}).get(states('input_select.oselya_meter_point'), '') }}"
+    sequence:
+      - action: input_text.set_value
+        target: {entity_id: input_text.oselya_meter_status}
+        data: {value: "⏳ Завантажую показники з сайту…"}
+      - action: shell_command.oselya_meter_load
+        data: {point: "{{ point }}"}
+        response_variable: result
+      - action: input_text.set_value
+        target: {entity_id: input_text.oselya_meter_status}
+        data:
+          value: >-
+            {{ (result.stdout if result.stdout else ('❌ Помилка: ' ~ (result.stderr or 'код ' ~ result.returncode)))[:255] }}
+      - action: homeassistant.update_entity
+        target: {entity_id: sensor.oselya_meters}
+      # Prefill the new readings with the ones on file - only the changed
+      # digits need typing.
+      - if:
+          - condition: template
+            value_template: "{{ result.returncode == 0 and state_attr('sensor.oselya_meters', 'point') == point }}"
+        then:
+          - repeat:
+              for_each: "{{ (state_attr('sensor.oselya_meters', 'meters') or [])[:3] }}"
+              sequence:
+                - action: input_number.set_value
+                  target:
+                    entity_id: "input_number.oselya_meter_{{ repeat.item.n }}"
+                  data:
+                    value: "{{ repeat.item.previous }}"
+
+  oselya_meter_submit:
+    alias: "Payments - submit meter readings"
+    icon: mdi:send
+    mode: single
+    variables:
+      point: "{{ (state_attr('sensor.oselya_meters', 'points') or {}).get(states('input_select.oselya_meter_point'), '') }}"
+      count: "{{ (state_attr('sensor.oselya_meters', 'layouts') or {}).get(point, []) | length }}"
+    sequence:
+      - action: input_text.set_value
+        target: {entity_id: input_text.oselya_meter_status}
+        data: {value: "⏳ Передаю показники…"}
+      - action: shell_command.oselya_meter_submit
+        data:
+          point: "{{ point }}"
+          values: >-
+            {% set ns = namespace(v=[]) %}{% for n in range(1, count + 1) %}{% set ns.v = ns.v + [states('input_number.oselya_meter_' ~ n)] %}{% endfor %}{{ ns.v | join(' ') }}
+        response_variable: result
+      - action: input_text.set_value
+        target: {entity_id: input_text.oselya_meter_status}
+        data:
+          value: >-
+            {{ (result.stdout if result.stdout else ('❌ Помилка: ' ~ (result.stderr or 'код ' ~ result.returncode)))[:255] }}
+      - action: homeassistant.update_entity
+        target: {entity_id: sensor.oselya_meters}
+
 automation:
+  - id: oselya_meter_point_changed
+    alias: "Oselya Payments - load meters for the chosen point"
+    description: Picking a meter on the "Лічильники" tab loads its readings
+      from the supplier's site and prefills the new-reading fields.
+    triggers:
+      - trigger: state
+        entity_id: input_select.oselya_meter_point
+        not_to: "—"
+    actions:
+      - action: script.oselya_meter_load
+    mode: restart
+  - id: oselya_meter_point_options
+    alias: "Oselya Payments - meter picker options"
+    description: Keep input_select.oselya_meter_point's options in sync with
+      the bills that have a readings form (sensor.oselya_meters' points).
+    triggers:
+      - trigger: homeassistant
+        event: start
+      - trigger: state
+        entity_id: sensor.oselya_meters
+    conditions:
+      - condition: template
+        value_template: >-
+          {% set want = (state_attr('sensor.oselya_meters', 'points') or {}).keys() | list %}
+          {{ want | length > 0 and want != state_attr('input_select.oselya_meter_point', 'options') }}
+    actions:
+      - action: input_select.set_options
+        target: {entity_id: input_select.oselya_meter_point}
+        data:
+          options: "{{ (state_attr('sensor.oselya_meters', 'points') or {}).keys() | list }}"
+    mode: queued
   - id: oselya_rate_bill_options
     alias: "Oselya Payments - tariff bill picker options"
     description: Keep input_select.oselya_rate_bill's options in sync with the

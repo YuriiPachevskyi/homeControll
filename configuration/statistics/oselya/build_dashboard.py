@@ -20,6 +20,9 @@ import yaml
 TOKEN = (Path.home() / ".secrets" / "ha_token").read_text().strip()
 OBJECTS_YAML = Path(__file__).parent / "objects.yaml"
 DASHBOARD_URL_PATH = "dashboard-payments"
+METERS_JSON = Path(__file__).parent / "meters.json"  # meters.py's state: points + meter names
+ICONS = {"Холодна вода": "mdi:water", "Гаряча вода": "mdi:water-thermometer",
+         "День": "mdi:white-balance-sunny", "Ніч": "mdi:weather-night"}
 
 
 def table_content(obj_key: str, bills: list, mobile: bool) -> str:
@@ -344,6 +347,99 @@ def build_rates_view() -> dict:
     }
 
 
+def build_meters_view() -> dict:
+    """Meter readings for every bill with a readings form (meters.py): pick
+    "<object> — <bill>" -> automation oselya_meter_point_changed ->
+    script.oselya_meter_load shows the readings on file and prefills the
+    generic input_number.oselya_meter_<n> slots; "Передати" ->
+    script.oselya_meter_submit sends them. The slots are labelled per point
+    from meters.json's `layouts` (one conditional card per point), so re-run
+    this after adding a point. The result line comes back in
+    input_text.oselya_meter_status.
+    """
+    sensor = "sensor.oselya_meters"
+    picker = "input_select.oselya_meter_point"
+    state = json.loads(METERS_JSON.read_text()) if METERS_JSON.exists() else {}
+    shown = f"state_attr('{sensor}', 'label') == states('{picker}')"
+    table = (
+        "{%- macro n(v) -%}{{ ('%.3f' % v).rstrip('0').rstrip('.') }}{%- endmacro -%}\n"
+        f"{{%- if not ({shown}) -%}}\n"
+        "Обери лічильник вище - показники завантажаться з сайту постачальника.\n"
+        "{%- else -%}\n"
+        f"**{{{{ state_attr('{sensor}', 'label') }}}}**, {{{{ state_attr('{sensor}', 'info') }}}}\n\n"
+        "| Лічильник | На сайті | Сайт приймає | |\n|:--|--:|--:|:--|\n"
+        f"{{% for m in state_attr('{sensor}', 'meters') or [] -%}}\n"
+        "| {{ m.name }} | **{{ n(m.previous) }}** {{ m.unit }} "
+        "| {{ (n(m.min) if m.min is not none else '') ~ '–' ~ (n(m.max) if m.max is not none else '') "
+        "if m.min is not none or m.max is not none else '—' }} "
+        "| {{ m.detail }} |\n"
+        "{% endfor %}\n"
+        "{%- endif %}"
+    )
+    history = (
+        "{%- macro n(v) -%}{{ ('%.3f' % v).rstrip('0').rstrip('.') }}{%- endmacro -%}\n"
+        f"{{%- set h = state_attr('{sensor}', 'history') or [] -%}}\n"
+        f"{{%- if h and {shown} -%}}\n"
+        "| Коли | Передано | |\n|:--|:--|:-:|\n"
+        "{% for r in h -%}\n"
+        "| {{ r.time[8:10] }}.{{ r.time[5:7] }}.{{ r.time[:4] }} {{ r.time[11:16] }} "
+        "| {% for m in r.meters %}{{ m.name | lower }} {{ n(m.sent) }}{{ ', ' if not loop.last else ' ' ~ m.unit }}{% endfor %} "
+        "| {{ '✅' if r.applied else '📨' if r.accepted else '⚠️' }} |\n"
+        "{% endfor %}\n"
+        "{%- else -%}\nЩе нічого не передавали звідси.\n{%- endif %}"
+    )
+    help_text = (
+        "- Поля заповнюються показниками, які вже є на сайті, - зміни на поточні з лічильників.\n"
+        "- Значення поза межами «Сайт приймає» (або менше попередніх) не передаються - буде помилка.\n"
+        "- **Електроенергія**: лише цілі кВт·год, показники йдуть одразу оператору (ДТЕК) - "
+        "одразу ✅.\n"
+        "- **Вода**: сайт спершу лише приймає (📨), оператор вносить у базу протягом робочого дня; "
+        "✅ з'явиться після перевірки (при відкритті та щоночі). Поки 📨 - повторно не передавай.\n"
+        "- ⚠️ - сайт не прийняв: передай вручну на сайті постачальника.\n"
+        "- «Оновити» - ще раз прочитати показники з сайту."
+    )
+    status = ("{%- set s = states('input_text.oselya_meter_status') -%}"
+              "{{ s if s not in ['unknown', 'unavailable', ''] else '' }}")
+    labels = {v: k for k, v in state.get("points", {}).items()}
+    inputs = [
+        {"type": "conditional", "conditions": [{"condition": "state", "entity": picker, "state": labels[point]}],
+         "card": {"type": "entities", "entities": [
+             {"entity": f"input_number.oselya_meter_{m['n']}", "name": f"{m['name']}, {m['unit']}",
+              "icon": ICONS.get(m["name"], "mdi:counter"), "tap_action": {"action": "none"}}
+             for m in layout if m["n"] <= 3]}}
+        for point, layout in state.get("layouts", {}).items() if point in labels
+    ]
+    return {
+        "type": "sections", "max_columns": 2, "title": "Лічильники", "path": "meters",
+        "icon": "mdi:counter",
+        "sections": [
+            {"type": "grid", "cards": [
+                {"type": "heading", "heading": "Показники лічильників", "heading_style": "title",
+                 "icon": "mdi:counter"},
+                {"type": "entities", "entities": [{"entity": picker, "tap_action": {"action": "none"}}]},
+                {"type": "markdown", "content": table},
+                *inputs,
+                {"type": "horizontal-stack", "cards": [
+                    {"type": "button", "name": "Передати показники", "icon": "mdi:send",
+                     "show_state": False, "icon_height": "32px",
+                     "tap_action": {"action": "perform-action", "perform_action": "script.oselya_meter_submit",
+                                    "confirmation": {"text": "Передати ці показники на сайт постачальника?"}}},
+                    {"type": "button", "name": "Оновити", "icon": "mdi:refresh",
+                     "show_state": False, "icon_height": "32px",
+                     "tap_action": {"action": "perform-action", "perform_action": "script.oselya_meter_load"}},
+                ]},
+                {"type": "markdown", "content": status},
+            ]},
+            {"type": "grid", "cards": [
+                {"type": "heading", "heading": "Передані звідси", "heading_style": "title",
+                 "icon": "mdi:history"},
+                {"type": "markdown", "content": history},
+                {"type": "markdown", "content": help_text},
+            ]},
+        ],
+    }
+
+
 class HA:
     def __init__(self):
         self.ws = websocket.create_connection("ws://localhost:8123/api/websocket", timeout=10)
@@ -366,11 +462,11 @@ def main():
     ha = HA()
     msg = ha.call({"type": "lovelace/config", "url_path": DASHBOARD_URL_PATH})
     config = msg["result"]
-    config["views"] = ([v for v in config["views"] if v.get("path") not in ("tables", "tables2", "todo", "rates")]
-                        + [build_todo_view(), build_view(objects_cfg), build_rates_view()])
+    config["views"] = ([v for v in config["views"] if v.get("path") not in ("tables", "tables2", "todo", "rates", "meters")]
+                        + [build_todo_view(), build_view(objects_cfg), build_rates_view(), build_meters_view()])
     msg = ha.call({"type": "lovelace/config/save", "url_path": DASHBOARD_URL_PATH, "config": config})
     assert msg.get("success"), msg
-    print(f"rebuilt 'todo' + 'tables' + 'rates' views with {len(objects_cfg)} object(s)")
+    print(f"rebuilt 'todo' + 'tables' + 'rates' + 'meters' views with {len(objects_cfg)} object(s)")
 
 
 if __name__ == "__main__":
