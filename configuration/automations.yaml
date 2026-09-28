@@ -19,6 +19,11 @@
   mode: single
 - id: '1772123844222'
   alias: Deye Param Sync
+  description: 'Mirrors HA helpers into both Deyes. Selling window: 5kW program 2
+    is the only period with Sell ticked (bit 0x40 of 0x0113, set in DeyeCloud); any
+    change of selling_start/stop_time rewrites all 6 program times in circular order:
+    P1 00:00, P2 = start, P3 = stop, P4-P6 spread evenly between stop and midnight
+    (5 min steps).'
   triggers:
   - trigger: state
     entity_id: input_number.discharge_level_deye_5kw
@@ -98,24 +103,50 @@
           - number.deye_5kw_export_surplus_power
         data:
           value: '{{ trigger.to_state.state | float(0) | round(0) }}'
-    - conditions:
+    - alias: 'Selling window: rebuild all 6 5kW program times'
+      conditions:
       - condition: trigger
-        id: selling_start
+        id:
+        - selling_start
+        - selling_stop
       sequence:
-      - action: time.set_value
-        target:
-          entity_id: time.deye_5kw_program_2_time
-        data:
-          time: '{{ trigger.to_state.state }}'
-    - conditions:
-      - condition: trigger
-        id: selling_stop
-      sequence:
-      - action: time.set_value
-        target:
-          entity_id: time.deye_5kw_program_3_time
-        data:
-          time: '{{ trigger.to_state.state }}'
+      - variables:
+          start_m: '{% set t = states(''input_datetime.selling_start_time'').split('':'')
+            %}{{ t[0] | int(0) * 60 + t[1] | int(0) }}'
+          stop_m: '{% set t = states(''input_datetime.selling_stop_time'').split('':'')
+            %}{{ t[0] | int(0) * 60 + t[1] | int(0) }}'
+          step_m: '{{ ((1440 - stop_m) / 4 / 5) | int * 5 }}'
+          minutes: '{{ [0, start_m, stop_m, stop_m + step_m, stop_m + 2 * step_m,
+            stop_m + 3 * step_m] }}'
+          label: '{% set ns = namespace(out=[]) %}{% for m in minutes %}{% set ns.out
+            = ns.out + [''%02d:%02d'' | format(m // 60, m % 60)] %}{% endfor %}{{
+            ns.out | join('' / '') }}'
+      - if:
+        - condition: template
+          value_template: '{{ 0 < start_m < stop_m and step_m >= 5 }}'
+        then:
+        - repeat:
+            for_each: '{{ range(1, 7) | list }}'
+            sequence:
+            - action: time.set_value
+              target:
+                entity_id: time.deye_5kw_program_{{ repeat.item }}_time
+              data:
+                time: '{% set m = minutes[repeat.item - 1] %}{{ ''%02d:%02d:00'' |
+                  format(m // 60, m % 60) }}'
+        - action: input_text.set_value
+          target:
+            entity_id: input_text.last_script_trigger
+          data:
+            value: 'Selling window: {{ label }} ({{ now().strftime(''%H:%M:%S'') }})'
+        else:
+        - action: input_text.set_value
+          target:
+            entity_id: input_text.last_script_trigger
+          data:
+            value: 'Selling window NOT applied: start {{ states(''input_datetime.selling_start_time'')[:5]
+              }} / stop {{ states(''input_datetime.selling_stop_time'')[:5] }} (need
+              00:00 < start < stop <= 23:40)'
     - conditions:
       - condition: trigger
         id: battery_power_5kw
@@ -834,8 +865,8 @@
     long-term statistics - period "day"/"month" return an extra bucket for the next
     month's first day, so they must not be used here. Export and grid purchases are
     priced at 5.2353 (green tariff 6.7991 minus 18% PDFO and 5% military levy). In
-    months when grid import exceeds export, the meter's saldo (import - export, as in
-    the ENERA act) is billed at the weighted average of day 4.32 and night (23:00-07:00)
+    months when grid import exceeds export, the meter's saldo (import - export, as
+    in the ENERA act) is billed at the weighted average of day 4.32 and night (23:00-07:00)
     2.16, weighted by the month's actual grid import per zone, and export is not paid
     separately. On Jan 1 only, right after it, sends the summary of the full previous
     year with a per-month table. Both messages show house consumption in kWh; the
@@ -909,8 +940,8 @@
       blended_tariff: '{{ ((grid_import - import_night) * day_tariff + import_night
         * night_tariff) / grid_import if grid_import > 0 else day_tariff }}'
       payable: '{{ (grid_import - grid_export) * blended_tariff }}'
-      night_kwh: '{{ (grid_import - grid_export) * import_night / grid_import if grid_import >
-        0 else 0 }}'
+      night_kwh: '{{ (grid_import - grid_export) * import_night / grid_import if grid_import
+        > 0 else 0 }}'
       day_kwh: '{{ (grid_import - grid_export) - night_kwh }}'
       import_cost: '{{ grid_import * tariff }}'
   - choose:
