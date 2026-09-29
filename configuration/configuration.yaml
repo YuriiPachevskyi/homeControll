@@ -161,6 +161,10 @@ template:
           {% set charged = states('sensor.deye_5kw_total_battery_charge') | float - 539.9 %}
           {% set discharged = states('sensor.deye_5kw_total_battery_discharge') | float - 445.8 %}
           {{ ((charged + discharged) / 2 / kwh) | round(1) }}
+        attributes:
+          # EVE LF280K cells, rated ~6000 cycles
+          rated_cycles: 6000
+          rated_life_used_pct: "{{ (states('sensor.deye_5kw_battery_cycles') | float(0) / 6000 * 100) | round(1) }}"
         availability: >
           {{ is_number(states('number.deye_5kw_battery_capacity')) and
              states('number.deye_5kw_battery_capacity') | float > 0 and
