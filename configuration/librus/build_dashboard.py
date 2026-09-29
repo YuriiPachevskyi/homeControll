@@ -50,7 +50,8 @@ VIEWS = [
         section("День", "mdi:clock-outline", [card("bell-schedule-card"), card("free-days-card")]),
     ]),
     view("Повідомлення", "messages", "mdi:email", [
-        # a click in the list opens the letter in our reader card above it
+        # a click on a letter/notice (also in the section on the right) opens it
+        # in our reader card above the list
         # (www/librus-message-reader.js): editable/copyable text + "Переклад"
         section("Повідомлення", "mdi:email-outline", [
             {"type": "custom:librus-message-reader-card", "grid_options": {"columns": "full"}},

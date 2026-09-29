@@ -70,9 +70,10 @@ step when a patch is added or dropped:
    parent checking the diary, not a poller.
    Each refresh fires a `librus_route` event (route: direct / rpi5) after
    patch 5 has chosen; packages/librus.yaml sends Telegram when it changes.
-   New grades / inbox messages (vs the previous data - the cache after a
+   New grades / messages (inbox + the substitutions/alerts/justifications
+   mailboxes) / school notices (vs the previous data - the cache after a
    restart, so nothing is re-announced) fire `librus_news` {grades,
-   messages}; packages/librus.yaml sends them to Telegram. For each new
+   messages, notices}; packages/librus.yaml sends them to Telegram. For each new
    message the full text is fetched (which marks it read in Librus - the
    user chose that) and its attachments are saved under
    /config/librus/attachments/<message id>/ (allowlisted, not in git, kept
@@ -293,7 +294,7 @@ def patch_route() -> None:
 CACHE_MARKER = f"{MARKER}: data cache"
 CACHE_DEF = "    async def _async_update_data(self) -> LibrusData:\n"
 CACHE_RENAMED = f"    async def _async_update_data_upstream(self) -> LibrusData:  # {CACHE_MARKER}\n"
-CACHE_VERSION = "cache-v11"  # bump when CACHE_FUNC changes: re-applies the block in place
+CACHE_VERSION = "cache-v12"  # bump when CACHE_FUNC changes: re-applies the block in place
 CACHE_FUNC = f"""
 
 # --- {CACHE_MARKER} (librus/apply_local_patches.py, patch 6, {CACHE_VERSION}) ---
@@ -446,7 +447,18 @@ def _hc_news(old, new) -> dict:
         for g in new.grades if g.id not in seen_g
     ]
     messages = [m for m in new.messages if m.id not in seen_m and m.mailbox == "inbox"]
-    return {{"grades": grades[:10], "messages": messages[:10]}}
+    # the other mailboxes shown under "Оголошення і заміни" (substitutions,
+    # alerts, justifications) and the school notices (ogłoszenia) - notices
+    # already carry their full text, no request needed
+    for kind in ("substitution_messages", "alert_messages", "justification_messages"):
+        seen = {{m.id for m in getattr(old, kind, None) or []}}
+        messages += [m for m in getattr(new, kind, None) or [] if m.id not in seen]
+    seen_n = {{n.id for n in old.school_notices}}
+    notices = [
+        {{"subject": n.subject, "content": n.content, "start_date": n.start_date, "end_date": n.end_date}}
+        for n in new.school_notices if n.id not in seen_n
+    ]
+    return {{"grades": grades[:10], "messages": messages[:10], "notices": notices[:10]}}
 
 
 _HC_ATT_DIR = "/config/librus/attachments"  # allowlist_external_dirs in configuration.yaml; not in git
@@ -476,7 +488,8 @@ async def _hc_announce(coordinator, news) -> None:
     # in Librus - the user chose that), then one `librus_news` event.
     messages = []
     for m in news["messages"]:
-        item = {{"sender": m.sender_name, "topic": m.topic, "content": m.content, "files": []}}
+        item = {{"sender": m.sender_name, "topic": m.topic, "content": m.content, "files": [],
+                "mailbox": m.mailbox}}
         try:
             raw = await coordinator.async_fetch_message(m.mailbox, m.id)
             detail = (raw or {{}}).get("data") or {{}}
@@ -496,7 +509,14 @@ async def _hc_announce(coordinator, news) -> None:
         if len(item["content"] or "") > 3500:
             item["content"] = item["content"][:3500].rstrip() + "…"
         messages.append(item)
-    coordinator.hass.bus.async_fire("librus_news", {{"grades": news["grades"], "messages": messages}})
+    notices = []
+    for n in news["notices"]:
+        n = dict(n, content=(n["content"] or "").replace("\\r\\n", "\\n"))
+        if len(n["content"] or "") > 3500:
+            n["content"] = n["content"][:3500].rstrip() + "…"
+        notices.append(n)
+    coordinator.hass.bus.async_fire("librus_news", {{"grades": news["grades"], "messages": messages,
+                                                    "notices": notices}})
 
 
 def _cache_path(coordinator) -> str:
@@ -599,7 +619,7 @@ async def _async_update_data_cached(self) -> LibrusData:
     if previous is not None:
         try:
             news = _hc_news(previous, data)
-            if news["grades"] or news["messages"]:  # packages/librus.yaml: Telegram
+            if news["grades"] or news["messages"] or news["notices"]:  # packages/librus.yaml: Telegram
                 self.hass.async_create_background_task(_hc_announce(self, news), "librus_news")
         except Exception as err:
             _LOGGER.warning("Librus news not computed: %s", err)

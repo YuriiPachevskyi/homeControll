@@ -176,7 +176,9 @@ automation:
       before (local patch 6; compared with the previous data, so restarts
       re-announce nothing). Grades - one Telegram message. Letters - one
       message each with the full text, then its attachments as documents
-      (saved under /config/librus/attachments by the patch). To Yurii and
+      (saved under /config/librus/attachments by the patch); letters from
+      the substitutions/alerts/justifications mailboxes too, marked as such.
+      School notices (ogłoszenia) - one message each with the full text. To Yurii and
       Kateryna; grades also to the daughter, letters not (not notify_all - that one
       also goes to Nataliya).
     triggers:
@@ -220,8 +222,10 @@ automation:
           for_each: "{{ messages }}"
           sequence:
             - variables:
+                # letters from the other mailboxes (shown under "Оголошення і
+                # заміни" on the dashboard) say where they came from
                 headline: |-
-                  ✉️ Новий лист
+                  ✉️ Новий лист{{ {'substitutions': ' · заміни', 'alerts': ' · сповіщення', 'justifications': ' · пояснення відсутності'}.get(repeat.item.mailbox | default('inbox'), '') }}
                   {{ repeat.item.sender }}: {{ repeat.item.topic }}{{ (' 📎 ' ~ repeat.item.files | count) if repeat.item.files else '' }}
                 # a failed send leaves response_variable untouched - reset it
                 # so the previous letter's message ids are never logged again
@@ -266,13 +270,45 @@ automation:
                 title: Librus
                 message: "{{ headline }}"
                 chats: "{{ letter_chats }}"
+      # school notices (ogłoszenia): same layout as a letter - subject, the
+      # dates it is shown in Librus, full text as a collapsed quote, and the
+      # translate button
+      - repeat:
+          for_each: "{{ trigger.event.data.notices | default([]) }}"
+          sequence:
+            - variables:
+                headline: |-
+                  📢 Нове оголошення
+                  {{ repeat.item.subject }}{{ (' (' ~ as_datetime(repeat.item.start_date).strftime('%d.%m') ~ '–' ~ as_datetime(repeat.item.end_date).strftime('%d.%m') ~ ')') if repeat.item.start_date and repeat.item.end_date else '' }}
+                sent: {}
+            - action: telegram_bot.send_message
+              continue_on_error: true
+              target:
+                entity_id:
+                  - notify.yurii_p
+                  - notify.kateryna
+              data:
+                title: Librus
+                parse_mode: html
+                message: |-
+                  {{ headline | e }}
+                  <blockquote expandable>{{ repeat.item.content | e }}</blockquote>
+                inline_keyboard:
+                  - "🇺🇦 Переклад:/librus_translate"
+              response_variable: sent
+            - action: script.notify_log_record
+              data:
+                title: Librus
+                message: "{{ headline }}"
+                chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
     mode: queued
 
   - id: librus_translate_button
     alias: "Librus - translate a letter on tap (Telegram)"
     description: >-
-      A tap on "🇺🇦 Переклад" under a letter (callback "/librus_translate")
-      translates the letter (the lines after "Новий лист") from Polish to
+      A tap on "🇺🇦 Переклад" under a letter or a school notice (callback
+      "/librus_translate") translates it (the lines after "Новий лист" /
+      "Нове оголошення") from Polish to
       Ukrainian via rest_command.librus_translate and appends it to the same
       Telegram message, both as collapsed (expandable) quotes like the
       original letter; the edit drops the button. If Polish + Ukrainian don't
@@ -294,19 +330,19 @@ automation:
           body: >-
             {%- set lines = original.split('\n') -%}
             {%- set ns = namespace(start=0) -%}
-            {%- for l in lines -%}{%- if ns.start == 0 and 'Новий лист' in l -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
+            {%- for l in lines -%}{%- if ns.start == 0 and ('Новий лист' in l or 'Нове оголошення' in l) -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
             {{ lines[ns.start:] | join('\n') | trim }}
           # the edit rebuilds the HTML: header lines (title, time, sender:
           # topic) as text, the letter itself back into a collapsed quote
           header: >-
             {%- set lines = original.split('\n') -%}
             {%- set ns = namespace(start=0) -%}
-            {%- for l in lines -%}{%- if ns.start == 0 and 'Новий лист' in l -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
+            {%- for l in lines -%}{%- if ns.start == 0 and ('Новий лист' in l or 'Нове оголошення' in l) -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
             {{ lines[:ns.start + 1] | join('\n') }}
           letter: >-
             {%- set lines = original.split('\n') -%}
             {%- set ns = namespace(start=0) -%}
-            {%- for l in lines -%}{%- if ns.start == 0 and 'Новий лист' in l -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
+            {%- for l in lines -%}{%- if ns.start == 0 and ('Новий лист' in l or 'Нове оголошення' in l) -%}{%- set ns.start = loop.index -%}{%- endif -%}{%- endfor -%}
             {{ lines[ns.start + 1:] | join('\n') | trim }}
       - action: rest_command.librus_translate
         continue_on_error: true

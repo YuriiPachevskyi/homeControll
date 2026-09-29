@@ -3,7 +3,10 @@
 // "Повідомлення" tab (librus/build_dashboard.py).
 //
 // A click on a letter in the stock list no longer expands it inline: the
-// letter opens in this card instead - full text in an editable box (copy /
+// letter opens in this card instead. The same goes for the stock
+// announcements card (school notices - their full text is already in the
+// sensor, no request) and the substitutions card (letters from the
+// substitutions/alerts/justifications mailboxes, fetched like any letter) - full text in an editable box (copy /
 // edit freely, edits are not saved), attachments, and a "Переклад" button
 // that adds the full Ukrainian translation below the text. The stock card is
 // patched at run time (its _onMessageClick), not in the HACS file, so HACS
@@ -31,6 +34,12 @@ function cacheSet(key, value) {
 function fmtDate(s) {
   const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(s || "");
   return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]}` : s || "";
+}
+
+// "2026-09-28" -> "28.09.2026"
+function fmtDay(s) {
+  const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(s || "");
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : s || "";
 }
 
 function esc(s) {
@@ -160,7 +169,7 @@ class LibrusMessageReaderCard extends HTMLElement {
   _build() {
     const root = this.attachShadow({ mode: "open" });
     root.innerHTML = `<style>${CSS}</style><ha-card>
-      <div class="hint"><ha-icon icon="mdi:email-open-outline"></ha-icon>Натисніть на лист у списку нижче - він відкриється тут</div>
+      <div class="hint"><ha-icon icon="mdi:email-open-outline"></ha-icon>Натисніть на лист чи оголошення - він відкриється тут</div>
       <div class="letter" hidden>
         <div class="head"><div class="t"><div class="topic"></div><div class="meta"></div></div>
           <button class="x" title="Закрити">✕</button></div>
@@ -199,6 +208,29 @@ class LibrusMessageReaderCard extends HTMLElement {
     const ta = this.$(sel);
     ta.value = text;
     requestAnimationFrame(() => grow(ta));
+  }
+
+  // a school notice: full text already in the sensor, nothing to fetch
+  showNotice(n) {
+    if (!this.shadowRoot) this._build();
+    const range = n.start_date && n.end_date
+      ? `${fmtDay(n.start_date)} – ${fmtDay(n.end_date)}` : "";
+    const msg = { id: `notice:${n.id}`, topic: n.subject };
+    this.msg = msg;
+    this.full = { content: (n.content || "").replace(/\r\n/g, "\n") };
+    this.$(".hint").hidden = true;
+    this.$(".letter").hidden = false;
+    this.$(".topic").textContent = msg.topic || "";
+    this.$(".meta").textContent = range ? `Оголошення · ${range}` : "Оголошення";
+    this.$(".atts").innerHTML = "";
+    this.$(".tr").hidden = true;
+    this.$(".translate").textContent = "Переклад";
+    this.$(".translate").disabled = false;
+    this._status("");
+    this._setArea(".text", this.full.content);
+    this.scrollIntoView({ behavior: "smooth", block: "start" });
+    const tr = cacheGet(`tr:${msg.id}`);
+    if (tr) this._showTranslation(tr);
   }
 
   // called by the patched stock card
@@ -293,7 +325,7 @@ class LibrusMessageReaderCard extends HTMLElement {
 
   async _copy() {
     const m = this.msg;
-    let text = `${m.topic}\n${m.sender} · ${fmtDate(m.date)}\n\n${this.$(".text").value}`;
+    let text = `${m.topic}\n${this.$(".meta").textContent}\n\n${this.$(".text").value}`;
     if (!this.$(".tr").hidden) text += `\n\n--- Переклад ---\n${this.$(".trtext").value}`;
     try {
       await navigator.clipboard.writeText(text);
@@ -312,16 +344,40 @@ if (!customElements.get("librus-message-reader-card")) {
     description: "Opens a letter clicked in the Librus messages card, with copy and Ukrainian translation (homeControll)" });
 }
 
-// Route clicks in the stock messages card to a reader card on the same view.
-customElements.whenDefined("librus-messages-card").then(() => {
-  const Card = customElements.get("librus-messages-card");
-  const orig = Card.prototype._onMessageClick;
-  if (!orig || Card.prototype.__hcReader) return;
-  Card.prototype.__hcReader = true;
-  Card.prototype._onMessageClick = function (msg) {
-    const reader = [...READERS].find((r) => r.isConnected && r.offsetParent !== null);
-    if (!reader) return orig.call(this, msg);
-    const found = this._resolveEntities?.();
-    reader.show(msg, found && !("error" in found) ? found.deviceId : undefined);
-  };
+function visibleReader() {
+  return [...READERS].find((r) => r.isConnected && r.offsetParent !== null);
+}
+
+// Route clicks in the stock cards to a reader card on the same view; with no
+// reader on the page they behave as stock.
+function patchCard(tag, method, route) {
+  customElements.whenDefined(tag).then(() => {
+    const Card = customElements.get(tag);
+    const orig = Card.prototype[method];
+    if (!orig || Card.prototype.__hcReader) return;
+    Card.prototype.__hcReader = true;
+    Card.prototype[method] = function (arg) {
+      const reader = visibleReader();
+      if (!reader || route.call(this, reader, arg) === false) return orig.call(this, arg);
+    };
+  });
+}
+
+function deviceOf(card) {
+  const found = card._resolveEntities?.();
+  return found && !("error" in found) ? found : undefined;
+}
+
+// letters: inbox list and the substitutions/alerts/justifications lists
+for (const [tag, method] of [["librus-messages-card", "_onMessageClick"], ["librus-substitutions-card", "_onClick"]]) {
+  patchCard(tag, method, function (reader, msg) { reader.show(msg, deviceOf(this)?.deviceId); });
+}
+
+// school notices: the card only passes the notice id - look it up in the sensor
+patchCard("librus-announcements-card", "_toggleExpanded", function (reader, id) {
+  const entity = deviceOf(this)?.map?.unread_announcements;
+  const recent = (entity && this.hass?.states[entity]?.attributes.recent) || [];
+  const n = recent.find((x, i) => (x.id ?? String(i)) === id);
+  if (!n) return false;
+  reader.showNotice(n);
 });
