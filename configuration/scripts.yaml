@@ -1,5 +1,5 @@
-power_load_disable_device_duplicate:
-  alias: Power load. Disable device CASCADE WORK
+power_load_cascade_step:
+  alias: Power load cascade step
   sequence:
   - choose:
     - conditions:
@@ -15,6 +15,11 @@ power_load_disable_device_duplicate:
             state:
             - 'on'
           sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: 'High Power: Heating OFF ({{ now().strftime(''%H:%M:%S'') }})'
           - action: switch.turn_off
             metadata: {}
             target:
@@ -183,7 +188,7 @@ power_load_disable_device_duplicate:
           - condition: or
             conditions:
             - condition: state
-              entity_id: binary_sensor.pv_5kw_10_lower_than_6kw
+              entity_id: binary_sensor.pv1_5kw_lower_than_6kw
               state: 'on'
               for:
                 seconds: 30
@@ -217,7 +222,7 @@ power_load_disable_device_duplicate:
           - condition: or
             conditions:
             - condition: state
-              entity_id: binary_sensor.pv_5kw_10_lower_than_6kw
+              entity_id: binary_sensor.pv1_5kw_lower_than_6kw
               state: 'on'
               for:
                 seconds: 30
@@ -247,7 +252,7 @@ power_load_disable_device_duplicate:
               entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
               state: 'on'
             - condition: state
-              entity_id: binary_sensor.pv_5kw_10_lower_than_6kw
+              entity_id: binary_sensor.pv1_5kw_lower_than_6kw
               state: 'on'
               for:
                 seconds: 30
@@ -284,7 +289,7 @@ power_load_disable_device_duplicate:
               for:
                 seconds: 30
             - condition: state
-              entity_id: binary_sensor.pv_5kw_10_lower_than_6kw
+              entity_id: binary_sensor.pv1_5kw_lower_than_6kw
               state:
               - 'on'
           sequence:
@@ -315,7 +320,7 @@ power_load_disable_device_duplicate:
               for:
                 seconds: 30
             - condition: state
-              entity_id: binary_sensor.pv_5kw_10_lower_than_6kw
+              entity_id: binary_sensor.pv1_5kw_lower_than_6kw
               state: 'on'
               for:
                 seconds: 30
@@ -351,7 +356,7 @@ power_load_disable_device_duplicate:
               for:
                 seconds: 30
             - condition: state
-              entity_id: binary_sensor.pv_5kw_10_lower_than_6kw
+              entity_id: binary_sensor.pv1_5kw_lower_than_6kw
               state: 'on'
               for:
                 seconds: 30
@@ -388,7 +393,7 @@ power_load_disable_device_duplicate:
               for:
                 seconds: 30
             - condition: state
-              entity_id: binary_sensor.pv_5kw_10_lower_than_6kw
+              entity_id: binary_sensor.pv1_5kw_lower_than_6kw
               state: 'on'
               for:
                 seconds: 30

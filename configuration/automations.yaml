@@ -394,11 +394,11 @@
       then:
       - action: automation.turn_on
         target:
-          entity_id: automation.general_automation
+          entity_id: automation.power_load_cascade
         data: {}
       - action: automation.trigger
         target:
-          entity_id: automation.general_automation
+          entity_id: automation.power_load_cascade
         data:
           skip_condition: true
   mode: queued
@@ -516,14 +516,15 @@
   mode: queued
   max: 3
 - id: '1773316386421'
-  alias: Grid power
+  alias: Power load cascade
   description: Drives the power load cascade one step per run. Every 30 s normally;
-    under high power it steps every 15 s and a new overload (on for 5 s) triggers
-    it right away, but never sooner than 15 s after the previous run, so the next
-    step sees the measured effect of the previous one (Deye polls every 10 s).
+    a new overload or surplus (on for 5 s) triggers a step right away, and while it
+    lasts it steps every 15 s, but never sooner than 15 s after the last real load
+    change (input_text.last_script_trigger; idle runs don't count), so the next step
+    sees the measured effect of the previous one (Deye polls every 5 s).
   triggers:
   - entity_id:
-    - script.power_load_disable_device_duplicate
+    - script.power_load_cascade_step
     from:
     to:
     for:
@@ -533,7 +534,7 @@
     trigger: state
     id: tick
   - entity_id:
-    - script.power_load_disable_device_duplicate
+    - script.power_load_cascade_step
     from:
     to:
     for:
@@ -553,9 +554,10 @@
   - trigger: state
     entity_id:
     - binary_sensor.battery_charge_and_export_power_limit
-    to:
-    - 'on'
-    enabled: false
+    to: 'on'
+    for:
+      seconds: 5
+    id: surplus
   conditions:
   - condition: or
     conditions:
@@ -565,16 +567,38 @@
         id:
         - tick_fast
         - overload
+        - surplus
     - condition: and
+      alias: 'Overload: step at most every 10 s'
       conditions:
+      - condition: trigger
+        id:
+        - tick_fast
+        - overload
       - condition: state
         entity_id: binary_sensor.any_device_high_power
         state: 'on'
       - condition: template
-        value_template: '{{ now() - states.script.power_load_disable_device_duplicate.last_changed
+        value_template: '{{ now() - states.input_text.last_script_trigger.last_changed
+          >= timedelta(seconds=15) }}'
+    - condition: and
+      alias: 'Surplus: step at most every 10 s'
+      conditions:
+      - condition: trigger
+        id:
+        - tick_fast
+        - surplus
+      - condition: state
+        entity_id: binary_sensor.any_device_high_power
+        state: 'off'
+      - condition: state
+        entity_id: binary_sensor.battery_charge_and_export_power_limit
+        state: 'on'
+      - condition: template
+        value_template: '{{ now() - states.input_text.last_script_trigger.last_changed
           >= timedelta(seconds=15) }}'
   actions:
-  - action: script.power_load_disable_device_duplicate
+  - action: script.power_load_cascade_step
     data: {}
   mode: single
 - id: '1777532101180'
