@@ -363,11 +363,18 @@
         entity_id: input_number.battery_power_deye_5kw
       data:
         value: '{{ s[''5kw_power''] }}'
-    - action: input_number.set_value
-      target:
-        entity_id: input_number.discharge_level_deye_6kw
-      data:
-        value: '{{ s[''6kw_soc''] }}'
+    - if:
+      # Once the evening selling cutoff has lowered the 6kW level (battery - 20),
+      # hourly/other re-runs must not put it back to the Evening Export 70%.
+      - condition: template
+        value_template: '{{ not (current_state == ''Evening Export'' and not is_selling_6kw
+          and trigger.id != ''state_changed'') }}'
+      then:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.discharge_level_deye_6kw
+        data:
+          value: '{{ s[''6kw_soc''] }}'
     - action: input_number.set_value
       target:
         entity_id: input_number.battery_power_deye_6kw
