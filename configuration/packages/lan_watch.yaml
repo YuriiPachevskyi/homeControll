@@ -1,4 +1,4 @@
-# LAN alerts, Telegram to Yurii only. Fed by presence/lan_watch.py (cron,
+# LAN alerts, Telegram to Yurii and Kateryna. Fed by presence/lan_watch.py (cron,
 # every minute), which watches the openwrtn (home) and openwrtk routers.
 #
 # Phone back: a tracked phone shows up after being away for more than 10 hours
@@ -11,10 +11,42 @@
 # New device (both routers): lan_watch.py calls script.notify_new_device once
 # for every MAC that is not a static DHCP host on its router and was never
 # seen before (TCL devices on openwrtk are ignored).
+#
+# Roaming: lan_watch.py calls script.notify_roaming_device when a static DHCP
+# host of one router arrives on the other one (again after 2 h away from it).
 script:
+  notify_roaming_device:
+    alias: Notify device on the other router
+    description: Telegram to Yurii and Kateryna when a known device of one router shows up on the other (called by presence/lan_watch.py).
+    fields:
+      name:
+        description: Static DHCP host name on its own router
+      router:
+        description: Router it showed up on (openwrtn or openwrtk)
+    mode: queued
+    sequence:
+      - variables:
+          title: Пристрій
+          message: "📍 {{ name }} з'явився в мережі {{ router }}"
+      - action: telegram_bot.send_message
+        continue_on_error: true
+        target:
+          entity_id:
+            - notify.yurii_p
+            - notify.kateryna
+        data:
+          title: "{{ title }}"
+          message: "{{ message }}"
+        response_variable: send_result
+      - action: script.notify_log_record
+        data:
+          title: "{{ title }}"
+          message: "{{ message }}"
+          chats: "{{ send_result.chats | default([]) if send_result is defined else [] }}"
+
   notify_new_device:
     alias: Notify new LAN device
-    description: Telegram to Yurii about an unknown device on the home LAN (called by presence/lan_watch.py).
+    description: Telegram to Yurii and Kateryna about an unknown device on the home LAN (called by presence/lan_watch.py).
     fields:
       hostname:
         description: DHCP hostname or "—"
@@ -43,7 +75,9 @@ script:
       - action: telegram_bot.send_message
         continue_on_error: true
         target:
-          entity_id: notify.yurii_p
+          entity_id:
+            - notify.yurii_p
+            - notify.kateryna
         data:
           title: "{{ title }}"
           message: "{{ message }}"
@@ -57,7 +91,7 @@ script:
 automation:
   - id: phone_back_on_network
     alias: Phone back on the network
-    description: Notifies Yurii when HUAWEIP30 or POCO-M5s joins the home LAN after 10+ hours away, or realme-6 joins openwrtk after 5+ hours.
+    description: Notifies Yurii and Kateryna when HUAWEIP30 or POCO-M5s joins the home LAN after 10+ hours away, or realme-6 joins openwrtk after 5+ hours.
     mode: queued
     triggers:
       - trigger: state
@@ -95,7 +129,9 @@ automation:
       - action: telegram_bot.send_message
         continue_on_error: true
         target:
-          entity_id: notify.yurii_p
+          entity_id:
+            - notify.yurii_p
+            - notify.kateryna
         data:
           title: "{{ title }}"
           message: "{{ message }}"

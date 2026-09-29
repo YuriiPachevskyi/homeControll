@@ -14,13 +14,19 @@ port). "Known" devices are the router's static DHCP hosts (the named ones).
    on the network" uses "since" for its 10 h rule (realme-6: 5 daytime
    hours). If a router can't be reached, its phones keep their last state.
 
-2. New devices. An active MAC that is not a static host on its router, not
-   an ignored vendor and has never been seen before triggers script.notify_new_device in HA (Telegram to Yurii) once, with its
+2. New devices. An active MAC that is not a static host on any router, not
+   an ignored vendor and has never been seen before triggers script.notify_new_device in HA (Telegram to Yurii and Kateryna) once, with its
    IP/hostname from the DHCP lease, vendor (IEEE OUI list) and how it is
    connected. The alert waits up to NEW_DEVICE_WAIT for the DHCP lease so the
    IP is usually there. Every MAC ever seen is kept in state.json, so each
    device is reported only once. The first run on a router only records what
    is already there (seeded_routers), without alerts.
+
+3. Roaming. A static host of one router that shows up on the other router
+   triggers script.notify_roaming_device (device name + router) when it
+   arrives, i.e. was not seen there for ROAM_GAP, so Wi-Fi sleeps during a
+   visit don't repeat it. Static hosts are cached in state.json, so this
+   (and 2.) still works while the device's own router is unreachable.
 
 State between runs: presence/state.json. stdlib + mosquitto_pub only.
 """
@@ -42,6 +48,7 @@ ROUTERS = ["openwrtn", "openwrtk"]
 NEW_DEVICE_IGNORE_VENDORS = {"openwrtn": [], "openwrtk": ["TCL"]}
 AWAY_AFTER = timedelta(minutes=10)
 NEW_DEVICE_WAIT = timedelta(minutes=3)
+ROAM_GAP = timedelta(hours=2)
 STATE_FILE = Path(__file__).with_name("state.json")
 OUI_FILE = Path("/usr/share/ieee-data/oui.txt")
 HA_URL = "http://localhost:8123"
@@ -204,6 +211,23 @@ def watch_new_devices(state, now, router, known, leases, links):
         del pending[mac]
 
 
+def watch_roaming(state, now, router, static_hosts, links):
+    first_run = "roaming" not in state
+    last = state.setdefault("roaming", {}).setdefault(router, {})
+    for other, hosts in static_hosts.items():
+        if other == router:
+            continue
+        for mac, name in hosts.items():
+            if mac not in links or mac in static_hosts.get(router, {}):
+                continue
+            prev = last.get(mac)
+            last[mac] = now.isoformat()
+            if first_run or (prev and now - datetime.fromisoformat(prev) < ROAM_GAP):
+                continue
+            ha_script("notify_roaming_device", {"name": name or mac, "router": router})
+            print(f"{now:%F %T} {name or mac} ({other}) is on {router}")
+
+
 def main():
     now = datetime.now().astimezone()
     snapshots = {}
@@ -218,10 +242,15 @@ def main():
         state = {}
 
     track_phones(state, now, snapshots)
+    static_hosts = state.setdefault("static_hosts", {})
+    for router, (known, _, _) in snapshots.items():
+        static_hosts[router] = known
+    all_known = {mac: name for hosts in static_hosts.values() for mac, name in hosts.items()}
     try:
-        for router in NEW_DEVICE_IGNORE_VENDORS:
-            if router in snapshots:
-                watch_new_devices(state, now, router, *snapshots[router])
+        for router, (_, leases, links) in snapshots.items():
+            watch_roaming(state, now, router, static_hosts, links)
+            if router in NEW_DEVICE_IGNORE_VENDORS:
+                watch_new_devices(state, now, router, all_known, leases, links)
     finally:
         STATE_FILE.write_text(json.dumps(state, indent=2) + "\n")
 
