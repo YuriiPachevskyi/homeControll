@@ -436,6 +436,13 @@ power_load_cascade_step:
     data: {}
   alias: Bizon wakeup
   description: ''
+rpi5_reboot:
+  sequence:
+  - action: shell_command.rpi5_reboot
+    data: {}
+  alias: rpi5 reboot
+  icon: mdi:restart
+  description: ''
 notify_all:
   alias: Notify all (Telegram)
   description: Sends the same notification to all Telegram recipients and logs
