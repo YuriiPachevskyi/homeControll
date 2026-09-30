@@ -161,7 +161,7 @@
           - number.deye_5kw_program_5_power
           - number.deye_5kw_program_6_power
         data:
-          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
+          value: '{{ (trigger.to_state.state | float(0) * 1000) | round(0) }}'
     - conditions:
       - condition: trigger
         id: battery_power_6kw
@@ -176,7 +176,7 @@
           - number.deye_6kw_program_5_power
           - number.deye_6kw_program_6_power
         data:
-          value: '{{ trigger.to_state.state | float(0) | round(0) }}'
+          value: '{{ (trigger.to_state.state | float(0) * 1000) | round(0) }}'
     - conditions:
       - condition: trigger
         id: charge_power_5kw
@@ -276,8 +276,9 @@
   - variables:
       current_state: '{{ states(''input_select.deye_system_state'') }}'
       max_discharge_power_5kw: 2400
-      smart_limit: '{{ [states(''sensor.deye_5kw_smart_discharge_limit'') | float(300),
-        max_discharge_power_5kw] | min }}'
+      # kW, like input_number.deye_5kw_discharge_power (the sensor is W)
+      smart_limit: '{{ ([states(''sensor.deye_5kw_smart_discharge_limit'') | float(300),
+        max_discharge_power_5kw] | min / 1000) | round(2) }}'
       is_selling_6kw: '{{ is_state(''input_boolean.deye_6kw_battery_selling'', ''on'')
         }}'
       export_soc_5kw: '{{ states(''input_number.deye_5kw_export_soc'') | int(70)
@@ -288,23 +289,23 @@
           5kw_power: '{{ smart_limit }}'
           export_power: 5050
           6kw_soc: 40
-          6kw_power: 900
+          6kw_power: 0.9
           peak_shaving_6kw: 'on'
           general_automation: true
         Max Solar:
           5kw_soc: '{{ export_soc_5kw }}'
-          5kw_power: 350
+          5kw_power: 0.35
           export_power: 5080
           6kw_soc: 40
-          6kw_power: 1000
+          6kw_power: 1
           peak_shaving_6kw: 'on'
           general_automation: true
         Max Solar Forced:
           5kw_soc: 40
-          5kw_power: 350
+          5kw_power: 0.35
           export_power: 5080
           6kw_soc: 55
-          6kw_power: 1000
+          6kw_power: 1
           peak_shaving_6kw: 'on'
           general_automation: true
         Evening Export:
@@ -312,15 +313,15 @@
           5kw_power: '{{ smart_limit }}'
           export_power: 5000
           6kw_soc: 70
-          6kw_power: 1000
+          6kw_power: 1
           peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
           general_automation: true
         Night Idle:
           5kw_soc: 35
-          5kw_power: 1000
+          5kw_power: 1
           export_power: 100
           6kw_soc: 35
-          6kw_power: 1300
+          6kw_power: 1.3
           peak_shaving_6kw: 'on'
           general_automation: true
       s: '{{ config.get(current_state, config[''Night Idle'']) }}'
