@@ -85,13 +85,6 @@ def cell(kwh: str, money: str | None, kind: str | None, var: str, bold: bool, wi
     return text
 
 
-# gas vs the electric boiler: m³ price, kWh of heat in 1 m³, boiler efficiency;
-# the heat for one full 80 l boiler (15 -> 55 °C)
-GAS_PRICE, GAS_KWH, GAS_EFF, BOILER_KWH = 12, 9.3, 0.9, 3.7
-# plain-language note under the table (for the user's mother-in-law): is the
-# boiler cheaper on gas or on electricity; the ₴/kWh is the last full month's
-# ENERA green tariff after tax (what a kWh of our solar sells for). The user
-# cut the column legend that used to precede it.
 # "Вер" -> "Вересень"
 MONTH_NAME = ("{%- set month_name = {'Січ': 'Січень', 'Лют': 'Лютий', 'Бер': 'Березень', 'Кві': 'Квітень',"
               " 'Тра': 'Травень', 'Чер': 'Червень', 'Лип': 'Липень', 'Сер': 'Серпень', 'Вер': 'Вересень',"
@@ -106,19 +99,6 @@ BOILER_NOTE = (
     "Експорт, <ha-icon icon=\"mdi:transmission-tower-export\"></ha-icon>: <b>{{ bm.exp | round(0) | int }} kWh</b>, "
     "сальдо: <b>{{ (bm.exp - bm.imp) | round(0) | int }} kWh</b>"  # export - import, what ENERA pays for
     "{% if bm.net is not none %} <small>({{ '%+d' % bm.net }} ₴)</small>{% endif %}.</p>\n\n{% endif %}"
-)
-EXPLAIN = (
-    "{%- set full = rows | selectattr('kind', 'eq', 'month') | rejectattr('label', 'search', '⏳') | list -%}\n"
-    "{%- set m = full | last if full else none -%}\n"
-    "{%- if m and m.green -%}\n"
-    "{%- set el = m.green -%}\n"
-    f"{{%- set gas = {GAS_PRICE} / ({GAS_KWH} * {GAS_EFF}) -%}}\n"
-    "\nНагріти 80 л води (з 15 до 55 °C):\n"
-    f"- електричним бойлером: {f"{BOILER_KWH:g}".replace(".", ",")} кВт·год × {{{{ ('%.2f' % el) | replace('.', ',') }}}} ₴ ≈ "
-    f"<b>{{{{ ({BOILER_KWH} * el) | round(0) | int }}}} ₴</b>\n"
-    f"- газовим котлом: {{{{ ('%.2f' % ({BOILER_KWH} / ({GAS_KWH} * {GAS_EFF}))) | replace('.', ',') }}}} м³ × {GAS_PRICE} ₴ ≈ "
-    f"<b>{{{{ ({BOILER_KWH} * gas) | round(0) | int }}}} ₴</b>\n"
-    "{%- endif %}"
 )
 
 
@@ -154,7 +134,6 @@ def content(phone: bool) -> str:
         f"<table>{row('<b>Всього</b>', 't', True)}</table>"
         "{% endfor %}\n\n"
         + BOILER_NOTE
-        + EXPLAIN
     )
 
 
@@ -200,10 +179,8 @@ def css(phone: bool) -> str:
         "th, td { padding: 3px 6px !important; }\n"
         "ha-icon { --mdc-icon-size: 16px; vertical-align: text-bottom; }\n"
         + ("table { font-size: 12px; }\n" if phone else "")
-        # the boiler / gas note under the table: tight and small, so "≈ 19 ₴"
-        # stays on its line on a phone
-        + "p, ul { margin: 2px 0 !important; font-size: 12px; }\n"
-        "ul { padding-left: 18px; }\n"
+        # the boiler note under the table: tight and small
+        + "p { margin: 2px 0 !important; font-size: 12px; }\n"
         "table + p { margin-top: 6px !important; }\n"
         "p + p { margin-top: 8px !important; }\n"
         "p small { font-size: inherit; color: #4caf50; }\n"  # the export ₴, green like in the table
