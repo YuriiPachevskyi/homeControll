@@ -1,7 +1,7 @@
 template:
   - trigger:
       - trigger: time
-        at: input_datetime.selling_start_time
+        at: input_datetime.deye_morning_export_start_time
       - trigger: homeassistant
         event: start
     action:
@@ -15,7 +15,7 @@ template:
           hourly: "{{ hourly_forecast['weather.forecast_home']['forecast'] }}"
           effective_hours: >
             {% set t_now = now() %}
-            {% set t_end_m = today_at(states('input_datetime.update_morning_param_time')) %}
+            {% set t_end_m = today_at(states('input_datetime.deye_max_solar_start_time')) %}
             {% set ns = namespace(total=0, count=0) %}
             {% for f in hourly %}
               {% set dt_local = as_local(as_datetime(f.datetime)) %}
@@ -43,15 +43,15 @@ template:
           {% if soc <= 40 %}
             {{ 300 }}
           {% else %}
-            {% set target_soc = (states('input_number.discharge_level_deye_5kw') | float(0)) %}
+            {% set target_soc = (states('input_number.deye_5kw_min_soc') | float(0)) %}
             {% set battery_capacity_wh = 30000 %}
             {% set available_energy_wh = (soc - target_soc) / 100 * battery_capacity_wh %}
             
             {% set t_now = now() %}
-            {% set t_start_m = today_at(states('input_datetime.selling_start_time')) %}
-            {% set t_end_m = today_at(states('input_datetime.update_morning_param_time')) %}
-            {% set t_start_e = today_at(states('input_datetime.update_evening_param_time')) %}
-            {% set t_end_e = today_at(states('input_datetime.selling_stop_time')) %}
+            {% set t_start_m = today_at(states('input_datetime.deye_morning_export_start_time')) %}
+            {% set t_end_m = today_at(states('input_datetime.deye_max_solar_start_time')) %}
+            {% set t_start_e = today_at(states('input_datetime.deye_evening_export_start_time')) %}
+            {% set t_end_e = today_at(states('input_datetime.deye_night_idle_start_time')) %}
             
             {% set forecast_h = states('sensor.deye_5kw_morning_effective_dark_hours') | float(-1) %}
             {% set forecast_fresh = state_attr('sensor.deye_5kw_morning_effective_dark_hours', 'computed_date') | string == t_now.date() | string %}
@@ -87,7 +87,7 @@ template:
           {% endif %}
         availability: >
           {{ is_number(states('sensor.deye_5kw_battery')) and 
-             states('input_datetime.selling_start_time') != 'unknown' and
-             states('input_datetime.update_morning_param_time') != 'unknown' and
-             states('input_datetime.update_evening_param_time') != 'unknown' and
-             states('input_datetime.selling_stop_time') != 'unknown' }}
+             states('input_datetime.deye_morning_export_start_time') != 'unknown' and
+             states('input_datetime.deye_max_solar_start_time') != 'unknown' and
+             states('input_datetime.deye_evening_export_start_time') != 'unknown' and
+             states('input_datetime.deye_night_idle_start_time') != 'unknown' }}

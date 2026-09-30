@@ -26,11 +26,11 @@
     (5 min steps).'
   triggers:
   - trigger: state
-    entity_id: input_number.discharge_level_deye_5kw
+    entity_id: input_number.deye_5kw_min_soc
     for: 00:00:01
     id: discharge_5kw
   - trigger: state
-    entity_id: input_number.discharge_level_deye_6kw
+    entity_id: input_number.deye_6kw_min_soc
     for: 00:00:01
     id: discharge_6kw
   - trigger: state
@@ -38,19 +38,19 @@
     for: 00:00:01
     id: export_5kw
   - trigger: state
-    entity_id: input_datetime.selling_start_time
+    entity_id: input_datetime.deye_morning_export_start_time
     for: 00:00:01
     id: selling_start
   - trigger: state
-    entity_id: input_datetime.selling_stop_time
+    entity_id: input_datetime.deye_night_idle_start_time
     for: 00:00:01
     id: selling_stop
   - trigger: state
-    entity_id: input_number.battery_power_deye_5kw
+    entity_id: input_number.deye_5kw_discharge_power
     for: 00:00:01
     id: battery_power_5kw
   - trigger: state
-    entity_id: input_number.battery_power_deye_6kw
+    entity_id: input_number.deye_6kw_discharge_power
     for: 00:00:01
     id: battery_power_6kw
   - trigger: state
@@ -111,9 +111,9 @@
         - selling_stop
       sequence:
       - variables:
-          start_m: '{% set t = states(''input_datetime.selling_start_time'').split('':'')
+          start_m: '{% set t = states(''input_datetime.deye_morning_export_start_time'').split('':'')
             %}{{ t[0] | int(0) * 60 + t[1] | int(0) }}'
-          stop_m: '{% set t = states(''input_datetime.selling_stop_time'').split('':'')
+          stop_m: '{% set t = states(''input_datetime.deye_night_idle_start_time'').split('':'')
             %}{{ t[0] | int(0) * 60 + t[1] | int(0) }}'
           step_m: '{{ ((1440 - stop_m) / 4 / 5) | int * 5 }}'
           minutes: '{{ [0, start_m, stop_m, stop_m + step_m, stop_m + 2 * step_m,
@@ -144,8 +144,8 @@
           target:
             entity_id: input_text.last_script_trigger
           data:
-            value: 'Selling window NOT applied: start {{ states(''input_datetime.selling_start_time'')[:5]
-              }} / stop {{ states(''input_datetime.selling_stop_time'')[:5] }} (need
+            value: 'Selling window NOT applied: start {{ states(''input_datetime.deye_morning_export_start_time'')[:5]
+              }} / stop {{ states(''input_datetime.deye_night_idle_start_time'')[:5] }} (need
               00:00 < start < stop <= 23:40)'
     - conditions:
       - condition: trigger
@@ -212,16 +212,16 @@
   description: Handles time-based state transitions and force mode
   triggers:
   - trigger: time
-    at: input_datetime.selling_start_time
+    at: input_datetime.deye_morning_export_start_time
     id: Morning Export
   - trigger: time
-    at: input_datetime.update_morning_param_time
+    at: input_datetime.deye_max_solar_start_time
     id: Max Solar
   - trigger: time
-    at: input_datetime.update_evening_param_time
+    at: input_datetime.deye_evening_export_start_time
     id: Evening Export
   - trigger: time
-    at: input_datetime.selling_stop_time
+    at: input_datetime.deye_night_idle_start_time
     id: Night Idle
   - trigger: state
     entity_id: input_boolean.force_high_power_on_low_charge
@@ -243,10 +243,10 @@
     data:
       option: "{% if is_state('input_boolean.force_high_power_on_low_charge', 'on')
         %}\n  Max Solar Forced\n{% else %}\n  {% set now_time = now().strftime('%H:%M:%S')
-        %}\n  {% set morning_export = states('input_datetime.selling_start_time')
-        %}\n  {% set max_solar = states('input_datetime.update_morning_param_time')
-        %}\n  {% set evening_export = states('input_datetime.update_evening_param_time')
-        %}\n  {% set night_idle = states('input_datetime.selling_stop_time') %}\n
+        %}\n  {% set morning_export = states('input_datetime.deye_morning_export_start_time')
+        %}\n  {% set max_solar = states('input_datetime.deye_max_solar_start_time')
+        %}\n  {% set evening_export = states('input_datetime.deye_evening_export_start_time')
+        %}\n  {% set night_idle = states('input_datetime.deye_night_idle_start_time') %}\n
         \ \n  {% if morning_export <= now_time < max_solar %}\n    Morning Export\n
         \ {% elif max_solar <= now_time < evening_export %}\n    Max Solar\n  {% elif
         evening_export <= now_time < night_idle %}\n    Evening Export\n  {% else
@@ -254,7 +254,7 @@
 - id: deye_state_controller
   alias: Deye State Controller
   description: Applies settings based on current Deye System State. 5kW discharge
-    SOC for Morning Export, Max Solar and Evening Export comes from input_number.deye_5kw_discharge_soc
+    SOC for Morning Export, Max Solar and Evening Export comes from input_number.deye_5kw_export_soc
     (changing it re-applies the settings).
   triggers:
   - trigger: state
@@ -270,7 +270,7 @@
     entity_id: sensor.deye_6kw_battery
     id: battery_changed
   - trigger: state
-    entity_id: input_number.deye_5kw_discharge_soc
+    entity_id: input_number.deye_5kw_export_soc
     id: soc_5kw_changed
   actions:
   - variables:
@@ -280,7 +280,7 @@
         max_discharge_power_5kw] | min }}'
       is_selling_6kw: '{{ is_state(''input_boolean.deye_6kw_battery_selling'', ''on'')
         }}'
-      export_soc_5kw: '{{ states(''input_number.deye_5kw_discharge_soc'') | int(70)
+      export_soc_5kw: '{{ states(''input_number.deye_5kw_export_soc'') | int(70)
         }}'
       config:
         Morning Export:
@@ -342,7 +342,7 @@
         entity_id: input_boolean.deye_6kw_battery_selling
     - action: input_number.set_value
       target:
-        entity_id: input_number.discharge_level_deye_6kw
+        entity_id: input_number.deye_6kw_min_soc
       data:
         value: '{{ [ (states(''sensor.deye_6kw_battery'') | float(0) - 20) | round(0),
           30 ] | max }}'
@@ -355,12 +355,12 @@
         entity_id: switch.deye_6kw_grid_peak_shaving
     - action: input_number.set_value
       target:
-        entity_id: input_number.discharge_level_deye_5kw
+        entity_id: input_number.deye_5kw_min_soc
       data:
         value: '{{ s[''5kw_soc''] }}'
     - action: input_number.set_value
       target:
-        entity_id: input_number.battery_power_deye_5kw
+        entity_id: input_number.deye_5kw_discharge_power
       data:
         value: '{{ s[''5kw_power''] }}'
     - if:
@@ -372,12 +372,12 @@
       then:
       - action: input_number.set_value
         target:
-          entity_id: input_number.discharge_level_deye_6kw
+          entity_id: input_number.deye_6kw_min_soc
         data:
           value: '{{ s[''6kw_soc''] }}'
     - action: input_number.set_value
       target:
-        entity_id: input_number.battery_power_deye_6kw
+        entity_id: input_number.deye_6kw_discharge_power
       data:
         value: '{{ s[''6kw_power''] }}'
     - action: input_number.set_value
@@ -413,14 +413,14 @@
 - id: deye_6kw_selling_weather_check
   alias: Deye 6kW Battery Selling - Auto Weather Check
   description: Auto-toggles input_boolean.deye_6kw_battery_selling based on tomorrow's
-    forecast cloud coverage, 1 minute before update_evening_param_time. Runs year-round
+    forecast cloud coverage, 1 minute before deye_evening_export_start_time. Runs year-round
     so the flag is force-reset off outside March-September (it would otherwise never
     reset once the season condition stopped matching), but only ever turns it on within
     that window.
   triggers:
   - trigger: time
     at:
-      entity_id: input_datetime.update_evening_param_time
+      entity_id: input_datetime.deye_evening_export_start_time
       offset: -00:01:00
   actions:
   - action: weather.get_forecasts
