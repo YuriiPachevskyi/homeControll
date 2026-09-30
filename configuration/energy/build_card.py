@@ -6,9 +6,8 @@ One table for everything: a row per year (its totals), each an HTML
 <details> that opens that year's months in the same columns, the year's
 totals then moving under its last month (click-to-expand
 without JS, same trick as the Payments tables), then the "Всього" row.
-The title is a heading above the table; tapping it toggles
-input_boolean.monthly_energy_expanded, which opens every year at once.
-Heading and table are one vertical-stack, found again by MARKER and replaced
+No heading above the table: years are opened one by one in the table itself.
+The card is found again by MARKER and replaced
 in place, so the rest of the view is left alone. Styled like the Payments
 tables: bold left-aligned headers with a small coloured icon before the name,
 short month labels ("Вер 26"). Columns
@@ -37,8 +36,6 @@ import websocket
 TOKEN = (Path.home() / ".secrets" / "ha_token").read_text().strip()
 URL_PATH, VIEW_PATH = None, "default_view"  # None = Overview (lovelace)
 MARKER = "sensor.monthly_energy_table"  # how the card is found again
-TITLE = "Генерація"
-EXPANDED = "input_boolean.monthly_energy_expanded"  # packages/monthly_energy_table.yaml
 
 # (kWh key, ₴ key or None, icon, colour, name, phone name, ₴ kind); a cell shows
 # the kWh on top and, where there is one, the ₴ amount under it in small type
@@ -108,8 +105,7 @@ BOILER_NOTE = (
     "з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>: <b><i>{{ bm.boiler | round(0) | int }} kWh</i></b>.<br>"
     "Експорт, <ha-icon icon=\"mdi:transmission-tower-export\"></ha-icon>: <b>{{ bm.exp | round(0) | int }} kWh</b>, "
     "сальдо: <b>{{ (bm.exp - bm.imp) | round(0) | int }} kWh</b>"  # export - import, what ENERA pays for
-    "{% if bm.net is not none %} <small>({{ '%+d' % bm.net }} ₴)</small>{% endif %}.</p>\n\n"
-    "<p>Бойлер в автоматичному режимі споживає надлишкову потужність!</p>\n\n{% endif %}"
+    "{% if bm.net is not none %} <small>({{ '%+d' % bm.net }} ₴)</small>{% endif %}.</p>\n\n{% endif %}"
 )
 EXPLAIN = (
     "{%- set full = rows | selectattr('kind', 'eq', 'month') | rejectattr('label', 'search', '⏳') | list -%}\n"
@@ -144,7 +140,7 @@ def content(phone: bool) -> str:
         f"<table>{names}</table>\n"
         "{% for s in rows if s.kind == 'sum' -%}\n"
         "{%- set y = s.label[-4:] -%}\n"
-        f"<details{{{{ ' open' if is_state('{EXPANDED}', 'on') }}}}><summary><table>{row('<b>{{ y }}</b>', 's', True)}</table></summary><table>\n"
+        f"<details><summary><table>{row('<b>{{ y }}</b>', 's', True)}</table></summary><table>\n"
         "{% for r in rows if r.kind == 'month' and r.label.split(' ')[1] == y -%}\n"
         f"{month_label}\n"
         + row("{% if acts.get(r.get('act')) %}<a href=\"{{ acts[r.act] }}\" target=\"_blank\" "
@@ -214,22 +210,10 @@ def css(phone: bool) -> str:
     )
 
 
-def headings() -> list:
-    """The table's title as a section heading: tapping it toggles EXPANDED
-    (every year open / all collapsed). Two headings shown by state, so the
-    arrow always says what a tap will do - like the Payments "Розгорнути"."""
-    def heading(arrow: str, state: str) -> dict:
-        return {"type": "heading", "heading": f"{arrow} {TITLE}", "heading_style": "title",
-                "icon": "mdi:solar-power-variant",
-                "tap_action": {"action": "perform-action", "perform_action": "input_boolean.toggle",
-                               "target": {"entity_id": EXPANDED}},
-                "visibility": [{"condition": "state", "entity": EXPANDED, "state": state}]}
-    return [heading("▸", "off"), heading("▾", "on")]
-
-
 def card() -> dict:
+    # Kept in a vertical-stack: as a bare top-level card of the masonry view
+    # the card_mod table styles are not applied.
     return {"type": "vertical-stack", "cards": [
-        *headings(),
         {"type": "markdown", "content": content(phone=True),
          "card_mod": {"style": {"ha-markdown $": css(phone=True)}}}]}
 
