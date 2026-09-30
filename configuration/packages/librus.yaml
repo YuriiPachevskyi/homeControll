@@ -65,41 +65,25 @@ automation:
       # 0-40 min random wait -> the refresh lands 20 min before to 20 min after
       - delay:
           seconds: "{{ range(0, 2400) | random }}"
-      - action: librus_synergia.refresh
-    mode: single
-
-  - id: librus_route_changed_notify
-    alias: "Librus - route changed (Telegram)"
-    description: Every Librus refresh fires a `librus_route` event with the route
-      it used - "direct" (from this server, Ukraine) or "rpi5" (the fallback
-      proxy on raspberrypi5 in Poland, local patch 5/6). When it differs from
-      the last one (input_select.librus_route), tell Yurii and Kateryna on
-      Telegram - only on a change. Not notify_all - that one also goes to
-      Nataliya.
-    triggers:
-      - trigger: event
-        event_type: librus_route
-    conditions:
-      - condition: template
-        value_template: >-
-          {{ trigger.event.data.route in ['direct', 'rpi5']
-             and trigger.event.data.route != states('input_select.librus_route') }}
-    actions:
       - variables:
-          route: "{{ trigger.event.data.route }}"
+          started: "{{ now().timestamp() }}"
+      - action: librus_synergia.refresh
+      # A refresh takes ~2.5 min and a failed one is silent (the patch keeps
+      # the previous data). A successful one moves
+      # input_datetime.librus_last_refresh (librus_refreshed_mark below); if
+      # it did not move, neither route (direct from rpi4, fallback via rpi5)
+      # got the data - tell Yurii and Kateryna (not notify_all - that one
+      # also goes to Nataliya).
+      - wait_template: >-
+          {{ (state_attr('input_datetime.librus_last_refresh', 'timestamp') or 0) >= started }}
+        timeout:
+          minutes: 10
+      - condition: template
+        value_template: "{{ not wait.completed }}"
+      - variables:
           msg: |-
-            {% if route == 'direct' -%}
-            ✅ Librus знову доступний з України
-            Маршрут: напряму з rpi4
-            {%- else -%}
-            ⚠️ Librus недоступний з України
-            Маршрут: через rpi5 (Польща)
-            {%- endif %}
-      - action: input_select.select_option
-        target:
-          entity_id: input_select.librus_route
-        data:
-          option: "{{ route }}"
+            ⚠️ Librus: дані не отримано
+            Маршрут: {{ 'через rpi5 (Польща)' if is_state('input_select.librus_route', 'rpi5') else 'напряму з rpi4' }}
       - action: telegram_bot.send_message
         continue_on_error: true
         target:
@@ -115,6 +99,29 @@ automation:
           title: Librus
           message: "{{ msg }}"
           chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
+    mode: single
+
+  - id: librus_route_changed_notify
+    alias: "Librus - remember last route"
+    description: Every Librus refresh fires a `librus_route` event with the route
+      it used - "direct" (from this server, Ukraine) or "rpi5" (the fallback
+      proxy on raspberrypi5 in Poland, local patch 5/6). Keep it in
+      input_select.librus_route. No Telegram - the route flips too often;
+      only a refresh that got no data is reported (librus_scheduled_refresh).
+    triggers:
+      - trigger: event
+        event_type: librus_route
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.event.data.route in ['direct', 'rpi5']
+             and trigger.event.data.route != states('input_select.librus_route') }}
+    actions:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.librus_route
+        data:
+          option: "{{ trigger.event.data.route }}"
     mode: queued
 
   - id: librus_refreshed_mark
