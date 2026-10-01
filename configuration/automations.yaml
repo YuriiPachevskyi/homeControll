@@ -209,7 +209,10 @@
   max: 9
 - id: deye_state_scheduler
   alias: Deye State Scheduler
-  description: Handles time-based state transitions and force mode
+  description: Handles time-based state transitions and force mode. The force switch
+    only works from the start of Morning Export to the end of Max Solar; outside that
+    window it is turned off (also on HA start, in case the Evening Export trigger
+    was missed) and never selects Max Solar Forced.
   triggers:
   - trigger: time
     at: input_datetime.deye_morning_export_start_time
@@ -226,10 +229,20 @@
   - trigger: state
     entity_id: input_boolean.force_high_power_on_low_charge
     id: force_toggle
+  - trigger: homeassistant
+    event: start
+    id: ha_start
   actions:
+  - variables:
+      now_time: "{{ now().strftime('%H:%M:%S') }}"
+      morning_export: "{{ states('input_datetime.deye_morning_export_start_time') }}"
+      max_solar: "{{ states('input_datetime.deye_max_solar_start_time') }}"
+      evening_export: "{{ states('input_datetime.deye_evening_export_start_time') }}"
+      night_idle: "{{ states('input_datetime.deye_night_idle_start_time') }}"
+      force_window: '{{ morning_export <= now_time < evening_export }}'
   - if:
-    - condition: trigger
-      id: Evening Export
+    - condition: template
+      value_template: '{{ not force_window }}'
     - condition: state
       entity_id: input_boolean.force_high_power_on_low_charge
       state: 'on'
@@ -241,16 +254,11 @@
     target:
       entity_id: input_select.deye_system_state
     data:
-      option: "{% if is_state('input_boolean.force_high_power_on_low_charge', 'on')
-        %}\n  Max Solar Forced\n{% else %}\n  {% set now_time = now().strftime('%H:%M:%S')
-        %}\n  {% set morning_export = states('input_datetime.deye_morning_export_start_time')
-        %}\n  {% set max_solar = states('input_datetime.deye_max_solar_start_time')
-        %}\n  {% set evening_export = states('input_datetime.deye_evening_export_start_time')
-        %}\n  {% set night_idle = states('input_datetime.deye_night_idle_start_time') %}\n
-        \ \n  {% if morning_export <= now_time < max_solar %}\n    Morning Export\n
-        \ {% elif max_solar <= now_time < evening_export %}\n    Max Solar\n  {% elif
-        evening_export <= now_time < night_idle %}\n    Evening Export\n  {% else
-        %}\n    Night Idle\n  {% endif %}\n{% endif %}"
+      option: "{% if force_window and is_state('input_boolean.force_high_power_on_low_charge',
+        'on') %}\n  Max Solar Forced\n{% elif morning_export <= now_time < max_solar
+        %}\n  Morning Export\n{% elif max_solar <= now_time < evening_export %}\n  Max
+        Solar\n{% elif evening_export <= now_time < night_idle %}\n  Evening Export\n{%
+        else %}\n  Night Idle\n{% endif %}"
 - id: deye_state_controller
   alias: Deye State Controller
   description: Applies settings based on current Deye System State. 5kW discharge
