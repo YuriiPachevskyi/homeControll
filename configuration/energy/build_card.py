@@ -94,11 +94,18 @@ BOILER_NOTE = (
     "{%- set bm = rows | selectattr('kind', 'eq', 'month') | rejectattr('boiler', 'none') | list | last"
     " if rows | selectattr('kind', 'eq', 'month') | rejectattr('boiler', 'none') | list else none -%}\n"
     + MONTH_NAME +
-    "{%- if bm %}<p>{{ month_name[bm.label.split(' ')[0]] }}, <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: <b>{{ bm.house | round(0) | int }} kWh</b>, "
-    "з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>: <b><i>{{ bm.boiler | round(0) | int }} kWh</i></b>.<br>"
-    "Експорт, <ha-icon icon=\"mdi:transmission-tower-export\"></ha-icon>: <b>{{ bm.exp | round(0) | int }} kWh</b>, "
+    "{%- if bm %}<p><span>{{ month_name[bm.label.split(' ')[0]] }},</span> <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: <b>{{ bm.house | round(0) | int }} kWh</b>, "
+    "з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>: <b><i>{{ bm.boiler | round(0) | int }} kWh</i></b>."
+    # today's line; not on the 1st, when it would just repeat the month's numbers
+    "{% if now().day != 1 %}<br><span>Сьогодні,</span> <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: "
+    "<b>{{ states('sensor.home_load_energy_daily') | float(0) | round(0) | int }} kWh</b>, "
+    "з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>: "
+    "<b><i>{{ states('sensor.boiler_ten_energy_estimate_daily') | float(0) | round(0) | int }} kWh</i></b>."
+    "{% endif %}<br>"
+    "<span>Експорт,</span> <ha-icon icon=\"mdi:transmission-tower-export\"></ha-icon>: <b>{{ bm.exp | round(0) | int }} kWh</b>, "
     "сальдо: <b>{{ (bm.exp - bm.imp) | round(0) | int }} kWh</b>"  # export - import, what ENERA pays for
-    "{% if bm.net is not none %} <small>({{ '%+d' % bm.net }} ₴)</small>{% endif %}.</p>\n\n{% endif %}"
+    "{% if bm.net is not none %} <small>({{ '%+d' % bm.net }} ₴)</small>{% endif %}."
+    "</p>\n\n{% endif %}"
 )
 
 
@@ -184,6 +191,8 @@ def css(phone: bool) -> str:
         "table + p { margin-top: 6px !important; }\n"
         "p + p { margin-top: 8px !important; }\n"
         "p small { font-size: inherit; color: #4caf50; }\n"  # the export ₴, green like in the table
+    # the line labels at a fixed width, so the icons after them line up in a column
+    "p span { display: inline-block; min-width: 4.6em; }\n"
     )
 
 
