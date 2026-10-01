@@ -719,8 +719,11 @@
 - id: '1788451374111'
   alias: All notifications
   triggers:
-  - entity_id: sensor.deye_6kw_load_power
-    below: 450
+  # the TEN estimate drops to 0 when the boiler's thermostat opens with a relay
+  # still on (threshold relative to the relay power, see configuration.yaml);
+  # a fixed 6kW load threshold failed with a daytime baseline of ~500 W
+  - entity_id: sensor.boiler_ten_power_estimate
+    below: 1
     for:
       minutes: 3
     trigger: numeric_state

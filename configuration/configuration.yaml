@@ -107,7 +107,10 @@ template:
           {# Relay on = rated TEN power, but only while the 6kW load (the
              boiler hangs on its LOAD port) actually shows it. When the
              boiler's own thermostat opens the circuit the relay stays on
-             and the load drops to the house baseline - count 0 then. #}
+             and the load drops to the house baseline - count 0 then.
+             Threshold 0.6 * P + 250 W: the baseline can be ~500-700 W in the
+             day (oven, etc.), a plain P / 2 then never saw the 0.8 kW TEN
+             as off. Heating is at least P + ~100 W of night baseline. #}
           {% set ns = namespace(p=0) %}
           {% if is_state('switch.1560_boiler_ten_0_8_kwh', 'on') %}
             {% set ns.p = ns.p + 800 %}
@@ -116,7 +119,7 @@ template:
             {% set ns.p = ns.p + 1200 %}
           {% endif %}
           {% set load = states('sensor.deye_6kw_load_power') | float(ns.p) %}
-          {{ 0 if load < ns.p / 2 else [ns.p, load] | min | round(0) }}
+          {{ 0 if load < ns.p * 0.6 + 250 else [ns.p, load] | min | round(0) }}
         availability: >
           {{ states('switch.1560_boiler_ten_0_8_kwh') not in ['unknown', 'unavailable'] and
              states('switch.1561_boiler_ten_1_2_kwh') not in ['unknown', 'unavailable'] }}
