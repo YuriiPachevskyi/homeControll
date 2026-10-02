@@ -212,7 +212,8 @@
   description: Handles time-based state transitions and force mode. The force switch
     only works from the start of Morning Export to the end of Max Solar; outside that
     window it is turned off (also on HA start, in case the Evening Export trigger
-    was missed) and never selects Max Solar Forced.
+    was missed) and never selects Max Solar Forced. Changing any of the four start
+    times re-evaluates the state right away.
   triggers:
   - trigger: time
     at: input_datetime.deye_morning_export_start_time
@@ -229,6 +230,16 @@
   - trigger: state
     entity_id: input_boolean.force_high_power_on_low_charge
     id: force_toggle
+  - trigger: state
+    entity_id:
+    - input_datetime.deye_morning_export_start_time
+    - input_datetime.deye_max_solar_start_time
+    - input_datetime.deye_evening_export_start_time
+    - input_datetime.deye_night_idle_start_time
+    not_to:
+    - unavailable
+    - unknown
+    id: schedule_changed
   - trigger: homeassistant
     event: start
     id: ha_start
