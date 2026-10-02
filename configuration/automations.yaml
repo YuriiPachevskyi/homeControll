@@ -225,7 +225,7 @@
     id: Evening Export
   - trigger: time
     at: input_datetime.deye_night_idle_start_time
-    id: Night Idle
+    id: Idle
   - trigger: state
     entity_id: input_boolean.force_high_power_on_low_charge
     id: force_toggle
@@ -258,7 +258,7 @@
         'on') %}\n  Max Solar Forced\n{% elif morning_export <= now_time < max_solar
         %}\n  Morning Export\n{% elif max_solar <= now_time < evening_export %}\n  Max
         Solar\n{% elif evening_export <= now_time < night_idle %}\n  Evening Export\n{%
-        else %}\n  Night Idle\n{% endif %}"
+        else %}\n  Idle\n{% endif %}"
 - id: deye_state_controller
   alias: Deye State Controller
   description: Applies settings based on current Deye System State. 5kW discharge
@@ -330,7 +330,7 @@
           6kw_power: 1
           peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
           general_automation: true
-        Night Idle:
+        Idle:
           5kw_soc: 35
           5kw_power: 1
           export_power: 100
@@ -338,7 +338,7 @@
           6kw_power: 1.3
           peak_shaving_6kw: 'on'
           general_automation: true
-      s: '{{ config.get(current_state, config[''Night Idle'']) }}'
+      s: '{{ config.get(current_state, config[''Idle'']) }}'
   - if:
     - condition: template
       value_template: '{{ current_state == ''Evening Export'' }}'
