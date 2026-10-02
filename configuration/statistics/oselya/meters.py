@@ -91,6 +91,8 @@ def read_water(point: str, cfg: dict):
 def read_koec(point: str, cfg: dict):
     cab = koec_cabinet.KoecCabinet(cfg["credentials"])
     form = cab.readings_form()
+    if form["closed"]:
+        return read_koec_closed(point, form) + ((cab, form),)
     prev_date = datetime.fromisoformat(form["date"]).strftime("%d.%m.%Y") if form["date"] else None
     meters = [{
         "n": z["n"], "name": z["name"].capitalize(),
@@ -101,6 +103,24 @@ def read_koec(point: str, cfg: dict):
         "min": z["previous"], "max": None, "unit": "кВт·год", "precision": form["precision"],
     } for z in form["zones"]]
     return f"останні показники від {prev_date}", meters, (cab, form)
+
+
+def read_koec_closed(point: str, form: dict):
+    """This month's readings are already in: the site shows only the first
+    zone's value, so the zones come from our own submission of that day (if
+    it was ours). Nothing can be submitted until the next month."""
+    day = datetime.fromisoformat(form["date"]).strftime("%d.%m.%Y")
+    ours = [h for h in history() if h["point"] == point and h["time"][:10] == form["date"]
+            and abs(h["meters"][0]["sent"] - form["value"]) < 0.5]
+    if not ours:
+        raise MeterError(f"цього місяця показники вже внесено ({fmt(form['value'])} кВт·год на {day}) "
+                         "не звідси; нові - з 1-го числа наступного місяця")
+    meters = [{
+        "n": m["n"], "name": m["name"], "detail": "", "previous": m["sent"], "previous_date": day,
+        "min": m["sent"], "max": None, "unit": m["unit"], "precision": 0,
+    } for m in ours[-1]["meters"]]
+    return (f"показники за цей місяць уже внесено {day} - нові сайт прийме з 1-го числа "
+            "наступного місяця (виправити - на сайті ДТЕК)", meters)
 
 
 READERS = {"brovk_water": read_water, "koec_cabinet": read_koec}
@@ -121,6 +141,60 @@ def refresh_pending(point: str, meters: list) -> None:
         save_history(hist)
 
 
+# ---- "more than usual" warning (dashboard only, never blocks a submission) ---
+
+WATER_MONTHLY_FALLBACK = 10.0  # m³ per meter, until there are 2+ submissions
+
+
+def months_since(day: date | None) -> int:
+    """Whole months (at least 1) the new readings cover."""
+    return max(1, -(-((date.today() - day).days if day else 0) // 30))
+
+
+def expectation(point: str, source: str, meters: list) -> dict:
+    """{scope: total|meter, limit / limits {n: ...}, basis} - consumption
+    above which the dashboard shows ⚠️. Electricity: the site gives monthly
+    kWh only for both zones together, so the zones' sum is compared with the
+    largest month of the last year. Water: the site has no volumes, so the
+    fastest rate between our own submissions (x2), or a fallback."""
+    if source == "koec_cabinet":
+        cache = CACHE_DIR / f"{point}.cabinet.json"
+        fees = json.loads(cache.read_text()).get("fees", {}) if cache.exists() else {}
+        kwh = [v["kwh"] for _, v in sorted(fees.items())[-12:] if v.get("kwh") is not None]
+        if not kwh:
+            return {}
+        prev = meters[0].get("previous_date")
+        k = months_since(datetime.strptime(prev, "%d.%m.%Y").date() if prev else None)
+        return {"scope": "total", "limit": max(kwh) * k,
+                "basis": f"найбільше за місяць за рік: {fmt(max(kwh))} кВт·год" + (f" × {k} міс." if k > 1 else "")}
+    subs = [h for h in history() if h["point"] == point]
+    k = months_since(datetime.fromisoformat(subs[-1]["time"]).date() if subs else None)
+    rates = {}  # meter n -> fastest monthly consumption between submissions
+    for a, b in zip(subs, subs[1:]):
+        days = max(1, (datetime.fromisoformat(b["time"]) - datetime.fromisoformat(a["time"])).days)
+        sent_a = {m["n"]: m["sent"] for m in a["meters"]}
+        for m in b["meters"]:
+            if m["n"] in sent_a:
+                rates[m["n"]] = max(rates.get(m["n"], 0), (m["sent"] - sent_a[m["n"]]) / days * 30)
+    if rates:
+        limits = {m["n"]: 2 * rates.get(m["n"], WATER_MONTHLY_FALLBACK / 2) * k for m in meters}
+        basis = "удвічі більше за найшвидше споживання між подачами"
+    else:
+        limits = {m["n"]: WATER_MONTHLY_FALLBACK * k for m in meters}
+        basis = f"поки мало історії: {fmt(WATER_MONTHLY_FALLBACK)} м³ на місяць"
+    return {"scope": "meter", "limits": {str(n): round(v, 3) for n, v in limits.items()},
+            "basis": basis + (f" × {k} міс." if k > 1 else "")}
+
+
+def with_expectation(point: str, source: str, meters: list) -> list:
+    """The meters plus warn_above (per meter), warn_total_above (the sum of
+    all meters) and warn_basis - inside `meters`, as sensor.oselya_meters
+    exposes only the attributes listed in its config."""
+    e = expectation(point, source, meters)
+    return [{**m, "warn_above": e.get("limits", {}).get(str(m["n"])),
+             "warn_total_above": e.get("limit"), "warn_basis": e.get("basis")} for m in meters]
+
+
 def write_state(point: str, info: str, meters: list) -> None:
     pts = points()
     state = json.loads(STATE.read_text()) if STATE.exists() else {}
@@ -128,7 +202,8 @@ def write_state(point: str, info: str, meters: list) -> None:
     layouts[point] = [{"n": m["n"], "name": m["name"], "unit": m["unit"]} for m in meters]
     STATE.write_text(json.dumps({
         "updated": datetime.now().isoformat(timespec="seconds"),
-        "point": point, "label": pts[point]["label"], "info": info, "meters": meters,
+        "point": point, "label": pts[point]["label"], "info": info,
+        "meters": with_expectation(point, pts[point]["source"], meters),
         "history": [h for h in history() if h["point"] == point][-6:][::-1],
         # For the dashboard: picker options (label -> point) and each point's
         # meter names, so build_dashboard.py can label the input fields.
@@ -210,13 +285,20 @@ def submit(point: str, raw: list[str]) -> None:
         on_file = {m["n"]: m["previous"] for m in form.meters}
     else:
         cab, form = handle
+        if form["closed"]:
+            raise MeterError(f"цього місяця показники вже внесено ({datetime.fromisoformat(form['date']):%d.%m.%Y}) - "
+                             "нові сайт прийме з 1-го числа наступного місяця")
         day = date.today().isoformat()
         if day not in form["dates"]:
             raise MeterError(f"сайт не приймає показники за {day}")
         response = cab.submit_readings(form, values, day).text
         new = cab.readings_form()
-        on_file = {z["n"]: z["previous"] for z in new["zones"]}
-        accepted = new["date"] == day and all(abs(on_file[n] - v) < 0.0005 for n, v in values.items())
+        if new["closed"]:  # the usual outcome: the form closes for the month
+            accepted = new["date"] == day and abs(new["value"] - values[min(values)]) < 0.5
+            on_file = dict(values) if accepted else {}
+        else:
+            on_file = {z["n"]: z["previous"] for z in new["zones"]}
+            accepted = new["date"] == day and all(abs(on_file[n] - v) < 0.0005 for n, v in values.items())
 
     save_history(history() + [{
         "time": datetime.now().isoformat(timespec="seconds"), "point": point,

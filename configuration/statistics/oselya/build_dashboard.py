@@ -388,7 +388,42 @@ def build_meters_view() -> dict:
         "{% endfor %}\n"
         "{%- else -%}\nЩе нічого не передавали звідси.\n{%- endif %}"
     )
+    # Live check of what is about to be sent: new (the input slots) minus the
+    # readings on file, so a typo shows up before "Передати".
+    diff = (
+        "{%- macro n(v) -%}{{ ('%.3f' % v).rstrip('0').rstrip('.') }}{%- endmacro -%}\n"
+        f"{{%- if {shown} -%}}\n"
+        # ⚠️ = more than usual (meters.py's warn_* fields): only a hint, the
+        # submission still goes through.
+        f"{{%- set ms = (state_attr('{sensor}', 'meters') or []) | selectattr('n', 'le', 3) | list -%}}\n"
+        "{%- set ns = namespace(total=0, known=true, warn=false) -%}\n"
+        "| Лічильник | Було | Стане | Різниця | |\n|:--|--:|--:|--:|:-:|\n"
+        "{% for m in ms -%}\n"
+        "{%- set new = states('input_number.oselya_meter_' ~ m.n) | float(none) -%}\n"
+        "{%- set d = new - m.previous if new is not none else none -%}\n"
+        "{%- if d is none %}{% set ns.known = false %}{% else %}{% set ns.total = ns.total + d %}{% endif -%}\n"
+        "{%- set high = d is not none and m.get('warn_above') is not none and d > m.warn_above -%}\n"
+        "{%- if high %}{% set ns.warn = true %}{% endif -%}\n"
+        "| {{ m.name }} | {{ n(m.previous) }} | **{{ n(new) if new is not none else '?' }}** "
+        "| **{{ ('+' if d > 0 else '') ~ n(d) if d is not none else '?' }}** {{ m.unit }} "
+        "| {{ '❓' if d is none else '❌' if d < -0.0005 else '⚪' if d < 0.0005 "
+        "else '⚠️' if high else '✅' }} |\n"
+        "{% endfor -%}\n"
+        "{%- set lim = ms[0].get('warn_total_above') if ms else none -%}\n"
+        "{%- if lim is not none and ms | length > 1 and ns.known -%}\n"
+        "{%- set ns.warn = ns.warn or ns.total > lim -%}\n"
+        "| **Разом** | | | **{{ ('+' if ns.total > 0 else '') ~ n(ns.total) }}** {{ ms[0].unit }} "
+        "| {{ '⚠️' if ns.total > lim else '' }} |\n"
+        "{% endif %}\n"
+        "{%- if ns.warn %}\n"
+        "⚠️ **Більше, ніж зазвичай** ({{ ms[0].warn_basis }}). Перевір цифри - "
+        "якщо все правильно, передавай.\n"
+        "{%- endif %}\n"
+        "{%- endif %}"
+    )
     help_text = (
+        "- Перед передачею звір **Різницю**: ❌ - менше за попередні (не передасться), ⚪ - поле не змінено, "
+        "⚠️ - більше, ніж зазвичай (лише підказка, передати можна).\n"
         "- Поля заповнюються показниками, які вже є на сайті, - зміни на поточні з лічильників.\n"
         "- Значення поза межами «Сайт приймає» (або менше попередніх) не передаються - буде помилка.\n"
         "- **Електроенергія**: лише цілі кВт·год, показники йдуть одразу оператору (ДТЕК) - "
@@ -419,6 +454,7 @@ def build_meters_view() -> dict:
                 {"type": "entities", "entities": [{"entity": picker, "tap_action": {"action": "none"}}]},
                 {"type": "markdown", "content": table},
                 *inputs,
+                {"type": "markdown", "content": diff},
                 {"type": "horizontal-stack", "cards": [
                     {"type": "button", "name": "Передати показники", "icon": "mdi:send",
                      "show_state": False, "icon_height": "32px",

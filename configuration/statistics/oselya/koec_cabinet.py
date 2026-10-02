@@ -113,6 +113,13 @@ class KoecCabinet:
         precision, token, action}."""
         t = self.s.get(BASE + "/home/readings/osr", timeout=90).text
         form = re.search(r'(?s)<form id="new_readings_form_osr" action="([^"]+)".*?</form>', t)
+        # Once a month's readings are in (by us or anyone) the form is gone
+        # until the next month; the page shows a single value - the first
+        # zone's (checked 2026-10-01: day 1990 / night 25179 showed "1990").
+        done = re.search(r'(?s)показники вже внесені:\s*<b>\s*([\d.,\s]+?)\s*кВт·год\s*на\s*(\d\d\.\d\d\.\d{4})', t)
+        if not form and done:
+            return {"closed": True, "value": _num(done.group(1)),
+                    "date": datetime.strptime(done.group(2), "%d.%m.%Y").date().isoformat()}
         if not form:
             raise CabinetError("readings form not found")
         f = form.group(0)
@@ -128,8 +135,9 @@ class KoecCabinet:
             raise CabinetError("no meter zones in the readings form")
         precision = re.search(r'data-precision="(\d+)"', f)
         return {
+            "closed": False,
             "date": datetime.strptime(prev_date.group(1), "%d.%m.%Y").date().isoformat() if prev_date else None,
-            "dates": re.findall(r'<option value="(\d{4}-\d\d-\d\d)"', f),
+            "dates": re.findall(r'<option[^>]*\svalue="(\d{4}-\d\d-\d\d)"', f),
             "zones": zones, "precision": int(precision.group(1)) if precision else 0,
             "token": re.search(r'name="authenticity_token" value="([^"]+)"', f).group(1),
             "action": html_lib.unescape(form.group(1)),
