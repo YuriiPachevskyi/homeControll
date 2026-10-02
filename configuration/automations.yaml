@@ -727,8 +727,10 @@
     trigger: time
   conditions: []
   actions:
-  - action: script.1786295227849
-    data: {}
+  - action: script.host_power
+    data:
+      host: bizon
+      command: suspend
   mode: single
 - id: '1788451374111'
   alias: All notifications

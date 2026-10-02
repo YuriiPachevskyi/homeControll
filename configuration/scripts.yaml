@@ -412,37 +412,45 @@ power_load_cascade_step:
               entity_id: climate.big_bedroom_ac
   icon: mdi:solar-power-variant-outline
   description: ''
-'1786295205474':
+host_power:
+  alias: Host power
+  description: Wake up / suspend / reboot / power off a host via its shell_command
+    (<host>_<command>). Only combinations that have a shell_command are allowed.
+  icon: mdi:power
+  mode: parallel
+  fields:
+    host:
+      name: Host
+      required: true
+      selector:
+        select:
+          options:
+          - bizon
+          - rpi5
+    command:
+      name: Command
+      required: true
+      selector:
+        select:
+          options:
+          - wakeup
+          - suspend
+          - reboot
+          - poweroff
+  variables:
+    allowed:
+      bizon:
+      - wakeup
+      - suspend
+      - reboot
+      - poweroff
+      rpi5:
+      - reboot
   sequence:
-  - action: shell_command.bizon_poweroff
+  - condition: template
+    value_template: '{{ command in allowed.get(host, []) }}'
+  - action: shell_command.{{ host }}_{{ command }}
     data: {}
-  alias: Bizon poweroff
-  description: ''
-'1786295227849':
-  sequence:
-  - action: shell_command.bizon_suspend
-    data: {}
-  alias: Bizon suspend
-  description: ''
-'1786295256293':
-  sequence:
-  - action: shell_command.bizon_reboot
-    data: {}
-  alias: Bizon reboot
-  description: ''
-'1786368435244':
-  sequence:
-  - action: shell_command.bizon_wakeup
-    data: {}
-  alias: Bizon wakeup
-  description: ''
-rpi5_reboot:
-  sequence:
-  - action: shell_command.rpi5_reboot
-    data: {}
-  alias: rpi5 reboot
-  icon: mdi:restart
-  description: ''
 notify_all:
   alias: Notify all (Telegram)
   description: Sends the same notification to all Telegram recipients and logs
