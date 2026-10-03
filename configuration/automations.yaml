@@ -209,6 +209,7 @@
   max: 9
 - id: deye_state_scheduler
   alias: Deye State Scheduler
+  initial_state: true
   description: Handles time-based state transitions and force mode. The force switch
     only works from the start of Morning Export to the end of Max Solar; outside that
     window it is turned off (also on HA start, in case the Evening Export trigger
@@ -274,6 +275,7 @@
         Export\n{% else %}\n  Idle\n{% endif %}"
 - id: deye_state_controller
   alias: Deye State Controller
+  initial_state: true
   description: Applies settings based on current Deye System State. 5kW discharge
     SOC for Morning Export, Max Solar and Evening Export comes from input_number.deye_5kw_export_soc,
     6kW discharge SOC for Evening Export (selling) from input_number.deye_6kw_export_soc
@@ -547,6 +549,7 @@
   max: 3
 - id: '1773316386421'
   alias: Power load cascade
+  initial_state: true
   description: Drives the power load cascade one step per run. Every 30 s normally;
     a new overload or surplus (on for 5 s) triggers a step right away, and while it
     lasts it steps every 15 s, but never sooner than 15 s after the last real load
