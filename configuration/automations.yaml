@@ -145,8 +145,8 @@
             entity_id: input_text.last_script_trigger
           data:
             value: 'Selling window NOT applied: start {{ states(''input_datetime.deye_morning_export_start_time'')[:5]
-              }} / stop {{ states(''input_datetime.deye_night_idle_start_time'')[:5] }} (need
-              00:00 < start < stop <= 23:40)'
+              }} / stop {{ states(''input_datetime.deye_night_idle_start_time'')[:5]
+              }} (need 00:00 < start < stop <= 23:40)'
     - conditions:
       - condition: trigger
         id: battery_power_5kw
@@ -245,11 +245,13 @@
     id: ha_start
   actions:
   - variables:
-      now_time: "{{ now().strftime('%H:%M:%S') }}"
-      morning_export: "{{ states('input_datetime.deye_morning_export_start_time') }}"
-      max_solar: "{{ states('input_datetime.deye_max_solar_start_time') }}"
-      evening_export: "{{ states('input_datetime.deye_evening_export_start_time') }}"
-      night_idle: "{{ states('input_datetime.deye_night_idle_start_time') }}"
+      now_time: '{{ now().strftime(''%H:%M:%S'') }}'
+      morning_export: '{{ states(''input_datetime.deye_morning_export_start_time'')
+        }}'
+      max_solar: '{{ states(''input_datetime.deye_max_solar_start_time'') }}'
+      evening_export: '{{ states(''input_datetime.deye_evening_export_start_time'')
+        }}'
+      night_idle: '{{ states(''input_datetime.deye_night_idle_start_time'') }}'
       force_window: '{{ morning_export <= now_time < evening_export }}'
   - if:
     - condition: template
@@ -267,9 +269,9 @@
     data:
       option: "{% if force_window and is_state('input_boolean.force_high_power_on_low_charge',
         'on') %}\n  Max Solar Forced\n{% elif morning_export <= now_time < max_solar
-        %}\n  Morning Export\n{% elif max_solar <= now_time < evening_export %}\n  Max
-        Solar\n{% elif evening_export <= now_time < night_idle %}\n  Evening Export\n{%
-        else %}\n  Idle\n{% endif %}"
+        %}\n  Morning Export\n{% elif max_solar <= now_time < evening_export %}\n
+        \ Max Solar\n{% elif evening_export <= now_time < night_idle %}\n  Evening
+        Export\n{% else %}\n  Idle\n{% endif %}"
 - id: deye_state_controller
   alias: Deye State Controller
   description: Applies settings based on current Deye System State. 5kW discharge
@@ -299,15 +301,12 @@
   - variables:
       current_state: '{{ states(''input_select.deye_system_state'') }}'
       max_discharge_power_5kw: 2400
-      # kW, like input_number.deye_5kw_discharge_power (the sensor is W)
       smart_limit: '{{ ([states(''sensor.deye_5kw_smart_discharge_limit'') | float(300),
         max_discharge_power_5kw] | min / 1000) | round(2) }}'
       is_selling_6kw: '{{ is_state(''input_boolean.deye_6kw_battery_selling'', ''on'')
         }}'
-      export_soc_5kw: '{{ states(''input_number.deye_5kw_export_soc'') | int(70)
-        }}'
-      export_soc_6kw: '{{ states(''input_number.deye_6kw_export_soc'') | int(70)
-        }}'
+      export_soc_5kw: '{{ states(''input_number.deye_5kw_export_soc'') | int(70) }}'
+      export_soc_6kw: '{{ states(''input_number.deye_6kw_export_soc'') | int(70) }}'
       config:
         Morning Export:
           5kw_soc: '{{ export_soc_5kw }}'
@@ -338,7 +337,7 @@
           5kw_power: '{{ smart_limit }}'
           export_power: 5000
           6kw_soc: '{{ export_soc_6kw }}'
-          6kw_power: 1
+          6kw_power: 1.1
           peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
           general_automation: true
         Idle:
@@ -390,8 +389,6 @@
       data:
         value: '{{ s[''5kw_power''] }}'
     - if:
-      # Once the evening selling cutoff has lowered the 6kW level (battery - 20),
-      # hourly/other re-runs must not put it back to the Evening Export export SOC.
       - condition: template
         value_template: '{{ not (current_state == ''Evening Export'' and not is_selling_6kw
           and trigger.id != ''state_changed'') }}'
@@ -439,10 +436,10 @@
 - id: deye_6kw_selling_weather_check
   alias: Deye 6kW Battery Selling - Auto Weather Check
   description: Auto-toggles input_boolean.deye_6kw_battery_selling based on tomorrow's
-    forecast cloud coverage, 1 minute before deye_evening_export_start_time. Runs year-round
-    so the flag is force-reset off outside March-September (it would otherwise never
-    reset once the season condition stopped matching), but only ever turns it on within
-    that window.
+    forecast cloud coverage, 1 minute before deye_evening_export_start_time. Runs
+    year-round so the flag is force-reset off outside March-September (it would otherwise
+    never reset once the season condition stopped matching), but only ever turns it
+    on within that window.
   triggers:
   - trigger: time
     at:
@@ -746,9 +743,6 @@
 - id: '1788451374111'
   alias: All notifications
   triggers:
-  # the TEN estimate drops to 0 when the boiler's thermostat opens with a relay
-  # still on (threshold relative to the relay power, see configuration.yaml);
-  # a fixed 6kW load threshold failed with a daytime baseline of ~500 W
   - entity_id: sensor.boiler_ten_power_estimate
     below: 1
     for:
