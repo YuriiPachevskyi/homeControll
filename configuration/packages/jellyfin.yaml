@@ -1,0 +1,39 @@
+# Who is watching what on the Jellyfin server on Bizon (192.168.1.4:8096).
+# One request to /Sessions feeds two sensors; the Bizon view shows a card
+# with "user — title" lines only while something is playing.
+# API key "HomeAssistant" was created in Jellyfin (Dashboard -> API Keys).
+# While Bizon sleeps the sensors are unavailable and the card stays hidden.
+rest:
+  - resource: http://192.168.1.4:8096/Sessions?activeWithinSeconds=600
+    headers:
+      Authorization: !secret jellyfin_auth
+    scan_interval: 10
+    timeout: 5
+    sensor:
+      - name: "Jellyfin playing"
+        unique_id: jellyfin_playing
+        icon: mdi:movie-open-play
+        state_class: measurement
+        value_template: >-
+          {{ value_json | selectattr('NowPlayingItem', 'defined') | list | count }}
+      # One line per playing session, tab-separated for the Bizon card:
+      # user, title, paused (1/0), progress %, device name.
+      - name: "Jellyfin now playing"
+        unique_id: jellyfin_now_playing
+        icon: mdi:movie-open-play
+        value_template: >-
+          {%- set ns = namespace(lines=[]) %}
+          {%- for s in value_json if s.NowPlayingItem is defined %}
+            {%- set n = s.NowPlayingItem %}
+            {%- if n.Type == 'Episode' %}
+              {%- set title = '%s S%02dE%02d — %s' | format(n.SeriesName, n.ParentIndexNumber | default(0), n.IndexNumber | default(0), n.Name) %}
+            {%- elif n.Type == 'Movie' and n.ProductionYear is defined %}
+              {%- set title = '%s (%s)' | format(n.Name, n.ProductionYear) %}
+            {%- else %}
+              {%- set title = n.Name %}
+            {%- endif %}
+            {%- set ps = s.PlayState | default({}) %}
+            {%- set pct = ((ps.PositionTicks | default(0)) * 100 / n.RunTimeTicks) | round(0, 'floor') | int if n.RunTimeTicks | default(0) > 0 else 0 %}
+            {%- set ns.lines = ns.lines + [[s.UserName, title, 1 if ps.IsPaused | default(false) else 0, pct, s.DeviceName | default('')] | join('\t')] %}
+          {%- endfor %}
+          {{ (ns.lines | join('\n'))[:255] }}
