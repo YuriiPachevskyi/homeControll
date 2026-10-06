@@ -798,6 +798,10 @@
           state: 'on'
           for:
             minutes: 3
+      - alias: Muted while the night self-consumption boost heats the boiler
+        condition: state
+        entity_id: input_boolean.self_consumption_boost_active
+        state: 'off'
       - condition: template
         value_template: "{{ states('input_datetime.boiler_last_notified') in ['unknown',
           'unavailable']\n   or (as_timestamp(now()) - as_timestamp(states('input_datetime.boiler_last_notified')))
@@ -1164,3 +1168,116 @@
     target:
       entity_id: input_boolean.oselya_payments_expanded
   mode: single
+- id: self_consumption_boost
+  alias: Self-consumption boost
+  description: 'Green tariff guard: in the last 7 days of a month, if the 5kW grid
+    import (= meter consumption) since the 1st is still below min_import kWh, at 03:00
+    hold both batteries (min SOC 80) and run both boiler heaters for an hour so the
+    house runs from the grid. The cascade is paused for that hour (its 0.3 kW import
+    threshold would switch the heaters off at once) and the "boiler heated" notification
+    is muted via input_boolean.self_consumption_boost_active. The end is left to the
+    Deye State Controller''s hourly run at 04:00: it restores min SOC and turns the
+    cascade back on, which cuts the heaters (battery discharge > 0.3 kW). The flag
+    is cleared at 04:05; on grid loss the boost ends at once.'
+  triggers:
+  - trigger: time
+    at: 03:00:30
+    id: start
+  - trigger: time
+    at: 04:05:00
+    id: clear
+  - trigger: homeassistant
+    event: start
+    id: clear
+  - trigger: state
+    entity_id: binary_sensor.deye_5kw_grid
+    to: 'off'
+    id: grid_lost
+  variables:
+    min_import: 10
+    soc: 80
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: start
+      - condition: template
+        value_template: '{{ (now() + timedelta(days=7)).month != now().month }}'
+      - condition: state
+        entity_id: binary_sensor.deye_5kw_grid
+        state: 'on'
+      sequence:
+      - action: recorder.get_statistics
+        data:
+          start_time: '{{ now().replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+            }}'
+          end_time: '{{ now().isoformat() }}'
+          period: hour
+          types:
+          - change
+          statistic_ids:
+          - sensor.deye_5kw_total_energy_import
+        response_variable: stats
+      - variables:
+          grid_import: '{{ stats.statistics.get(''sensor.deye_5kw_total_energy_import'',
+            []) | map(attribute=''change'') | reject(''none'') | sum | round(1) }}'
+      - condition: template
+        value_template: '{{ grid_import < min_import }}'
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.self_consumption_boost_active
+      - action: automation.turn_off
+        target:
+          entity_id: automation.power_load_cascade
+        data:
+          stop_actions: true
+      - action: input_number.set_value
+        target:
+          entity_id:
+          - input_number.deye_5kw_min_soc
+          - input_number.deye_6kw_min_soc
+        data:
+          value: '{{ soc }}'
+      - action: switch.turn_on
+        target:
+          entity_id:
+          - switch.1560_boiler_ten_0_8_kwh
+          - switch.1561_boiler_ten_1_2_kwh
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.last_script_trigger
+        data:
+          value: 'Self-consumption boost: import {{ grid_import }} < {{ min_import }}
+            kWh ({{ now().strftime(''%H:%M:%S'') }})'
+    - conditions:
+      - condition: trigger
+        id: clear
+      sequence:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.self_consumption_boost_active
+    - alias: Grid lost mid-boost - the controller does not react to that, end now
+      conditions:
+      - condition: trigger
+        id: grid_lost
+      - condition: state
+        entity_id: input_boolean.self_consumption_boost_active
+        state: 'on'
+      sequence:
+      - action: switch.turn_off
+        target:
+          entity_id:
+          - switch.1560_boiler_ten_0_8_kwh
+          - switch.1561_boiler_ten_1_2_kwh
+      - action: automation.trigger
+        target:
+          entity_id: automation.deye_state_controller
+        data:
+          skip_condition: true
+      - action: automation.turn_on
+        target:
+          entity_id: automation.power_load_cascade
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.self_consumption_boost_active
+  mode: queued
