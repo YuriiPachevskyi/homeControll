@@ -21,9 +21,10 @@ from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, Supp
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
+from librus_synergia import LibrusError
+
 from .const import DOMAIN
 from .coordinator import LibrusDataUpdateCoordinator, decode_message_content, resolve_sender_name
-from .librus_api import LibrusError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -183,6 +184,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 "date": grade.add_date,
                 "semester": grade.semester,
                 "comments": list(grade.comments),
+                "teacher": data.teachers.get(grade.teacher_id) if grade.teacher_id is not None else None,
             }
             for grade in data.grades
             if subject_id is None or grade.subject_id == subject_id
@@ -220,9 +222,9 @@ from homeassistant.components.http import HomeAssistantView as _HcView
 from homeassistant.const import CONF_PASSWORD as _HC_CONF_PASSWORD
 from homeassistant.helpers.http import KEY_HASS as _HC_KEY_HASS
 
-from .librus_api import LibrusSessionExpiredError as _HcExpired
-from .librus_api.client import LibrusApiClient as _HcClient
-from .librus_api.const import MESSAGES_BASE_URL as _HC_MSG_BASE
+from librus_synergia import LibrusApiClient as _HcClient
+from librus_synergia import LibrusSessionExpiredError as _HcExpired
+from librus_synergia.const import MESSAGES_BASE_URL as _HC_MSG_BASE
 
 
 async def _hc_client_download(self, message_id: str, attachment_id: str):

@@ -43,6 +43,33 @@
     "step": {
       "init": {
         "title": "Opcje Librus Synergia",
+        "menu_options": {
+          "settings": "Ustawienia",
+          "ai_summary": "Podsumowanie tygodnia (AI)"
+        }
+      },
+      "ai_summary": {
+        "title": "Podsumowanie tygodnia (AI)",
+        "description": "Raz w tygodniu wybrany model AI pisze podsumowanie tygodnia w szkole: oceny, frekwencja, zachowanie i plan na kolejny tydzień. Korzysta z AI Task w Home Assistant - najpierw skonfiguruj dowolnego dostawcę AI (Google Gemini, OpenAI, Anthropic, lokalna Ollama...). Wysyłane są tylko dane, które integracja już ma, i tylko do wybranego dostawcy.",
+        "data": {
+          "ai_task_entity": "Model AI",
+          "ai_audience": "Adresat",
+          "ai_weekday": "Dzień",
+          "ai_time": "Godzina",
+          "ai_include_messages": "Uwzględnij wiadomości i ogłoszenia",
+          "ai_extra_context": "Twoje uwagi dla AI"
+        },
+        "data_description": {
+          "ai_task_entity": "Encja AI Task, której używać. Zostaw puste, aby wyłączyć funkcję.",
+          "ai_audience": "Rodzic (w trzeciej osobie, co możesz zrobić) albo uczeń (pisane bezpośrednio do niego, motywująco).",
+          "ai_weekday": "Podsumowanie obejmuje 7 dni do tego dnia włącznie i zapowiada 7 kolejnych.",
+          "ai_time": "Godzina automatycznego uruchomienia. Jeśli Home Assistant był wtedy wyłączony, podsumowanie powstanie w ciągu 2 dni.",
+          "ai_include_messages": "Domyślnie wyłączone: wiadomości prywatne i ogłoszenia szkoły nie trafiają wtedy do dostawcy AI. Włączenie dodaje sekcję \"Szkoła pisze\".",
+          "ai_extra_context": "Opcjonalnie, np. \"W tym roku egzamin ósmoklasisty, chemia to słabszy przedmiot\"."
+        }
+      },
+      "settings": {
+        "title": "Opcje Librus Synergia",
         "data": {
           "scan_interval": "Częstotliwość odpytywania (minuty)",
           "messages_enabled": "Pobieraj wiadomości prywatne (Wiadomości)",
@@ -50,6 +77,7 @@
           "behaviour_grades_enabled": "Pobieraj ocenę zachowania",
           "descriptive_grades_enabled": "Pobieraj oceny opisowe",
           "free_days_enabled": "Pobieraj kalendarz dni wolnych",
+          "average_mode": "Średnia pokazywana jako stan sensora",
           "student_number": "Numer ucznia w dzienniku",
           "quiet_hours_enabled": "Włącz ciszę nocną (bez odpytywania w nocy)",
           "quiet_hours_start": "Początek ciszy nocnej",
@@ -62,11 +90,40 @@
           "behaviour_grades_enabled": "Gdy wyłączone, sensor Ocena zachowania staje się niedostępny i nie są wykonywane żadne zapytania o ocenę zachowania.",
           "descriptive_grades_enabled": "Gdy wyłączone, sensor Oceny opisowe staje się niedostępny i nie są wykonywane żadne zapytania o oceny opisowe.",
           "free_days_enabled": "Gdy wyłączone, kalendarz Dni wolne nie jest tworzony i nie są wykonywane żadne zapytania o dni wolne.",
+          "average_mode": "Ważona uwzględnia wagi kategorii ocen (tak liczy sam Librus). Arytmetyczna to zwykła średnia tych samych ocen. Obie są zawsze dostępne w atrybutach.",
           "student_number": "Opcjonalne - Librus nie udostępnia tej informacji w API, więc trzeba wpisać ją ręcznie. Gdy podany, sensor Szczęśliwy numerek pokaże, czy to Twój numerek. Zostaw puste, aby wyłączyć.",
           "quiet_hours_enabled": "Gdy włączone, w oknie poniżej nie są pobierane żadne dane z Librusa - encje po prostu zachowują ostatni znany stan przez noc.",
           "quiet_hours_start": "Używane tylko, gdy cisza nocna jest włączona powyżej.",
           "quiet_hours_end": "Używane tylko, gdy cisza nocna jest włączona powyżej. Może być wcześniejsze niż godzina początku (np. 23:00 -> 06:00), aby obejmować północ."
         }
+      }
+    },
+    "abort": {
+      "no_ai_task": "Integracja AI Task jest niedostępna. Najpierw skonfiguruj dostawcę AI (Google Gemini, OpenAI, Anthropic, Ollama...) w Home Assistant 2025.8 lub nowszym."
+    }
+  },
+  "selector": {
+    "ai_audience": {
+      "options": {
+        "parent": "Rodzic",
+        "student": "Uczeń"
+      }
+    },
+    "ai_weekday": {
+      "options": {
+        "1": "Poniedziałek",
+        "2": "Wtorek",
+        "3": "Środa",
+        "4": "Czwartek",
+        "5": "Piątek",
+        "6": "Sobota",
+        "7": "Niedziela"
+      }
+    },
+    "average_mode": {
+      "options": {
+        "weighted": "Ważona",
+        "arithmetic": "Arytmetyczna"
       }
     }
   },
@@ -89,10 +146,12 @@
   },
   "entity": {
     "sensor": {
+      "weekly_summary": { "name": "Podsumowanie tygodnia" },
       "overall_average": { "name": "Średnia ocen" },
       "subject_average": { "name": "Średnia - {subject}" },
       "attendance": { "name": "Nieobecności" },
       "unexcused_absences": { "name": "Nieusprawiedliwione nieobecności" },
+      "subject_attendance": { "name": "Najniższa frekwencja z przedmiotu" },
       "next_lesson": { "name": "Następna lekcja" },
       "current_lesson": { "name": "Bieżąca lekcja" },
       "next_exam": { "name": "Najbliższy sprawdzian" },
@@ -117,6 +176,12 @@
           "diamond": "Diament"
         }
       }
+    },
+    "button": {
+      "weekly_summary_generate": { "name": "Wygeneruj podsumowanie tygodnia" }
+    },
+    "switch": {
+      "weekly_summary_enabled": { "name": "Automatyczne podsumowanie tygodnia" }
     },
     "calendar": {
       "timetable": { "name": "Plan lekcji" },

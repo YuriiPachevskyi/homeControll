@@ -11,8 +11,9 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfTime
+from homeassistant.const import PERCENTAGE, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
@@ -33,25 +34,7 @@ class _MinuteTick:  # homeControll local patch: minute tick
     def _minute_tick(self, _now) -> None:
         self.async_write_ha_state()
 
-from . import LibrusConfigEntry, librus_device_info
-from .const import (
-    ATTR_SUBJECT_ID,
-    CONF_ANNOUNCEMENTS_ENABLED,
-    CONF_BEHAVIOUR_GRADES_ENABLED,
-    CONF_DESCRIPTIVE_GRADES_ENABLED,
-    CONF_STUDENT_NUMBER,
-    DEFAULT_ANNOUNCEMENTS_ENABLED,
-    DEFAULT_BEHAVIOUR_GRADES_ENABLED,
-    DEFAULT_DESCRIPTIVE_GRADES_ENABLED,
-)
-from .coordinator import (
-    LibrusDataUpdateCoordinator,
-    days_since_last_absence,
-    days_since_last_negative_note,
-    good_grade_streak,
-    parse_grade_value,
-)
-from .librus_api.models import (
+from librus_synergia.models import (
     AttendanceTypeData,
     BehaviourGradeData,
     GradeCategoryData,
@@ -62,48 +45,33 @@ from .librus_api.models import (
     MessageData,
 )
 
-
-def _calculate_average(
-    grades: list[GradeData],
-    categories: dict[int, GradeCategoryData],
-    *,
-    subject_id: int | None = None,
-    semester: int | None = None,
-    weighted: bool = True,
-) -> float | None:
-    """Grade average, excluding semester/final entries (proposed OR
-    actual - see GradeData.is_semester/is_final's own docstring for why
-    the actual ones matter too, not just the propositions) and
-    categories marked as not counting toward the average. Weighted by the
-    grade category's weight unless `weighted=False` (plain arithmetic
-    mean of the same counted grades). `semester` restricts to grades from
-    that semester when given."""
-    running = 0.0
-    weight_total = 0.0
-    for grade in grades:
-        if (
-            grade.is_semester_proposition
-            or grade.is_final_proposition
-            or grade.is_semester
-            or grade.is_final
-        ):
-            continue
-        if subject_id is not None and grade.subject_id != subject_id:
-            continue
-        if semester is not None and grade.semester != semester:
-            continue
-        category = categories.get(grade.category_id) if grade.category_id is not None else None
-        if category is not None and not category.count_to_average:
-            continue
-        numeric = parse_grade_value(grade.value)
-        if numeric is None:
-            continue
-        weight = (category.weight if category is not None else 1) if weighted else 1
-        running += numeric * weight
-        weight_total += weight
-    if weight_total <= 0:
-        return None
-    return round(running / weight_total, 2)
+from . import LibrusConfigEntry, librus_device_info
+from .ai_summary import MAX_STATE_LENGTH, LibrusWeeklySummary
+from .const import (
+    ATTR_SUBJECT_ID,
+    DOMAIN,
+    AVERAGE_MODE_ARITHMETIC,
+    AVERAGE_MODE_WEIGHTED,
+    CONF_ANNOUNCEMENTS_ENABLED,
+    CONF_AVERAGE_MODE,
+    CONF_BEHAVIOUR_GRADES_ENABLED,
+    CONF_DESCRIPTIVE_GRADES_ENABLED,
+    CONF_STUDENT_NUMBER,
+    DEFAULT_ANNOUNCEMENTS_ENABLED,
+    DEFAULT_AVERAGE_MODE,
+    DEFAULT_BEHAVIOUR_GRADES_ENABLED,
+    DEFAULT_DESCRIPTIVE_GRADES_ENABLED,
+)
+from .coordinator import (
+    LibrusDataUpdateCoordinator,
+    days_since_last_absence,
+    calculate_average as _calculate_average,
+    days_since_last_negative_note,
+    good_grade_streak,
+    infer_subject_id,
+    parse_grade_value,
+    teacher_subject_ids,
+)
 
 
 def _latest_grade(grades: list[GradeData], *, subject_id: int | None = None) -> GradeData | None:
@@ -283,6 +251,7 @@ async def async_setup_entry(
             LibrusOverallAverageSensor(coordinator, entry),
             LibrusAttendanceSensor(coordinator, entry),
             LibrusUnexcusedAbsencesSensor(coordinator, entry),
+            LibrusSubjectAttendanceSensor(coordinator, entry),
             LibrusNextLessonSensor(coordinator, entry),
             LibrusCurrentLessonSensor(coordinator, entry),
             LibrusNextExamSensor(coordinator, entry),
@@ -301,6 +270,15 @@ async def async_setup_entry(
             LibrusRankSensor(coordinator, entry),
         ]
     )
+
+    # The weekly AI summary exists only while an ai_task entity is picked in
+    # the options.
+    if coordinator.weekly_summary is not None:
+        async_add_entities([LibrusWeeklySummarySensor(coordinator.weekly_summary, entry)])
+    elif entity_id := er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_weekly_summary"
+    ):
+        er.async_get(hass).async_remove(entity_id)
 
     # Subjects are only known from live account data - discover new ones as
     # the coordinator sees them and add an average sensor per subject.
@@ -338,10 +316,20 @@ class LibrusSensorBase(CoordinatorEntity[LibrusDataUpdateCoordinator], SensorEnt
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_{key}"
         self._attr_device_info = librus_device_info(entry)
+        self._entry = entry
+
+    @property
+    def _weighted(self) -> bool:
+        """Whether average sensors report the weighted average as their
+        state (the default) or the plain arithmetic one - the options
+        flow's average mode."""
+        mode = self._entry.options.get(CONF_AVERAGE_MODE, DEFAULT_AVERAGE_MODE)
+        return mode != AVERAGE_MODE_ARITHMETIC
 
 
 class LibrusOverallAverageSensor(LibrusSensorBase):
-    """Weighted average across every subject."""
+    """Average across every subject - weighted unless the options flow's
+    average mode says arithmetic."""
 
     _attr_translation_key = "overall_average"
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -354,7 +342,11 @@ class LibrusOverallAverageSensor(LibrusSensorBase):
     def native_value(self) -> float | None:
         if self.coordinator.data is None:
             return None
-        return _calculate_average(self.coordinator.data.grades, self.coordinator.data.grade_categories)
+        return _calculate_average(
+            self.coordinator.data.grades,
+            self.coordinator.data.grade_categories,
+            weighted=self._weighted,
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
@@ -362,17 +354,21 @@ class LibrusOverallAverageSensor(LibrusSensorBase):
             return None
         grades = self.coordinator.data.grades
         cats = self.coordinator.data.grade_categories
+        weighted = self._weighted
         return {
-            # The state is the weighted average - these are the same figure
-            # under different rules, for anyone who wants them.
+            # Both figures regardless of which one the state shows; the
+            # per-semester ones follow the selected mode, like the state.
+            "average_mode": AVERAGE_MODE_WEIGHTED if weighted else AVERAGE_MODE_ARITHMETIC,
+            "average_weighted": _calculate_average(grades, cats),
             "average_arithmetic": _calculate_average(grades, cats, weighted=False),
-            "average_semester_1": _calculate_average(grades, cats, semester=1),
-            "average_semester_2": _calculate_average(grades, cats, semester=2),
+            "average_semester_1": _calculate_average(grades, cats, semester=1, weighted=weighted),
+            "average_semester_2": _calculate_average(grades, cats, semester=2, weighted=weighted),
         }
 
 
 class LibrusSubjectAverageSensor(LibrusSensorBase):
-    """Weighted average for a single subject, discovered dynamically."""
+    """Average for a single subject (same mode as the overall one),
+    discovered dynamically."""
 
     _attr_translation_key = "subject_average"
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -402,6 +398,7 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
             self.coordinator.data.grades,
             self.coordinator.data.grade_categories,
             subject_id=self._subject_id,
+            weighted=self._weighted,
         )
 
     @property
@@ -439,6 +436,11 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
                 "category": categories[g.category_id].name if g.category_id in categories else None,
                 "date": g.add_date,
                 "comments": g.comments,
+                "teacher": (
+                    self.coordinator.data.teachers.get(g.teacher_id)
+                    if g.teacher_id is not None
+                    else None
+                ),
             }
             for g in sorted(subject_grades, key=lambda g: g.add_date or "", reverse=True)
         ]
@@ -456,14 +458,25 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
             "grades": grade_log,
             "proposed_semester_grade": proposed.value if proposed else None,
             "final_grade": final.value if final else None,
+            "average_weighted": _calculate_average(
+                grades, categories, subject_id=self._subject_id
+            ),
             "average_arithmetic": _calculate_average(
                 grades, categories, subject_id=self._subject_id, weighted=False
             ),
             "average_semester_1": _calculate_average(
-                grades, categories, subject_id=self._subject_id, semester=1
+                grades,
+                categories,
+                subject_id=self._subject_id,
+                semester=1,
+                weighted=self._weighted,
             ),
             "average_semester_2": _calculate_average(
-                grades, categories, subject_id=self._subject_id, semester=2
+                grades,
+                categories,
+                subject_id=self._subject_id,
+                semester=2,
+                weighted=self._weighted,
             ),
         }
 
@@ -764,6 +777,93 @@ class LibrusUnexcusedAbsencesSensor(LibrusSensorBase):
         return {"excused_count": excused, "recent_dates": recent_dates}
 
 
+# Below this share of attended lessons a student can be left unclassified
+# ("nieklasyfikowany") in a subject - absences over half of the lessons.
+_SUBJECT_ATTENDANCE_RISK_PERCENTAGE = 50.0
+
+# A subject needs at least this many attendance records to count toward the
+# state/`subject`/`at_risk`. CONFIRMED live (2026-10-03): some teachers
+# don't take attendance in Librus at all - a subject taught twice a week
+# had 2 records after a month, both absences, which made it "0%" and
+# pinned the sensor there. Still listed in `subjects` either way.
+_SUBJECT_ATTENDANCE_MIN_RECORDS = 5
+
+
+def _subject_attendance(data: LibrusData) -> dict[str, dict[str, Any]]:
+    """subject name -> {total, present, absent, percentage}, lowest
+    percentage first. Same lesson_id -> Lessons -> Subjects resolution as
+    the Attendance sensor's `by_subject` (unresolvable records skipped), but
+    counting EVERY record, presence marks included, so there's a
+    denominator. Excused and unexcused absences both count as absent."""
+    by_subject: dict[str, dict[str, Any]] = {}
+    for a in data.attendances:
+        t = _attendance_type(data, a.type_id)
+        if t is None or a.lesson_id is None:
+            continue
+        subject_id = data.lesson_subjects.get(a.lesson_id)
+        subject_name = data.subjects.get(subject_id) if subject_id is not None else None
+        if not subject_name:
+            continue
+        bucket = by_subject.setdefault(subject_name, {"total": 0, "present": 0})
+        bucket["total"] += 1
+        if t.is_presence_kind:
+            bucket["present"] += 1
+    for bucket in by_subject.values():
+        bucket["absent"] = bucket["total"] - bucket["present"]
+        bucket["percentage"] = round(100 * bucket["present"] / bucket["total"], 1)
+    return dict(sorted(by_subject.items(), key=lambda kv: (kv[1]["percentage"], kv[0])))
+
+
+class LibrusSubjectAttendanceSensor(LibrusSensorBase):
+    """Attendance percentage of the subject with the LOWEST one - the
+    figure that matters for the 50% "nieklasyfikowany" rule. `subjects` in
+    attributes has every subject's own percentage, `at_risk` the ones
+    already under 50%. Only subjects with at least
+    `_SUBJECT_ATTENDANCE_MIN_RECORDS` records count for the state,
+    `subject` and `at_risk`."""
+
+    _attr_translation_key = "subject_attendance"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_suggested_display_precision = 1
+    _attr_icon = "mdi:account-check-outline"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "subject_attendance")
+
+    @staticmethod
+    def _counted(subjects: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        return {
+            name: bucket
+            for name, bucket in subjects.items()
+            if bucket["total"] >= _SUBJECT_ATTENDANCE_MIN_RECORDS
+        }
+
+    @property
+    def native_value(self) -> float | None:
+        if self.coordinator.data is None:
+            return None
+        counted = self._counted(_subject_attendance(self.coordinator.data))
+        return next(iter(counted.values()))["percentage"] if counted else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.coordinator.data is None:
+            return None
+        subjects = _subject_attendance(self.coordinator.data)
+        counted = self._counted(subjects)
+        return {
+            "subject": next(iter(counted), None),
+            "subjects": subjects,
+            "at_risk": [
+                name
+                for name, bucket in counted.items()
+                if bucket["percentage"] < _SUBJECT_ATTENDANCE_RISK_PERCENTAGE
+            ],
+            "min_records": _SUBJECT_ATTENDANCE_MIN_RECORDS,
+        }
+
+
 # ----------------------------------------------------------------------
 # Gamification - "passy" (streaks) and a cosmetic rank derived from data
 # already fetched every cycle. Deliberately NOT an invented points/scoring
@@ -862,7 +962,7 @@ def _rank_for_average(average: float | None) -> tuple[str, str] | None:
 
 class LibrusRankSensor(LibrusSensorBase):
     """A cosmetic Bronze/Silver/Gold/Diamond tier derived from the Overall
-    average sensor's own weighted average - turns a raw number into
+    average sensor's own state - turns a raw number into
     something a bit more game-like on a dashboard. No extra API calls."""
 
     _attr_translation_key = "rank"
@@ -875,7 +975,11 @@ class LibrusRankSensor(LibrusSensorBase):
     def _average(self) -> float | None:
         if self.coordinator.data is None:
             return None
-        return _calculate_average(self.coordinator.data.grades, self.coordinator.data.grade_categories)
+        return _calculate_average(
+            self.coordinator.data.grades,
+            self.coordinator.data.grade_categories,
+            weighted=self._weighted,
+        )
 
     @property
     def icon(self) -> str | None:
@@ -1073,17 +1177,26 @@ class LibrusHomeworkAssignmentsSensor(LibrusSensorBase):
     def extra_state_attributes(self) -> dict[str, Any] | None:
         if self.coordinator.data is None:
             return None
-        teachers = self.coordinator.data.teachers
+        data = self.coordinator.data
+        teachers = data.teachers
+        by_teacher = teacher_subject_ids(data.timetable)
         recent = sorted(
-            (a for a in self.coordinator.data.homework_assignments if a.due_date),
+            (a for a in data.homework_assignments if a.due_date),
             key=lambda a: a.due_date,
         )[:10]
         return {
             "recent": [
                 {
                     "id": a.id,
+                    "subject": (
+                        data.subjects.get(subject_id)
+                        if (subject_id := infer_subject_id(a.teacher_id, by_teacher)) is not None
+                        else None
+                    ),
                     "topic": a.topic,
-                    "text": a.text[:200],
+                    # Long instructions (projects, lapbooks) are common -
+                    # 200 chars cut real ones mid-sentence.
+                    "text": a.text[:1000],
                     "due_date": a.due_date,
                     "date": a.date,
                     "teacher": teachers.get(a.teacher_id) if a.teacher_id else None,
@@ -1096,9 +1209,11 @@ class LibrusHomeworkAssignmentsSensor(LibrusSensorBase):
 class LibrusBehaviourGradeSensor(LibrusSensorBase):
     """A formal "ocena zachowania" (behaviour grade) - distinct from the
     Behaviour notices sensor above ("uwagi", free-text remarks). State is
-    the most recent grade's short name (e.g. "wz" for "wzorowe") if any
-    exist. Fields CONFIRMED via szkolny-android's reference parser
-    (2026-09-06), but never seen populated."""
+    the most recent grade in short form - "bdb" on the classic scale, or the
+    points - with the full name ("bardzo dobre") in the `name` attribute.
+    Found live (2026-10-05): a monthly "bdb" left this sensor blank, since
+    the classic-scale grade only lives in `BehaviourGrade.Id`
+    (`BehaviourGradeData.display`/`name`, librus-synergia 0.3.1)."""
 
     _attr_translation_key = "behaviour_grade"
     _attr_icon = "mdi:medal-outline"
@@ -1126,7 +1241,7 @@ class LibrusBehaviourGradeSensor(LibrusSensorBase):
     @property
     def native_value(self) -> str | None:
         latest = self._latest()
-        return latest.short_name if latest else None
+        return (latest.display or None) if latest else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
@@ -1138,9 +1253,14 @@ class LibrusBehaviourGradeSensor(LibrusSensorBase):
             key=lambda g: g.add_date,
             reverse=True,
         )[:5]
+        latest = recent[0] if recent else None
         return {
+            "name": latest.name if latest else None,
+            "comment": latest.comments[0].strip() if latest and latest.comments else None,
             "recent": [
                 {
+                    "grade": g.display,
+                    "name": g.name,
                     "short_name": g.short_name,
                     "value": g.value,
                     "category": categories.get(g.category_id) if g.category_id else None,
@@ -1522,4 +1642,55 @@ class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):
                 }
                 for d, it in upcoming[:10]
             ],
+        }
+
+
+class LibrusWeeklySummarySensor(SensorEntity):
+    """The weekly AI summary: headline as the state, the rest as attributes."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "weekly_summary"
+    _attr_icon = "mdi:creation"
+    _attr_should_poll = False
+    # Long text is only useful live on a card, never worth keeping in history.
+    _unrecorded_attributes = frozenset({"sections", "summary", "advice", "warning", "error"})
+
+    def __init__(self, summary: LibrusWeeklySummary, entry: LibrusConfigEntry) -> None:
+        self._summary = summary
+        self._attr_unique_id = f"{entry.entry_id}_weekly_summary"
+        self._attr_device_info = librus_device_info(entry)
+
+    async def async_added_to_hass(self) -> None:
+        """Follow the summary's updates."""
+        self.async_on_remove(self._summary.async_add_listener(self.async_write_ha_state))
+
+    @property
+    def native_value(self) -> str | None:
+        result = self._summary.result or {}
+        headline = result.get("headline") or result.get("summary")
+        return headline[:MAX_STATE_LENGTH] if headline else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        result = self._summary.result or {}
+        return {
+            "status": result.get("status"),
+            # {"grades" | "attendance" | "behaviour" | "next_week" |
+            # "school_news": {"status", "text"}}, in display order; a section
+            # with no text is left out.
+            "sections": result.get("sections") or {},
+            # Only on a plain-text answer (no structured output support).
+            "summary": result.get("summary"),
+            "advice": result.get("advice") or [],
+            "warning": result.get("warning"),
+            "week_from": result.get("week_from"),
+            "week_to": result.get("week_to"),
+            "audience": result.get("audience") or self._summary.audience,
+            "generated_at": result.get("generated_at"),
+            "next_run": self._summary.next_run.isoformat(),
+            "ai_task_entity": self._summary.ai_task_entity,
+            "generating": self._summary.running,
+            # The "Automatic weekly summary" switch is off: no scheduled runs.
+            "paused": not self._summary.enabled,
+            "error": self._summary.last_error,
         }

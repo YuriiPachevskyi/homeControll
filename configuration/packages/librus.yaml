@@ -548,10 +548,9 @@ command_line:
       command: >-
         m=""; for e in custom_components/librus_synergia/__init__.py:1
         custom_components/librus_synergia/calendar.py:1
-        custom_components/librus_synergia/coordinator.py:8
+        custom_components/librus_synergia/coordinator.py:9
         custom_components/librus_synergia/sensor.py:3
         custom_components/librus_synergia/services.py:1
-        custom_components/librus_synergia/librus_api/client.py:1
         www/community/ha-librus-synergia-cards/librus-synergia-cards.js:2;
         do f=${e%:*}; n=$(grep -c "homeControll local patch" "/config/$f" 2>/dev/null);
         [ "${n:-0}" -ge "${e##*:}" ] || m="$m ${f##*/}"; done; echo "${m:-ok}"

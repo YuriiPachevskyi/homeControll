@@ -23,7 +23,9 @@ step when a patch is added or dropped:
    the skill's name ("5p · Sprawności motoryczne") instead of the raw
    `Grade` field, which is only a category index (3 for both 5p and 6p) -
    upstream never saw this endpoint populated. Skill names come from
-   `DescriptiveGrades/Skills`, fetched alongside. The sensor's `recent`
+   `DescriptiveGrades/Skills`, fetched alongside. Since v0.8.0 the client
+   and parsers are the librus-synergia library (site-packages), so both
+   are wrapped from coordinator.py. The sensor's `recent`
    list keeps up to 50 grades instead of 5, so the card shows them all.
 4. Minute tick: next lesson / current lesson / next exam work out "now"
    only when their state is written, i.e. after a Librus refresh. Librus
@@ -136,7 +138,7 @@ TZ_PATCHES = {
     ],
 }
 
-SUBJECTS_LINE = '        self._cached_subjects = _parse_id_name_map(subjects_payload, ("Subjects",))\n'
+SUBJECTS_LINE = '        self._cached_subjects = parse_id_name_map(subjects_payload, ("Subjects",))\n'
 SUBJECTS_PATCH = SUBJECTS_LINE + f"        self._cached_subjects = _translate_subjects(self._cached_subjects)  # {MARKER}\n"
 SUBJECTS_FUNC = f'''
 
@@ -161,29 +163,14 @@ def _translate_subjects(names: dict) -> dict:
 '''
 
 
-# name -> (marker that says it's done, [(old, new), ...])
+# name -> (marker that says it's done, [(old, new), ...]). Since v0.8.0 the
+# client and parsers live in the librus-synergia library (site-packages,
+# reinstalled by HA) - patch 3 wraps them from coordinator.py instead.
+GRADE_MARKER = f"{MARKER}: real grade"
 GRADE_PATCHES = {
-    "librus_api/client.py": (f"{MARKER}: skill names", [(
-        "        return await self._async_request(ENDPOINT_DESCRIPTIVE_GRADES)\n",
-        "        payload = await self._async_request(ENDPOINT_DESCRIPTIVE_GRADES)\n"
-        f"        # {MARKER}: skill names from DescriptiveGrades/Skills on each grade\n"
-        "        try:\n"
-        "            skills = await self._async_request(\"DescriptiveGrades/Skills\")\n"
-        "            names = {k.get(\"Id\"): k.get(\"Name\") for k in skills.get(\"Skills\", []) if isinstance(k, dict)}\n"
-        "            for grade in payload.get(\"Grades\", []) if isinstance(payload, dict) else []:\n"
-        "                skill = grade.get(\"Skill\") if isinstance(grade, dict) else None\n"
-        "                if isinstance(skill, dict) and names.get(skill.get(\"Id\")):\n"
-        "                    skill[\"Name\"] = names[skill[\"Id\"]]\n"
-        "        except Exception:  # noqa: BLE001 - optional extra; never break the grades fetch\n"
-        "            pass  # grades still work, just without skill names\n"
-        "        return payload\n",
-    )]),
-    "coordinator.py": (f"{MARKER}: real grade", [(
-        '                value=item.get("Grade", ""),\n',
-        f'                # {MARKER}: real grade ("5p") + skill name, not the category index\n'
-        '                value=" · ".join(str(x) for x in (\n'
-        '                    item.get("Map") or item.get("RealGradeValue") or item.get("Grade", ""),\n'
-        '                    skill.get("Name")) if x),\n',
+    "coordinator.py": (GRADE_MARKER, [(
+        "            descriptive_grades=parse_descriptive_grades(descriptive_grades_payload),\n",
+        f"            descriptive_grades=_hc_descriptive_grades(descriptive_grades_payload),  # {GRADE_MARKER}\n",
     )]),
     "sensor.py": (f"{MARKER}: was 5", [(
         "            (g for g in self.coordinator.data.descriptive_grades if g.add_date),\n"
@@ -192,6 +179,45 @@ GRADE_PATCHES = {
         f"            key=lambda g: g.add_date,\n            reverse=True,\n        )[:50]  # {MARKER}: was 5\n",
     )]),
 }
+GRADE_FUNC = f'''
+
+# --- {GRADE_MARKER} (librus/apply_local_patches.py, patch 3) ---
+_hc_orig_descriptive = LibrusApiClient.async_get_descriptive_grades
+
+
+async def _hc_get_descriptive_grades(self):
+    # skill names from DescriptiveGrades/Skills on each grade
+    payload = await _hc_orig_descriptive(self)
+    try:
+        skills = await self._async_request("DescriptiveGrades/Skills")
+        names = {{k.get("Id"): k.get("Name") for k in skills.get("Skills", []) if isinstance(k, dict)}}
+        for grade in payload.get("Grades", []) if isinstance(payload, dict) else []:
+            skill = grade.get("Skill") if isinstance(grade, dict) else None
+            if isinstance(skill, dict) and names.get(skill.get("Id")):
+                skill["Name"] = names[skill["Id"]]
+    except Exception:  # noqa: BLE001 - optional extra; never break the grades fetch
+        pass  # grades still work, just without skill names
+    return payload
+
+
+LibrusApiClient.async_get_descriptive_grades = _hc_get_descriptive_grades
+
+
+def _hc_descriptive_grades(payload):
+    # real grade ("5p") + skill name, not the category index in `Grade`
+    grades = parse_descriptive_grades(payload)
+    items = {{}}
+    for item in (payload.get("Grades") if isinstance(payload, dict) else None) or []:
+        if isinstance(item, dict) and item.get("Id") is not None:
+            items[int(item["Id"])] = item
+    for grade in grades:
+        item = items.get(grade.id) or {{}}
+        skill = item.get("Skill") if isinstance(item.get("Skill"), dict) else {{}}
+        grade.value = " · ".join(str(x) for x in (
+            item.get("Map") or item.get("RealGradeValue") or item.get("Grade", ""),
+            skill.get("Name")) if x)
+    return grades
+'''
 
 
 def patch_grades() -> None:
@@ -207,6 +233,8 @@ def patch_grades() -> None:
             if text.count(old) != 1:
                 sys.exit(f"{name}: expected exactly one {old!r} - upstream changed, patch not applied")
             text = text.replace(old, new)
+        if name == "coordinator.py":
+            text += GRADE_FUNC
         path.write_text(text, encoding="utf-8")
         print(f"{name}: grades patched")
 
@@ -294,7 +322,7 @@ def patch_route() -> None:
 CACHE_MARKER = f"{MARKER}: data cache"
 CACHE_DEF = "    async def _async_update_data(self) -> LibrusData:\n"
 CACHE_RENAMED = f"    async def _async_update_data_upstream(self) -> LibrusData:  # {CACHE_MARKER}\n"
-CACHE_VERSION = "cache-v12"  # bump when CACHE_FUNC changes: re-applies the block in place
+CACHE_VERSION = "cache-v13"  # bump when CACHE_FUNC changes: re-applies the block in place
 CACHE_FUNC = f"""
 
 # --- {CACHE_MARKER} (librus/apply_local_patches.py, patch 6, {CACHE_VERSION}) ---
@@ -403,7 +431,7 @@ def _hc_browser_headers(session) -> None:
     # User-Agent - looks like the same desktop browser, set up in Poland.
     # HA hands the session a read-only mapping - replace it with a copy.
     from multidict import CIMultiDict
-    from .librus_api.const import USER_AGENT
+    from librus_synergia.const import USER_AGENT
     headers = CIMultiDict(session._default_headers)
     headers["User-Agent"] = USER_AGENT
     headers["Accept-Language"] = "pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7"
@@ -526,9 +554,16 @@ def _cache_path(coordinator) -> str:
 def _cache_read(path: str):
     import os
     import pickle
+    class _Unpickler(pickle.Unpickler):
+        # caches written before v0.8.0 name the bundled copy of the models
+        def find_class(self, module, name):
+            if module.endswith(".librus_synergia.librus_api.models"):
+                module = "librus_synergia.models"
+            return super().find_class(module, name)
+
     try:
         with open(path, "rb") as fh:
-            saved = pickle.load(fh)
+            saved = _Unpickler(fh).load()
     except FileNotFoundError:
         return None
     except Exception as err:  # e.g. the models changed after an update
@@ -738,9 +773,9 @@ from homeassistant.components.http import HomeAssistantView as _HcView
 from homeassistant.const import CONF_PASSWORD as _HC_CONF_PASSWORD
 from homeassistant.helpers.http import KEY_HASS as _HC_KEY_HASS
 
-from .librus_api import LibrusSessionExpiredError as _HcExpired
-from .librus_api.client import LibrusApiClient as _HcClient
-from .librus_api.const import MESSAGES_BASE_URL as _HC_MSG_BASE
+from librus_synergia import LibrusApiClient as _HcClient
+from librus_synergia import LibrusSessionExpiredError as _HcExpired
+from librus_synergia.const import MESSAGES_BASE_URL as _HC_MSG_BASE
 
 
 async def _hc_client_download(self, message_id: str, attachment_id: str):
