@@ -2,20 +2,26 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from homeassistant.const import Platform
 
 DOMAIN = "librus_synergia"
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
+    Platform.BINARY_SENSOR,
     Platform.CALENDAR,
     Platform.BUTTON,
     Platform.SWITCH,
+    Platform.TODO,
+    Platform.EVENT,
 ]
 
-# The session (see librus_synergia.LibrusSessionData) is cookie-based with a
-# ~24h lifetime and no separate refresh grant - unlike a bearer-token API,
-# staying logged in silently requires the password, so (unlike ha-suunto's
+# The session (see librus_synergia.LibrusSessionData) is cookie-based. It is
+# renewed through Librus's /refreshToken, but once it lapses only a fresh
+# login gets back in - unlike a bearer-token API, staying logged in
+# unattended requires the password, so (unlike ha-suunto's
 # revocable-session-key-only model) it is persisted here too. Only the
 # cookie jar and login timestamp are the model's *addition* over a plain
 # password store - see the librus-synergia library's LibrusApiClient docstring.
@@ -38,6 +44,42 @@ CONF_QUIET_HOURS_START = "quiet_hours_start"
 DEFAULT_QUIET_HOURS_START = "23:00:00"
 CONF_QUIET_HOURS_END = "quiet_hours_end"
 DEFAULT_QUIET_HOURS_END = "06:00:00"
+
+# Smart polling (off by default): the poll interval above applies on school
+# days 06:00-22:00; on a day without lessons at most hourly, and at night
+# (22:00-06:00) at most every 3 hours. A manual refresh always fetches.
+CONF_SMART_POLLING = "smart_polling"
+DEFAULT_SMART_POLLING = False
+SMART_POLLING_DAY_OFF = 60  # minutes
+SMART_POLLING_NIGHT = 180  # minutes
+SMART_POLLING_NIGHT_START = 22
+SMART_POLLING_NIGHT_END = 6
+
+# Saved coordinator state (coordinator.async_restore_state): what was already
+# seen, so a grade added while HA was off still fires its event, and the last
+# good response of every endpoint, the fallback while Librus is down.
+STATE_STORE_VERSION = 1
+STATE_SAVE_DELAY = 300  # seconds
+# How old the last good data may get and still be shown while Librus keeps
+# failing (and be rebuilt from the saved responses at HA start). Past this the
+# entities go unavailable.
+LAST_GOOD_DATA_MAX_AGE = timedelta(days=3)
+# After the second failed cycle in a row the next attempts back off: twice the
+# update interval, then four times, ... up to this.
+OUTAGE_BACKOFF_MAX = timedelta(hours=2)
+
+# Status sensor states.
+STATUS_OK = "ok"
+STATUS_DEGRADED = "degraded"
+STATUS_STALE = "stale"
+STATUS_ERROR = "error"
+STATUS_OPTIONS = [STATUS_OK, STATUS_DEGRADED, STATUS_STALE, STATUS_ERROR]
+
+# Hide subject average sensors for subjects without a single grade yet
+# (e.g. Religia early in the year). Off by default; the sensor appears as
+# soon as the subject gets its first grade.
+CONF_HIDE_EMPTY_SUBJECTS = "hide_empty_subjects"
+DEFAULT_HIDE_EMPTY_SUBJECTS = False
 
 # When False (set via the options flow), the coordinator skips the whole
 # Wiadomości (private messages) subsystem - its separate wiadomosci.librus.pl
@@ -72,10 +114,15 @@ AVERAGE_MODE_WEIGHTED = "weighted"
 AVERAGE_MODE_ARITHMETIC = "arithmetic"
 DEFAULT_AVERAGE_MODE = AVERAGE_MODE_WEIGHTED
 
+# Minimum averages for a 2, 3, 4, 5 and 6, used by the grade forecast
+# (forecast.py). Free text so any school's statute fits; an unusable value
+# falls back to forecast.DEFAULT_GRADE_THRESHOLDS.
+CONF_GRADE_THRESHOLDS = "grade_thresholds"
+
 # The student's own number in the class register ("numer w dzienniku") -
-# CONFIRMED (via szkolny-android's reference source) that Librus's API does
-# not expose this anywhere at all; even that reference app just asks the
-# user to type it in once via a settings dialog rather than fetching it.
+# an optional manual override. The number is normally read from Librus
+# (`Users/{Me.Account.UserId}.ClassRegisterNumber`, with the `informacja`
+# web page as a fallback - see coordinator._async_refresh_student_number).
 # Genuinely optional and unset by default (no DEFAULT_* - absent means "not
 # configured", distinct from any real roster number) so the Lucky number
 # sensor's `is_yours` attribute can stay `None` ("unknown, not configured")
@@ -198,6 +245,12 @@ REFERENCE_DATA_ENDPOINT_LABELS = (
     "NoteCategories",
     "BehaviourGradeCategories",
     "Lessons",
+    # Text-grade and homework-assignment category names.
+    "TextGradeCategories",
+    "HomeworkAssignmentCategories",
+    # School configuration - only `GradesSettings.PointGradesEnabled` is
+    # read, to skip the point-grade requests at schools without them.
+    "Units",
 )
 
 # The handful of degradable fetches that don't belong to any of the three
@@ -216,6 +269,19 @@ MISC_DEGRADABLE_ENDPOINT_LABELS = (
     "LuckyNumbers",
     "Messages",
     "Messages/Secondary",
+    # Synergia's informacja web page (class register number).
+    "Informacja",
+    # Point grades (0-100 / points out of a maximum) - fetched every cycle
+    # only where Units doesn't say the school has them off.
+    "PointGrades",
+    "PointGrades/Categories",
+    # Absence justifications the parent submitted.
+    "Justifications",
+    # Text grades, lesson topics, school trips and documents.
+    "BaseTextGrades",
+    "Realizations",
+    "SchoolTrips",
+    "SchoolFiles",
 )
 
 # Repair issue translation keys - see repairs.py for what each one means and
@@ -230,9 +296,9 @@ ISSUE_OPTIONAL_ENDPOINT_DEGRADED = "optional_endpoint_degraded"
 # second one.
 LUCKY_NUMBER_PUBLISH_HOUR = 15
 
-# New-item bus events. Seen-id bookkeeping is in-memory only (see
-# coordinator.py's `_fire_for_new_ids`) - a HA restart just re-seeds
-# quietly, so there's nothing to prune across restarts.
+# New-item bus events. What has been announced is saved in the entry's
+# state Store (see coordinator.async_restore_state), so items that arrive
+# while Home Assistant is off still fire after a restart.
 EVENT_NEW_GRADE = f"{DOMAIN}_new_grade"
 EVENT_NEW_ANNOUNCEMENT = f"{DOMAIN}_new_announcement"
 EVENT_NEW_NOTE = f"{DOMAIN}_new_note"
@@ -241,6 +307,18 @@ EVENT_NEW_MESSAGE = f"{DOMAIN}_new_message"
 # events. Carries the resolved subject + category name so an automation
 # can filter e.g. category == "Sprawdzian" without its own lookup.
 EVENT_NEW_HOMEWORK = f"{DOMAIN}_new_homework"
+# Fires when an upcoming Agenda entry is changed (`kind: changed`, with
+# `changed_fields` and the `previous` values - e.g. a test moved to another
+# day) or disappears from Librus (`kind: removed` - e.g. a cancelled trip).
+# Only for entries dated today or later; seeded silently on the first sync.
+EVENT_AGENDA_CHANGED = f"{DOMAIN}_agenda_changed"
+# Fires when the school decides on a submitted absence justification (its
+# status changes, e.g. to accepted or rejected). Seeded silently.
+EVENT_JUSTIFICATION_STATUS = f"{DOMAIN}_justification_status"
+# A new school trip / a new document the school shared with parents.
+# Seeded silently on the first sync.
+EVENT_NEW_SCHOOL_TRIP = f"{DOMAIN}_new_school_trip"
+EVENT_NEW_SCHOOL_DOCUMENT = f"{DOMAIN}_new_school_document"
 # Fires for a new real homework assignment ("zadanie domowe", the
 # `HomeWorkAssignments` endpoint) - distinct from EVENT_NEW_HOMEWORK, which
 # despite its name covers the Agenda feed. Carries topic/text/due date, the
@@ -262,6 +340,10 @@ EVENT_TIMETABLE_CHANGED = f"{DOMAIN}_timetable_changed"
 # Librus actually reports. Each achievement key fires at most once (seeded
 # silently on the first sync, same as every other *_new_*/_changed event).
 EVENT_ACHIEVEMENT_UNLOCKED = f"{DOMAIN}_achievement_unlocked"
+# Fires when a subject's forecast grade (forecast.py) moves up or down a
+# grade vs. the previous poll. Seeded silently on the first sync and again
+# when the basis switches from the first semester to the school year.
+EVENT_FORECAST_CHANGED = f"{DOMAIN}_forecast_changed"
 
 # Fired after every successful weekly AI summary (see ai_summary.py),
 # carrying the whole result plus labels in the HA language for a report.

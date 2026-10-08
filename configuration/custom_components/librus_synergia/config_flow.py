@@ -1,10 +1,11 @@
 """Config flow for the Librus Synergia (unofficial) integration.
 
 Credential model: unlike a bearer-token OAuth API, this integration's
-session (see librus_synergia.LibrusSessionData) is a cookie-based login
-with an observed ~24h lifetime and no separate refresh grant. Silent,
-unattended daily re-login therefore requires the password itself, not just
-a revocable token - so, unlike ha-suunto's "password used once then
+session (see librus_synergia.LibrusSessionData) is a cookie-based login.
+The library keeps it alive through Librus's /refreshToken, but a session
+that has already lapsed (Home Assistant off for a while, Librus dropping
+it early) can only be replaced by a fresh login, and doing that unattended
+requires the password itself, not just a revocable token - so, unlike ha-suunto's "password used once then
 discarded" model, the password IS persisted here (alongside the session
 cookies, which matter for staying recognized as a known device - see the
 librus-synergia library's docs/authentication.md). This is disclosed to the
@@ -70,11 +71,14 @@ from .const import (
     CONF_COOKIES,
     CONF_DESCRIPTIVE_GRADES_ENABLED,
     CONF_FREE_DAYS_ENABLED,
+    CONF_GRADE_THRESHOLDS,
+    CONF_HIDE_EMPTY_SUBJECTS,
     CONF_MESSAGES_ENABLED,
     CONF_QUIET_HOURS_ENABLED,
     CONF_QUIET_HOURS_END,
     CONF_QUIET_HOURS_START,
     CONF_SESSION_LOGGED_IN_AT,
+    CONF_SMART_POLLING,
     CONF_STUDENT_NUMBER,
     DEFAULT_AI_AUDIENCE,
     DEFAULT_AI_INCLUDE_MESSAGES,
@@ -85,15 +89,18 @@ from .const import (
     DEFAULT_BEHAVIOUR_GRADES_ENABLED,
     DEFAULT_DESCRIPTIVE_GRADES_ENABLED,
     DEFAULT_FREE_DAYS_ENABLED,
+    DEFAULT_HIDE_EMPTY_SUBJECTS,
     DEFAULT_MESSAGES_ENABLED,
     DEFAULT_QUIET_HOURS_ENABLED,
     DEFAULT_QUIET_HOURS_END,
     DEFAULT_QUIET_HOURS_START,
     DEFAULT_SCAN_INTERVAL_MINUTES,
+    DEFAULT_SMART_POLLING,
     DOMAIN,
     MAX_SCAN_INTERVAL_MINUTES,
     MIN_SCAN_INTERVAL_MINUTES,
 )
+from .forecast import DEFAULT_GRADE_THRESHOLDS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -169,8 +176,8 @@ class LibrusSynergiaConfigFlow(ConfigFlow, domain=DOMAIN):
                 account = me.get("Account", {})
                 # `Account` is the LOGIN's own identity - for a child's login
                 # under a parent-managed portal this is the PARENT's name
-                # (confirmed live: Account was "Michał Zaniewicz", the parent,
-                # while `User` below was "Kacper Zaniewicz", the actual
+                # (confirmed live: Account was the parent,
+                # while `User` below was "Ola Kowalska", the actual
                 # student) - the student ("User") is what the title/device name
                 # should show, not whoever's name is on the login itself.
                 student = me.get("User", {})
@@ -389,17 +396,27 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
                         translation_key=CONF_AVERAGE_MODE,
                     )
                 ),
-                # Genuinely optional, no default - Librus's API doesn't expose
-                # this anywhere (CONFIRMED via szkolny-android's own reference
-                # source), so it's a fact the user types in once, not fetched
-                # data. Left blank, the Lucky number sensor's `is_yours`
-                # attribute stays `None` instead of falsely reporting `False`.
+                vol.Required(
+                    CONF_GRADE_THRESHOLDS,
+                    default=options.get(CONF_GRADE_THRESHOLDS, DEFAULT_GRADE_THRESHOLDS),
+                ): TextSelector(TextSelectorConfig()),
+                # Optional override: the number is read from Librus
+                # (coordinator.student_number_from_librus);
+                # a value here wins over it.
                 vol.Optional(
                     CONF_STUDENT_NUMBER,
                     description={"suggested_value": options.get(CONF_STUDENT_NUMBER)},
                 ): NumberSelector(
                     NumberSelectorConfig(min=1, max=99, step=1, mode=NumberSelectorMode.BOX)
                 ),
+                vol.Required(
+                    CONF_HIDE_EMPTY_SUBJECTS,
+                    default=options.get(CONF_HIDE_EMPTY_SUBJECTS, DEFAULT_HIDE_EMPTY_SUBJECTS),
+                ): BooleanSelector(),
+                vol.Required(
+                    CONF_SMART_POLLING,
+                    default=options.get(CONF_SMART_POLLING, DEFAULT_SMART_POLLING),
+                ): BooleanSelector(),
                 vol.Required(
                     CONF_QUIET_HOURS_ENABLED,
                     default=options.get(CONF_QUIET_HOURS_ENABLED, DEFAULT_QUIET_HOURS_ENABLED),

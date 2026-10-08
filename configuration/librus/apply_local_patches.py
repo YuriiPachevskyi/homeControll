@@ -51,8 +51,12 @@ step when a patch is added or dropped:
    raises so HA asks for reauth). After an HA restart the first refresh just
    loads that file when it is younger than 24 h - no Librus request at all.
    Setup no longer logs in up front (upstream did when the stored session
-   looked stale) - the first real refresh logs in if needed, after patch 5
-   has picked the route.
+   looked stale; v0.12.0 dropped that itself) - the first real refresh logs
+   in if needed, after patch 5 has picked the route. Since v0.12.0 upstream
+   also keeps the last good response per endpoint (its own .storage file)
+   and returns the old data when Librus fails, so "success" here means
+   `last_success_at` moved - only then the events below fire and the cache
+   is written.
    Everything the sensors show is read on every scheduled refresh (3x a
    day). Only near-static data is kept longer: attendance types and the
    reference data (subjects, teachers, classrooms, free days, ...;
@@ -96,21 +100,21 @@ step when a patch is added or dropped:
    12:55 Polish time, 13 min away. It is now read in HA's zone
    (hass.config.time_zone) and shown in the browser's. The .gz copy HA
    serves is rebuilt; the resource URL gets a cache-busting "&hc=" suffix.
-9. Message attachments: upstream only lists their names ("open in the
-   Librus app"). Found live on 2026-09-24: GET wiadomosci.librus.pl/api/
-   attachments/<attachment id>/messages/<message id> -> {data:
-   {downloadLink: sandbox.librus.pl/GetFile/<key>}}; that page (loaded
-   first, like a browser) redirects to <link>/get, which returns the file.
-   services.py gets a coordinator/client download method (same Wiadomosci
-   session recovery as get_message) and an authenticated HTTP view
-   /api/librus_synergia/attachment/<message id>/<attachment id> (served
-   inline, last 5 files kept in memory for an hour). The cards make each
-   attachment clickable: they sign that path (auth/sign_path) and open it in
-   a new tab.
+   The minified names change per release, so the places are found by
+   pattern and `hass` by the nearest `X=this.hass` before each.
+9. Message attachments: since v0.12.0 upstream downloads them itself
+   (coordinator.async_download_attachment, a download view with the device
+   id in the path, and the Messages card's own button) - our own client
+   code and card edits are gone. What stays is an authenticated view
+   /api/librus_synergia/attachment/<message id>/<attachment id> on top of
+   upstream's download, served inline (last 5 files kept in memory for an
+   hour), which the letter reader card (www/librus-message-reader.js) signs
+   (auth/sign_path) and opens in a new tab.
 
 Idempotent (each patch carries a marker). If upstream code changed so an
 expected line is missing, it stops with an error instead of guessing.
 """
+import re
 import sys
 from pathlib import Path
 
@@ -138,7 +142,7 @@ TZ_PATCHES = {
     ],
 }
 
-SUBJECTS_LINE = '        self._cached_subjects = parse_id_name_map(subjects_payload, ("Subjects",))\n'
+SUBJECTS_LINE = '        self._cached_subjects = parse_id_name_map(payload("Subjects"), ("Subjects",))\n'
 SUBJECTS_PATCH = SUBJECTS_LINE + f"        self._cached_subjects = _translate_subjects(self._cached_subjects)  # {MARKER}\n"
 SUBJECTS_FUNC = f'''
 
@@ -322,7 +326,7 @@ def patch_route() -> None:
 CACHE_MARKER = f"{MARKER}: data cache"
 CACHE_DEF = "    async def _async_update_data(self) -> LibrusData:\n"
 CACHE_RENAMED = f"    async def _async_update_data_upstream(self) -> LibrusData:  # {CACHE_MARKER}\n"
-CACHE_VERSION = "cache-v13"  # bump when CACHE_FUNC changes: re-applies the block in place
+CACHE_VERSION = "cache-v14"  # bump when CACHE_FUNC changes: re-applies the block in place
 CACHE_FUNC = f"""
 
 # --- {CACHE_MARKER} (librus/apply_local_patches.py, patch 6, {CACHE_VERSION}) ---
@@ -333,6 +337,7 @@ _CACHE_EXTRA_ATTRS = (
     "_cached_lesson_subjects", "_cached_school", "_cached_class", "_cached_homework_categories",
     "_cached_free_days", "_cached_note_categories", "_cached_behaviour_grade_categories",
     "_cached_lucky_number", "_lucky_number_fetched_date",
+    "_cached_text_grade_categories", "_cached_homework_assignment_categories",
 )
 
 
@@ -527,9 +532,10 @@ async def _hc_announce(coordinator, news) -> None:
                     continue
                 name = att.get("filename") or f"attachment-{{att['id']}}"
                 try:
-                    body, _ctype, _disp = await coordinator.async_download_attachment(m.id, str(att["id"]))
+                    # upstream's (v0.12.0+): attachment id first, returns AttachmentFileData
+                    file = await coordinator.async_download_attachment(str(att["id"]), m.id)
                     item["files"].append(await coordinator.hass.async_add_executor_job(
-                        _hc_save_attachment, m.id, name, body))
+                        _hc_save_attachment, m.id, name, file.content))
                 except Exception as err:
                     _LOGGER.warning("Librus news: attachment %s of message %s not downloaded: %s", name, m.id, err)
         except Exception as err:
@@ -639,6 +645,7 @@ async def _async_update_data_cached(self) -> LibrusData:
         _hc_browser_headers(self._client._session)
     except Exception as err:  # never let cosmetics break a refresh
         _LOGGER.warning("Librus: browser headers not set: %s", err)
+    succeeded_before = self.last_success_at
     try:
         data = await self._async_update_data_upstream()
     except ConfigEntryAuthFailed:
@@ -649,6 +656,11 @@ async def _async_update_data_cached(self) -> LibrusData:
             raise
         _LOGGER.warning("Librus refresh failed (%s) - keeping the previous data", err)
         return fallback
+    # Since v0.12.0 upstream returns the last data itself when Librus fails
+    # (and when it skips a cycle: quiet hours, outage backoff) - only a cycle
+    # that really fetched moves last_success_at.
+    if self.last_success_at == succeeded_before:
+        return data
     self.hass.bus.async_fire("librus_refreshed", {{}})  # packages/librus.yaml: stale-data alert
     previous = self.data if self.data is not None else (cached[1] if cached else None)
     if previous is not None:
@@ -701,9 +713,9 @@ def patch_cache() -> None:
     text = init.read_text(encoding="utf-8")
     if CACHE_MARKER in text:
         print("__init__.py: setup login already patched")
+    elif SETUP_LOGIN not in text:
+        print("__init__.py: no up-front login upstream (v0.12.0+) - nothing to patch")
     else:
-        if text.count(SETUP_LOGIN) != 1:
-            sys.exit("__init__.py: setup login not found - upstream changed, patch not applied")
         init.write_text(text.replace(SETUP_LOGIN, SETUP_NO_LOGIN), encoding="utf-8")
         print("__init__.py: setup login patched")
 
@@ -714,8 +726,10 @@ SCHOOL_DATE_NEW = 'dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()'
 
 def patch_school_date() -> None:
     """Patch 7 - see the module docstring."""
-    for name in ("sensor.py", "calendar.py", "coordinator.py"):
+    for name in ("sensor.py", "calendar.py", "coordinator.py", "binary_sensor.py", "todo.py"):
         path = INTEGRATION / name
+        if not path.exists():  # binary_sensor.py / todo.py since v0.11.0
+            continue
         text = path.read_text(encoding="utf-8")
         count = text.count(SCHOOL_DATE_OLD)
         if count:
@@ -734,10 +748,14 @@ CARDS_HELPER = (CARDS_MARKER + "\nfunction __hcSrvDate(s,h){"
                 ".formatToParts(u))p[x.type]=x.value;"
                 "const asUtc=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);"
                 "return new Date(u.getTime()-(asUtc-u.getTime()))}catch(e){return new Date(naive)}}\n")
-CARDS_EDITS = [  # (old, new, expected count) - `i` is `hass` at all three places
-    ('r.replace(" ","T")', "__hcSrvDate(r,i)", 2),
-    ('d.replace(" ","T")', "__hcSrvDate(d,i)", 1),
+# The minified names change between card releases: the next-lesson tile
+# parses `r` twice (new Date(r...) and a time formatter), the Today card
+# `new Date(d...)`; hass is whatever `X=this.hass` came last before each.
+CARDS_EDITS = [  # (regex, expected count)
+    (r'(?<![\w.])r\.replace\(" ","T"\)', 2),
+    (r'(?<=new Date\()d\.replace\(" ","T"\)', 1),
 ]
+CARDS_HASS = re.compile(r"[,{\s](\w+)=this\.hass[,;]")
 
 
 def patch_cards() -> None:
@@ -747,10 +765,15 @@ def patch_cards() -> None:
     if CARDS_MARKER in text:
         print("cards: start_time zone already patched")
         return
-    for old, new, count in CARDS_EDITS:
-        if text.count(old) != count:
-            sys.exit(f"cards: expected {count}x {old!r} - upstream changed, patch not applied")
-        text = text.replace(old, new)
+    for pattern, count in CARDS_EDITS:
+        matches = list(re.finditer(pattern, text))
+        if len(matches) != count:
+            sys.exit(f"cards: expected {count}x {pattern!r} - upstream changed, patch not applied")
+        for m in reversed(matches):
+            hass = [h.group(1) for h in CARDS_HASS.finditer(text, max(0, m.start() - 3000), m.start())]
+            if not hass:
+                sys.exit(f"cards: no `=this.hass` before {m.group()!r} - upstream changed, patch not applied")
+            text = f"{text[:m.start()]}__hcSrvDate({m.group()[0]},{hass[-1]}){text[m.end():]}"
     text = CARDS_HELPER + text
     CARDS.write_text(text, encoding="utf-8")
     gz = CARDS.with_name(CARDS.name + ".gz")
@@ -763,57 +786,24 @@ ATT_MARKER = f"{MARKER}: attachments"
 ATT_FUNC = f'''
 
 # --- {ATT_MARKER} (librus/apply_local_patches.py, patch 9) ---
-import asyncio as _hc_asyncio
 import re as _hc_re
 import time as _hc_time
 from urllib.parse import quote as _hc_quote
 
 from aiohttp import web as _hc_web
 from homeassistant.components.http import HomeAssistantView as _HcView
-from homeassistant.const import CONF_PASSWORD as _HC_CONF_PASSWORD
 from homeassistant.helpers.http import KEY_HASS as _HC_KEY_HASS
 
-from librus_synergia import LibrusApiClient as _HcClient
-from librus_synergia import LibrusSessionExpiredError as _HcExpired
-from librus_synergia.const import MESSAGES_BASE_URL as _HC_MSG_BASE
-
-
-async def _hc_client_download(self, message_id: str, attachment_id: str):
-    info = await self._async_request_url(f"{{_HC_MSG_BASE}}/attachments/{{attachment_id}}/messages/{{message_id}}")
-    link = ((info or {{}}).get("data") or {{}}).get("downloadLink")
-    if not link:
-        raise LibrusError(f"No download link for attachment {{attachment_id}}")
-    async with self._session.get(link) as resp:  # the "Pobieranie plików" page a browser loads first
-        await resp.read()
-    await _hc_asyncio.sleep(1.5)
-    async with self._session.get(link.rstrip("/") + "/get") as resp:
-        if resp.status != 200:
-            raise LibrusError(f"Attachment download failed: HTTP {{resp.status}}")
-        return await resp.read(), resp.headers.get("Content-Type", ""), resp.headers.get("Content-Disposition", "")
-
-
-_HcClient.async_download_attachment = _hc_client_download
-
-
-async def _hc_coordinator_download(self, message_id: str, attachment_id: str):
-    try:
-        return await self._client.async_download_attachment(message_id, attachment_id)
-    except _HcExpired:  # same recovery as async_fetch_message
-        await self._client.async_ensure_session_valid(self.config_entry.data[_HC_CONF_PASSWORD], force=True)
-        self._messages_bootstrapped = False
-        self._messages_available = await self._client.async_bootstrap_messages()
-        self._messages_bootstrapped = True
-        return await self._client.async_download_attachment(message_id, attachment_id)
-
-
-LibrusDataUpdateCoordinator.async_download_attachment = _hc_coordinator_download
 _HC_ATT_CACHE: dict = {{}}
 
 
 class _HcAttachmentView(_HcView):
+    # The letter reader card (www/librus-message-reader.js) signs this path
+    # and opens it in a new tab - served inline, unlike upstream's
+    # /api/librus_synergia/attachment/<device>/<msg>/<att> (a download).
     url = "/api/librus_synergia/attachment/{{message_id}}/{{attachment_id}}"
-    name = "api:librus_synergia:attachment"
-    requires_auth = True  # the cards open it through a signed path
+    name = "api:librus_synergia:attachment_inline"
+    requires_auth = True
 
     async def get(self, request, message_id: str, attachment_id: str):
         if not (message_id.isdigit() and attachment_id.isdigit()):
@@ -826,13 +816,13 @@ class _HcAttachmentView(_HcView):
         hit = _HC_ATT_CACHE.get(key)
         if hit is None or _hc_time.time() - hit[0] > 3600:
             try:
-                body, ctype, disp = await entries[0].runtime_data.async_download_attachment(message_id, attachment_id)
+                file = await entries[0].runtime_data.async_download_attachment(attachment_id, message_id)
             except Exception as err:
                 _LOGGER.warning("Librus attachment %s/%s: %s", message_id, attachment_id, err)
                 return _hc_web.Response(status=502, text="Could not download the attachment from Librus")
-            match = _hc_re.search(r\'filename="?([^";]+)"?\', disp or "")
-            hit = (_hc_time.time(), body, (ctype or "application/octet-stream").split(";")[0].strip(),
-                   match.group(1) if match else f"attachment-{{attachment_id}}")
+            hit = (_hc_time.time(), file.content,
+                   (file.content_type or "application/octet-stream").split(";")[0].strip(),
+                   file.filename or f"attachment-{{attachment_id}}")
             _HC_ATT_CACHE[key] = hit
             for old in sorted(_HC_ATT_CACHE, key=lambda k: _HC_ATT_CACHE[k][0])[:-5]:
                 del _HC_ATT_CACHE[old]
@@ -852,49 +842,20 @@ def async_setup_services(hass: HomeAssistant) -> None:
         hass.http.register_view(_HcAttachmentView())
         hass.data["_hc_librus_attachment_view"] = True
 '''
-CARDS_ATT_MARKER = f"/* {MARKER}: attachments */"
-CARDS_ATT_HELPER = (CARDS_ATT_MARKER + "\nasync function __hcOpenAttachment(h,m,a){"
-                    "const w=window.open(\"\",\"_blank\");"
-                    "try{const r=await h.callWS({type:\"auth/sign_path\","
-                    "path:`/api/librus_synergia/attachment/${m.id}/${a.id}`,expires:600});"
-                    "if(w)w.location.href=r.path;else window.location.href=r.path}"
-                    "catch(e){if(w)w.close();alert(\"Librus: \"+(e&&e.message||e))}}\n")
-CARDS_ATT_EDITS = [  # (old, new, expected count)
-    ('${i.attachments.map(e=>R`<div class="attachment">',
-     '${i.attachments.map(e=>R`<div class="attachment" style="cursor:pointer" @click=${()=>__hcOpenAttachment(t,i,e)}>', 1),
-    ('${a.attachments.map(e=>R`<div class="attachment">',
-     '${a.attachments.map(e=>R`<div class="attachment" style="cursor:pointer" @click=${()=>__hcOpenAttachment(t,a,e)}>', 1),
-    ('"card.messages.attachment_notice":"Attached - open in the Librus app to download"',
-     '"card.messages.attachment_notice":"Click a file to open it"', 1),
-    ('"card.messages.attachment_notice":"Załącznik - pobierz w aplikacji Librus"',
-     '"card.messages.attachment_notice":"Kliknij plik, aby go otworzyć"', 1),
-]
 
 
 def patch_attachments() -> None:
     """Patch 9 - see the module docstring."""
-    import gzip
     path = INTEGRATION / "services.py"
     text = path.read_text(encoding="utf-8")
-    if ATT_MARKER in text:
+    header = f"\n\n# --- {ATT_MARKER} (librus/apply_local_patches.py, patch 9) ---\n"
+    if ATT_FUNC in text:
         print("services.py: attachments already patched")
-    else:
-        path.write_text(text + ATT_FUNC, encoding="utf-8")
-        print("services.py: attachments patched")
-    text = CARDS.read_text(encoding="utf-8")
-    if CARDS_ATT_MARKER in text:
-        print("cards: attachments already patched")
         return
-    for old, new, count in CARDS_ATT_EDITS:
-        if text.count(old) != count:
-            sys.exit(f"cards: expected {count}x {old!r} - upstream changed, patch not applied")
-        text = text.replace(old, new)
-    text = CARDS_ATT_HELPER + text
-    CARDS.write_text(text, encoding="utf-8")
-    gz = CARDS.with_name(CARDS.name + ".gz")
-    if gz.exists():
-        gz.write_bytes(gzip.compress(text.encode("utf-8"), 9))
-    print("cards: attachments patched (bump the Lovelace resource URL so browsers reload it)")
+    if ATT_MARKER in text:  # an older version of the block - always the last thing in the file
+        text = text[:text.index(header)]
+    path.write_text(text + ATT_FUNC, encoding="utf-8")
+    print("services.py: attachments patched")
 
 
 def patch_file(name: str, edits: list[tuple[str, str]]) -> str:

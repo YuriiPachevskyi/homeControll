@@ -39,15 +39,19 @@ def view(title: str, path: str, icon: str, sections: list) -> dict:
 VIEWS = [
     view("Сьогодні", "today", "mdi:calendar-today", [
         section("Сьогодні", "mdi:white-balance-sunny", [
-            card("today-card"), card("next-lesson-tile-card"), card("today-lessons-card")]),
+            card("today-card"), card("next-lesson-tile-card"), card("school-day-card"),
+            card("today-lessons-card")]),
         section("Завтра", "mdi:calendar-arrow-right", [card("tomorrow-card")]),
         section("Що нового", "mdi:bell-ring", [
             card("exam-countdown-card", exam_keywords="sprawdzian, kartkówka, praca klasowa"),
-            card("recent-activity-card", max_items=8), card("lucky-number-card")]),
+            card("recent-activity-card", max_items=8), card("school-trips-card"),
+            card("lucky-number-card")]),
     ]),
     view("Розклад", "timetable", "mdi:timetable", [
         section("Тиждень", "mdi:table-large", [card("week-timetable-card")], span=2),
         section("День", "mdi:clock-outline", [card("bell-schedule-card"), card("free-days-card")]),
+        # lesson topics; missed lessons marked - what to catch up on
+        section("Що вивчали", "mdi:book-open-variant", [card("lesson-topics-card")], span=2),
     ]),
     view("Повідомлення", "messages", "mdi:email", [
         # a click on a letter/notice (also in the section on the right) opens it
@@ -57,7 +61,7 @@ VIEWS = [
             {"type": "custom:librus-message-reader-card", "grid_options": {"columns": "full"}},
             card("messages-card", max_items=15, grid_options={"columns": "full"})], span=2),
         section("Оголошення і заміни", "mdi:bullhorn", [
-            card("announcements-card"), card("substitutions-card")]),
+            card("announcements-card"), card("substitutions-card"), card("school-documents-card")]),
     ]),
     view("Оцінки", "grades", "mdi:star-circle", [
         section("Описові оцінки", "mdi:text-box-check", [card("descriptive-grades-card")], span=2),
@@ -66,7 +70,8 @@ VIEWS = [
             card("behaviour-grade-card"), card("behaviour-notices-card")]),
     ]),
     view("Контрольні й домашні", "agenda", "mdi:clipboard-text-clock", [
-        section("Терміни", "mdi:calendar-clock", [card("agenda-card", days_ahead=21)], span=2),
+        section("Терміни", "mdi:calendar-clock", [
+            card("agenda-card", days_ahead=21), card("exam-prep-card")], span=2),
         section("Домашні завдання", "mdi:home-edit", [
             card("exam-countdown-card", exam_keywords="sprawdzian, kartkówka, praca klasowa"),
             card("homework-assignments-card")]),
@@ -75,7 +80,8 @@ VIEWS = [
         section("Відвідування", "mdi:account-check-outline", [
             card("attendance-card"), card("attendance-heatmap-card")], span=2),
         section("Пропуски", "mdi:chart-bar", [
-            card("attendance-weekday-card"), card("attendance-subject-card"), card("streak-card")]),
+            card("justifications-card"), card("attendance-weekday-card"),
+            card("attendance-subject-card"), card("streak-card")]),
     ]),
 ]
 

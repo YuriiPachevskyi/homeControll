@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
@@ -22,9 +23,15 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from librus_synergia import LibrusError
+from librus_synergia.parsers import point_grades_percentage
 
 from .const import DOMAIN
-from .coordinator import LibrusDataUpdateCoordinator, decode_message_content, resolve_sender_name
+from .coordinator import (
+    LibrusDataUpdateCoordinator,
+    decode_message_content,
+    grade_improvements,
+    resolve_sender_name,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,6 +49,7 @@ _GET_MESSAGE_SCHEMA = vol.Schema(
 
 _REFRESH_SCHEMA = vol.Schema({vol.Optional("device_id"): cv.string})
 
+
 _GET_GRADES_SCHEMA = vol.Schema(
     {
         vol.Required("device_id"): cv.string,
@@ -50,7 +58,7 @@ _GET_GRADES_SCHEMA = vol.Schema(
 )
 
 
-def _resolve_coordinator(hass: HomeAssistant, device_id: str) -> LibrusDataUpdateCoordinator:
+def resolve_coordinator(hass: HomeAssistant, device_id: str) -> LibrusDataUpdateCoordinator:
     device = dr.async_get(hass).async_get(device_id)
     if device is None:
         raise ServiceValidationError(f"Unknown device: {device_id}")
@@ -84,7 +92,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         coordinator's debounced request, so spamming it is harmless."""
         device_id = call.data.get("device_id")
         if device_id:
-            coordinators = [_resolve_coordinator(hass, device_id)]
+            coordinators = [resolve_coordinator(hass, device_id)]
         else:
             coordinators = [
                 entry.runtime_data
@@ -92,7 +100,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 if entry.state is ConfigEntryState.LOADED
             ]
         for coordinator in coordinators:
-            await coordinator.async_request_refresh()
+            await coordinator.async_force_refresh()
 
     hass.services.async_register(
         DOMAIN, SERVICE_REFRESH, _async_handle_refresh, schema=_REFRESH_SCHEMA
@@ -112,7 +120,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         never marks anything read (see LibrusApiClient's module comment
         above async_get_message).
         """
-        coordinator = _resolve_coordinator(hass, call.data["device_id"])
+        coordinator = resolve_coordinator(hass, call.data["device_id"])
         message_id = call.data["message_id"]
         mailbox = call.data["mailbox"]
         try:
@@ -126,9 +134,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
         sender_name = resolve_sender_name(data)
         # CONFIRMED live (2026-09-17): each entry is {"filename": ..., "id":
-        # ...}. The file itself still can't be downloaded through this
-        # integration (see BACKLOG.md) - only the name, so at least someone
-        # knows what to look for in the real Librus app/website.
+        # ...}. The file itself downloads through attachment_view.py.
         attachments = [
             {"id": str(a["id"]), "filename": a.get("filename")}
             for a in data.get("attachments") or []
@@ -165,12 +171,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
         but reading "every grade across every subject" today means polling
         16+ separate sensors; this is the single-call equivalent.
         """
-        coordinator = _resolve_coordinator(hass, call.data["device_id"])
+        coordinator = resolve_coordinator(hass, call.data["device_id"])
         if coordinator.data is None:
             raise HomeAssistantError("No data available yet - the integration hasn't completed its first refresh.")
 
         subject_id = call.data.get("subject_id")
         data = coordinator.data
+        improves, improved = grade_improvements(data.grades)
         grades = [
             {
                 "subject": data.subjects.get(grade.subject_id) if grade.subject_id is not None else None,
@@ -185,12 +192,52 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 "semester": grade.semester,
                 "comments": list(grade.comments),
                 "teacher": data.teachers.get(grade.teacher_id) if grade.teacher_id is not None else None,
+                "improves": improves.get(grade.id),
+                "improved": grade.id in improved,
             }
             for grade in data.grades
             if subject_id is None or grade.subject_id == subject_id
         ]
         grades.sort(key=lambda g: g["date"] or "", reverse=True)
-        return {"grades": grades, "count": len(grades)}
+        response: dict[str, Any] = {"grades": grades, "count": len(grades)}
+        text_grades = [
+            g for g in data.text_grades if subject_id is None or g.subject_id == subject_id
+        ]
+        if text_grades:
+            response["text_grades"] = [
+                {
+                    "subject": data.subjects.get(g.subject_id) if g.subject_id is not None else None,
+                    "subject_id": g.subject_id,
+                    "value": g.value,
+                    "category": g.category,
+                    "date": g.date,
+                    "semester": g.semester,
+                    "teacher": data.teachers.get(g.teacher_id) if g.teacher_id is not None else None,
+                }
+                for g in text_grades
+            ]
+        # Schools grading in points (0-100 etc.) - only when there are any.
+        point_grades = [
+            g for g in data.point_grades if subject_id is None or g.subject_id == subject_id
+        ]
+        if point_grades:
+            response["point_grades"] = [
+                {
+                    "subject": data.subjects.get(g.subject_id) if g.subject_id is not None else None,
+                    "subject_id": g.subject_id,
+                    "value": g.value,
+                    "points": g.points,
+                    "max_points": g.max_points,
+                    "percentage": g.percentage,
+                    "category": g.category,
+                    "date": g.add_date,
+                    "semester": g.semester,
+                    "teacher": data.teachers.get(g.teacher_id) if g.teacher_id is not None else None,
+                }
+                for g in sorted(point_grades, key=lambda g: g.add_date or "", reverse=True)
+            ]
+            response["points_percentage"] = point_grades_percentage(point_grades)
+        return response
 
     hass.services.async_register(
         DOMAIN,
@@ -211,58 +258,26 @@ def async_unload_services(hass: HomeAssistant) -> None:
             hass.services.async_remove(DOMAIN, service)
 
 
+
 # --- homeControll local patch: attachments (librus/apply_local_patches.py, patch 9) ---
-import asyncio as _hc_asyncio
 import re as _hc_re
 import time as _hc_time
 from urllib.parse import quote as _hc_quote
 
 from aiohttp import web as _hc_web
 from homeassistant.components.http import HomeAssistantView as _HcView
-from homeassistant.const import CONF_PASSWORD as _HC_CONF_PASSWORD
 from homeassistant.helpers.http import KEY_HASS as _HC_KEY_HASS
 
-from librus_synergia import LibrusApiClient as _HcClient
-from librus_synergia import LibrusSessionExpiredError as _HcExpired
-from librus_synergia.const import MESSAGES_BASE_URL as _HC_MSG_BASE
-
-
-async def _hc_client_download(self, message_id: str, attachment_id: str):
-    info = await self._async_request_url(f"{_HC_MSG_BASE}/attachments/{attachment_id}/messages/{message_id}")
-    link = ((info or {}).get("data") or {}).get("downloadLink")
-    if not link:
-        raise LibrusError(f"No download link for attachment {attachment_id}")
-    async with self._session.get(link) as resp:  # the "Pobieranie plików" page a browser loads first
-        await resp.read()
-    await _hc_asyncio.sleep(1.5)
-    async with self._session.get(link.rstrip("/") + "/get") as resp:
-        if resp.status != 200:
-            raise LibrusError(f"Attachment download failed: HTTP {resp.status}")
-        return await resp.read(), resp.headers.get("Content-Type", ""), resp.headers.get("Content-Disposition", "")
-
-
-_HcClient.async_download_attachment = _hc_client_download
-
-
-async def _hc_coordinator_download(self, message_id: str, attachment_id: str):
-    try:
-        return await self._client.async_download_attachment(message_id, attachment_id)
-    except _HcExpired:  # same recovery as async_fetch_message
-        await self._client.async_ensure_session_valid(self.config_entry.data[_HC_CONF_PASSWORD], force=True)
-        self._messages_bootstrapped = False
-        self._messages_available = await self._client.async_bootstrap_messages()
-        self._messages_bootstrapped = True
-        return await self._client.async_download_attachment(message_id, attachment_id)
-
-
-LibrusDataUpdateCoordinator.async_download_attachment = _hc_coordinator_download
 _HC_ATT_CACHE: dict = {}
 
 
 class _HcAttachmentView(_HcView):
+    # The letter reader card (www/librus-message-reader.js) signs this path
+    # and opens it in a new tab - served inline, unlike upstream's
+    # /api/librus_synergia/attachment/<device>/<msg>/<att> (a download).
     url = "/api/librus_synergia/attachment/{message_id}/{attachment_id}"
-    name = "api:librus_synergia:attachment"
-    requires_auth = True  # the cards open it through a signed path
+    name = "api:librus_synergia:attachment_inline"
+    requires_auth = True
 
     async def get(self, request, message_id: str, attachment_id: str):
         if not (message_id.isdigit() and attachment_id.isdigit()):
@@ -275,13 +290,13 @@ class _HcAttachmentView(_HcView):
         hit = _HC_ATT_CACHE.get(key)
         if hit is None or _hc_time.time() - hit[0] > 3600:
             try:
-                body, ctype, disp = await entries[0].runtime_data.async_download_attachment(message_id, attachment_id)
+                file = await entries[0].runtime_data.async_download_attachment(attachment_id, message_id)
             except Exception as err:
                 _LOGGER.warning("Librus attachment %s/%s: %s", message_id, attachment_id, err)
                 return _hc_web.Response(status=502, text="Could not download the attachment from Librus")
-            match = _hc_re.search(r'filename="?([^";]+)"?', disp or "")
-            hit = (_hc_time.time(), body, (ctype or "application/octet-stream").split(";")[0].strip(),
-                   match.group(1) if match else f"attachment-{attachment_id}")
+            hit = (_hc_time.time(), file.content,
+                   (file.content_type or "application/octet-stream").split(";")[0].strip(),
+                   file.filename or f"attachment-{attachment_id}")
             _HC_ATT_CACHE[key] = hit
             for old in sorted(_HC_ATT_CACHE, key=lambda k: _HC_ATT_CACHE[k][0])[:-5]:
                 del _HC_ATT_CACHE[old]

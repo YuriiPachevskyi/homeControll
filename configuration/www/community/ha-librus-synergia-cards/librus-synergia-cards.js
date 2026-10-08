@@ -1,121 +1,119 @@
-/* homeControll local patch: attachments */
-async function __hcOpenAttachment(h,m,a){const w=window.open("","_blank");try{const r=await h.callWS({type:"auth/sign_path",path:`/api/librus_synergia/attachment/${m.id}/${a.id}`,expires:600});if(w)w.location.href=r.path;else window.location.href=r.path}catch(e){if(w)w.close();alert("Librus: "+(e&&e.message||e))}}
 /* homeControll local patch: server-zone start_time */
 function __hcSrvDate(s,h){const naive=String(s).replace(" ","T");try{const tz=h&&h.config&&h.config.time_zone,u=new Date(naive+"Z");if(!tz||isNaN(u.getTime()))return new Date(naive);const p={};for(const x of new Intl.DateTimeFormat("en-US",{timeZone:tz,hourCycle:"h23",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",second:"numeric"}).formatToParts(u))p[x.type]=x.value;const asUtc=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);return new Date(u.getTime()-(asUtc-u.getTime()))}catch(e){return new Date(naive)}}
-function e(e,t,i,a){var s,r=arguments.length,n=r<3?t:null===a?a=Object.getOwnPropertyDescriptor(t,i):a;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)n=Reflect.decorate(e,t,i,a);else for(var o=e.length-1;o>=0;o--)(s=e[o])&&(n=(r<3?s(n):r>3?s(t,i,n):s(t,i))||n);return r>3&&n&&Object.defineProperty(t,i,n),n}"function"==typeof SuppressedError&&SuppressedError;
+function e(e,t,a,s){var i,r=arguments.length,o=r<3?t:null===s?s=Object.getOwnPropertyDescriptor(t,a):s;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)o=Reflect.decorate(e,t,a,s);else for(var n=e.length-1;n>=0;n--)(i=e[n])&&(o=(r<3?i(o):r>3?i(t,a,o):i(t,a))||o);return r>3&&o&&Object.defineProperty(t,a,o),o}"function"==typeof SuppressedError&&SuppressedError;
 /**
  * @license
  * Copyright 2019 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const t=globalThis,i=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,a=Symbol(),s=new WeakMap;let r=class{constructor(e,t,i){if(this._$cssResult$=!0,i!==a)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=e,this.t=t}get styleSheet(){let e=this.o;const t=this.t;if(i&&void 0===e){const i=void 0!==t&&1===t.length;i&&(e=s.get(t)),void 0===e&&((this.o=e=new CSSStyleSheet).replaceSync(this.cssText),i&&s.set(t,e))}return e}toString(){return this.cssText}};const n=(e,...t)=>{const i=1===e.length?e[0]:t.reduce((t,i,a)=>t+(e=>{if(!0===e._$cssResult$)return e.cssText;if("number"==typeof e)return e;throw Error("Value passed to 'css' function must be a 'css' function result: "+e+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(i)+e[a+1],e[0]);return new r(i,e,a)},o=i?e=>e:e=>e instanceof CSSStyleSheet?(e=>{let t="";for(const i of e.cssRules)t+=i.cssText;return(e=>new r("string"==typeof e?e:e+"",void 0,a))(t)})(e):e,{is:c,defineProperty:d,getOwnPropertyDescriptor:l,getOwnPropertyNames:h,getOwnPropertySymbols:u,getPrototypeOf:p}=Object,m=globalThis,g=m.trustedTypes,v=g?g.emptyScript:"",b=m.reactiveElementPolyfillSupport,_=(e,t)=>e,y={toAttribute(e,t){switch(t){case Boolean:e=e?v:null;break;case Object:case Array:e=null==e?e:JSON.stringify(e)}return e},fromAttribute(e,t){let i=e;switch(t){case Boolean:i=null!==e;break;case Number:i=null===e?null:Number(e);break;case Object:case Array:try{i=JSON.parse(e)}catch(e){i=null}}return i}},f=(e,t)=>!c(e,t),w={attribute:!0,type:String,converter:y,reflect:!1,useDefault:!1,hasChanged:f};
+const t=globalThis,a=t.ShadowRoot&&(void 0===t.ShadyCSS||t.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,s=Symbol(),i=new WeakMap;let r=class{constructor(e,t,a){if(this._$cssResult$=!0,a!==s)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=e,this.t=t}get styleSheet(){let e=this.o;const t=this.t;if(a&&void 0===e){const a=void 0!==t&&1===t.length;a&&(e=i.get(t)),void 0===e&&((this.o=e=new CSSStyleSheet).replaceSync(this.cssText),a&&i.set(t,e))}return e}toString(){return this.cssText}};const o=(e,...t)=>{const a=1===e.length?e[0]:t.reduce((t,a,s)=>t+(e=>{if(!0===e._$cssResult$)return e.cssText;if("number"==typeof e)return e;throw Error("Value passed to 'css' function must be a 'css' function result: "+e+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(a)+e[s+1],e[0]);return new r(a,e,s)},n=a?e=>e:e=>e instanceof CSSStyleSheet?(e=>{let t="";for(const a of e.cssRules)t+=a.cssText;return(e=>new r("string"==typeof e?e:e+"",void 0,s))(t)})(e):e,{is:c,defineProperty:d,getOwnPropertyDescriptor:l,getOwnPropertyNames:h,getOwnPropertySymbols:u,getPrototypeOf:p}=Object,g=globalThis,m=g.trustedTypes,v=m?m.emptyScript:"",b=g.reactiveElementPolyfillSupport,_=(e,t)=>e,f={toAttribute(e,t){switch(t){case Boolean:e=e?v:null;break;case Object:case Array:e=null==e?e:JSON.stringify(e)}return e},fromAttribute(e,t){let a=e;switch(t){case Boolean:a=null!==e;break;case Number:a=null===e?null:Number(e);break;case Object:case Array:try{a=JSON.parse(e)}catch(e){a=null}}return a}},y=(e,t)=>!c(e,t),w={attribute:!0,type:String,converter:f,reflect:!1,useDefault:!1,hasChanged:y};
 /**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */Symbol.metadata??=Symbol("metadata"),m.litPropertyMetadata??=new WeakMap;let k=class extends HTMLElement{static addInitializer(e){this._$Ei(),(this.l??=[]).push(e)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(e,t=w){if(t.state&&(t.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(e)&&((t=Object.create(t)).wrapped=!0),this.elementProperties.set(e,t),!t.noAccessor){const i=Symbol(),a=this.getPropertyDescriptor(e,i,t);void 0!==a&&d(this.prototype,e,a)}}static getPropertyDescriptor(e,t,i){const{get:a,set:s}=l(this.prototype,e)??{get(){return this[t]},set(e){this[t]=e}};return{get:a,set(t){const r=a?.call(this);s?.call(this,t),this.requestUpdate(e,r,i)},configurable:!0,enumerable:!0}}static getPropertyOptions(e){return this.elementProperties.get(e)??w}static _$Ei(){if(this.hasOwnProperty(_("elementProperties")))return;const e=p(this);e.finalize(),void 0!==e.l&&(this.l=[...e.l]),this.elementProperties=new Map(e.elementProperties)}static finalize(){if(this.hasOwnProperty(_("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(_("properties"))){const e=this.properties,t=[...h(e),...u(e)];for(const i of t)this.createProperty(i,e[i])}const e=this[Symbol.metadata];if(null!==e){const t=litPropertyMetadata.get(e);if(void 0!==t)for(const[e,i]of t)this.elementProperties.set(e,i)}this._$Eh=new Map;for(const[e,t]of this.elementProperties){const i=this._$Eu(e,t);void 0!==i&&this._$Eh.set(i,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(e){const t=[];if(Array.isArray(e)){const i=new Set(e.flat(1/0).reverse());for(const e of i)t.unshift(o(e))}else void 0!==e&&t.push(o(e));return t}static _$Eu(e,t){const i=t.attribute;return!1===i?void 0:"string"==typeof i?i:"string"==typeof e?e.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(e=>this.enableUpdating=e),this._$AL=new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(e=>e(this))}addController(e){(this._$EO??=new Set).add(e),void 0!==this.renderRoot&&this.isConnected&&e.hostConnected?.()}removeController(e){this._$EO?.delete(e)}_$E_(){const e=new Map,t=this.constructor.elementProperties;for(const i of t.keys())this.hasOwnProperty(i)&&(e.set(i,this[i]),delete this[i]);e.size>0&&(this._$Ep=e)}createRenderRoot(){const e=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return((e,a)=>{if(i)e.adoptedStyleSheets=a.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(const i of a){const a=document.createElement("style"),s=t.litNonce;void 0!==s&&a.setAttribute("nonce",s),a.textContent=i.cssText,e.appendChild(a)}})(e,this.constructor.elementStyles),e}connectedCallback(){this.renderRoot??=this.createRenderRoot(),this.enableUpdating(!0),this._$EO?.forEach(e=>e.hostConnected?.())}enableUpdating(e){}disconnectedCallback(){this._$EO?.forEach(e=>e.hostDisconnected?.())}attributeChangedCallback(e,t,i){this._$AK(e,i)}_$ET(e,t){const i=this.constructor.elementProperties.get(e),a=this.constructor._$Eu(e,i);if(void 0!==a&&!0===i.reflect){const s=(void 0!==i.converter?.toAttribute?i.converter:y).toAttribute(t,i.type);this._$Em=e,null==s?this.removeAttribute(a):this.setAttribute(a,s),this._$Em=null}}_$AK(e,t){const i=this.constructor,a=i._$Eh.get(e);if(void 0!==a&&this._$Em!==a){const e=i.getPropertyOptions(a),s="function"==typeof e.converter?{fromAttribute:e.converter}:void 0!==e.converter?.fromAttribute?e.converter:y;this._$Em=a;const r=s.fromAttribute(t,e.type);this[a]=r??this._$Ej?.get(a)??r,this._$Em=null}}requestUpdate(e,t,i,a=!1,s){if(void 0!==e){const r=this.constructor;if(!1===a&&(s=this[e]),i??=r.getPropertyOptions(e),!((i.hasChanged??f)(s,t)||i.useDefault&&i.reflect&&s===this._$Ej?.get(e)&&!this.hasAttribute(r._$Eu(e,i))))return;this.C(e,t,i)}!1===this.isUpdatePending&&(this._$ES=this._$EP())}C(e,t,{useDefault:i,reflect:a,wrapped:s},r){i&&!(this._$Ej??=new Map).has(e)&&(this._$Ej.set(e,r??t??this[e]),!0!==s||void 0!==r)||(this._$AL.has(e)||(this.hasUpdated||i||(t=void 0),this._$AL.set(e,t)),!0===a&&this._$Em!==e&&(this._$Eq??=new Set).add(e))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}const e=this.scheduleUpdate();return null!=e&&await e,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??=this.createRenderRoot(),this._$Ep){for(const[e,t]of this._$Ep)this[e]=t;this._$Ep=void 0}const e=this.constructor.elementProperties;if(e.size>0)for(const[t,i]of e){const{wrapped:e}=i,a=this[t];!0!==e||this._$AL.has(t)||void 0===a||this.C(t,void 0,i,a)}}let e=!1;const t=this._$AL;try{e=this.shouldUpdate(t),e?(this.willUpdate(t),this._$EO?.forEach(e=>e.hostUpdate?.()),this.update(t)):this._$EM()}catch(t){throw e=!1,this._$EM(),t}e&&this._$AE(t)}willUpdate(e){}_$AE(e){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(e)),this.updated(e)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(e){return!0}update(e){this._$Eq&&=this._$Eq.forEach(e=>this._$ET(e,this[e])),this._$EM()}updated(e){}firstUpdated(e){}};k.elementStyles=[],k.shadowRootOptions={mode:"open"},k[_("elementProperties")]=new Map,k[_("finalized")]=new Map,b?.({ReactiveElement:k}),(m.reactiveElementVersions??=[]).push("2.1.2");
-/**
- * @license
- * Copyright 2017 Google LLC
- * SPDX-License-Identifier: BSD-3-Clause
- */
-const x=globalThis,$=e=>e,z=x.trustedTypes,j=z?z.createPolicy("lit-html",{createHTML:e=>e}):void 0,C="$lit$",S=`lit$${Math.random().toFixed(9).slice(2)}$`,D="?"+S,T=`<${D}>`,I=document,E=()=>I.createComment(""),A=e=>null===e||"object"!=typeof e&&"function"!=typeof e,N=Array.isArray,M="[ \t\n\f\r]",L=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,P=/-->/g,B=/>/g,O=RegExp(`>|${M}(?:([^\\s"'>=/]+)(${M}*=${M}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),F=/'/g,K=/"/g,U=/^(?:script|style|textarea|title)$/i,H=e=>(t,...i)=>({_$litType$:e,strings:t,values:i}),R=H(1),W=H(2),G=Symbol.for("lit-noChange"),q=Symbol.for("lit-nothing"),J=new WeakMap,Z=I.createTreeWalker(I,129);function V(e,t){if(!N(e)||!e.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==j?j.createHTML(t):t}const Y=(e,t)=>{const i=e.length-1,a=[];let s,r=2===t?"<svg>":3===t?"<math>":"",n=L;for(let t=0;t<i;t++){const i=e[t];let o,c,d=-1,l=0;for(;l<i.length&&(n.lastIndex=l,c=n.exec(i),null!==c);)l=n.lastIndex,n===L?"!--"===c[1]?n=P:void 0!==c[1]?n=B:void 0!==c[2]?(U.test(c[2])&&(s=RegExp("</"+c[2],"g")),n=O):void 0!==c[3]&&(n=O):n===O?">"===c[0]?(n=s??L,d=-1):void 0===c[1]?d=-2:(d=n.lastIndex-c[2].length,o=c[1],n=void 0===c[3]?O:'"'===c[3]?K:F):n===K||n===F?n=O:n===P||n===B?n=L:(n=O,s=void 0);const h=n===O&&e[t+1].startsWith("/>")?" ":"";r+=n===L?i+T:d>=0?(a.push(o),i.slice(0,d)+C+i.slice(d)+S+h):i+S+(-2===d?t:h)}return[V(e,r+(e[i]||"<?>")+(2===t?"</svg>":3===t?"</math>":"")),a]};class X{constructor({strings:e,_$litType$:t},i){let a;this.parts=[];let s=0,r=0;const n=e.length-1,o=this.parts,[c,d]=Y(e,t);if(this.el=X.createElement(c,i),Z.currentNode=this.el.content,2===t||3===t){const e=this.el.content.firstChild;e.replaceWith(...e.childNodes)}for(;null!==(a=Z.nextNode())&&o.length<n;){if(1===a.nodeType){if(a.hasAttributes())for(const e of a.getAttributeNames())if(e.endsWith(C)){const t=d[r++],i=a.getAttribute(e).split(S),n=/([.?@])?(.*)/.exec(t);o.push({type:1,index:s,name:n[2],strings:i,ctor:"."===n[1]?ae:"?"===n[1]?se:"@"===n[1]?re:ie}),a.removeAttribute(e)}else e.startsWith(S)&&(o.push({type:6,index:s}),a.removeAttribute(e));if(U.test(a.tagName)){const e=a.textContent.split(S),t=e.length-1;if(t>0){a.textContent=z?z.emptyScript:"";for(let i=0;i<t;i++)a.append(e[i],E()),Z.nextNode(),o.push({type:2,index:++s});a.append(e[t],E())}}}else if(8===a.nodeType)if(a.data===D)o.push({type:2,index:s});else{let e=-1;for(;-1!==(e=a.data.indexOf(S,e+1));)o.push({type:7,index:s}),e+=S.length-1}s++}}static createElement(e,t){const i=I.createElement("template");return i.innerHTML=e,i}}function Q(e,t,i=e,a){if(t===G)return t;let s=void 0!==a?i._$Co?.[a]:i._$Cl;const r=A(t)?void 0:t._$litDirective$;return s?.constructor!==r&&(s?._$AO?.(!1),void 0===r?s=void 0:(s=new r(e),s._$AT(e,i,a)),void 0!==a?(i._$Co??=[])[a]=s:i._$Cl=s),void 0!==s&&(t=Q(e,s._$AS(e,t.values),s,a)),t}class ee{constructor(e,t){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=t}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){const{el:{content:t},parts:i}=this._$AD,a=(e?.creationScope??I).importNode(t,!0);Z.currentNode=a;let s=Z.nextNode(),r=0,n=0,o=i[0];for(;void 0!==o;){if(r===o.index){let t;2===o.type?t=new te(s,s.nextSibling,this,e):1===o.type?t=new o.ctor(s,o.name,o.strings,this,e):6===o.type&&(t=new ne(s,this,e)),this._$AV.push(t),o=i[++n]}r!==o?.index&&(s=Z.nextNode(),r++)}return Z.currentNode=I,a}p(e){let t=0;for(const i of this._$AV)void 0!==i&&(void 0!==i.strings?(i._$AI(e,i,t),t+=i.strings.length-2):i._$AI(e[t])),t++}}class te{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(e,t,i,a){this.type=2,this._$AH=q,this._$AN=void 0,this._$AA=e,this._$AB=t,this._$AM=i,this.options=a,this._$Cv=a?.isConnected??!0}get parentNode(){let e=this._$AA.parentNode;const t=this._$AM;return void 0!==t&&11===e?.nodeType&&(e=t.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,t=this){e=Q(this,e,t),A(e)?e===q||null==e||""===e?(this._$AH!==q&&this._$AR(),this._$AH=q):e!==this._$AH&&e!==G&&this._(e):void 0!==e._$litType$?this.$(e):void 0!==e.nodeType?this.T(e):(e=>N(e)||"function"==typeof e?.[Symbol.iterator])(e)?this.k(e):this._(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==q&&A(this._$AH)?this._$AA.nextSibling.data=e:this.T(I.createTextNode(e)),this._$AH=e}$(e){const{values:t,_$litType$:i}=e,a="number"==typeof i?this._$AC(e):(void 0===i.el&&(i.el=X.createElement(V(i.h,i.h[0]),this.options)),i);if(this._$AH?._$AD===a)this._$AH.p(t);else{const e=new ee(a,this),i=e.u(this.options);e.p(t),this.T(i),this._$AH=e}}_$AC(e){let t=J.get(e.strings);return void 0===t&&J.set(e.strings,t=new X(e)),t}k(e){N(this._$AH)||(this._$AH=[],this._$AR());const t=this._$AH;let i,a=0;for(const s of e)a===t.length?t.push(i=new te(this.O(E()),this.O(E()),this,this.options)):i=t[a],i._$AI(s),a++;a<t.length&&(this._$AR(i&&i._$AB.nextSibling,a),t.length=a)}_$AR(e=this._$AA.nextSibling,t){for(this._$AP?.(!1,!0,t);e!==this._$AB;){const t=$(e).nextSibling;$(e).remove(),e=t}}setConnected(e){void 0===this._$AM&&(this._$Cv=e,this._$AP?.(e))}}class ie{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,t,i,a,s){this.type=1,this._$AH=q,this._$AN=void 0,this.element=e,this.name=t,this._$AM=a,this.options=s,i.length>2||""!==i[0]||""!==i[1]?(this._$AH=Array(i.length-1).fill(new String),this.strings=i):this._$AH=q}_$AI(e,t=this,i,a){const s=this.strings;let r=!1;if(void 0===s)e=Q(this,e,t,0),r=!A(e)||e!==this._$AH&&e!==G,r&&(this._$AH=e);else{const a=e;let n,o;for(e=s[0],n=0;n<s.length-1;n++)o=Q(this,a[i+n],t,n),o===G&&(o=this._$AH[n]),r||=!A(o)||o!==this._$AH[n],o===q?e=q:e!==q&&(e+=(o??"")+s[n+1]),this._$AH[n]=o}r&&!a&&this.j(e)}j(e){e===q?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??"")}}class ae extends ie{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===q?void 0:e}}class se extends ie{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==q)}}class re extends ie{constructor(e,t,i,a,s){super(e,t,i,a,s),this.type=5}_$AI(e,t=this){if((e=Q(this,e,t,0)??q)===G)return;const i=this._$AH,a=e===q&&i!==q||e.capture!==i.capture||e.once!==i.once||e.passive!==i.passive,s=e!==q&&(i===q||a);a&&this.element.removeEventListener(this.name,this,i),s&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,e):this._$AH.handleEvent(e)}}let ne=class{constructor(e,t,i){this.element=e,this.type=6,this._$AN=void 0,this._$AM=t,this.options=i}get _$AU(){return this._$AM._$AU}_$AI(e){Q(this,e)}};const oe=x.litHtmlPolyfillSupport;oe?.(X,te),(x.litHtmlVersions??=[]).push("3.3.3");const ce=globalThis;
-/**
- * @license
- * Copyright 2017 Google LLC
- * SPDX-License-Identifier: BSD-3-Clause
- */class de extends k{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){const e=super.createRenderRoot();return this.renderOptions.renderBefore??=e.firstChild,e}update(e){const t=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(e),this._$Do=((e,t,i)=>{const a=i?.renderBefore??t;let s=a._$litPart$;if(void 0===s){const e=i?.renderBefore??null;a._$litPart$=s=new te(t.insertBefore(E(),e),e,void 0,i??{})}return s._$AI(e),s})(t,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return G}}de._$litElement$=!0,de.finalized=!0,ce.litElementHydrateSupport?.({LitElement:de});const le=ce.litElementPolyfillSupport;le?.({LitElement:de}),(ce.litElementVersions??=[]).push("4.2.2");
+ */Symbol.metadata??=Symbol("metadata"),g.litPropertyMetadata??=new WeakMap;let x=class extends HTMLElement{static addInitializer(e){this._$Ei(),(this.l??=[]).push(e)}static get observedAttributes(){return this.finalize(),this._$Eh&&[...this._$Eh.keys()]}static createProperty(e,t=w){if(t.state&&(t.attribute=!1),this._$Ei(),this.prototype.hasOwnProperty(e)&&((t=Object.create(t)).wrapped=!0),this.elementProperties.set(e,t),!t.noAccessor){const a=Symbol(),s=this.getPropertyDescriptor(e,a,t);void 0!==s&&d(this.prototype,e,s)}}static getPropertyDescriptor(e,t,a){const{get:s,set:i}=l(this.prototype,e)??{get(){return this[t]},set(e){this[t]=e}};return{get:s,set(t){const r=s?.call(this);i?.call(this,t),this.requestUpdate(e,r,a)},configurable:!0,enumerable:!0}}static getPropertyOptions(e){return this.elementProperties.get(e)??w}static _$Ei(){if(this.hasOwnProperty(_("elementProperties")))return;const e=p(this);e.finalize(),void 0!==e.l&&(this.l=[...e.l]),this.elementProperties=new Map(e.elementProperties)}static finalize(){if(this.hasOwnProperty(_("finalized")))return;if(this.finalized=!0,this._$Ei(),this.hasOwnProperty(_("properties"))){const e=this.properties,t=[...h(e),...u(e)];for(const a of t)this.createProperty(a,e[a])}const e=this[Symbol.metadata];if(null!==e){const t=litPropertyMetadata.get(e);if(void 0!==t)for(const[e,a]of t)this.elementProperties.set(e,a)}this._$Eh=new Map;for(const[e,t]of this.elementProperties){const a=this._$Eu(e,t);void 0!==a&&this._$Eh.set(a,e)}this.elementStyles=this.finalizeStyles(this.styles)}static finalizeStyles(e){const t=[];if(Array.isArray(e)){const a=new Set(e.flat(1/0).reverse());for(const e of a)t.unshift(n(e))}else void 0!==e&&t.push(n(e));return t}static _$Eu(e,t){const a=t.attribute;return!1===a?void 0:"string"==typeof a?a:"string"==typeof e?e.toLowerCase():void 0}constructor(){super(),this._$Ep=void 0,this.isUpdatePending=!1,this.hasUpdated=!1,this._$Em=null,this._$Ev()}_$Ev(){this._$ES=new Promise(e=>this.enableUpdating=e),this._$AL=new Map,this._$E_(),this.requestUpdate(),this.constructor.l?.forEach(e=>e(this))}addController(e){(this._$EO??=new Set).add(e),void 0!==this.renderRoot&&this.isConnected&&e.hostConnected?.()}removeController(e){this._$EO?.delete(e)}_$E_(){const e=new Map,t=this.constructor.elementProperties;for(const a of t.keys())this.hasOwnProperty(a)&&(e.set(a,this[a]),delete this[a]);e.size>0&&(this._$Ep=e)}createRenderRoot(){const e=this.shadowRoot??this.attachShadow(this.constructor.shadowRootOptions);return((e,s)=>{if(a)e.adoptedStyleSheets=s.map(e=>e instanceof CSSStyleSheet?e:e.styleSheet);else for(const a of s){const s=document.createElement("style"),i=t.litNonce;void 0!==i&&s.setAttribute("nonce",i),s.textContent=a.cssText,e.appendChild(s)}})(e,this.constructor.elementStyles),e}connectedCallback(){this.renderRoot??=this.createRenderRoot(),this.enableUpdating(!0),this._$EO?.forEach(e=>e.hostConnected?.())}enableUpdating(e){}disconnectedCallback(){this._$EO?.forEach(e=>e.hostDisconnected?.())}attributeChangedCallback(e,t,a){this._$AK(e,a)}_$ET(e,t){const a=this.constructor.elementProperties.get(e),s=this.constructor._$Eu(e,a);if(void 0!==s&&!0===a.reflect){const i=(void 0!==a.converter?.toAttribute?a.converter:f).toAttribute(t,a.type);this._$Em=e,null==i?this.removeAttribute(s):this.setAttribute(s,i),this._$Em=null}}_$AK(e,t){const a=this.constructor,s=a._$Eh.get(e);if(void 0!==s&&this._$Em!==s){const e=a.getPropertyOptions(s),i="function"==typeof e.converter?{fromAttribute:e.converter}:void 0!==e.converter?.fromAttribute?e.converter:f;this._$Em=s;const r=i.fromAttribute(t,e.type);this[s]=r??this._$Ej?.get(s)??r,this._$Em=null}}requestUpdate(e,t,a,s=!1,i){if(void 0!==e){const r=this.constructor;if(!1===s&&(i=this[e]),a??=r.getPropertyOptions(e),!((a.hasChanged??y)(i,t)||a.useDefault&&a.reflect&&i===this._$Ej?.get(e)&&!this.hasAttribute(r._$Eu(e,a))))return;this.C(e,t,a)}!1===this.isUpdatePending&&(this._$ES=this._$EP())}C(e,t,{useDefault:a,reflect:s,wrapped:i},r){a&&!(this._$Ej??=new Map).has(e)&&(this._$Ej.set(e,r??t??this[e]),!0!==i||void 0!==r)||(this._$AL.has(e)||(this.hasUpdated||a||(t=void 0),this._$AL.set(e,t)),!0===s&&this._$Em!==e&&(this._$Eq??=new Set).add(e))}async _$EP(){this.isUpdatePending=!0;try{await this._$ES}catch(e){Promise.reject(e)}const e=this.scheduleUpdate();return null!=e&&await e,!this.isUpdatePending}scheduleUpdate(){return this.performUpdate()}performUpdate(){if(!this.isUpdatePending)return;if(!this.hasUpdated){if(this.renderRoot??=this.createRenderRoot(),this._$Ep){for(const[e,t]of this._$Ep)this[e]=t;this._$Ep=void 0}const e=this.constructor.elementProperties;if(e.size>0)for(const[t,a]of e){const{wrapped:e}=a,s=this[t];!0!==e||this._$AL.has(t)||void 0===s||this.C(t,void 0,a,s)}}let e=!1;const t=this._$AL;try{e=this.shouldUpdate(t),e?(this.willUpdate(t),this._$EO?.forEach(e=>e.hostUpdate?.()),this.update(t)):this._$EM()}catch(t){throw e=!1,this._$EM(),t}e&&this._$AE(t)}willUpdate(e){}_$AE(e){this._$EO?.forEach(e=>e.hostUpdated?.()),this.hasUpdated||(this.hasUpdated=!0,this.firstUpdated(e)),this.updated(e)}_$EM(){this._$AL=new Map,this.isUpdatePending=!1}get updateComplete(){return this.getUpdateComplete()}getUpdateComplete(){return this._$ES}shouldUpdate(e){return!0}update(e){this._$Eq&&=this._$Eq.forEach(e=>this._$ET(e,this[e])),this._$EM()}updated(e){}firstUpdated(e){}};x.elementStyles=[],x.shadowRootOptions={mode:"open"},x[_("elementProperties")]=new Map,x[_("finalized")]=new Map,b?.({ReactiveElement:x}),(g.reactiveElementVersions??=[]).push("2.1.2");
 /**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}):customElements.define(e,t)},ue={attribute:!0,type:String,converter:y,reflect:!1,hasChanged:f},pe=(e=ue,t,i)=>{const{kind:a,metadata:s}=i;let r=globalThis.litPropertyMetadata.get(s);if(void 0===r&&globalThis.litPropertyMetadata.set(s,r=new Map),"setter"===a&&((e=Object.create(e)).wrapped=!0),r.set(i.name,e),"accessor"===a){const{name:a}=i;return{set(i){const s=t.get.call(this);t.set.call(this,i),this.requestUpdate(a,s,e,!0,i)},init(t){return void 0!==t&&this.C(a,void 0,e,t),t}}}if("setter"===a){const{name:a}=i;return function(i){const s=this[a];t.call(this,i),this.requestUpdate(a,s,e,!0,i)}}throw Error("Unsupported decorator location: "+a)};
+const k=globalThis,$=e=>e,z=k.trustedTypes,j=z?z.createPolicy("lit-html",{createHTML:e=>e}):void 0,C="$lit$",S=`lit$${Math.random().toFixed(9).slice(2)}$`,D="?"+S,T=`<${D}>`,I=document,N=()=>I.createComment(""),E=e=>null===e||"object"!=typeof e&&"function"!=typeof e,A=Array.isArray,M="[ \t\n\f\r]",L=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,P=/-->/g,F=/>/g,B=RegExp(`>|${M}(?:([^\\s"'>=/]+)(${M}*=${M}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),O=/'/g,K=/"/g,U=/^(?:script|style|textarea|title)$/i,R=e=>(t,...a)=>({_$litType$:e,strings:t,values:a}),W=R(1),H=R(2),G=Symbol.for("lit-noChange"),q=Symbol.for("lit-nothing"),J=new WeakMap,Z=I.createTreeWalker(I,129);function V(e,t){if(!A(e)||!e.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==j?j.createHTML(t):t}const Y=(e,t)=>{const a=e.length-1,s=[];let i,r=2===t?"<svg>":3===t?"<math>":"",o=L;for(let t=0;t<a;t++){const a=e[t];let n,c,d=-1,l=0;for(;l<a.length&&(o.lastIndex=l,c=o.exec(a),null!==c);)l=o.lastIndex,o===L?"!--"===c[1]?o=P:void 0!==c[1]?o=F:void 0!==c[2]?(U.test(c[2])&&(i=RegExp("</"+c[2],"g")),o=B):void 0!==c[3]&&(o=B):o===B?">"===c[0]?(o=i??L,d=-1):void 0===c[1]?d=-2:(d=o.lastIndex-c[2].length,n=c[1],o=void 0===c[3]?B:'"'===c[3]?K:O):o===K||o===O?o=B:o===P||o===F?o=L:(o=B,i=void 0);const h=o===B&&e[t+1].startsWith("/>")?" ":"";r+=o===L?a+T:d>=0?(s.push(n),a.slice(0,d)+C+a.slice(d)+S+h):a+S+(-2===d?t:h)}return[V(e,r+(e[a]||"<?>")+(2===t?"</svg>":3===t?"</math>":"")),s]};class X{constructor({strings:e,_$litType$:t},a){let s;this.parts=[];let i=0,r=0;const o=e.length-1,n=this.parts,[c,d]=Y(e,t);if(this.el=X.createElement(c,a),Z.currentNode=this.el.content,2===t||3===t){const e=this.el.content.firstChild;e.replaceWith(...e.childNodes)}for(;null!==(s=Z.nextNode())&&n.length<o;){if(1===s.nodeType){if(s.hasAttributes())for(const e of s.getAttributeNames())if(e.endsWith(C)){const t=d[r++],a=s.getAttribute(e).split(S),o=/([.?@])?(.*)/.exec(t);n.push({type:1,index:i,name:o[2],strings:a,ctor:"."===o[1]?se:"?"===o[1]?ie:"@"===o[1]?re:ae}),s.removeAttribute(e)}else e.startsWith(S)&&(n.push({type:6,index:i}),s.removeAttribute(e));if(U.test(s.tagName)){const e=s.textContent.split(S),t=e.length-1;if(t>0){s.textContent=z?z.emptyScript:"";for(let a=0;a<t;a++)s.append(e[a],N()),Z.nextNode(),n.push({type:2,index:++i});s.append(e[t],N())}}}else if(8===s.nodeType)if(s.data===D)n.push({type:2,index:i});else{let e=-1;for(;-1!==(e=s.data.indexOf(S,e+1));)n.push({type:7,index:i}),e+=S.length-1}i++}}static createElement(e,t){const a=I.createElement("template");return a.innerHTML=e,a}}function Q(e,t,a=e,s){if(t===G)return t;let i=void 0!==s?a._$Co?.[s]:a._$Cl;const r=E(t)?void 0:t._$litDirective$;return i?.constructor!==r&&(i?._$AO?.(!1),void 0===r?i=void 0:(i=new r(e),i._$AT(e,a,s)),void 0!==s?(a._$Co??=[])[s]=i:a._$Cl=i),void 0!==i&&(t=Q(e,i._$AS(e,t.values),i,s)),t}class ee{constructor(e,t){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=t}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){const{el:{content:t},parts:a}=this._$AD,s=(e?.creationScope??I).importNode(t,!0);Z.currentNode=s;let i=Z.nextNode(),r=0,o=0,n=a[0];for(;void 0!==n;){if(r===n.index){let t;2===n.type?t=new te(i,i.nextSibling,this,e):1===n.type?t=new n.ctor(i,n.name,n.strings,this,e):6===n.type&&(t=new oe(i,this,e)),this._$AV.push(t),n=a[++o]}r!==n?.index&&(i=Z.nextNode(),r++)}return Z.currentNode=I,s}p(e){let t=0;for(const a of this._$AV)void 0!==a&&(void 0!==a.strings?(a._$AI(e,a,t),t+=a.strings.length-2):a._$AI(e[t])),t++}}class te{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(e,t,a,s){this.type=2,this._$AH=q,this._$AN=void 0,this._$AA=e,this._$AB=t,this._$AM=a,this.options=s,this._$Cv=s?.isConnected??!0}get parentNode(){let e=this._$AA.parentNode;const t=this._$AM;return void 0!==t&&11===e?.nodeType&&(e=t.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,t=this){e=Q(this,e,t),E(e)?e===q||null==e||""===e?(this._$AH!==q&&this._$AR(),this._$AH=q):e!==this._$AH&&e!==G&&this._(e):void 0!==e._$litType$?this.$(e):void 0!==e.nodeType?this.T(e):(e=>A(e)||"function"==typeof e?.[Symbol.iterator])(e)?this.k(e):this._(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==q&&E(this._$AH)?this._$AA.nextSibling.data=e:this.T(I.createTextNode(e)),this._$AH=e}$(e){const{values:t,_$litType$:a}=e,s="number"==typeof a?this._$AC(e):(void 0===a.el&&(a.el=X.createElement(V(a.h,a.h[0]),this.options)),a);if(this._$AH?._$AD===s)this._$AH.p(t);else{const e=new ee(s,this),a=e.u(this.options);e.p(t),this.T(a),this._$AH=e}}_$AC(e){let t=J.get(e.strings);return void 0===t&&J.set(e.strings,t=new X(e)),t}k(e){A(this._$AH)||(this._$AH=[],this._$AR());const t=this._$AH;let a,s=0;for(const i of e)s===t.length?t.push(a=new te(this.O(N()),this.O(N()),this,this.options)):a=t[s],a._$AI(i),s++;s<t.length&&(this._$AR(a&&a._$AB.nextSibling,s),t.length=s)}_$AR(e=this._$AA.nextSibling,t){for(this._$AP?.(!1,!0,t);e!==this._$AB;){const t=$(e).nextSibling;$(e).remove(),e=t}}setConnected(e){void 0===this._$AM&&(this._$Cv=e,this._$AP?.(e))}}class ae{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,t,a,s,i){this.type=1,this._$AH=q,this._$AN=void 0,this.element=e,this.name=t,this._$AM=s,this.options=i,a.length>2||""!==a[0]||""!==a[1]?(this._$AH=Array(a.length-1).fill(new String),this.strings=a):this._$AH=q}_$AI(e,t=this,a,s){const i=this.strings;let r=!1;if(void 0===i)e=Q(this,e,t,0),r=!E(e)||e!==this._$AH&&e!==G,r&&(this._$AH=e);else{const s=e;let o,n;for(e=i[0],o=0;o<i.length-1;o++)n=Q(this,s[a+o],t,o),n===G&&(n=this._$AH[o]),r||=!E(n)||n!==this._$AH[o],n===q?e=q:e!==q&&(e+=(n??"")+i[o+1]),this._$AH[o]=n}r&&!s&&this.j(e)}j(e){e===q?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??"")}}class se extends ae{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===q?void 0:e}}class ie extends ae{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==q)}}class re extends ae{constructor(e,t,a,s,i){super(e,t,a,s,i),this.type=5}_$AI(e,t=this){if((e=Q(this,e,t,0)??q)===G)return;const a=this._$AH,s=e===q&&a!==q||e.capture!==a.capture||e.once!==a.once||e.passive!==a.passive,i=e!==q&&(a===q||s);s&&this.element.removeEventListener(this.name,this,a),i&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,e):this._$AH.handleEvent(e)}}let oe=class{constructor(e,t,a){this.element=e,this.type=6,this._$AN=void 0,this._$AM=t,this.options=a}get _$AU(){return this._$AM._$AU}_$AI(e){Q(this,e)}};const ne=k.litHtmlPolyfillSupport;ne?.(X,te),(k.litHtmlVersions??=[]).push("3.3.3");const ce=globalThis;
 /**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */function me(e){return(t,i)=>"object"==typeof i?pe(e,t,i):((e,t,i)=>{const a=t.hasOwnProperty(i);return t.constructor.createProperty(i,e),a?Object.getOwnPropertyDescriptor(t,i):void 0})(e,t,i)}
+ */class de extends x{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0}createRenderRoot(){const e=super.createRenderRoot();return this.renderOptions.renderBefore??=e.firstChild,e}update(e){const t=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(e),this._$Do=((e,t,a)=>{const s=a?.renderBefore??t;let i=s._$litPart$;if(void 0===i){const e=a?.renderBefore??null;s._$litPart$=i=new te(t.insertBefore(N(),e),e,void 0,a??{})}return i._$AI(e),i})(t,this.renderRoot,this.renderOptions)}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(!0)}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(!1)}render(){return G}}de._$litElement$=!0,de.finalized=!0,ce.litElementHydrateSupport?.({LitElement:de});const le=ce.litElementPolyfillSupport;le?.({LitElement:de}),(ce.litElementVersions??=[]).push("4.2.2");
 /**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */function ge(e){return me({...e,state:!0,attribute:!1})}const ve="librus_synergia",be=new Set(["unknown","unavailable",""]);class _e extends Error{constructor(e,t){super(e),this.code=e,this.deviceId=t}}function ye(e){const t=new Set;for(const i of Object.values(e.entities??{}))i.platform===ve&&i.device_id&&t.add(i.device_id);return[...t]}function fe(e,t){const i=ye(e);if(t){if(!i.includes(t))throw new _e("device_missing",t);return t}if(1===i.length)return i[0];if(0===i.length)throw new _e("no_device");throw new _e("multiple_devices")}function we(e,t){const i={};for(const a of Object.values(e.entities??{}))a.device_id===t&&a.platform===ve&&a.translation_key&&(i[a.translation_key]=a.entity_id);return i}function ke(e,t,i){const a=[];for(const s of Object.values(e.entities??{}))if(s.device_id===t&&s.platform===ve&&s.translation_key===i){const t=e.states[s.entity_id],i=t?.attributes;a.push({entityId:s.entity_id,subject:i?.subject||s.entity_id,subjectId:i?.subject_id})}return a.sort((e,t)=>e.subject.localeCompare(t.subject))}const xe={"error.device_missing":"Device {device} not found","error.multiple_devices":"Multiple students found - set device_id","error.no_device":"No Librus Synergia device found","empty.loading":"Loading…","empty.generic_error":"Something went wrong","editor.student":"Student","editor.subject":"Subject","editor.subject_auto":"Overall / all subjects","editor.title":"Card title (optional)","editor.max_items":"Max rows shown","editor.days_ahead":"Days ahead","editor.days_back":"Days of history","editor.target":"Target average","editor.mailbox":"Mailbox","editor.show_saturday":"Show Saturday","editor.exam_keywords":"Exam category keywords (comma-separated)","editor.icon":"Icon override (e.g. mdi:star)","editor.hide_header":"Hide header","editor.compact":"Compact mode","editor.category_filter":"Category filter (comma-separated, optional)","editor.sort":"Sort order","sort.newest":"Newest first","sort.oldest":"Oldest first","card.grades.title":"Grade average","card.grades.subtitle":"All subjects","card.grades.empty":"No grades yet this year","card.subject_spotlight.title":"Best & weakest subject","card.subject_spotlight.subtitle":"By average","card.subject_spotlight.empty":"Not enough graded subjects to compare yet","card.subject_spotlight.best":"Top subject","card.subject_spotlight.weakest":"Room to grow","card.grade_trend.title":"Grade trend","card.grade_trend.subtitle":"Last {days} days","card.grade_trend.empty":"Not enough history yet","card.grade_distribution.title":"Grade distribution","card.grade_distribution.subtitle":"{count} grades, all subjects","card.grade_distribution.other":"other","card.grades_radar.title":"Grade profile","card.grades_radar.subtitle":"By subject","card.grades_radar.empty":"Not enough subjects with grades yet","label.average":"Average","card.grade_category_distribution.title":"Grades by category","card.grade_category_distribution.subtitle":"Tests, quizzes, answers…","card.grade_category_distribution.empty":"No categorized grades yet","unit.grades":"grades","card.grade_category_distribution.uncategorized":"Uncategorized","card.subject_time.title":"Lesson time split","card.subject_time.subtitle":"Lessons per week, by subject","card.subject_time.empty":"No lessons found for this week","unit.lessons_per_week":"lessons/wk","card.attendance_weekday.title":"Absences by weekday","card.attendance_weekday.subtitle":"This school year","card.attendance_weekday.empty":"No absences or lates recorded","card.attendance_subject.title":"Absences by subject","card.attendance_subject.subtitle":"Which subjects are missed most often","card.attendance_subject.empty":"No absences recorded","card.recent_activity.title":"What's new","card.recent_activity.subtitle":"Grades, notices, announcements & messages","card.recent_activity.empty":"Nothing new yet","card.grade_log.title":"Grade log","card.grade_log.subtitle":"All subjects","card.grade_log.empty_filtered":"No grades match this filter","card.latest_grade.title":"Latest grade","card.latest_grade.empty":"No grades yet","card.behaviour_grade.title":"Behaviour grade","card.behaviour_grade.subtitle":"Semester grade","card.behaviour_grade.empty":"No behaviour grade yet","card.descriptive_grades.title":"Descriptive grades","card.descriptive_grades.subtitle":"Non-numeric assessment","card.descriptive_grades.empty":"No descriptive grades yet","card.attendance.title":"Attendance","card.attendance.subtitle":"This school year","card.attendance.by_semester":"By semester","card.attendance_heatmap.title":"Attendance - year map","card.attendance_heatmap.subtitle":"This school year","card.attendance_heatmap.empty":"No attendance data","card.attendance_heatmap.status.good":"Present","card.attendance_heatmap.status.warn":"Excused","card.attendance_heatmap.status.bad":"Unexcused","card.attendance_heatmap.no_data":"No data","card.attendance.semester":"Semester {n}","stat.absences":"Absences","stat.unexcused":"Unexcused","stat.excused":"Excused","stat.late":"Late","stat.records":"Records","stat.percentage":"Attendance","card.behaviour_notices.title":"Behaviour notices","card.behaviour_notices.empty":"No notices","card.messages.title":"Messages","card.messages.unavailable":"Messages module not enabled","card.messages.read_notice":"Opening marks it as read in Librus","card.messages.fetch_failed":"Couldn't load the full message","card.messages.attachment_notice":"Click a file to open it","card.substitutions.title":"Substitutions, alerts & justifications","card.substitutions.subtitle":"Zastępstwa, alerty i usprawiedliwienia","card.substitutions.empty":"No substitutions, alerts, or justifications","mailbox.inbox":"Inbox","mailbox.notes":"Notes","mailbox.alerts":"Alerts","mailbox.substitutions":"Substitutions","mailbox.absences":"Absences","mailbox.justifications":"Justifications","mailbox.trash":"Trash","card.announcements.title":"Announcements","card.announcements.empty":"No announcements","card.homework_assignments.title":"Homework assignments","card.homework_assignments.empty":"No homework assignments","label.due":"Due","card.today_lessons.title":"Today's lessons","card.today_lessons.subtitle":"Timetable","card.today_lessons.empty":"No lessons today","label.now":"now","card.next_lesson.title":"Next lesson","card.next_lesson.empty":"No more lessons today","label.in_minutes":"in {minutes} min","label.in_hours":"in {hours}h","label.in_hours_minutes":"in {hours}h {minutes}m","label.in_days":"in {days}d","label.in_days_hours":"in {days}d {hours}h","card.agenda.title":"Agenda","card.agenda.subtitle":"Upcoming","card.agenda.empty":"Nothing scheduled","card.free_days.title":"Free days","card.free_days.empty":"No upcoming free days","label.days_until":"days until","card.school_year.title":"End of school year","card.school_year.empty":"No school year data","label.days_until_year_end":"days until year end","label.current_semester":"Current semester","label.days_until_semester_end":"days until semester end","label.year_progress":"School year","card.exam_countdown.title":"Next exam","card.exam_countdown.empty":"No upcoming exams","card.week_timetable.title":"Week timetable","card.week_timetable.subtitle":"This week","card.week_timetable.subtitle_upcoming":"Upcoming week","card.week_timetable.break_now":"Break — next lesson in {minutes} min","card.week_timetable.empty":"No lessons found for this week","card.school.title":"School","label.head_teacher":"Head teacher","label.tutor":"Homeroom teacher","label.semester_ends":"Semester ends","label.year_ends":"Year ends","card.today.title":"Today","stat.lucky_number":"Lucky number","card.week_summary.title":"Week in review","stat.new_grades":"New grades","card.ai_summary.title":"Weekly summary","card.ai_summary.setup":"Weekly AI summary is off","card.ai_summary.setup_hint":"Turn it on under the Librus integration's Configure -> Weekly AI summary (integration 0.10 or newer).","card.ai_summary.waiting":"No summary yet","card.ai_summary.generating":"Generating…","card.ai_summary.generate":"Generate now","card.ai_summary.advice":"For the coming week","card.ai_summary.next_run":"Next: {when}","card.ai_summary.paused":"Automatic summary paused","card.ai_summary.disclaimer":"Written by AI, may contain mistakes","card.ai_summary.for_parent":"for the parent","card.ai_summary.for_student":"for the student","ai_summary.status.good":"Good","ai_summary.status.ok":"OK","ai_summary.status.caution":"Needs attention","ai_summary.section.grades":"Grades","ai_summary.section.attendance":"Attendance","ai_summary.section.behaviour":"Behaviour","ai_summary.section.next_week":"Next week","ai_summary.section.school_news":"From the school","editor.summary_only":"Headline and to-dos only","editor.hide_generate":"Hide the Generate now button","card.lucky_number.title":"Lucky number","card.lucky_number.subtitle":"Today in the register","card.lucky_number.subtitle_for_date":"For {date}","card.lucky_number.yours_today":"It's your number today!","card.lucky_number.yours_for_date":"It's your number on {date}!","card.lucky_number.empty":"No lucky number published yet (e.g. during a school break)","card.student.title":"Student card","stat.overall_rating":"overall","stat.attendance_score":"Attendance","stat.behaviour_score":"Behaviour","stat.grades_score":"Grades","stat.activity_score":"Activity","card.streak.title":"Streaks","card.streak.attendance":"No absences","card.streak.behaviour":"Good behaviour","card.streak.grades":"Good grades","label.days":"days","card.rank.title":"Rank","card.rank.empty":"No grades yet to compute a rank","rank.bronze":"Bronze","rank.silver":"Silver","rank.gold":"Gold","rank.diamond":"Diamond","label.to_next_rank":"to next rank","label.top_rank":"Top rank reached","card.achievements.title":"Achievements","card.achievements.count":"{n} unlocked","card.achievements.empty":"No badges yet - they'll appear here once a new achievement is unlocked while this card is on a dashboard (earlier ones can't be recovered)","card.achievements.next_hint":"{n} more to: {title}","achievement.first_six":"First six!","achievement.good_grade_streak_5":"5 good grades in a row","achievement.good_grade_streak_10":"10 good grades in a row","achievement.good_grade_streak_20":"20 good grades in a row","achievement.attendance_streak_7":"A week without an absence","achievement.attendance_streak_30":"A month without an absence","achievement.attendance_streak_90":"3 months without an absence","achievement.behaviour_streak_7":"A week without a note","achievement.behaviour_streak_30":"A month without a note","achievement.behaviour_streak_90":"3 months without a note","card.level.title":"Level","card.level.subtitle":"XP from grades & attendance","label.level":"Level {n}","label.xp_to_next":"{n} XP to next level","label.xp_from_grades":"From grades","label.xp_from_attendance":"From attendance","label.xp_total":"Total XP","card.teachers.title":"Teachers","card.teachers.homeroom":"Homeroom teacher","card.teachers.count":"{n} subjects","card.teachers.empty":"No teacher directory yet","card.grade_goal.title":"Grade goal","card.grade_goal.subtitle_overall":"Overall average","card.grade_goal.empty":"No grades yet to track a goal against","card.grade_goal.reached":"Goal reached 🎉","label.current":"Now","label.target":"Target","label.to_go":"to go","label.sixes_needed":"≈ {n} more top grades","card.bell_schedule.title":"Today's schedule","card.bell_schedule.empty":"No bell schedule yet — needs ha-librus-synergia with the bell_schedule attribute","label.lesson_short":"L{n}","label.after_school":"School's out for today","editor.hide_room":"Hide classroom","editor.only_tomorrow":"Only the next school day","editor.student_name":"Name shown for {device} (optional)","card.first_lesson.title":"First lesson","card.first_lesson.today":"Today","card.first_lesson.tomorrow":"Tomorrow","card.first_lesson.earliest_today":"Earliest today: {who}","card.first_lesson.earliest_tomorrow":"Earliest tomorrow: {who}","card.first_lesson.earliest_on":"Earliest on {day}: {who}","card.first_lesson.free":"no lessons","card.first_lesson.no_data":"no timetable","card.first_lesson.first_canceled":"first lesson cancelled","card.first_lesson.first_n_canceled":"first {n} lessons cancelled","card.first_lesson.substitution":"substitution","card.first_lesson.empty":"No lessons today or on the next school day","card.tomorrow.title":"Tomorrow","card.tomorrow.title_next_school_day":"Next school day","card.tomorrow.empty":"Nothing scheduled for the next school day","card.tomorrow.lessons":"lessons","card.tomorrow.starts":"Starts","card.tomorrow.ends":"Ends","card.tomorrow.homework":"Homework due: {n}","card.grade_simulator.subtitle":"What if… (rough estimate)","card.grade_simulator.empty":"Pick a subject that has grades","label.weight":"Weight","card.homework_checklist.title":"Homework checklist","card.homework_checklist.progress":"{done}/{total} done","card.semester_comparison.title":"Semester comparison","card.semester_comparison.subtitle":"Semester 1 vs 2, by subject","card.semester_comparison.empty":"No semester averages yet","card.semester_comparison.s1":"Sem 1","card.semester_comparison.s2":"Sem 2","editor.mode":"Mode","mode.archetype":"Archetype","mode.hero":"Hero","card.hero.title_archetype":"Your archetype","card.hero.title_hero":"Your hero","card.hero.subtitle":"based on your Librus data","card.hero.empty":"Not enough data yet to compute a result","hero.chip.avg_naukowiec":"STEM avg {n}","hero.chip.avg_humanista":"Humanities avg {n}","hero.chip.avg_poliglota":"Languages avg {n}","hero.chip.avg_artysta":"Arts avg {n}","hero.chip.avg_sportowiec":"PE avg {n}","hero.chip.grades":"{n} grades","hero.chip.streak_days":"{n}-day streak","hero.chip.unexcused":"{n} unexcused","hero.chip.good_streak":"{n}-grade streak","hero.chip.overall_avg":"avg {n}","hero.chip.overall_avg_full":"overall avg {n}","hero.chip.semester1":"term 1: {n}","hero.chip.semester2":"term 2: {n}","hero.chip.behaviour":"conduct {name}","hero.chip.positive_notes":"+{n} notes","hero.chip.badges":"{n} badges","hero.chip.various_categories":"various categories","hero.chip.subjects_count":"{n} subjects","hero.chip.spread":"spread {n}","hero.naukowiec.archetype_name":"Scientist","hero.naukowiec.hero_name":"Archmage","hero.naukowiec.archetype_desc":"Maths, physics and computer science outshine every other subject.","hero.naukowiec.hero_desc":"You wield the magic of numbers - equations are your spells.","hero.humanista.archetype_name":"Humanist","hero.humanista.hero_name":"Bard","hero.humanista.archetype_desc":"Polish and history are the subjects where you shine brightest.","hero.humanista.hero_desc":"Words are your weapon - a good story wins anyone over.","hero.poliglota.archetype_name":"Polyglot","hero.poliglota.hero_name":"Translator","hero.poliglota.archetype_desc":"English and German clearly outrank every other subject.","hero.poliglota.hero_desc":"You know more languages than most adults ever will.","hero.artysta.archetype_name":"Artist","hero.artysta.hero_name":"Illusionist","hero.artysta.archetype_desc":"Art and music are the subjects where you're strongest.","hero.artysta.hero_desc":"You create worlds that others can only imagine.","hero.sportowiec.archetype_name":"Athlete","hero.sportowiec.hero_name":"Herald of the Arena","hero.sportowiec.archetype_desc":"Physical education is clearly your strongest subject.","hero.sportowiec.hero_desc":"Strength and stamina - nobody on the field matches you.","hero.wojownik.archetype_name":"Attendance Warrior","hero.wojownik.hero_name":"The Unyielding","hero.wojownik.archetype_desc":"A long attendance streak and zero unexcused absences.","hero.wojownik.hero_desc":"You show up every single day, no exceptions, no excuses.","hero.meteor.archetype_name":"Meteor","hero.meteor.hero_name":"Meteor","hero.meteor.archetype_desc":"Your good-grade streak stretches back a dozen entries.","hero.meteor.hero_desc":"You're tearing through the term, leaving a trail of grades.","hero.feniks.archetype_name":"Phoenix","hero.feniks.hero_name":"Phoenix","hero.feniks.archetype_desc":"This semester's average is clearly up from the last one.","hero.feniks.hero_desc":"You rise from a weaker start, stronger than before.","hero.spolecznik.archetype_name":"People Person","hero.spolecznik.hero_name":"Healer","hero.spolecznik.archetype_desc":"Model conduct grade and nothing but positive notes.","hero.spolecznik.hero_desc":"Your presence calms and settles the whole class at once.","hero.kolekcjoner.archetype_name":"Collector","hero.kolekcjoner.hero_name":"Trophy Hunter","hero.kolekcjoner.archetype_desc":"The most unlocked badges across every category.","hero.kolekcjoner.hero_desc":"Your trophy case is bursting with earned achievements.","hero.prymus.archetype_name":"Top of the Class","hero.prymus.hero_name":"Legend","hero.prymus.archetype_desc":"A high average holds steady across every subject.","hero.prymus.hero_desc":"They'll be telling stories about your results for years.","hero.wszechstronny.archetype_name":"All-Rounder","hero.wszechstronny.hero_name":"Avatar of Balance","hero.wszechstronny.archetype_desc":"No subject dominates - your grades are level across the board.","hero.wszechstronny.hero_desc":"You wield a bit of every element - nothing surprises you.","card.hero_stats.title":"Hero stats","card.hero_stats.subtitle":"Your character sheet","card.hero_stats.empty":"Not enough data for stats yet","card.hero_stats.power":"Power","hero_stat.sila":"Strength","hero_stat.intelekt":"Intellect","hero_stat.wiedza":"Wisdom","hero_stat.charyzma":"Charisma","hero_stat.wytrwalosc":"Endurance","hero_stat.szczescie":"Luck","card.hero_history.title":"Hero history","card.hero_history.subtitle":"how your result changed over time","card.hero_history.empty":"No history yet - it appears once your result changes","card.hero_history.current":"current ({n}d)","card.last_update.subtitle":"Last data refresh","label.just_now":"Just now","label.minutes_ago":"{minutes} min ago","label.hours_ago":"{hours}h ago","label.days_ago":"{days}d ago"},$e={en:xe,pl:{"error.device_missing":"Nie znaleziono urządzenia {device}","error.multiple_devices":"Znaleziono kilkoro uczniów - ustaw device_id","error.no_device":"Nie znaleziono urządzenia Librus Synergia","empty.loading":"Wczytywanie…","empty.generic_error":"Coś poszło nie tak","editor.student":"Uczeń","editor.subject":"Przedmiot","editor.subject_auto":"Ogólna / wszystkie przedmioty","editor.title":"Tytuł karty (opcjonalnie)","editor.max_items":"Maks. liczba wierszy","editor.days_ahead":"Dni do przodu","editor.days_back":"Dni historii","editor.target":"Docelowa średnia","editor.mailbox":"Skrzynka","editor.show_saturday":"Pokaż sobotę","editor.exam_keywords":"Słowa-klucze kategorii sprawdzianów (po przecinku)","editor.icon":"Własna ikona (np. mdi:star)","editor.hide_header":"Ukryj nagłówek","editor.compact":"Tryb kompaktowy","editor.category_filter":"Filtr kategorii (po przecinku, opcjonalnie)","editor.sort":"Kolejność","sort.newest":"Najpierw najnowsze","sort.oldest":"Najpierw najstarsze","card.grades.title":"Średnia ocen","card.grades.subtitle":"Wszystkie przedmioty","card.grades.empty":"Brak ocen w tym roku szkolnym","card.subject_spotlight.title":"Najlepszy i najsłabszy przedmiot","card.subject_spotlight.subtitle":"Wg średniej","card.subject_spotlight.empty":"Za mało przedmiotów z ocenami, by porównać","card.subject_spotlight.best":"Najlepszy","card.subject_spotlight.weakest":"Do przećwiczenia","card.grade_trend.title":"Trend średniej","card.grade_trend.subtitle":"Ostatnie {days} dni","card.grade_trend.empty":"Za mało historii","card.grade_distribution.title":"Rozkład ocen","card.grade_distribution.subtitle":"{count} ocen, wszystkie przedmioty","card.grade_distribution.other":"inne","card.grades_radar.title":"Profil ocen","card.grades_radar.subtitle":"Wg przedmiotu","card.grades_radar.empty":"Za mało przedmiotów z ocenami","label.average":"Średnia","card.grade_category_distribution.title":"Oceny wg kategorii","card.grade_category_distribution.subtitle":"Sprawdziany, kartkówki, odpowiedzi…","card.grade_category_distribution.empty":"Brak ocen z przypisaną kategorią","unit.grades":"ocen","card.grade_category_distribution.uncategorized":"Bez kategorii","card.subject_time.title":"Podział czasu lekcji","card.subject_time.subtitle":"Lekcje w tygodniu, wg przedmiotu","card.subject_time.empty":"Brak lekcji w tym tygodniu","unit.lessons_per_week":"lekcji/tydz.","card.attendance_weekday.title":"Nieobecności wg dnia tygodnia","card.attendance_weekday.subtitle":"Ten rok szkolny","card.attendance_weekday.empty":"Brak nieobecności ani spóźnień","card.attendance_subject.title":"Nieobecności wg przedmiotu","card.attendance_subject.subtitle":"Które przedmioty są najczęściej opuszczane","card.attendance_subject.empty":"Brak zarejestrowanych nieobecności","card.recent_activity.title":"Co nowego","card.recent_activity.subtitle":"Oceny, uwagi, ogłoszenia i wiadomości","card.recent_activity.empty":"Nic nowego","card.grade_log.title":"Dziennik ocen","card.grade_log.subtitle":"Wszystkie przedmioty","card.grade_log.empty_filtered":"Brak ocen pasujących do filtra","card.latest_grade.title":"Ostatnia ocena","card.latest_grade.empty":"Brak ocen","card.behaviour_grade.title":"Ocena zachowania","card.behaviour_grade.subtitle":"Ocena semestralna","card.behaviour_grade.empty":"Brak jeszcze oceny zachowania","card.descriptive_grades.title":"Oceny opisowe","card.descriptive_grades.subtitle":"Ocenianie opisowe","card.descriptive_grades.empty":"Brak jeszcze ocen opisowych","card.attendance.title":"Frekwencja","card.attendance.subtitle":"W tym roku szkolnym","card.attendance.by_semester":"Wg semestru","card.attendance_heatmap.title":"Frekwencja - mapa roku","card.attendance_heatmap.subtitle":"Ten rok szkolny","card.attendance_heatmap.empty":"Brak danych o frekwencji","card.attendance_heatmap.status.good":"Obecność","card.attendance_heatmap.status.warn":"Usprawiedliwiona","card.attendance_heatmap.status.bad":"Nieusprawiedliwiona","card.attendance_heatmap.no_data":"Brak danych","card.attendance.semester":"Semestr {n}","stat.absences":"Nieobecności","stat.unexcused":"Nieusprawiedliwione","stat.excused":"Usprawiedliwione","stat.late":"Spóźnienia","stat.records":"Rekordów","stat.percentage":"Frekwencja","card.behaviour_notices.title":"Uwagi","card.behaviour_notices.empty":"Brak uwag","card.messages.title":"Wiadomości","card.messages.unavailable":"Moduł wiadomości nie jest włączony","card.messages.read_notice":"Otwarcie oznaczy jako przeczytane w Librusie","card.messages.fetch_failed":"Nie udało się pobrać pełnej treści","card.messages.attachment_notice":"Kliknij plik, aby go otworzyć","card.substitutions.title":"Zastępstwa, alerty i usprawiedliwienia","card.substitutions.subtitle":"Wiadomości specjalne","card.substitutions.empty":"Brak zastępstw, alertów ani usprawiedliwień","mailbox.inbox":"Odebrane","mailbox.notes":"Uwagi","mailbox.alerts":"Alerty","mailbox.substitutions":"Zastępstwa","mailbox.absences":"Nieobecności","mailbox.justifications":"Usprawiedliwienia","mailbox.trash":"Kosz","card.announcements.title":"Ogłoszenia","card.announcements.empty":"Brak ogłoszeń","card.homework_assignments.title":"Zadania domowe","card.homework_assignments.empty":"Brak zadań domowych","label.due":"Termin","card.today_lessons.title":"Dzisiejszy plan lekcji","card.today_lessons.subtitle":"Plan lekcji","card.today_lessons.empty":"Brak lekcji dzisiaj","label.now":"teraz","card.next_lesson.title":"Najbliższa lekcja","card.next_lesson.empty":"Koniec lekcji na dziś","label.in_minutes":"za {minutes} min","label.in_hours":"za {hours} godz.","label.in_hours_minutes":"za {hours} godz. {minutes} min","label.in_days":"za {days} dni","label.in_days_hours":"za {days} dni {hours} godz.","card.agenda.title":"Terminarz","card.agenda.subtitle":"Nadchodzące","card.agenda.empty":"Brak zaplanowanych wydarzeń","card.free_days.title":"Dni wolne","card.free_days.empty":"Brak nadchodzących dni wolnych","label.days_until":"dni do","card.school_year.title":"Koniec roku szkolnego","card.school_year.empty":"Brak danych o roku szkolnym","label.days_until_year_end":"dni do końca roku","label.current_semester":"Aktualny semestr","label.days_until_semester_end":"dni do końca semestru","label.year_progress":"Rok szkolny","card.exam_countdown.title":"Najbliższy sprawdzian","card.exam_countdown.empty":"Brak nadchodzących sprawdzianów","card.week_timetable.title":"Plan tygodniowy","card.week_timetable.subtitle":"Ten tydzień","card.week_timetable.subtitle_upcoming":"Nadchodzący tydzień","card.week_timetable.break_now":"Przerwa — następna lekcja za {minutes} min","card.week_timetable.empty":"Brak lekcji w tym tygodniu","card.school.title":"Szkoła","label.head_teacher":"Dyrektor","label.tutor":"Wychowawca","label.semester_ends":"Koniec semestru","label.year_ends":"Koniec roku szkolnego","card.today.title":"Dziś","stat.lucky_number":"Numerek","card.week_summary.title":"Tydzień w skrócie","stat.new_grades":"Nowe oceny","card.ai_summary.title":"Podsumowanie tygodnia","card.ai_summary.setup":"Podsumowanie AI jest wyłączone","card.ai_summary.setup_hint":"Włącz je w integracji Librus: Konfiguruj -> Podsumowanie tygodnia (AI) (integracja 0.10 lub nowsza).","card.ai_summary.waiting":"Jeszcze nie ma podsumowania","card.ai_summary.generating":"Generuję…","card.ai_summary.generate":"Wygeneruj teraz","card.ai_summary.advice":"Na ten tydzień","card.ai_summary.next_run":"Następne: {when}","card.ai_summary.paused":"Automatyczne podsumowanie wstrzymane","card.ai_summary.disclaimer":"Wygenerowane przez AI, może zawierać błędy","card.ai_summary.for_parent":"dla rodzica","card.ai_summary.for_student":"dla ucznia","ai_summary.status.good":"Dobrze","ai_summary.status.ok":"OK","ai_summary.status.caution":"Do uwagi","ai_summary.section.grades":"Oceny","ai_summary.section.attendance":"Frekwencja","ai_summary.section.behaviour":"Zachowanie","ai_summary.section.next_week":"Następny tydzień","ai_summary.section.school_news":"Szkoła pisze","editor.summary_only":"Tylko nagłówek i rady","editor.hide_generate":"Ukryj przycisk Wygeneruj teraz","card.lucky_number.title":"Szczęśliwy numerek","card.lucky_number.subtitle":"Dziś w dzienniku","card.lucky_number.subtitle_for_date":"Na {date}","card.lucky_number.yours_today":"To Twój numerek dzisiaj!","card.lucky_number.yours_for_date":"To Twój numerek na {date}!","card.lucky_number.empty":"Nie opublikowano jeszcze numerka (np. w trakcie przerwy szkolnej)","card.student.title":"Karta ucznia","stat.overall_rating":"ocena ogólna","stat.attendance_score":"Frekwencja","stat.behaviour_score":"Zachowanie","stat.grades_score":"Oceny","stat.activity_score":"Aktywność","card.streak.title":"Passy","card.streak.attendance":"Bez nieobecności","card.streak.behaviour":"Dobre zachowanie","card.streak.grades":"Dobre oceny","label.days":"dni","card.rank.title":"Ranga","card.rank.empty":"Brak jeszcze ocen do wyliczenia rangi","rank.bronze":"Brąz","rank.silver":"Srebro","rank.gold":"Złoto","rank.diamond":"Diament","label.to_next_rank":"do kolejnej rangi","label.top_rank":"Osiągnięto najwyższą rangę","card.achievements.title":"Osiągnięcia","card.achievements.count":"Odblokowano: {n}","card.achievements.empty":"Jeszcze żadnych odznak - pojawią się tu, gdy nowe osiągnięcie odblokuje się przy tej karcie na dashboardzie (wcześniejszych nie da się odzyskać)","card.achievements.next_hint":"Jeszcze {n} do: {title}","achievement.first_six":"Pierwsza szóstka!","achievement.good_grade_streak_5":"5 dobrych ocen z rzędu","achievement.good_grade_streak_10":"10 dobrych ocen z rzędu","achievement.good_grade_streak_20":"20 dobrych ocen z rzędu","achievement.attendance_streak_7":"Tydzień bez nieobecności","achievement.attendance_streak_30":"Miesiąc bez nieobecności","achievement.attendance_streak_90":"3 miesiące bez nieobecności","achievement.behaviour_streak_7":"Tydzień bez uwagi","achievement.behaviour_streak_30":"Miesiąc bez uwagi","achievement.behaviour_streak_90":"3 miesiące bez uwagi","card.level.title":"Poziom","card.level.subtitle":"XP za oceny i frekwencję","label.level":"Poziom {n}","label.xp_to_next":"{n} XP do kolejnego poziomu","label.xp_from_grades":"Z ocen","label.xp_from_attendance":"Z frekwencji","label.xp_total":"Suma XP","card.teachers.title":"Nauczyciele","card.teachers.homeroom":"Wychowawca","card.teachers.count":"{n} przedmiotów","card.teachers.empty":"Brak jeszcze katalogu nauczycieli","card.grade_goal.title":"Cel oceny","card.grade_goal.subtitle_overall":"Średnia ogólna","card.grade_goal.empty":"Brak ocen, na których można oprzeć cel","card.grade_goal.reached":"Cel osiągnięty 🎉","label.current":"Teraz","label.target":"Cel","label.to_go":"do celu","label.sixes_needed":"≈ jeszcze {n}× ocena maksymalna","card.bell_schedule.title":"Plan dnia","card.bell_schedule.empty":"Brak rozkładu dzwonków — wymaga ha-librus-synergia z atrybutem bell_schedule","label.lesson_short":"L{n}","label.after_school":"Lekcje na dziś zakończone","editor.hide_room":"Ukryj salę","editor.only_tomorrow":"Tylko następny dzień nauki","editor.student_name":"Imię dla: {device} (opcjonalnie)","card.first_lesson.title":"Pierwsza lekcja","card.first_lesson.today":"Dziś","card.first_lesson.tomorrow":"Jutro","card.first_lesson.earliest_today":"Najwcześniej dziś: {who}","card.first_lesson.earliest_tomorrow":"Najwcześniej jutro: {who}","card.first_lesson.earliest_on":"Najwcześniej ({day}): {who}","card.first_lesson.free":"wolne","card.first_lesson.no_data":"brak planu","card.first_lesson.first_canceled":"pierwsza lekcja odwołana","card.first_lesson.first_n_canceled":"pierwsze lekcje odwołane ({n})","card.first_lesson.substitution":"zastępstwo","card.first_lesson.empty":"Brak lekcji dziś i w następny dzień nauki","card.tomorrow.title":"Jutro","card.tomorrow.title_next_school_day":"Następny dzień nauki","card.tomorrow.empty":"Nic zaplanowanego na następny dzień nauki","card.tomorrow.lessons":"lekcji","card.tomorrow.starts":"Początek","card.tomorrow.ends":"Koniec","card.tomorrow.homework":"Zadania na termin: {n}","card.grade_simulator.subtitle":"A gdyby… (szacunkowo)","card.grade_simulator.empty":"Wybierz przedmiot, który ma oceny","label.weight":"Waga","card.homework_checklist.title":"Zadania do odhaczenia","card.homework_checklist.progress":"{done}/{total} zrobione","card.semester_comparison.title":"Porównanie semestrów","card.semester_comparison.subtitle":"Semestr 1 vs 2, wg przedmiotu","card.semester_comparison.empty":"Brak średnich semestralnych","card.semester_comparison.s1":"Sem 1","card.semester_comparison.s2":"Sem 2","editor.mode":"Tryb","mode.archetype":"Archetyp","mode.hero":"Bohater","card.hero.title_archetype":"Twój archetyp","card.hero.title_hero":"Twój bohater","card.hero.subtitle":"na podstawie danych z Librusa","card.hero.empty":"Za mało danych, żeby coś obliczyć","hero.chip.avg_naukowiec":"śr. ścisłych {n}","hero.chip.avg_humanista":"śr. humanist. {n}","hero.chip.avg_poliglota":"śr. języków {n}","hero.chip.avg_artysta":"śr. artyst. {n}","hero.chip.avg_sportowiec":"śr. WF {n}","hero.chip.grades":"{n} ocen","hero.chip.streak_days":"passa {n} dni","hero.chip.unexcused":"{n} nieuspr.","hero.chip.good_streak":"passa {n} ocen","hero.chip.overall_avg":"śr. {n}","hero.chip.overall_avg_full":"śr. ogólna {n}","hero.chip.semester1":"sem. 1: {n}","hero.chip.semester2":"sem. 2: {n}","hero.chip.behaviour":"zachowanie {name}","hero.chip.positive_notes":"uwagi +{n}","hero.chip.badges":"odznaki {n}","hero.chip.various_categories":"różne kategorie","hero.chip.subjects_count":"{n} przedm.","hero.chip.spread":"rozrzut {n}","hero.naukowiec.archetype_name":"Naukowiec","hero.naukowiec.hero_name":"Archimag","hero.naukowiec.archetype_desc":"Matematyka, fizyka i informatyka biją resztę przedmiotów na głowę.","hero.naukowiec.hero_desc":"Władasz magią liczb - zaklęcia to wzory, różdżka to kalkulator.","hero.humanista.archetype_name":"Humanista","hero.humanista.hero_name":"Bard","hero.humanista.archetype_desc":"Polski i historia to przedmioty, w których błyszczysz najbardziej.","hero.humanista.hero_desc":"Słowo to Twoja broń - opowieścią przekonasz każdego wokół siebie.","hero.poliglota.archetype_name":"Poliglota","hero.poliglota.hero_name":"Tłumacz","hero.poliglota.archetype_desc":"Angielski i niemiecki wyraźnie górują nad resztą przedmiotów.","hero.poliglota.hero_desc":"Znasz więcej języków niż większość dorosłych w Twoim otoczeniu.","hero.artysta.archetype_name":"Artysta","hero.artysta.hero_name":"Iluzjonista","hero.artysta.archetype_desc":"Plastyka i muzyka to obszary, w których jesteś najmocniejszy.","hero.artysta.hero_desc":"Tworzysz światy, które inni potrafią sobie jedynie wyobrazić.","hero.sportowiec.archetype_name":"Sportowiec","hero.sportowiec.hero_name":"Herold Areny","hero.sportowiec.archetype_desc":"Wychowanie fizyczne to zdecydowanie Twoja najmocniejsza strona.","hero.sportowiec.hero_desc":"Siła i wytrwałość - na boisku nikt Ci dziś nie dorównuje.","hero.wojownik.archetype_name":"Wojownik Frekwencji","hero.wojownik.hero_name":"Niezłomny","hero.wojownik.archetype_desc":"Długa passa obecności i zero nieusprawiedliwionych nieobecności.","hero.wojownik.hero_desc":"Stajesz na posterunku każdego dnia, bez wyjątku i bez wymówek.","hero.meteor.archetype_name":"Meteor","hero.meteor.hero_name":"Meteor","hero.meteor.archetype_desc":"Passa dobrych ocen ciągnie się przez ostatnie kilkanaście wpisów.","hero.meteor.hero_desc":"Pędzisz przez semestr, zostawiając za sobą świetlisty ślad ocen.","hero.feniks.archetype_name":"Feniks","hero.feniks.hero_name":"Feniks","hero.feniks.archetype_desc":"Średnia w tym semestrze rośnie wyraźnie względem poprzedniego.","hero.feniks.hero_desc":"Powstajesz z popiołów słabszego startu, silniejszy niż wcześniej.","hero.spolecznik.archetype_name":"Społecznik","hero.spolecznik.hero_name":"Uzdrowiciel","hero.spolecznik.archetype_desc":"Wzorowa ocena zachowania i same pozytywne uwagi nauczycieli.","hero.spolecznik.hero_desc":"Twoja obecność koi nastroje i łagodzi spory całej klasy.","hero.kolekcjoner.archetype_name":"Kolekcjoner","hero.kolekcjoner.hero_name":"Łowca Trofeów","hero.kolekcjoner.archetype_desc":"Najwięcej odblokowanych odznak spośród wszystkich kategorii.","hero.kolekcjoner.hero_desc":"Twoja gablota z trofeami pęka w szwach od zdobytych osiągnięć.","hero.prymus.archetype_name":"Prymus","hero.prymus.hero_name":"Legenda","hero.prymus.archetype_desc":"Wysoka średnia utrzymuje się równo we wszystkich przedmiotach.","hero.prymus.hero_desc":"O Twoich wynikach będą opowiadać jeszcze długo po Twoim odejściu.","hero.wszechstronny.archetype_name":"Wszechstronny Talent","hero.wszechstronny.hero_name":"Awatar Równowagi","hero.wszechstronny.archetype_desc":"Żaden przedmiot nie dominuje - oceny wyrównane na całej linii.","hero.wszechstronny.hero_desc":"Władasz każdym żywiołem po trosze - nic Cię dziś nie zaskoczy.","card.hero_stats.title":"Statystyki bohatera","card.hero_stats.subtitle":"Twoja karta postaci","card.hero_stats.empty":"Za mało danych na statystyki","card.hero_stats.power":"Moc","hero_stat.sila":"Siła","hero_stat.intelekt":"Intelekt","hero_stat.wiedza":"Wiedza","hero_stat.charyzma":"Charyzma","hero_stat.wytrwalosc":"Wytrwałość","hero_stat.szczescie":"Szczęście","card.hero_history.title":"Historia bohatera","card.hero_history.subtitle":"jak zmieniał się Twój wynik","card.hero_history.empty":"Brak historii jeszcze - pojawi się, gdy wynik się zmieni","card.hero_history.current":"obecnie ({n} dni)","card.last_update.subtitle":"Ostatnia aktualizacja danych","label.just_now":"Przed chwilą","label.minutes_ago":"{minutes} min temu","label.hours_ago":"{hours} godz. temu","label.days_ago":"{days} dni temu"}};function ze(e,t,i){let a=function(e){const t=e?.language??"en",i=t.split("-")[0]?.toLowerCase();return $e[i]??xe}(e)[t]??xe[t];if(i)for(const[e,t]of Object.entries(i))a=a.replace(`{${e}}`,String(t));return a}function je(e,t){const i=Math.max(0,Math.round(t));if(i<60)return ze(e,"label.in_minutes",{minutes:i});if(i<1440){const t=Math.floor(i/60),a=i%60;return 0===a?ze(e,"label.in_hours",{hours:t}):ze(e,"label.in_hours_minutes",{hours:t,minutes:a})}const a=Math.floor(i/1440),s=Math.floor(i%1440/60);return 0===s?ze(e,"label.in_days",{days:a}):ze(e,"label.in_days_hours",{days:a,hours:s})}var Ce;const Se=[{kind:"text",key:"icon",label:"editor.icon"},{kind:"boolean",key:"hide_header",label:"editor.hide_header"},{kind:"boolean",key:"compact",label:"editor.compact"}],De=[{value:"archetype",label:"mode.archetype"},{value:"hero",label:"mode.hero"}],Te={kind:"text",key:"category_filter",label:"editor.category_filter"},Ie={kind:"select",key:"sort",label:"editor.sort",options:[{value:"newest",label:"sort.newest"},{value:"oldest",label:"sort.oldest"}]},Ee={kind:"number",key:"days",label:"editor.days_back",min:7,max:365},Ae={kind:"text",key:"title",label:"editor.title"},Ne=e=>({kind:"number",key:"max_items",label:"editor.max_items",min:1,max:e}),Me={"custom:librus-grade-log-card":[Ae,Ne(100),Te,Ee,Ie],"custom:librus-recent-activity-card":[Ae,Ne(50)],"custom:librus-homework-checklist-card":[Ae,Ne(30)],"custom:librus-announcements-card":[Ae,Ne(20)],"custom:librus-agenda-card":[Ae,{kind:"number",key:"days_ahead",label:"editor.days_ahead",min:1,max:60}],"custom:librus-messages-card":[Ae,{kind:"select",key:"mailbox",label:"editor.mailbox",options:[{value:"inbox",label:"mailbox.inbox"},{value:"substitutions",label:"mailbox.substitutions"},{value:"alerts",label:"mailbox.alerts"},{value:"justifications",label:"mailbox.justifications"}]},Ne(20)],"custom:librus-grade-trend-card":[{kind:"subject"},{kind:"number",key:"days",label:"editor.days_back",min:7,max:180},Ae],"custom:librus-subject-grades-card":[{kind:"subject"},Ne(100),Te,Ee,Ie],"custom:librus-grade-goal-card":[{kind:"subject"},{kind:"number",key:"target",label:"editor.target",min:1,max:6,float:!0},Ae],"custom:librus-bell-schedule-card":[Ae],"custom:librus-tomorrow-card":[Ae],"custom:librus-first-lesson-card":[Ae,{kind:"boolean",key:"hide_room",label:"editor.hide_room"},{kind:"boolean",key:"only_tomorrow",label:"editor.only_tomorrow"},{kind:"names"}],"custom:librus-grade-simulator-card":[{kind:"subject"}],"custom:librus-semester-comparison-card":[Ae],"custom:librus-week-timetable-card":[{kind:"boolean",key:"show_saturday",label:"editor.show_saturday"}],"custom:librus-subject-time-card":[{kind:"boolean",key:"show_saturday",label:"editor.show_saturday"}],"custom:librus-exam-countdown-card":[Ae,{kind:"text",key:"exam_keywords",label:"editor.exam_keywords"}],"custom:librus-hero-card":[Ae,{kind:"select",key:"mode",label:"editor.mode",options:De}],"custom:librus-hero-history-card":[Ae,{kind:"select",key:"mode",label:"editor.mode",options:De}],"custom:librus-achievements-card":[Ae],"custom:librus-hero-stats-card":[Ae],"custom:librus-level-card":[Ae],"custom:librus-rank-card":[Ae],"custom:librus-teachers-card":[Ae],"custom:librus-ai-summary-card":[Ae,{kind:"boolean",key:"summary_only",label:"editor.summary_only"},{kind:"boolean",key:"hide_generate",label:"editor.hide_generate"}]};function Le(){return document.createElement("librus-card-editor")}let Pe=Ce=class extends de{setConfig(e){this._config=e}get _fields(){return this._config&&Me[this._config.type]||[]}render(){if(!this.hass||!this._config)return q;const e=this.hass,t=this._config,i=ye(e),a=this._fields,s=a.some(e=>"subject"===e.kind);let r;try{r=fe(e,t.device_id)}catch{r=void 0}const n=s&&r?ke(e,r,"subject_average"):[];return R`
+ */
+const he=e=>(t,a)=>{void 0!==a?a.addInitializer(()=>{customElements.define(e,t)}):customElements.define(e,t)},ue={attribute:!0,type:String,converter:f,reflect:!1,hasChanged:y},pe=(e=ue,t,a)=>{const{kind:s,metadata:i}=a;let r=globalThis.litPropertyMetadata.get(i);if(void 0===r&&globalThis.litPropertyMetadata.set(i,r=new Map),"setter"===s&&((e=Object.create(e)).wrapped=!0),r.set(a.name,e),"accessor"===s){const{name:s}=a;return{set(a){const i=t.get.call(this);t.set.call(this,a),this.requestUpdate(s,i,e,!0,a)},init(t){return void 0!==t&&this.C(s,void 0,e,t),t}}}if("setter"===s){const{name:s}=a;return function(a){const i=this[s];t.call(this,a),this.requestUpdate(s,i,e,!0,a)}}throw Error("Unsupported decorator location: "+s)};
+/**
+ * @license
+ * Copyright 2017 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */function ge(e){return(t,a)=>"object"==typeof a?pe(e,t,a):((e,t,a)=>{const s=t.hasOwnProperty(a);return t.constructor.createProperty(a,e),s?Object.getOwnPropertyDescriptor(t,a):void 0})(e,t,a)}
+/**
+ * @license
+ * Copyright 2017 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */function me(e){return ge({...e,state:!0,attribute:!1})}const ve="librus_synergia",be=new Set(["unknown","unavailable",""]);class _e extends Error{constructor(e,t){super(e),this.code=e,this.deviceId=t}}function fe(e){const t=new Set;for(const a of Object.values(e.entities??{}))a.platform===ve&&a.device_id&&t.add(a.device_id);return[...t]}function ye(e,t){const a=fe(e);if(t){if(!a.includes(t))throw new _e("device_missing",t);return t}if(1===a.length)return a[0];if(0===a.length)throw new _e("no_device");throw new _e("multiple_devices")}function we(e,t){const a={};for(const s of Object.values(e.entities??{}))s.device_id===t&&s.platform===ve&&s.translation_key&&(a[s.translation_key]=s.entity_id);return a}function xe(e,t,a){const s=[];for(const i of Object.values(e.entities??{}))if(i.device_id===t&&i.platform===ve&&i.translation_key===a){const t=e.states[i.entity_id],a=t?.attributes;s.push({entityId:i.entity_id,subject:a?.subject||i.entity_id,subjectId:a?.subject_id})}return s.sort((e,t)=>e.subject.localeCompare(t.subject))}function ke(e,t){for(const a of["school_class","lucky_number"]){const s=t[a]?e.states[t[a]]?.attributes.student_number:void 0;if("number"==typeof s)return s}}const $e={"error.device_missing":"Device {device} not found","error.multiple_devices":"Multiple students found - set device_id","error.no_device":"No Librus Synergia device found","empty.loading":"Loading…","empty.generic_error":"Something went wrong","editor.student":"Student","editor.subject":"Subject","editor.subject_auto":"Overall / all subjects","editor.title":"Card title (optional)","editor.max_items":"Max rows shown","editor.days_ahead":"Days ahead","editor.days_back":"Days of history","card.exam_prep.title":"Test revision","card.exam_prep.subtitle":"tests in the next {days} days: {count}","card.exam_prep.empty":"No tests in the next {days} days","card.exam_prep.requires":"Needs ha-librus-synergia 0.12.1+ (Next exam sensor with topics)","card.exam_prep.topics":"topics: {count}","card.exam_prep.since":"since {date}","card.exam_prep.since_start":"since the start of the year","card.exam_prep.missed":"missed: {count}","card.exam_prep.more":"+{count} earlier topics","card.exam_prep.absent":"absent","card.exam_prep.no_topics":"No lesson topics in Librus for this subject yet","card.exam_prep.today":"today","card.exam_prep.tomorrow":"tomorrow","card.exam_prep.in_days":"in {days} days","card.school_documents.title":"School documents","card.school_documents.subtitle":"documents: {count}","card.school_documents.subtitle_new":"documents: {count} · new: {fresh}","card.school_documents.empty":"The school hasn't shared any documents","card.school_documents.requires":"Needs ha-librus-synergia 0.12.0+ (School documents sensor)","card.school_documents.new":"new","card.school_documents.added":"added {date}","card.justifications.title":"Justifications","card.justifications.subtitle_pending":"waiting for the school: {count}","card.justifications.subtitle_done":"nothing waiting for the school","card.justifications.empty":"No absences to excuse and no justifications sent","card.justifications.requires":"Needs ha-librus-synergia 0.12.0+ (Absence justifications sensor)","card.justifications.to_excuse":"Days to excuse: {count}","card.justifications.nothing_sent":"nothing sent yet","card.justifications.pending":"waiting","card.justifications.accepted":"accepted","card.justifications.rejected":"rejected","card.justifications.lessons":"lessons: {count}","card.justifications.sent":"sent {date}","card.school_trips.title":"School trips","card.school_trips.subtitle":"upcoming: {count}","card.school_trips.empty":"No school trips planned","card.school_trips.requires":"Needs ha-librus-synergia 0.12.0+ (Next school trip sensor)","card.school_trips.today":"today","card.school_trips.tomorrow":"tomorrow","card.school_trips.in_days":"in {days} days","editor.school_days_shown":"School days shown","card.lesson_topics.title":"What was taught","card.lesson_topics.subtitle":"last {days} school days","card.lesson_topics.missed":"{count} missed lessons to catch up on","card.lesson_topics.empty":"No lesson topics from the last days","card.lesson_topics.requires":"Needs ha-librus-synergia 0.12.0+ (Lesson topics sensor)","card.lesson_topics.today":"Today","card.lesson_topics.yesterday":"Yesterday","card.lesson_topics.lesson":"Lesson","card.lesson_topics.trip":"trip","card.lesson_topics.absent":"absent","editor.target":"Target average","editor.mailbox":"Mailbox","editor.show_saturday":"Show Saturday","editor.exam_keywords":"Exam category keywords (comma-separated)","editor.icon":"Icon override (e.g. mdi:star)","editor.hide_header":"Hide header","editor.compact":"Compact mode","editor.hide_outage_warning":'Hide the "Librus not responding" warning',"outage.title":"Librus not responding","outage.data_from":"data from {time}","editor.category_filter":"Category filter (comma-separated, optional)","editor.sort":"Sort order","sort.newest":"Newest first","sort.oldest":"Oldest first","card.grades.title":"Grade average","card.grades.subtitle":"All subjects","card.grades.empty":"No grades yet this year","card.subject_spotlight.title":"Best & weakest subject","card.subject_spotlight.subtitle":"By average","card.subject_spotlight.empty":"Not enough graded subjects to compare yet","card.subject_spotlight.best":"Top subject","card.subject_spotlight.weakest":"Room to grow","card.grade_trend.title":"Grade trend","card.grade_trend.subtitle":"Last {days} days","card.grade_trend.empty":"Not enough history yet","card.grade_distribution.title":"Grade distribution","card.grade_distribution.subtitle":"{count} grades, all subjects","card.grade_distribution.other":"other","card.grades_radar.title":"Grade profile","card.grades_radar.subtitle":"By subject","card.grades_radar.empty":"Not enough subjects with grades yet","label.average":"Average","card.grade_category_distribution.title":"Grades by category","card.grade_category_distribution.subtitle":"Tests, quizzes, answers…","card.grade_category_distribution.empty":"No categorized grades yet","unit.grades":"grades","card.grade_category_distribution.uncategorized":"Uncategorized","card.subject_time.title":"Lesson time split","card.subject_time.subtitle":"Lessons per week, by subject","card.subject_time.empty":"No lessons found for this week","unit.lessons_per_week":"lessons/wk","card.attendance_weekday.title":"Absences by weekday","card.attendance_weekday.subtitle":"This school year","card.attendance_weekday.empty":"No absences or lates recorded","card.attendance_subject.title":"Absences by subject","card.attendance_subject.subtitle":"Which subjects are missed most often","card.attendance_subject.empty":"No absences recorded","card.school_day.title":"School day","card.school_day.today":"Today","card.school_day.tomorrow":"Tomorrow","card.school_day.status_before":"Lessons today","card.school_day.status_in":"At school","card.school_day.status_after":"School's out","card.school_day.status_free":"Day off","card.school_day.now":"Now","card.school_day.break":"Break","card.school_day.first":"First","card.school_day.left":"{minutes} min left","card.school_day.from":"from {time}","card.school_day.empty":"No lessons in the coming days","card.school_day.cancelled":"cancelled","card.school_day.substitution":"substitution","card.report_card.title":"Report card forecast","card.report_card.basis_semester_1":"1st semester · from the averages","card.report_card.basis_school_year":"Whole year · from the averages","card.report_card.average":"report-card average","card.report_card.at_risk":"At risk: {n}","card.report_card.declining":"Dropped: {n}","card.report_card.all_clear":"No risks","card.report_card.honours_from":"Distinction from {avg}","card.report_card.honours_ok":"average OK","card.report_card.missing":"missing","card.report_card.closest":"Closest to a change","card.report_card.sixes_to":"{n}× a 6 → {grade}","card.report_card.one_drops":"one 1 → {grade}","card.report_card.footer":"Forecast from the averages and the school's thresholds. The teacher gives the grade.","card.report_card.footer_behaviour":"A distinction also needs at least a very good behaviour grade.","card.report_card.empty":"No grades to forecast yet","card.report_card.needs_backend":"Needs ha-librus-synergia 0.12.0 or newer (Grade forecast sensor)","card.subject_attendance.title":"Attendance by subject","card.subject_attendance.lowest":"Lowest:","card.subject_attendance.at_risk":"{count} below 50%","card.subject_attendance.no_risk":"no risk","card.subject_attendance.tooltip":"{subject}: present at {present} of {total} lessons","card.subject_attendance.legend_good":"90% or more","card.subject_attendance.legend_warn":"50–90%","card.subject_attendance.legend_bad":"below 50%","card.subject_attendance.legend_few":"too few lessons","card.subject_attendance.empty":"No attendance data yet","card.subject_attendance.needs_backend":"Needs ha-librus-synergia 0.9.0 or newer (Lowest subject attendance sensor).","card.recent_activity.title":"What's new","card.recent_activity.subtitle":"Grades, notices, announcements & messages","card.recent_activity.empty":"Nothing new yet","card.grade_log.title":"Grade log","label.grade_improves":"corrects {value}","card.grade_log.subtitle":"All subjects","card.grade_log.empty_filtered":"No grades match this filter","card.latest_grade.title":"Latest grade","card.latest_grade.empty":"No grades yet","card.behaviour_grade.title":"Behaviour grade","card.behaviour_grade.subtitle":"Semester grade","card.behaviour_grade.empty":"No behaviour grade yet","card.descriptive_grades.title":"Descriptive grades","card.descriptive_grades.subtitle":"Non-numeric assessment","card.descriptive_grades.empty":"No descriptive grades yet","card.attendance.title":"Attendance","card.attendance.subtitle":"This school year","card.attendance.by_semester":"By semester","card.attendance_heatmap.title":"Attendance - year map","card.attendance_heatmap.subtitle":"This school year","card.attendance_heatmap.empty":"No attendance data","card.attendance_heatmap.status.good":"Present","card.attendance_heatmap.status.warn":"Excused","card.attendance_heatmap.status.bad":"Unexcused","card.attendance_heatmap.no_data":"No data","card.attendance.semester":"Semester {n}","stat.absences":"Absences","stat.unexcused":"Unexcused","stat.excused":"Excused","stat.unexcused_short":"Unexcused","stat.excused_short":"Excused","stat.late":"Late","stat.records":"Records","stat.percentage":"Attendance","card.behaviour_notices.title":"Behaviour notices","card.behaviour_notices.empty":"No notices","card.messages.title":"Messages","card.messages.unavailable":"Messages module not enabled","card.messages.read_notice":"Opening marks it as read in Librus","card.messages.fetch_failed":"Couldn't load the full message","card.messages.attachment_notice":"Tap a file to download it to this device","card.messages.attachment_error":"couldn't download - needs integration 0.12.0+","card.substitutions.title":"Substitutions, alerts & justifications","card.substitutions.subtitle":"Zastępstwa, alerty i usprawiedliwienia","card.substitutions.empty":"No substitutions, alerts, or justifications","mailbox.inbox":"Inbox","mailbox.notes":"Notes","mailbox.alerts":"Alerts","mailbox.substitutions":"Substitutions","mailbox.absences":"Absences","mailbox.justifications":"Justifications","mailbox.trash":"Trash","card.announcements.title":"Announcements","card.announcements.empty":"No announcements","card.homework_assignments.title":"Homework assignments","card.homework_assignments.empty":"No homework assignments","label.due":"Due","card.today_lessons.title":"Today's lessons","card.today_lessons.subtitle":"Timetable","card.today_lessons.empty":"No lessons today","label.now":"now","card.next_lesson.title":"Next lesson","card.next_lesson.empty":"No more lessons today","label.in_minutes":"in {minutes} min","label.in_hours":"in {hours}h","label.in_hours_minutes":"in {hours}h {minutes}m","label.in_days":"in {days}d","label.in_days_hours":"in {days}d {hours}h","card.agenda.title":"Agenda","card.agenda.subtitle":"Upcoming","card.agenda.empty":"Nothing scheduled","card.free_days.title":"Free days","card.free_days.empty":"No upcoming free days","label.days_until":"days until","card.school_year.title":"End of school year","card.school_year.empty":"No school year data","label.days_until_year_end":"days until year end","label.current_semester":"Current semester","label.days_until_semester_end":"days until semester end","label.year_progress":"School year","card.exam_countdown.title":"Next exam","card.exam_countdown.empty":"No upcoming exams","card.week_timetable.title":"Week timetable","card.week_timetable.subtitle":"This week","card.week_timetable.subtitle_upcoming":"Upcoming week","card.week_timetable.break_now":"Break — next lesson in {minutes} min","card.week_timetable.empty":"No lessons found for this week","card.school.title":"School","label.head_teacher":"Head teacher","label.class":"Class","label.student_number":"Register no.","label.student_number_short":"no. {n}","label.lesson_cancelled":"cancelled","label.lesson_substitution":"substitution","label.lesson_moved":"moved","label.lesson_room_change":"room {from} → {to}","label.lesson_room_changed":"room changed","label.tutor":"Homeroom teacher","label.semester_ends":"Semester ends","label.year_ends":"Year ends","card.today.title":"Today","stat.lucky_number":"Lucky number","card.week_summary.title":"Week in review","stat.new_grades":"New grades","card.ai_summary.title":"Weekly summary","card.ai_summary.setup":"Weekly AI summary is off","card.ai_summary.setup_hint":"Turn it on under the Librus integration's Configure -> Weekly AI summary (integration 0.10 or newer).","card.ai_summary.waiting":"No summary yet","card.ai_summary.generating":"Generating…","card.ai_summary.generate":"Generate now","card.ai_summary.advice":"For the coming week","card.ai_summary.next_run":"Next: {when}","card.ai_summary.paused":"Automatic summary paused","card.ai_summary.disclaimer":"Written by AI, may contain mistakes","card.ai_summary.for_parent":"for the parent","card.ai_summary.for_student":"for the student","ai_summary.status.good":"Good","ai_summary.status.ok":"OK","ai_summary.status.caution":"Needs attention","ai_summary.section.grades":"Grades","ai_summary.section.attendance":"Attendance","ai_summary.section.behaviour":"Behaviour","ai_summary.section.next_week":"Next week","ai_summary.section.school_news":"From the school","editor.summary_only":"Headline and to-dos only","editor.hide_generate":"Hide the Generate now button","card.lucky_number.title":"Lucky number","card.lucky_number.subtitle":"Today in the register","card.lucky_number.subtitle_for_date":"For {date}","card.lucky_number.yours_today":"It's your number today!","card.lucky_number.yours_for_date":"It's your number on {date}!","card.lucky_number.empty":"No lucky number published yet (e.g. during a school break)","card.student.title":"Student card","stat.overall_rating":"overall","stat.attendance_score":"Attendance","stat.behaviour_score":"Behaviour","stat.grades_score":"Grades","stat.activity_score":"Activity","card.streak.title":"Streaks","card.streak.attendance":"No absences","card.streak.behaviour":"Good behaviour","card.streak.grades":"Good grades","label.days":"days","card.rank.title":"Rank","card.rank.empty":"No grades yet to compute a rank","rank.bronze":"Bronze","rank.silver":"Silver","rank.gold":"Gold","rank.diamond":"Diamond","label.to_next_rank":"to next rank","label.top_rank":"Top rank reached","card.achievements.title":"Achievements","card.achievements.count":"{n} unlocked","card.achievements.empty":"No badges yet - they'll appear here once a new achievement is unlocked while this card is on a dashboard (earlier ones can't be recovered)","card.achievements.next_hint":"{n} more to: {title}","achievement.first_six":"First six!","achievement.good_grade_streak_5":"5 good grades in a row","achievement.good_grade_streak_10":"10 good grades in a row","achievement.good_grade_streak_20":"20 good grades in a row","achievement.attendance_streak_7":"A week without an absence","achievement.attendance_streak_30":"A month without an absence","achievement.attendance_streak_90":"3 months without an absence","achievement.behaviour_streak_7":"A week without a note","achievement.behaviour_streak_30":"A month without a note","achievement.behaviour_streak_90":"3 months without a note","card.level.title":"Level","card.level.subtitle":"XP from grades & attendance","label.level":"Level {n}","label.xp_to_next":"{n} XP to next level","label.xp_from_grades":"From grades","label.xp_from_attendance":"From attendance","label.xp_total":"Total XP","card.teachers.title":"Teachers","card.teachers.homeroom":"Homeroom teacher","card.teachers.count":"{n} subjects","card.teachers.empty":"No teacher directory yet","card.grade_goal.title":"Grade goal","card.grade_goal.subtitle_overall":"Overall average","card.grade_goal.empty":"No grades yet to track a goal against","card.grade_goal.reached":"Goal reached 🎉","label.current":"Now","label.target":"Target","label.to_go":"to go","label.sixes_needed":"≈ {n} more top grades","card.bell_schedule.title":"Today's schedule","card.bell_schedule.empty":"No bell schedule yet — needs ha-librus-synergia with the bell_schedule attribute","label.lesson_short":"L{n}","label.after_school":"School's out for today","editor.hide_room":"Hide classroom","editor.only_tomorrow":"Only the next school day","editor.student_name":"Name shown for {device} (optional)","card.first_lesson.title":"First lesson","card.first_lesson.today":"Today","card.first_lesson.tomorrow":"Tomorrow","card.first_lesson.earliest_today":"Earliest today: {who}","card.first_lesson.earliest_tomorrow":"Earliest tomorrow: {who}","card.first_lesson.earliest_on":"Earliest on {day}: {who}","card.first_lesson.free":"no lessons","card.first_lesson.no_data":"no timetable","card.first_lesson.first_canceled":"first lesson cancelled","card.first_lesson.first_n_canceled":"first {n} lessons cancelled","card.first_lesson.substitution":"substitution","card.first_lesson.empty":"No lessons today or on the next school day","card.tomorrow.title":"Tomorrow","card.tomorrow.title_next_school_day":"Next school day","card.tomorrow.empty":"Nothing scheduled for the next school day","card.tomorrow.lessons":"lessons","card.tomorrow.starts":"Starts","card.tomorrow.ends":"Ends","card.tomorrow.homework":"Homework due: {n}","card.grade_simulator.subtitle":"What if… (rough estimate)","card.grade_simulator.empty":"Pick a subject that has grades","label.weight":"Weight","card.grades.forecast_hint":"Report-card forecast: {grade}","label.forecast_grade":"forecast {grade}","card.grade_simulator.subtitle_exact":"What if… (exact average)","card.grade_simulator.report":"Report card:","label.sixes_needed_exact":"{n}× a 6 (weight 1)","label.forecast":"Forecast","label.forecast_report_average":"Report-card forecast","card.homework_checklist.title":"Homework checklist","card.homework_checklist.progress":"{done}/{total} done","card.semester_comparison.title":"Semester comparison","card.semester_comparison.subtitle":"Semester 1 vs 2, by subject","card.semester_comparison.empty":"No semester averages yet","card.semester_comparison.s1":"Sem 1","card.semester_comparison.s2":"Sem 2","editor.mode":"Mode","mode.archetype":"Archetype","mode.hero":"Hero","card.hero.title_archetype":"Your archetype","card.hero.title_hero":"Your hero","card.hero.subtitle":"based on your Librus data","card.hero.empty":"Not enough data yet to compute a result","hero.chip.avg_naukowiec":"STEM avg {n}","hero.chip.avg_humanista":"Humanities avg {n}","hero.chip.avg_poliglota":"Languages avg {n}","hero.chip.avg_artysta":"Arts avg {n}","hero.chip.avg_sportowiec":"PE avg {n}","hero.chip.grades":"{n} grades","hero.chip.streak_days":"{n}-day streak","hero.chip.unexcused":"{n} unexcused","hero.chip.good_streak":"{n}-grade streak","hero.chip.overall_avg":"avg {n}","hero.chip.overall_avg_full":"overall avg {n}","hero.chip.semester1":"term 1: {n}","hero.chip.semester2":"term 2: {n}","hero.chip.behaviour":"conduct {name}","hero.chip.positive_notes":"+{n} notes","hero.chip.badges":"{n} badges","hero.chip.various_categories":"various categories","hero.chip.subjects_count":"{n} subjects","hero.chip.spread":"spread {n}","hero.naukowiec.archetype_name":"Scientist","hero.naukowiec.hero_name":"Archmage","hero.naukowiec.archetype_desc":"Maths, physics and computer science outshine every other subject.","hero.naukowiec.hero_desc":"You wield the magic of numbers - equations are your spells.","hero.humanista.archetype_name":"Humanist","hero.humanista.hero_name":"Bard","hero.humanista.archetype_desc":"Polish and history are the subjects where you shine brightest.","hero.humanista.hero_desc":"Words are your weapon - a good story wins anyone over.","hero.poliglota.archetype_name":"Polyglot","hero.poliglota.hero_name":"Translator","hero.poliglota.archetype_desc":"English and German clearly outrank every other subject.","hero.poliglota.hero_desc":"You know more languages than most adults ever will.","hero.artysta.archetype_name":"Artist","hero.artysta.hero_name":"Illusionist","hero.artysta.archetype_desc":"Art and music are the subjects where you're strongest.","hero.artysta.hero_desc":"You create worlds that others can only imagine.","hero.sportowiec.archetype_name":"Athlete","hero.sportowiec.hero_name":"Herald of the Arena","hero.sportowiec.archetype_desc":"Physical education is clearly your strongest subject.","hero.sportowiec.hero_desc":"Strength and stamina - nobody on the field matches you.","hero.wojownik.archetype_name":"Attendance Warrior","hero.wojownik.hero_name":"The Unyielding","hero.wojownik.archetype_desc":"A long attendance streak and zero unexcused absences.","hero.wojownik.hero_desc":"You show up every single day, no exceptions, no excuses.","hero.meteor.archetype_name":"Meteor","hero.meteor.hero_name":"Meteor","hero.meteor.archetype_desc":"Your good-grade streak stretches back a dozen entries.","hero.meteor.hero_desc":"You're tearing through the term, leaving a trail of grades.","hero.feniks.archetype_name":"Phoenix","hero.feniks.hero_name":"Phoenix","hero.feniks.archetype_desc":"This semester's average is clearly up from the last one.","hero.feniks.hero_desc":"You rise from a weaker start, stronger than before.","hero.spolecznik.archetype_name":"People Person","hero.spolecznik.hero_name":"Healer","hero.spolecznik.archetype_desc":"Model conduct grade and nothing but positive notes.","hero.spolecznik.hero_desc":"Your presence calms and settles the whole class at once.","hero.kolekcjoner.archetype_name":"Collector","hero.kolekcjoner.hero_name":"Trophy Hunter","hero.kolekcjoner.archetype_desc":"The most unlocked badges across every category.","hero.kolekcjoner.hero_desc":"Your trophy case is bursting with earned achievements.","hero.prymus.archetype_name":"Top of the Class","hero.prymus.hero_name":"Legend","hero.prymus.archetype_desc":"A high average holds steady across every subject.","hero.prymus.hero_desc":"They'll be telling stories about your results for years.","hero.wszechstronny.archetype_name":"All-Rounder","hero.wszechstronny.hero_name":"Avatar of Balance","hero.wszechstronny.archetype_desc":"No subject dominates - your grades are level across the board.","hero.wszechstronny.hero_desc":"You wield a bit of every element - nothing surprises you.","card.hero_stats.title":"Hero stats","card.hero_stats.subtitle":"Your character sheet","card.hero_stats.empty":"Not enough data for stats yet","card.hero_stats.power":"Power","hero_stat.sila":"Strength","hero_stat.intelekt":"Intellect","hero_stat.wiedza":"Wisdom","hero_stat.charyzma":"Charisma","hero_stat.wytrwalosc":"Endurance","hero_stat.szczescie":"Luck","card.hero_history.title":"Hero history","card.hero_history.subtitle":"how your result changed over time","card.hero_history.empty":"No history yet - it appears once your result changes","card.hero_history.current":"current ({n}d)","card.grades.points_percentage":"{value}% of points","card.last_update.subtitle":"Last data refresh","card.last_update.not_responding":"Librus not responding · next attempt {time}","label.just_now":"Just now","label.minutes_ago":"{minutes} min ago","label.hours_ago":"{hours}h ago","label.days_ago":"{days}d ago"},ze={en:$e,pl:{"error.device_missing":"Nie znaleziono urządzenia {device}","error.multiple_devices":"Znaleziono kilkoro uczniów - ustaw device_id","error.no_device":"Nie znaleziono urządzenia Librus Synergia","empty.loading":"Wczytywanie…","empty.generic_error":"Coś poszło nie tak","editor.student":"Uczeń","editor.subject":"Przedmiot","editor.subject_auto":"Ogólna / wszystkie przedmioty","editor.title":"Tytuł karty (opcjonalnie)","editor.max_items":"Maks. liczba wierszy","editor.days_ahead":"Dni do przodu","editor.days_back":"Dni historii","card.exam_prep.title":"Do sprawdzianu","card.exam_prep.subtitle":"sprawdziany w ciągu {days} dni: {count}","card.exam_prep.empty":"Brak sprawdzianów w ciągu {days} dni","card.exam_prep.requires":"Wymaga ha-librus-synergia 0.12.1+ (sensor Najbliższy sprawdzian z tematami)","card.exam_prep.topics":"tematy: {count}","card.exam_prep.since":"od {date}","card.exam_prep.since_start":"od początku roku","card.exam_prep.missed":"opuszczone: {count}","card.exam_prep.more":"+{count} wcześniejszych tematów","card.exam_prep.absent":"nieobecny","card.exam_prep.no_topics":"Brak tematów lekcji z tego przedmiotu w dzienniku","card.exam_prep.today":"dziś","card.exam_prep.tomorrow":"jutro","card.exam_prep.in_days":"za {days} dni","card.school_documents.title":"Dokumenty szkoły","card.school_documents.subtitle":"dokumenty: {count}","card.school_documents.subtitle_new":"dokumenty: {count} · nowe: {fresh}","card.school_documents.empty":"Szkoła nie udostępniła żadnych dokumentów","card.school_documents.requires":"Wymaga ha-librus-synergia 0.12.0+ (sensor Dokumenty szkoły)","card.school_documents.new":"nowy","card.school_documents.added":"dodano {date}","card.justifications.title":"Usprawiedliwienia","card.justifications.subtitle_pending":"czeka na decyzję szkoły: {count}","card.justifications.subtitle_done":"nic nie czeka na decyzję szkoły","card.justifications.empty":"Brak nieobecności do usprawiedliwienia i wysłanych usprawiedliwień","card.justifications.requires":"Wymaga ha-librus-synergia 0.12.0+ (sensor Usprawiedliwienia)","card.justifications.to_excuse":"Do usprawiedliwienia: {count} dni","card.justifications.nothing_sent":"nic jeszcze nie wysłano","card.justifications.pending":"czeka","card.justifications.accepted":"przyjęte","card.justifications.rejected":"odrzucone","card.justifications.lessons":"lekcje: {count}","card.justifications.sent":"wysłane {date}","card.school_trips.title":"Wycieczki","card.school_trips.subtitle":"zaplanowane: {count}","card.school_trips.empty":"Brak zaplanowanych wycieczek","card.school_trips.requires":"Wymaga ha-librus-synergia 0.12.0+ (sensor Najbliższa wycieczka)","card.school_trips.today":"dziś","card.school_trips.tomorrow":"jutro","card.school_trips.in_days":"za {days} dni","editor.school_days_shown":"Liczba dni szkolnych","card.lesson_topics.title":"Co było na lekcji","card.lesson_topics.subtitle":"ostatnie dni szkolne: {days}","card.lesson_topics.missed":"Do nadrobienia: {count}","card.lesson_topics.empty":"Brak tematów lekcji z ostatnich dni","card.lesson_topics.requires":"Wymaga ha-librus-synergia 0.12.0+ (sensor Tematy lekcji)","card.lesson_topics.today":"Dziś","card.lesson_topics.yesterday":"Wczoraj","card.lesson_topics.lesson":"Lekcja","card.lesson_topics.trip":"wycieczka","card.lesson_topics.absent":"nieobecny","editor.target":"Docelowa średnia","editor.mailbox":"Skrzynka","editor.show_saturday":"Pokaż sobotę","editor.exam_keywords":"Słowa-klucze kategorii sprawdzianów (po przecinku)","editor.icon":"Własna ikona (np. mdi:star)","editor.hide_header":"Ukryj nagłówek","editor.compact":"Tryb kompaktowy","editor.hide_outage_warning":"Ukryj ostrzeżenie „Librus nie odpowiada”","outage.title":"Librus nie odpowiada","outage.data_from":"dane z {time}","editor.category_filter":"Filtr kategorii (po przecinku, opcjonalnie)","editor.sort":"Kolejność","sort.newest":"Najpierw najnowsze","sort.oldest":"Najpierw najstarsze","card.grades.title":"Średnia ocen","card.grades.subtitle":"Wszystkie przedmioty","card.grades.empty":"Brak ocen w tym roku szkolnym","card.subject_spotlight.title":"Najlepszy i najsłabszy przedmiot","card.subject_spotlight.subtitle":"Wg średniej","card.subject_spotlight.empty":"Za mało przedmiotów z ocenami, by porównać","card.subject_spotlight.best":"Najlepszy","card.subject_spotlight.weakest":"Do przećwiczenia","card.grade_trend.title":"Trend średniej","card.grade_trend.subtitle":"Ostatnie {days} dni","card.grade_trend.empty":"Za mało historii","card.grade_distribution.title":"Rozkład ocen","card.grade_distribution.subtitle":"{count} ocen, wszystkie przedmioty","card.grade_distribution.other":"inne","card.grades_radar.title":"Profil ocen","card.grades_radar.subtitle":"Wg przedmiotu","card.grades_radar.empty":"Za mało przedmiotów z ocenami","label.average":"Średnia","card.grade_category_distribution.title":"Oceny wg kategorii","card.grade_category_distribution.subtitle":"Sprawdziany, kartkówki, odpowiedzi…","card.grade_category_distribution.empty":"Brak ocen z przypisaną kategorią","unit.grades":"ocen","card.grade_category_distribution.uncategorized":"Bez kategorii","card.subject_time.title":"Podział czasu lekcji","card.subject_time.subtitle":"Lekcje w tygodniu, wg przedmiotu","card.subject_time.empty":"Brak lekcji w tym tygodniu","unit.lessons_per_week":"lekcji/tydz.","card.attendance_weekday.title":"Nieobecności wg dnia tygodnia","card.attendance_weekday.subtitle":"Ten rok szkolny","card.attendance_weekday.empty":"Brak nieobecności ani spóźnień","card.attendance_subject.title":"Nieobecności wg przedmiotu","card.attendance_subject.subtitle":"Które przedmioty są najczęściej opuszczane","card.attendance_subject.empty":"Brak zarejestrowanych nieobecności","card.school_day.title":"Dzień szkolny","card.school_day.today":"Dziś","card.school_day.tomorrow":"Jutro","card.school_day.status_before":"Dziś lekcje","card.school_day.status_in":"Na lekcjach","card.school_day.status_after":"Po lekcjach","card.school_day.status_free":"Wolne","card.school_day.now":"Teraz","card.school_day.break":"Przerwa","card.school_day.first":"Pierwsza","card.school_day.left":"jeszcze {minutes} min","card.school_day.from":"od {time}","card.school_day.empty":"Brak lekcji w najbliższych dniach","card.school_day.cancelled":"odwołana","card.school_day.substitution":"zastępstwo","card.report_card.title":"Świadectwo – prognoza","card.report_card.basis_semester_1":"I semestr · ze średnich","card.report_card.basis_school_year":"Cały rok · ze średnich","card.report_card.average":"średnia świadectwa","card.report_card.at_risk":"Zagrożone: {n}","card.report_card.declining":"Spadki: {n}","card.report_card.all_clear":"Bez zagrożeń","card.report_card.honours_from":"Pasek od {avg}","card.report_card.honours_ok":"średnia OK","card.report_card.missing":"brakuje","card.report_card.closest":"Najbliżej zmiany","card.report_card.sixes_to":"{n}× szóstka → {grade}","card.report_card.one_drops":"jedna 1 → {grade}","card.report_card.footer":"Prognoza ze średniej i progów szkoły. Ocenę wystawia nauczyciel.","card.report_card.footer_behaviour":"Do paska potrzeba też zachowania co najmniej bardzo dobrego.","card.report_card.empty":"Brak ocen do prognozy","card.report_card.needs_backend":"Wymaga ha-librus-synergia 0.12.0 lub nowszej (sensor Prognoza ocen)","card.subject_attendance.title":"Frekwencja z przedmiotów","card.subject_attendance.lowest":"Najniższa:","card.subject_attendance.at_risk":"{count} poniżej 50%","card.subject_attendance.no_risk":"bez zagrożeń","card.subject_attendance.tooltip":"{subject}: obecny na {present} z {total} lekcji","card.subject_attendance.legend_good":"90% i więcej","card.subject_attendance.legend_warn":"50–90%","card.subject_attendance.legend_bad":"poniżej 50%","card.subject_attendance.legend_few":"za mało lekcji","card.subject_attendance.empty":"Brak danych o frekwencji","card.subject_attendance.needs_backend":"Wymaga ha-librus-synergia 0.9.0 lub nowszej (sensor najniższej frekwencji z przedmiotu).","card.recent_activity.title":"Co nowego","card.recent_activity.subtitle":"Oceny, uwagi, ogłoszenia i wiadomości","card.recent_activity.empty":"Nic nowego","card.grade_log.title":"Dziennik ocen","label.grade_improves":"poprawa z {value}","card.grade_log.subtitle":"Wszystkie przedmioty","card.grade_log.empty_filtered":"Brak ocen pasujących do filtra","card.latest_grade.title":"Ostatnia ocena","card.latest_grade.empty":"Brak ocen","card.behaviour_grade.title":"Ocena zachowania","card.behaviour_grade.subtitle":"Ocena semestralna","card.behaviour_grade.empty":"Brak jeszcze oceny zachowania","card.descriptive_grades.title":"Oceny opisowe","card.descriptive_grades.subtitle":"Ocenianie opisowe","card.descriptive_grades.empty":"Brak jeszcze ocen opisowych","card.attendance.title":"Frekwencja","card.attendance.subtitle":"W tym roku szkolnym","card.attendance.by_semester":"Wg semestru","card.attendance_heatmap.title":"Frekwencja - mapa roku","card.attendance_heatmap.subtitle":"Ten rok szkolny","card.attendance_heatmap.empty":"Brak danych o frekwencji","card.attendance_heatmap.status.good":"Obecność","card.attendance_heatmap.status.warn":"Usprawiedliwiona","card.attendance_heatmap.status.bad":"Nieusprawiedliwiona","card.attendance_heatmap.no_data":"Brak danych","card.attendance.semester":"Semestr {n}","stat.absences":"Nieobecności","stat.unexcused":"Nieusprawiedliwione","stat.excused":"Usprawiedliwione","stat.unexcused_short":"Nieuspr.","stat.excused_short":"Uspr.","stat.late":"Spóźnienia","stat.records":"Rekordów","stat.percentage":"Frekwencja","card.behaviour_notices.title":"Uwagi","card.behaviour_notices.empty":"Brak uwag","card.messages.title":"Wiadomości","card.messages.unavailable":"Moduł wiadomości nie jest włączony","card.messages.read_notice":"Otwarcie oznaczy jako przeczytane w Librusie","card.messages.fetch_failed":"Nie udało się pobrać pełnej treści","card.messages.attachment_notice":"Kliknij plik, aby pobrać go na to urządzenie","card.messages.attachment_error":"nie udało się pobrać - wymaga integracji 0.12.0+","card.substitutions.title":"Zastępstwa, alerty i usprawiedliwienia","card.substitutions.subtitle":"Wiadomości specjalne","card.substitutions.empty":"Brak zastępstw, alertów ani usprawiedliwień","mailbox.inbox":"Odebrane","mailbox.notes":"Uwagi","mailbox.alerts":"Alerty","mailbox.substitutions":"Zastępstwa","mailbox.absences":"Nieobecności","mailbox.justifications":"Usprawiedliwienia","mailbox.trash":"Kosz","card.announcements.title":"Ogłoszenia","card.announcements.empty":"Brak ogłoszeń","card.homework_assignments.title":"Zadania domowe","card.homework_assignments.empty":"Brak zadań domowych","label.due":"Termin","card.today_lessons.title":"Dzisiejszy plan lekcji","card.today_lessons.subtitle":"Plan lekcji","card.today_lessons.empty":"Brak lekcji dzisiaj","label.now":"teraz","card.next_lesson.title":"Najbliższa lekcja","card.next_lesson.empty":"Koniec lekcji na dziś","label.in_minutes":"za {minutes} min","label.in_hours":"za {hours} godz.","label.in_hours_minutes":"za {hours} godz. {minutes} min","label.in_days":"za {days} dni","label.in_days_hours":"za {days} dni {hours} godz.","card.agenda.title":"Terminarz","card.agenda.subtitle":"Nadchodzące","card.agenda.empty":"Brak zaplanowanych wydarzeń","card.free_days.title":"Dni wolne","card.free_days.empty":"Brak nadchodzących dni wolnych","label.days_until":"dni do","card.school_year.title":"Koniec roku szkolnego","card.school_year.empty":"Brak danych o roku szkolnym","label.days_until_year_end":"dni do końca roku","label.current_semester":"Aktualny semestr","label.days_until_semester_end":"dni do końca semestru","label.year_progress":"Rok szkolny","card.exam_countdown.title":"Najbliższy sprawdzian","card.exam_countdown.empty":"Brak nadchodzących sprawdzianów","card.week_timetable.title":"Plan tygodniowy","card.week_timetable.subtitle":"Ten tydzień","card.week_timetable.subtitle_upcoming":"Nadchodzący tydzień","card.week_timetable.break_now":"Przerwa — następna lekcja za {minutes} min","card.week_timetable.empty":"Brak lekcji w tym tygodniu","card.school.title":"Szkoła","label.head_teacher":"Dyrektor","label.class":"Klasa","label.student_number":"Nr w dzienniku","label.student_number_short":"nr {n}","label.lesson_cancelled":"odwołana","label.lesson_substitution":"zastępstwo","label.lesson_moved":"przeniesiona","label.lesson_room_change":"sala {from} → {to}","label.lesson_room_changed":"zmiana sali","label.tutor":"Wychowawca","label.semester_ends":"Koniec semestru","label.year_ends":"Koniec roku szkolnego","card.today.title":"Dziś","stat.lucky_number":"Numerek","card.week_summary.title":"Tydzień w skrócie","stat.new_grades":"Nowe oceny","card.ai_summary.title":"Podsumowanie tygodnia","card.ai_summary.setup":"Podsumowanie AI jest wyłączone","card.ai_summary.setup_hint":"Włącz je w integracji Librus: Konfiguruj -> Podsumowanie tygodnia (AI) (integracja 0.10 lub nowsza).","card.ai_summary.waiting":"Jeszcze nie ma podsumowania","card.ai_summary.generating":"Generuję…","card.ai_summary.generate":"Wygeneruj teraz","card.ai_summary.advice":"Na ten tydzień","card.ai_summary.next_run":"Następne: {when}","card.ai_summary.paused":"Automatyczne podsumowanie wstrzymane","card.ai_summary.disclaimer":"Wygenerowane przez AI, może zawierać błędy","card.ai_summary.for_parent":"dla rodzica","card.ai_summary.for_student":"dla ucznia","ai_summary.status.good":"Dobrze","ai_summary.status.ok":"OK","ai_summary.status.caution":"Do uwagi","ai_summary.section.grades":"Oceny","ai_summary.section.attendance":"Frekwencja","ai_summary.section.behaviour":"Zachowanie","ai_summary.section.next_week":"Następny tydzień","ai_summary.section.school_news":"Szkoła pisze","editor.summary_only":"Tylko nagłówek i rady","editor.hide_generate":"Ukryj przycisk Wygeneruj teraz","card.lucky_number.title":"Szczęśliwy numerek","card.lucky_number.subtitle":"Dziś w dzienniku","card.lucky_number.subtitle_for_date":"Na {date}","card.lucky_number.yours_today":"To Twój numerek dzisiaj!","card.lucky_number.yours_for_date":"To Twój numerek na {date}!","card.lucky_number.empty":"Nie opublikowano jeszcze numerka (np. w trakcie przerwy szkolnej)","card.student.title":"Karta ucznia","stat.overall_rating":"ocena ogólna","stat.attendance_score":"Frekwencja","stat.behaviour_score":"Zachowanie","stat.grades_score":"Oceny","stat.activity_score":"Aktywność","card.streak.title":"Passy","card.streak.attendance":"Bez nieobecności","card.streak.behaviour":"Dobre zachowanie","card.streak.grades":"Dobre oceny","label.days":"dni","card.rank.title":"Ranga","card.rank.empty":"Brak jeszcze ocen do wyliczenia rangi","rank.bronze":"Brąz","rank.silver":"Srebro","rank.gold":"Złoto","rank.diamond":"Diament","label.to_next_rank":"do kolejnej rangi","label.top_rank":"Osiągnięto najwyższą rangę","card.achievements.title":"Osiągnięcia","card.achievements.count":"Odblokowano: {n}","card.achievements.empty":"Jeszcze żadnych odznak - pojawią się tu, gdy nowe osiągnięcie odblokuje się przy tej karcie na dashboardzie (wcześniejszych nie da się odzyskać)","card.achievements.next_hint":"Jeszcze {n} do: {title}","achievement.first_six":"Pierwsza szóstka!","achievement.good_grade_streak_5":"5 dobrych ocen z rzędu","achievement.good_grade_streak_10":"10 dobrych ocen z rzędu","achievement.good_grade_streak_20":"20 dobrych ocen z rzędu","achievement.attendance_streak_7":"Tydzień bez nieobecności","achievement.attendance_streak_30":"Miesiąc bez nieobecności","achievement.attendance_streak_90":"3 miesiące bez nieobecności","achievement.behaviour_streak_7":"Tydzień bez uwagi","achievement.behaviour_streak_30":"Miesiąc bez uwagi","achievement.behaviour_streak_90":"3 miesiące bez uwagi","card.level.title":"Poziom","card.level.subtitle":"XP za oceny i frekwencję","label.level":"Poziom {n}","label.xp_to_next":"{n} XP do kolejnego poziomu","label.xp_from_grades":"Z ocen","label.xp_from_attendance":"Z frekwencji","label.xp_total":"Suma XP","card.teachers.title":"Nauczyciele","card.teachers.homeroom":"Wychowawca","card.teachers.count":"{n} przedmiotów","card.teachers.empty":"Brak jeszcze katalogu nauczycieli","card.grade_goal.title":"Cel oceny","card.grade_goal.subtitle_overall":"Średnia ogólna","card.grade_goal.empty":"Brak ocen, na których można oprzeć cel","card.grade_goal.reached":"Cel osiągnięty 🎉","label.current":"Teraz","label.target":"Cel","label.to_go":"do celu","label.sixes_needed":"≈ jeszcze {n}× ocena maksymalna","card.bell_schedule.title":"Plan dnia","card.bell_schedule.empty":"Brak rozkładu dzwonków — wymaga ha-librus-synergia z atrybutem bell_schedule","label.lesson_short":"L{n}","label.after_school":"Lekcje na dziś zakończone","editor.hide_room":"Ukryj salę","editor.only_tomorrow":"Tylko następny dzień nauki","editor.student_name":"Imię dla: {device} (opcjonalnie)","card.first_lesson.title":"Pierwsza lekcja","card.first_lesson.today":"Dziś","card.first_lesson.tomorrow":"Jutro","card.first_lesson.earliest_today":"Najwcześniej dziś: {who}","card.first_lesson.earliest_tomorrow":"Najwcześniej jutro: {who}","card.first_lesson.earliest_on":"Najwcześniej ({day}): {who}","card.first_lesson.free":"wolne","card.first_lesson.no_data":"brak planu","card.first_lesson.first_canceled":"pierwsza lekcja odwołana","card.first_lesson.first_n_canceled":"pierwsze lekcje odwołane ({n})","card.first_lesson.substitution":"zastępstwo","card.first_lesson.empty":"Brak lekcji dziś i w następny dzień nauki","card.tomorrow.title":"Jutro","card.tomorrow.title_next_school_day":"Następny dzień nauki","card.tomorrow.empty":"Nic zaplanowanego na następny dzień nauki","card.tomorrow.lessons":"lekcji","card.tomorrow.starts":"Początek","card.tomorrow.ends":"Koniec","card.tomorrow.homework":"Zadania na termin: {n}","card.grade_simulator.subtitle":"A gdyby… (szacunkowo)","card.grade_simulator.empty":"Wybierz przedmiot, który ma oceny","label.weight":"Waga","card.grades.forecast_hint":"Prognoza na świadectwo: {grade}","label.forecast_grade":"prognoza {grade}","card.grade_simulator.subtitle_exact":"Co jeśli… (dokładna średnia)","card.grade_simulator.report":"Na świadectwie:","label.sixes_needed_exact":"{n}× szóstka (waga 1)","label.forecast":"Prognoza","label.forecast_report_average":"Prognoza świadectwa","card.homework_checklist.title":"Zadania do odhaczenia","card.homework_checklist.progress":"{done}/{total} zrobione","card.semester_comparison.title":"Porównanie semestrów","card.semester_comparison.subtitle":"Semestr 1 vs 2, wg przedmiotu","card.semester_comparison.empty":"Brak średnich semestralnych","card.semester_comparison.s1":"Sem 1","card.semester_comparison.s2":"Sem 2","editor.mode":"Tryb","mode.archetype":"Archetyp","mode.hero":"Bohater","card.hero.title_archetype":"Twój archetyp","card.hero.title_hero":"Twój bohater","card.hero.subtitle":"na podstawie danych z Librusa","card.hero.empty":"Za mało danych, żeby coś obliczyć","hero.chip.avg_naukowiec":"śr. ścisłych {n}","hero.chip.avg_humanista":"śr. humanist. {n}","hero.chip.avg_poliglota":"śr. języków {n}","hero.chip.avg_artysta":"śr. artyst. {n}","hero.chip.avg_sportowiec":"śr. WF {n}","hero.chip.grades":"{n} ocen","hero.chip.streak_days":"passa {n} dni","hero.chip.unexcused":"{n} nieuspr.","hero.chip.good_streak":"passa {n} ocen","hero.chip.overall_avg":"śr. {n}","hero.chip.overall_avg_full":"śr. ogólna {n}","hero.chip.semester1":"sem. 1: {n}","hero.chip.semester2":"sem. 2: {n}","hero.chip.behaviour":"zachowanie {name}","hero.chip.positive_notes":"uwagi +{n}","hero.chip.badges":"odznaki {n}","hero.chip.various_categories":"różne kategorie","hero.chip.subjects_count":"{n} przedm.","hero.chip.spread":"rozrzut {n}","hero.naukowiec.archetype_name":"Naukowiec","hero.naukowiec.hero_name":"Archimag","hero.naukowiec.archetype_desc":"Matematyka, fizyka i informatyka biją resztę przedmiotów na głowę.","hero.naukowiec.hero_desc":"Władasz magią liczb - zaklęcia to wzory, różdżka to kalkulator.","hero.humanista.archetype_name":"Humanista","hero.humanista.hero_name":"Bard","hero.humanista.archetype_desc":"Polski i historia to przedmioty, w których błyszczysz najbardziej.","hero.humanista.hero_desc":"Słowo to Twoja broń - opowieścią przekonasz każdego wokół siebie.","hero.poliglota.archetype_name":"Poliglota","hero.poliglota.hero_name":"Tłumacz","hero.poliglota.archetype_desc":"Angielski i niemiecki wyraźnie górują nad resztą przedmiotów.","hero.poliglota.hero_desc":"Znasz więcej języków niż większość dorosłych w Twoim otoczeniu.","hero.artysta.archetype_name":"Artysta","hero.artysta.hero_name":"Iluzjonista","hero.artysta.archetype_desc":"Plastyka i muzyka to obszary, w których jesteś najmocniejszy.","hero.artysta.hero_desc":"Tworzysz światy, które inni potrafią sobie jedynie wyobrazić.","hero.sportowiec.archetype_name":"Sportowiec","hero.sportowiec.hero_name":"Herold Areny","hero.sportowiec.archetype_desc":"Wychowanie fizyczne to zdecydowanie Twoja najmocniejsza strona.","hero.sportowiec.hero_desc":"Siła i wytrwałość - na boisku nikt Ci dziś nie dorównuje.","hero.wojownik.archetype_name":"Wojownik Frekwencji","hero.wojownik.hero_name":"Niezłomny","hero.wojownik.archetype_desc":"Długa passa obecności i zero nieusprawiedliwionych nieobecności.","hero.wojownik.hero_desc":"Stajesz na posterunku każdego dnia, bez wyjątku i bez wymówek.","hero.meteor.archetype_name":"Meteor","hero.meteor.hero_name":"Meteor","hero.meteor.archetype_desc":"Passa dobrych ocen ciągnie się przez ostatnie kilkanaście wpisów.","hero.meteor.hero_desc":"Pędzisz przez semestr, zostawiając za sobą świetlisty ślad ocen.","hero.feniks.archetype_name":"Feniks","hero.feniks.hero_name":"Feniks","hero.feniks.archetype_desc":"Średnia w tym semestrze rośnie wyraźnie względem poprzedniego.","hero.feniks.hero_desc":"Powstajesz z popiołów słabszego startu, silniejszy niż wcześniej.","hero.spolecznik.archetype_name":"Społecznik","hero.spolecznik.hero_name":"Uzdrowiciel","hero.spolecznik.archetype_desc":"Wzorowa ocena zachowania i same pozytywne uwagi nauczycieli.","hero.spolecznik.hero_desc":"Twoja obecność koi nastroje i łagodzi spory całej klasy.","hero.kolekcjoner.archetype_name":"Kolekcjoner","hero.kolekcjoner.hero_name":"Łowca Trofeów","hero.kolekcjoner.archetype_desc":"Najwięcej odblokowanych odznak spośród wszystkich kategorii.","hero.kolekcjoner.hero_desc":"Twoja gablota z trofeami pęka w szwach od zdobytych osiągnięć.","hero.prymus.archetype_name":"Prymus","hero.prymus.hero_name":"Legenda","hero.prymus.archetype_desc":"Wysoka średnia utrzymuje się równo we wszystkich przedmiotach.","hero.prymus.hero_desc":"O Twoich wynikach będą opowiadać jeszcze długo po Twoim odejściu.","hero.wszechstronny.archetype_name":"Wszechstronny Talent","hero.wszechstronny.hero_name":"Awatar Równowagi","hero.wszechstronny.archetype_desc":"Żaden przedmiot nie dominuje - oceny wyrównane na całej linii.","hero.wszechstronny.hero_desc":"Władasz każdym żywiołem po trosze - nic Cię dziś nie zaskoczy.","card.hero_stats.title":"Statystyki bohatera","card.hero_stats.subtitle":"Twoja karta postaci","card.hero_stats.empty":"Za mało danych na statystyki","card.hero_stats.power":"Moc","hero_stat.sila":"Siła","hero_stat.intelekt":"Intelekt","hero_stat.wiedza":"Wiedza","hero_stat.charyzma":"Charyzma","hero_stat.wytrwalosc":"Wytrwałość","hero_stat.szczescie":"Szczęście","card.hero_history.title":"Historia bohatera","card.hero_history.subtitle":"jak zmieniał się Twój wynik","card.hero_history.empty":"Brak historii jeszcze - pojawi się, gdy wynik się zmieni","card.hero_history.current":"obecnie ({n} dni)","card.grades.points_percentage":"{value}% punktów","card.last_update.subtitle":"Ostatnia aktualizacja danych","card.last_update.not_responding":"Librus nie odpowiada · następna próba {time}","label.just_now":"Przed chwilą","label.minutes_ago":"{minutes} min temu","label.hours_ago":"{hours} godz. temu","label.days_ago":"{days} dni temu"}};function je(e,t,a){let s=function(e){const t=e?.language??"en",a=t.split("-")[0]?.toLowerCase();return ze[a]??$e}(e)[t]??$e[t];if(a)for(const[e,t]of Object.entries(a))s=s.replace(`{${e}}`,String(t));return s}function Ce(e,t){const a=Math.max(0,Math.round(t));if(a<60)return je(e,"label.in_minutes",{minutes:a});if(a<1440){const t=Math.floor(a/60),s=a%60;return 0===s?je(e,"label.in_hours",{hours:t}):je(e,"label.in_hours_minutes",{hours:t,minutes:s})}const s=Math.floor(a/1440),i=Math.floor(a%1440/60);return 0===i?je(e,"label.in_days",{days:s}):je(e,"label.in_days_hours",{days:s,hours:i})}var Se;const De=[{kind:"text",key:"icon",label:"editor.icon"},{kind:"boolean",key:"hide_header",label:"editor.hide_header"},{kind:"boolean",key:"compact",label:"editor.compact"},{kind:"boolean",key:"hide_outage_warning",label:"editor.hide_outage_warning"}],Te=[{value:"archetype",label:"mode.archetype"},{value:"hero",label:"mode.hero"}],Ie={kind:"text",key:"category_filter",label:"editor.category_filter"},Ne={kind:"select",key:"sort",label:"editor.sort",options:[{value:"newest",label:"sort.newest"},{value:"oldest",label:"sort.oldest"}]},Ee={kind:"number",key:"days",label:"editor.days_back",min:7,max:365},Ae={kind:"text",key:"title",label:"editor.title"},Me=e=>({kind:"number",key:"max_items",label:"editor.max_items",min:1,max:e}),Le={"custom:librus-lesson-topics-card":[Ae,{kind:"number",key:"days",label:"editor.school_days_shown",min:1,max:10}],"custom:librus-school-trips-card":[Ae,Me(10)],"custom:librus-exam-prep-card":[Ae,{kind:"number",key:"days_ahead",label:"editor.days_ahead",min:1,max:60}],"custom:librus-school-documents-card":[Ae,Me(20)],"custom:librus-justifications-card":[Ae,Me(10)],"custom:librus-grade-log-card":[Ae,Me(100),Ie,Ee,Ne],"custom:librus-recent-activity-card":[Ae,Me(50)],"custom:librus-subject-attendance-card":[Ae],"custom:librus-report-card-card":[Ae],"custom:librus-school-day-card":[Ae],"custom:librus-homework-checklist-card":[Ae,Me(30)],"custom:librus-announcements-card":[Ae,Me(20)],"custom:librus-agenda-card":[Ae,{kind:"number",key:"days_ahead",label:"editor.days_ahead",min:1,max:60}],"custom:librus-messages-card":[Ae,{kind:"select",key:"mailbox",label:"editor.mailbox",options:[{value:"inbox",label:"mailbox.inbox"},{value:"substitutions",label:"mailbox.substitutions"},{value:"alerts",label:"mailbox.alerts"},{value:"justifications",label:"mailbox.justifications"}]},Me(20)],"custom:librus-grade-trend-card":[{kind:"subject"},{kind:"number",key:"days",label:"editor.days_back",min:7,max:180},Ae],"custom:librus-subject-grades-card":[{kind:"subject"},Me(100),Ie,Ee,Ne],"custom:librus-grade-goal-card":[{kind:"subject"},{kind:"number",key:"target",label:"editor.target",min:1,max:6,float:!0},Ae],"custom:librus-bell-schedule-card":[Ae],"custom:librus-tomorrow-card":[Ae],"custom:librus-first-lesson-card":[Ae,{kind:"boolean",key:"hide_room",label:"editor.hide_room"},{kind:"boolean",key:"only_tomorrow",label:"editor.only_tomorrow"},{kind:"names"}],"custom:librus-grade-simulator-card":[{kind:"subject"}],"custom:librus-semester-comparison-card":[Ae],"custom:librus-week-timetable-card":[{kind:"boolean",key:"show_saturday",label:"editor.show_saturday"}],"custom:librus-subject-time-card":[{kind:"boolean",key:"show_saturday",label:"editor.show_saturday"}],"custom:librus-exam-countdown-card":[Ae,{kind:"text",key:"exam_keywords",label:"editor.exam_keywords"}],"custom:librus-hero-card":[Ae,{kind:"select",key:"mode",label:"editor.mode",options:Te}],"custom:librus-hero-history-card":[Ae,{kind:"select",key:"mode",label:"editor.mode",options:Te}],"custom:librus-achievements-card":[Ae],"custom:librus-hero-stats-card":[Ae],"custom:librus-level-card":[Ae],"custom:librus-rank-card":[Ae],"custom:librus-teachers-card":[Ae],"custom:librus-ai-summary-card":[Ae,{kind:"boolean",key:"summary_only",label:"editor.summary_only"},{kind:"boolean",key:"hide_generate",label:"editor.hide_generate"}]};function Pe(){return document.createElement("librus-card-editor")}let Fe=Se=class extends de{setConfig(e){this._config=e}get _fields(){return this._config&&Le[this._config.type]||[]}render(){if(!this.hass||!this._config)return q;const e=this.hass,t=this._config,a=fe(e),s=this._fields,i=s.some(e=>"subject"===e.kind);let r;try{r=ye(e,t.device_id)}catch{r=void 0}const o=i&&r?xe(e,r,"subject_average"):[];return W`
       <div class="form">
-        ${i.length>1&&!a.some(e=>"names"===e.kind)?R`
+        ${a.length>1&&!s.some(e=>"names"===e.kind)?W`
               <ha-select
-                label=${ze(e,"editor.student")}
+                label=${je(e,"editor.student")}
                 .value=${t.device_id??""}
-                .options=${i.map(t=>{const i=e.devices?.[t];return{value:t,label:i?.name_by_user||i?.name||t}})}
+                .options=${a.map(t=>{const a=e.devices?.[t];return{value:t,label:a?.name_by_user||a?.name||t}})}
                 naturalMenuWidth
                 fixedMenuPosition
                 @selected=${e=>this._pickDevice(e)}
                 @closed=${e=>{e.stopPropagation(),this._pickDevice(e)}}
               >
-                ${i.map(t=>{const i=e.devices?.[t];return R`<ha-list-item .value=${t}>${i?.name_by_user||i?.name||t}</ha-list-item>`})}
+                ${a.map(t=>{const a=e.devices?.[t];return W`<ha-list-item .value=${t}>${a?.name_by_user||a?.name||t}</ha-list-item>`})}
               </ha-select>
             `:q}
-        ${s?R`
+        ${i?W`
               <ha-select
-                label=${ze(e,"editor.subject")}
+                label=${je(e,"editor.subject")}
                 .value=${void 0!==t.subject_id?String(t.subject_id):""}
-                .options=${[{value:"",label:ze(e,"editor.subject_auto")},...n.filter(e=>void 0!==e.subjectId).map(e=>({value:String(e.subjectId),label:e.subject}))]}
+                .options=${[{value:"",label:je(e,"editor.subject_auto")},...o.filter(e=>void 0!==e.subjectId).map(e=>({value:String(e.subjectId),label:e.subject}))]}
                 naturalMenuWidth
                 fixedMenuPosition
                 @selected=${e=>this._pickSubject(e)}
                 @closed=${e=>{e.stopPropagation(),this._pickSubject(e)}}
               >
-                <ha-list-item .value=${""}>${ze(e,"editor.subject_auto")}</ha-list-item>
-                ${n.map(e=>void 0!==e.subjectId?R`<ha-list-item .value=${String(e.subjectId)}>${e.subject}</ha-list-item>`:q)}
+                <ha-list-item .value=${""}>${je(e,"editor.subject_auto")}</ha-list-item>
+                ${o.map(e=>void 0!==e.subjectId?W`<ha-list-item .value=${String(e.subjectId)}>${e.subject}</ha-list-item>`:q)}
               </ha-select>
             `:q}
-        ${a.map(e=>this._renderField(e))}
+        ${s.map(e=>this._renderField(e))}
         <hr class="sep" />
-        ${Se.map(e=>this._renderField(e))}
+        ${De.map(e=>this._renderField(e))}
       </div>
-    `}_renderField(e){if("subject"===e.kind)return q;const t=this.hass,i=this._config;return"names"===e.kind?R`${ye(t).map(e=>{const a=t.devices?.[e];return R`
+    `}_renderField(e){if("subject"===e.kind)return q;const t=this.hass,a=this._config;return"names"===e.kind?W`${fe(t).map(e=>{const s=t.devices?.[e];return W`
           <ha-textfield
-            label=${ze(t,"editor.student_name",{device:a?.name_by_user||a?.name||e})}
-            .value=${i.names?.[e]??""}
+            label=${je(t,"editor.student_name",{device:s?.name_by_user||s?.name||e})}
+            .value=${a.names?.[e]??""}
             @change=${t=>this._onName(e,t.target.value)}
           ></ha-textfield>
-        `})}`:"text"===e.kind?R`
+        `})}`:"text"===e.kind?W`
         <ha-textfield
-          label=${ze(t,e.label)}
-          .value=${i[e.key]??""}
+          label=${je(t,e.label)}
+          .value=${a[e.key]??""}
           @change=${t=>this._onText(e.key,t.target.value)}
         ></ha-textfield>
-      `:"boolean"===e.kind?R`
-        <ha-formfield label=${ze(t,e.label)}>
+      `:"boolean"===e.kind?W`
+        <ha-formfield label=${je(t,e.label)}>
           <ha-switch
-            .checked=${Boolean(i[e.key])}
+            .checked=${Boolean(a[e.key])}
             @change=${t=>this._patch({[e.key]:t.target.checked||void 0})}
           ></ha-switch>
         </ha-formfield>
-      `:"number"===e.kind?R`
+      `:"number"===e.kind?W`
         <ha-textfield
           type="number"
           no-spinner
-          label=${ze(t,e.label)}
+          label=${je(t,e.label)}
           min=${e.min}
           max=${e.max}
           step=${e.float?"0.05":"1"}
-          .value=${void 0!==i[e.key]?String(i[e.key]):""}
+          .value=${void 0!==a[e.key]?String(a[e.key]):""}
           @change=${t=>this._onNumber(e,t.target.value)}
         ></ha-textfield>
-      `:R`
+      `:W`
       <ha-select
-        label=${ze(t,e.label)}
-        .value=${i[e.key]??e.options[0].value}
-        .options=${e.options.map(e=>({value:e.value,label:ze(t,e.label)}))}
+        label=${je(t,e.label)}
+        .value=${a[e.key]??e.options[0].value}
+        .options=${e.options.map(e=>({value:e.value,label:je(t,e.label)}))}
         naturalMenuWidth
         fixedMenuPosition
         @selected=${t=>this._pickSelect(e,t)}
         @closed=${t=>{t.stopPropagation(),this._pickSelect(e,t)}}
       >
-        ${e.options.map(e=>R`<ha-list-item .value=${e.value}>${ze(t,e.label)}</ha-list-item>`)}
+        ${e.options.map(e=>W`<ha-list-item .value=${e.value}>${je(t,e.label)}</ha-list-item>`)}
       </ha-select>
-    `}static _selectValue(e){const t=e.detail;if(t&&void 0!==t.value)return String(t.value);const i=e.currentTarget;return i?.value??""}_pickDevice(e){const t=Ce._selectValue(e);t&&t!==this._config?.device_id&&this._patch({device_id:t})}_pickSubject(e){const t=Ce._selectValue(e),i=""===t?void 0:Number(t);i!==this._config?.subject_id&&this._patch({subject_id:Number.isNaN(i)?void 0:i})}_pickSelect(e,t){const i=Ce._selectValue(t);if(!i)return;i!==(this._config?.[e.key]??e.options[0].value)&&this._patch({[e.key]:i===e.options[0].value?void 0:i})}_onName(e,t){const i={...this._config?.names??{}};t.trim()?i[e]=t.trim():delete i[e],this._patch({names:Object.keys(i).length?i:void 0})}_onText(e,t){this._patch({[e]:t.trim()||void 0})}_onNumber(e,t){const i=e.float?Number.parseFloat(t):Number.parseInt(t,10);if(Number.isNaN(i))return void this._patch({[e.key]:void 0});const a=Math.min(e.max,Math.max(e.min,i));this._patch({[e.key]:e.float?Math.round(100*a)/100:a})}_patch(e){if(!this._config)return;const t={...this._config,...e};for(const[i,a]of Object.entries(e))void 0===a&&delete t[i];this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:t},bubbles:!0,composed:!0}))}};Pe.styles=n`
+    `}static _selectValue(e){const t=e.detail;if(t&&void 0!==t.value)return String(t.value);const a=e.currentTarget;return a?.value??""}_pickDevice(e){const t=Se._selectValue(e);t&&t!==this._config?.device_id&&this._patch({device_id:t})}_pickSubject(e){const t=Se._selectValue(e),a=""===t?void 0:Number(t);a!==this._config?.subject_id&&this._patch({subject_id:Number.isNaN(a)?void 0:a})}_pickSelect(e,t){const a=Se._selectValue(t);if(!a)return;a!==(this._config?.[e.key]??e.options[0].value)&&this._patch({[e.key]:a===e.options[0].value?void 0:a})}_onName(e,t){const a={...this._config?.names??{}};t.trim()?a[e]=t.trim():delete a[e],this._patch({names:Object.keys(a).length?a:void 0})}_onText(e,t){this._patch({[e]:t.trim()||void 0})}_onNumber(e,t){const a=e.float?Number.parseFloat(t):Number.parseInt(t,10);if(Number.isNaN(a))return void this._patch({[e.key]:void 0});const s=Math.min(e.max,Math.max(e.min,a));this._patch({[e.key]:e.float?Math.round(100*s)/100:s})}_patch(e){if(!this._config)return;const t={...this._config,...e};for(const[a,s]of Object.entries(e))void 0===s&&delete t[a];this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:t},bubbles:!0,composed:!0}))}};function Be(e){const t=new Date(e);return Number.isNaN(t.getTime())?"":t.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"})}function Oe(e,t){const a=new Date(`${e.slice(0,10)}T00:00:00`);return Number.isNaN(a.getTime())?e:a.toLocaleDateString(t,{day:"numeric",month:"short"})}function Ke(e,t){const a=Date.UTC(e.getFullYear(),e.getMonth(),e.getDate()),s=Date.UTC(t.getFullYear(),t.getMonth(),t.getDate());return Math.round((s-a)/864e5)}function Ue(e,t){return Math.max(0,Math.floor((e.getTime()-t.getTime())/6e4))}function Re(e){if(null==e)return null;const t=Number(e);return Number.isFinite(t)?t:null}Fe.styles=o`
     .form {
       display: flex;
       flex-direction: column;
@@ -131,15 +129,15 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       border-top: 1px solid var(--divider-color);
       margin: 2px 0;
     }
-  `,e([me({attribute:!1})],Pe.prototype,"hass",void 0),e([ge()],Pe.prototype,"_config",void 0),Pe=Ce=e([he("librus-card-editor")],Pe);class Be extends de{constructor(){super(...arguments),this._fetchGeneration=0}_beginFetch(){return++this._fetchGeneration}_isCurrentFetch(e){return e===this._fetchGeneration}_resolveAllByTranslationKey(e,t){if(!this.hass)return[];let i=this._subjectsCache;i&&i.entities===this.hass.entities&&i.deviceId===e||(i={entities:this.hass.entities,deviceId:e,byKey:new Map},this._subjectsCache=i);let a=i.byKey.get(t);return a||(a=ke(this.hass,e,t),i.byKey.set(t,a)),a}get _cardConfig(){return this._config}_syncTheme(){this.classList.toggle("dark",Boolean(this.hass?.themes?.darkMode));const e=this._cardConfig;this.classList.toggle("compact",Boolean(e?.compact)),this.classList.toggle("hide-header",Boolean(e?.hide_header))}updated(e){super.updated(e);const t=this._cardConfig?.icon;if(!t)return;const i=this.renderRoot.querySelector(".icon-badge ha-icon");i&&i.getAttribute("icon")!==t&&i.setAttribute("icon",t)}_resolveEntities(){if(!this.hass)return{error:this._message("mdi:alert-circle-outline",ze(this.hass,"empty.loading"))};const e=this._resolvedCache;if(e&&e.entities===this.hass.entities&&e.configuredDeviceId===this._configuredDeviceId)return e.result;let t;try{const e=fe(this.hass,this._configuredDeviceId);t={deviceId:e,map:we(this.hass,e)}}catch(e){t={error:this._message("mdi:alert-circle-outline",this._configErrorMessage(e))}}return this._resolvedCache={entities:this.hass.entities,configuredDeviceId:this._configuredDeviceId,result:t},t}_configErrorMessage(e){return e instanceof _e?"device_missing"===e.code?ze(this.hass,"error.device_missing",{device:e.deviceId??""}):"multiple_devices"===e.code?ze(this.hass,"error.multiple_devices"):ze(this.hass,"error.no_device"):ze(this.hass,"empty.generic_error")}_message(e,t,i){return R`
+  `,e([ge({attribute:!1})],Fe.prototype,"hass",void 0),e([me()],Fe.prototype,"_config",void 0),Fe=Se=e([he("librus-card-editor")],Fe);const We=/^\[([^\]]+)\]\s*/;function He(e){const t=We.exec(e);return t?{category:t[1],text:e.slice(t[0].length)}:{category:null,text:e}}class Ge extends de{constructor(){super(...arguments),this._fetchGeneration=0}_beginFetch(){return++this._fetchGeneration}_isCurrentFetch(e){return e===this._fetchGeneration}_resolveAllByTranslationKey(e,t){if(!this.hass)return[];let a=this._subjectsCache;a&&a.entities===this.hass.entities&&a.deviceId===e||(a={entities:this.hass.entities,deviceId:e,byKey:new Map},this._subjectsCache=a);let s=a.byKey.get(t);return s||(s=xe(this.hass,e,t),a.byKey.set(t,s)),s}get _cardConfig(){return this._config}_syncTheme(){this.classList.toggle("dark",Boolean(this.hass?.themes?.darkMode));const e=this._cardConfig;this.classList.toggle("compact",Boolean(e?.compact)),this.classList.toggle("hide-header",Boolean(e?.hide_header))}updated(e){super.updated(e),this._syncOutageStrip();const t=this._cardConfig?.icon;if(!t)return;const a=this.renderRoot.querySelector(".icon-badge ha-icon");a&&a.getAttribute("icon")!==t&&a.setAttribute("icon",t)}_syncOutageStrip(){const e=this.renderRoot,t=e.querySelector(".lc-outage"),a=this._outageText(),s=e.querySelector(".header");if(!a||!s)return void t?.remove();const i=t??document.createElement("div");if(t||(i.className="lc-outage",i.setAttribute("role","status")),i.dataset.text!==a.join("|")){i.dataset.text=a.join("|");const e=document.createElement("ha-icon");e.setAttribute("icon","mdi:cloud-alert-outline");const t=document.createElement("b");t.textContent=a[0];const s=document.createElement("span");s.textContent=`· ${a[1]}`,i.replaceChildren(e,t,s)}i.previousElementSibling!==s&&s.after(i)}_outageText(){if(!this.hass||this._cardConfig?.hide_outage_warning)return null;const e=this._resolveEntities();if("error"in e)return null;const t=e.map.status,a=t?this.hass.states[t]:void 0;if("stale"!==a?.state)return null;const s=a.attributes.last_success;return[je(this.hass,"outage.title"),je(this.hass,"outage.data_from",{time:qe("string"==typeof s?s:void 0,this.hass.language)})]}_resolveEntities(){if(!this.hass)return{error:this._message("mdi:alert-circle-outline",je(this.hass,"empty.loading"))};const e=this._resolvedCache;if(e&&e.entities===this.hass.entities&&e.configuredDeviceId===this._configuredDeviceId)return e.result;let t;try{const e=ye(this.hass,this._configuredDeviceId);t={deviceId:e,map:we(this.hass,e)}}catch(e){t={error:this._message("mdi:alert-circle-outline",this._configErrorMessage(e))}}return this._resolvedCache={entities:this.hass.entities,configuredDeviceId:this._configuredDeviceId,result:t},t}_configErrorMessage(e){return e instanceof _e?"device_missing"===e.code?je(this.hass,"error.device_missing",{device:e.deviceId??""}):"multiple_devices"===e.code?je(this.hass,"error.multiple_devices"):je(this.hass,"error.no_device"):je(this.hass,"empty.generic_error")}_message(e,t,a){return W`
       <ha-card class="static">
         <div class="empty">
           <ha-icon .icon=${e}></ha-icon>
           <div class="t1">${t}</div>
-          ${i?R`<div class="t2">${i}</div>`:q}
+          ${a?W`<div class="t2">${a}</div>`:q}
         </div>
       </ha-card>
-    `}}e([me({attribute:!1})],Be.prototype,"hass",void 0);const Oe=n`
+    `}}function qe(e,t){if(!e)return"?";const a=new Date(e);if(Number.isNaN(a.getTime()))return"?";const s=Be(e),i=new Date;if(a.getFullYear()===i.getFullYear()&&a.getMonth()===i.getMonth()&&a.getDate()===i.getDate())return s;return`${Oe(`${a.getFullYear()}-${String(a.getMonth()+1).padStart(2,"0")}-${String(a.getDate()).padStart(2,"0")}`,t)} ${s}`}e([ge({attribute:!1})],Ge.prototype,"hass",void 0);const Je=o`
   :host {
     --lc-brand: #4f46e5;
     --lc-brand-strong: #3730a3;
@@ -225,7 +223,7 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
     --lc-diamond: #4dd0e8;
     --lc-diamond-bg: rgba(77, 208, 232, 0.16);
   }
-`,Fe=n`
+`,Ze=o`
   ha-card {
     cursor: pointer;
     padding: 16px;
@@ -262,6 +260,51 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
   }
   :host(.compact) .subtitle {
     display: none;
+  }
+
+  /* Point grades in the grade lists ("17/20 85%") - see pointGradeEntries. */
+  .grade-chip.points {
+    gap: 4px;
+    padding: 0 7px;
+    font-variant-numeric: tabular-nums;
+  }
+  .grade-chip.points small {
+    font-weight: 500;
+    font-size: 0.68rem;
+    opacity: 0.75;
+  }
+  .grade-chip.pt-good {
+    background: var(--lc-good-bg);
+    color: var(--lc-good);
+  }
+  .grade-chip.pt-bad {
+    background: var(--lc-bad-bg);
+    color: var(--lc-bad);
+  }
+
+  /* "Librus not responding" strip, inserted after .header by LibrusBaseCard. */
+  .lc-outage {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--lc-warn-bg);
+    color: var(--lc-warn);
+    border: 1px solid color-mix(in srgb, var(--lc-warn) 35%, transparent);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    line-height: 1.3;
+  }
+  .lc-outage b {
+    font-weight: 500;
+  }
+  .lc-outage span {
+    color: var(--primary-text-color);
+    opacity: 0.8;
+  }
+  .lc-outage ha-icon {
+    --mdc-icon-size: 15px;
+    flex: none;
   }
 
   .header {
@@ -555,11 +598,47 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
     font-weight: 600;
     color: var(--secondary-text-color);
   }
+  /* Timetable lessons Librus marks as cancelled / substitution
+     (utils/calendar.ts lessonInfo): a struck-through, dimmed row or cell,
+     and a small tag after the subject. */
+  .lesson-cancelled {
+    opacity: 0.55;
+  }
+  .lesson-cancelled .lesson-name {
+    text-decoration: line-through;
+  }
+  .lesson-tag {
+    display: inline-block;
+    font-size: 0.66rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: 1px;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .lesson-tag.cancelled {
+    background: var(--lc-bad-bg);
+    color: var(--lc-bad);
+  }
+  .lesson-tag.substitution {
+    background: var(--lc-warn-bg);
+    color: var(--lc-warn);
+  }
+  .lesson-tag.room {
+    background: var(--lc-brand-bg);
+    color: var(--lc-brand);
+  }
+
   .stat-label {
     font-size: 0.66rem;
     color: var(--secondary-text-color);
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    /* A long single word in a narrow tile wraps instead of running into
+       the next tile (found live: "NIEUSPRAWIEDLIWIONE"). */
+    overflow-wrap: anywhere;
   }
   .stat.good .stat-value {
     color: var(--lc-good);
@@ -679,9 +758,9 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
     font-size: 0.76rem;
     max-width: 26ch;
   }
-`;function Ke(e){const t=Math.max(1,...e.map(e=>e.value));return R`
+`;function Ve(e){const t=Math.max(1,...e.map(e=>e.value));return W`
     <div class="hbar-chart">
-      ${e.map(e=>R`
+      ${e.map(e=>W`
           <div class="hbar-row">
             <span class="hbar-label" title=${e.label}>${e.label}</span>
             <span class="hbar-track">
@@ -694,65 +773,78 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
           </div>
         `)}
     </div>
-  `}function Ue(e,t,i=64,a=6){const s=Math.max(0,Math.min(100,e)),r=(i-a)/2,n=2*Math.PI*r,o=i/2;return R`
-    <svg width=${i} height=${i} viewBox="0 0 ${i} ${i}" class="ring">
+  `}function Ye(e,t,a=64,s=6){const i=Math.max(0,Math.min(100,e)),r=(a-s)/2,o=2*Math.PI*r,n=a/2;return W`
+    <svg width=${a} height=${a} viewBox="0 0 ${a} ${a}" class="ring">
       <circle
-        cx=${o}
-        cy=${o}
+        cx=${n}
+        cy=${n}
         r=${r}
         fill="none"
         stroke="var(--lc-ring-track)"
-        stroke-width=${a}
+        stroke-width=${s}
       ></circle>
       <circle
-        cx=${o}
-        cy=${o}
+        cx=${n}
+        cy=${n}
         r=${r}
         fill="none"
         stroke=${t}
-        stroke-width=${a}
+        stroke-width=${s}
         stroke-linecap="round"
-        stroke-dasharray=${n}
-        stroke-dashoffset=${n-s/100*n}
-        transform="rotate(-90 ${o} ${o})"
+        stroke-dasharray=${o}
+        stroke-dashoffset=${o-i/100*o}
+        transform="rotate(-90 ${n} ${n})"
       ></circle>
     </svg>
-  `}let He=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-grades-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass,s=i.overall_average?a.states[i.overall_average]:void 0,r=this._resolveAllByTranslationKey(t,"subject_average").map(e=>({...e,state:a.states[e.entityId]})).filter(e=>e.state&&!be.has(e.state.state));if((!s||be.has(s.state))&&0===r.length)return this._message("mdi:school-outline",ze(a,"card.grades.empty"));const n=s&&!be.has(s.state)?Number(s.state):void 0,o=r.length?Math.max(...r.map(e=>Number(e.state.state))):6;return R`
+  `}function Xe(e,t){if(t.cancelled)return W`<span class="lesson-tag cancelled">${je(e,"label.lesson_cancelled")}</span>`;const a=[];return t.substitution&&a.push(W`<span class="lesson-tag substitution">${je(e,"label.lesson_substitution")}</span>`),t.moved&&a.push(W`<span class="lesson-tag substitution">${je(e,"label.lesson_moved")}</span>`),t.roomChange&&a.push(W`<span class="lesson-tag room"
+        >${t.rooms?je(e,"label.lesson_room_change",{from:t.rooms[0],to:t.rooms[1]}):je(e,"label.lesson_room_changed")}</span
+      >`),a.length?W`${a}`:q}const Qe=[1.75,2.75,3.75,4.75,5.5];function et(e){const t=e?.attributes;if(!t||null===t.predicted_grade||void 0===t.predicted_grade)return;const a=t.sixes_to_next_grade;return{predicted:Number(t.predicted_grade),average:Number(t.forecast_average),weight:Number(t.forecast_weight),declining:!0===t.forecast_declining,sixesToNext:null==a?void 0:Number(a)}}let tt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-grades-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass,i=a.overall_average?s.states[a.overall_average]:void 0,r=this._resolveAllByTranslationKey(t,"subject_average").map(e=>{const t=s.states[e.entityId],a=t?.attributes.points_percentage,i=t&&be.has(t.state)&&"number"==typeof a?a:void 0;return{...e,state:t,points:i}}).filter(e=>e.state&&(!be.has(e.state.state)||void 0!==e.points));if((!i||be.has(i.state))&&0===r.length)return this._message("mdi:school-outline",je(s,"card.grades.empty"));const o=i&&!be.has(i.state)?Number(i.state):void 0,n=r.filter(e=>void 0===e.points).map(e=>Number(e.state.state)),c=n.length?Math.max(...n):6;return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:school-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(a,"card.grades.title")}</div>
-            <div class="subtitle">${ze(a,"card.grades.subtitle")}</div>
+            <div class="title">${je(s,"card.grades.title")}</div>
+            <div class="subtitle">${je(s,"card.grades.subtitle")}</div>
           </div>
         </div>
 
-        ${void 0!==n?R`
+        ${void 0!==o?W`
               <div class="ring-row">
-                ${Ue(n/6*100,"var(--lc-brand)",68,7)}
+                ${Ye(o/6*100,"var(--lc-brand)",68,7)}
                 <div>
-                  <div class="ring-num">${n.toLocaleString(a.language,{maximumFractionDigits:2})}</div>
-                  <div class="ring-label">${ze(a,"card.grades.subtitle")}</div>
+                  <div class="ring-num">${o.toLocaleString(s.language,{maximumFractionDigits:2})}</div>
+                  <div class="ring-label">${je(s,"card.grades.subtitle")}</div>
                 </div>
               </div>
             `:q}
-        ${r.length?R`
+        ${r.length?W`
               <div class="sub-list">
-                ${r.map(e=>{const t=Number(e.state.state);return R`
+                ${r.map(e=>{if(void 0!==e.points)return W`
+                      <div class="sub-row">
+                        <span class="name" title=${e.subject}>${e.subject}</span>
+                        <span class="bar"><span style="width:${Math.min(100,e.points)}%"></span></span>
+                        <span class="val">${e.points.toLocaleString(s.language,{maximumFractionDigits:1})}%</span>
+                      </div>
+                    `;const t=Number(e.state.state),a=et(e.state);return W`
                     <div class="sub-row">
                       <span class="name" title=${e.subject}>${e.subject}</span>
                       <span class="bar"
                         ><span
-                          style="width:${Math.min(100,t/o*100)}%"
+                          style="width:${Math.min(100,t/c*100)}%"
                         ></span
                       ></span>
-                      <span class="val">${t.toLocaleString(a.language,{maximumFractionDigits:2})}</span>
+                      <span class="val">${t.toLocaleString(s.language,{maximumFractionDigits:2})}</span>
+                      ${a?W`<span
+                            class="fc ${function(e){return e.predicted<=1?"bad":e.declining?"warn":"ok"}(a)}"
+                            title=${je(s,"card.grades.forecast_hint",{grade:a.predicted})}
+                            >${a.predicted}</span
+                          >`:q}
                     </div>
                   `})}
               </div>
             `:q}
       </ha-card>
-    `}};function Re(e){const t=new Date(e);return Number.isNaN(t.getTime())?"":t.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"})}function We(e,t){const i=new Date(`${e.slice(0,10)}T00:00:00`);return Number.isNaN(i.getTime())?e:i.toLocaleDateString(t,{day:"numeric",month:"short"})}function Ge(e,t){const i=Date.UTC(e.getFullYear(),e.getMonth(),e.getDate()),a=Date.UTC(t.getFullYear(),t.getMonth(),t.getDate());return Math.round((a-i)/864e5)}function qe(e,t){return Math.max(0,Math.floor((e.getTime()-t.getTime())/6e4))}function Je(e){if(null==e)return null;const t=Number(e);return Number.isFinite(t)?t:null}He.styles=[Oe,Fe,n`
+    `}};function at(e){return"string"==typeof e?{value:e,allDay:e.length<=10}:e.date?{value:e.date,allDay:!0}:{value:e.dateTime??"",allDay:!1}}async function st(e,t,a,s){const i=`calendars/${t}?start=${encodeURIComponent(a.toISOString())}&end=${encodeURIComponent(s.toISOString())}`,r=await e.callApi("GET",i);return Array.isArray(r)?r.map(e=>{const t=at(e.start),a=at(e.end);return{start:t.value,end:a.value,allDay:t.allDay,summary:e.summary??"",description:e.description,location:e.location}}):[]}tt.styles=[Je,Ze,o`
       .ring-row {
         display: flex;
         align-items: center;
@@ -819,6 +911,27 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         background: var(--lc-brand);
         border-radius: 4px;
       }
+      .sub-row .fc {
+        flex: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        font-weight: 800;
+        background: var(--divider-color);
+        color: var(--primary-text-color);
+      }
+      .sub-row .fc.warn {
+        background: var(--lc-warn-bg);
+        color: var(--lc-warn);
+      }
+      .sub-row .fc.bad {
+        background: var(--lc-bad-bg);
+        color: var(--lc-bad);
+      }
       .sub-row .val {
         font-size: 0.76rem;
         font-weight: 800;
@@ -826,31 +939,41 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         text-align: right;
         font-variant-numeric: tabular-nums;
       }
-    `],e([ge()],He.prototype,"_config",void 0),He=e([he("librus-grades-card")],He);const Ze=/^\[([^\]]+)\]\s*/;function Ve(e){const t=Ze.exec(e);return t?{category:t[1],text:e.slice(t[0].length)}:{category:null,text:e}}function Ye(e){return"string"==typeof e?{value:e,allDay:e.length<=10}:e.date?{value:e.date,allDay:!0}:{value:e.dateTime??"",allDay:!1}}async function Xe(e,t,i,a){const s=`calendars/${t}?start=${encodeURIComponent(i.toISOString())}&end=${encodeURIComponent(a.toISOString())}`,r=await e.callApi("GET",s);return Array.isArray(r)?r.map(e=>{const t=Ye(e.start),i=Ye(e.end);return{start:t.value,end:i.value,allDay:t.allDay,summary:e.summary??"",description:e.description,location:e.location}}):[]}function Qe(e,t){if(e.allDay)return!1;const i=new Date(e.start).getTime(),a=new Date(e.end).getTime(),s=t.getTime();return s>=i&&s<a}function et(e,t){return(e.allDay?new Date(`${e.end}T23:59:59`):new Date(e.end)).getTime()<t.getTime()}function tt(e){return`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}function it(e){const t=e.getDay();return 0===t?7:t}function at(e){const t=new Date(e);return t.setDate(t.getDate()-(it(e)-1)),t.setHours(0,0,0,0),t}function st(e){const t=new Date(e),i=it(e),a=i>=6?8-i:1-i;return t.setDate(t.getDate()+a),t.setHours(0,0,0,0),t}function rt(e,t){let i=e;const a=(t.category_filter??"").split(",").map(e=>e.trim().toLowerCase()).filter(Boolean);if(a.length&&(i=i.filter(e=>{const t=(e.category??"").toLowerCase();return a.some(e=>t.includes(e))})),t.days){const e=new Date;e.setHours(0,0,0,0),e.setDate(e.getDate()-t.days);const a=tt(e);i=i.filter(e=>!e.date||e.date>=a)}const s=[...i].sort((e,t)=>(e.date??"").localeCompare(t.date??""));return"oldest"===t.sort?s:s.reverse()}let nt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-grade-log-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a=[];for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=i.states[e.entityId]?.attributes.grades??[];for(const i of t)a.push({...i,subject:e.subject})}if(0===a.length)return this._message("mdi:notebook-multiple",ze(i,"card.grades.empty"));const s=rt(a,this._config);if(0===s.length)return this._message("mdi:notebook-multiple",ze(i,"card.grade_log.empty_filtered"));const r=this._config.max_items??25;return R`
+    `],e([me()],tt.prototype,"_config",void 0),tt=e([he("librus-grades-card")],tt);const it=/\s*\((odwołane|zastępstwo|zmiana sali|przeniesiona)\)\s*$/i,rt=/^Zmiana sali:\s*(.+?)\s*→\s*(.+)$/;function ot(e){const t=it.exec(e.summary)?.[1]?.toLowerCase(),a=e.summary.replace(it,""),s=(e.description??"").split("\n").map(e=>e.trim()),i=s.slice(1).filter(Boolean),r=i.map(e=>rt.exec(e)).find(Boolean);return{name:a,cancelled:"odwołane"===t,substitution:"zastępstwo"===t,roomChange:"zmiana sali"===t||Boolean(r),moved:"przeniesiona"===t,teacher:s[0]||void 0,details:i,rooms:r?[r[1],r[2]]:void 0}}function nt(e,t=ot(e)){return[e.location,t.teacher,...t.details.filter(e=>!rt.test(e))].filter(Boolean).join(" · ")}function ct(e,t){if(e.allDay)return!1;const a=new Date(e.start).getTime(),s=new Date(e.end).getTime(),i=t.getTime();return i>=a&&i<s}function dt(e,t){return(e.allDay?new Date(`${e.end}T23:59:59`):new Date(e.end)).getTime()<t.getTime()}function lt(e){return`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}function ht(e){const t=e.getDay();return 0===t?7:t}function ut(e){const t=new Date(e);return t.setDate(t.getDate()-(ht(e)-1)),t.setHours(0,0,0,0),t}function pt(e){const t=new Date(e),a=ht(e),s=a>=6?8-a:1-a;return t.setDate(t.getDate()+s),t.setHours(0,0,0,0),t}function gt(e){const t=e?.text_grades;return Array.isArray(t)?t.map(e=>({value:"✎",category:e.category,date:e.date,comments:e.value?[e.value]:[],text:!0})):[]}function mt(e){const t=e?.point_grades;return Array.isArray(t)?t.map(e=>({value:null!==e.points&&e.max_points?`${vt(e.points)}/${vt(e.max_points)}`:e.value,category:e.category,date:e.date,comments:[],percentage:e.percentage,points:!0})):[]}function vt(e){return Number.isInteger(e)?String(e):e.toFixed(1).replace(".",",")}function bt(e){return null==e?"":e>=75?"pt-good":e<50?"pt-bad":""}function _t(e,t){let a=e;const s=(t.category_filter??"").split(",").map(e=>e.trim().toLowerCase()).filter(Boolean);if(s.length&&(a=a.filter(e=>{const t=(e.category??"").toLowerCase();return s.some(e=>t.includes(e))})),t.days){const e=new Date;e.setHours(0,0,0,0),e.setDate(e.getDate()-t.days);const s=lt(e);a=a.filter(e=>!e.date||e.date>=s)}const i=[...a].sort((e,t)=>(e.date??"").localeCompare(t.date??""));return"oldest"===t.sort?i:i.reverse()}let ft=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-grade-log-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,a=this.hass,s=[];for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=a.states[e.entityId]?.attributes,i=[...t?.grades??[],...mt(t),...gt(t)];for(const t of i)s.push({...t,subject:e.subject})}if(0===s.length)return this._message("mdi:notebook-multiple",je(a,"card.grades.empty"));const i=_t(s,this._config);if(0===i.length)return this._message("mdi:notebook-multiple",je(a,"card.grade_log.empty_filtered"));const r=this._config.max_items??25;return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:notebook-multiple"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(i,"card.grade_log.title")}</div>
-            <div class="subtitle">${ze(i,"card.grade_log.subtitle")}</div>
+            <div class="title">${this._config.title??je(a,"card.grade_log.title")}</div>
+            <div class="subtitle">${je(a,"card.grade_log.subtitle")}</div>
           </div>
         </div>
         <div class="scroll-list">
-          ${s.slice(0,r).map(e=>R`
+          ${i.slice(0,r).map(e=>W`
               <div class="list-item">
-                <div class="grade-chip">${e.value}</div>
+                <div class="grade-chip ${e.improved?"improved":""} ${e.points?`points ${bt(e.percentage)}`:""}">
+                  ${e.value}${e.points&&null!==e.percentage&&void 0!==e.percentage?W`<small>${Math.round(e.percentage)}%</small>`:q}
+                </div>
                 <div class="body">
                   <div class="row1">
-                    <span>${e.subject}${e.category?R` · <span class="cat-label">${e.category}</span>`:q}</span>
-                    ${e.date?R`<time>${We(e.date,i.language)}</time>`:q}
+                    <span>${e.subject}${e.category?W` · <span class="cat-label">${e.category}</span>`:q}${e.improves?W` · <span class="fix-label">${je(a,"label.grade_improves",{value:e.improves})}</span>`:q}</span>
+                    ${e.date?W`<time>${Oe(e.date,a.language)}</time>`:q}
                   </div>
-                  ${e.comments.length?R`<div class="quote">${e.comments.join(" · ")}</div>`:q}
+                  ${e.comments.length?W`<div class="quote">${e.comments.join(" · ")}</div>`:q}
                 </div>
               </div>
             `)}
         </div>
       </ha-card>
-    `}};nt.styles=[Oe,Fe,n`
+    `}};ft.styles=[Je,Ze,o`
+      .grade-chip.improved {
+        text-decoration: line-through;
+        opacity: 0.55;
+      }
+      .fix-label {
+        color: var(--lc-good);
+        font-weight: 600;
+      }
       .grade-chip {
         flex: none;
         min-width: 26px;
@@ -865,31 +988,627 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-size: 0.78rem;
         padding: 0 4px;
       }
-    `],e([ge()],nt.prototype,"_config",void 0),nt=e([he("librus-grade-log-card")],nt);let ot=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-subject-grades-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a=this._resolveAllByTranslationKey(t,"subject_average"),s=void 0!==this._config.subject_id?a.find(e=>e.subjectId===this._config.subject_id):a[0];if(!s)return this._message("mdi:notebook-outline",ze(i,"card.grades.empty"));const r=i.states[s.entityId],n=r?.attributes.grades??[];if(0===n.length)return this._message("mdi:notebook-outline",ze(i,"card.grades.empty"));const o=rt(n,this._config);if(0===o.length)return this._message("mdi:notebook-outline",ze(i,"card.grade_log.empty_filtered"));const c=this._config.max_items,d=c?o.slice(0,c):o;return R`
+    `],e([me()],ft.prototype,"_config",void 0),ft=e([he("librus-grade-log-card")],ft);let yt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-lesson-topics-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 5}_dayLabel(e){const t=this.hass,a=new Date,s=new Date(a);s.setDate(a.getDate()-1);const i=new Date(`${e}T00:00:00`).toLocaleDateString(t.language,{weekday:"short",day:"numeric",month:"short"});return e===lt(a)?`${je(t,"card.lesson_topics.today")} · ${i}`:e===lt(s)?`${je(t,"card.lesson_topics.yesterday")} · ${i}`:i}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass,a=e.map.lesson_topics,s=a?t.states[a]:void 0;if(!s)return this._message("mdi:book-open-page-variant-outline",je(t,"card.lesson_topics.requires"));const i=(s.attributes.recent??[]).filter(e=>e.date),r=[...new Set(i.map(e=>e.date))].sort().reverse().slice(0,this._config.days??3);if(0===r.length)return this._message("mdi:book-open-page-variant-outline",je(t,"card.lesson_topics.empty"));const o=i.filter(e=>r.includes(e.date)),n=o.filter(e=>e.absent).length;return W`
+      <ha-card class="static">
+        <div class="header">
+          <div class="icon-badge"><ha-icon icon="mdi:book-open-page-variant-outline"></ha-icon></div>
+          <div class="title-block">
+            <div class="title">${this._config.title??je(t,"card.lesson_topics.title")}</div>
+            <div class="subtitle">
+              ${n?je(t,"card.lesson_topics.missed",{count:n}):je(t,"card.lesson_topics.subtitle",{days:r.length})}
+            </div>
+          </div>
+        </div>
+        <div class="scroll-list">
+          ${r.map(e=>W`
+              <div class="day">${this._dayLabel(e)}</div>
+              ${o.filter(t=>t.date===e).sort((e,t)=>(e.lesson_no??99)-(t.lesson_no??99)).map(e=>W`
+                    <div class="topic-row ${e.absent?"missed":""}">
+                      <span class="no">${e.lesson_no??"·"}</span>
+                      <div class="body">
+                        <div class="subj">
+                          ${e.subject??je(t,"card.lesson_topics.lesson")}${e.is_trip?W`<span class="lesson-tag substitution">${je(t,"card.lesson_topics.trip")}</span>`:q}${e.absent?W`<span class="lesson-tag cancelled">${je(t,"card.lesson_topics.absent")}</span>`:q}
+                        </div>
+                        <div class="topic">${e.topic}</div>
+                      </div>
+                    </div>
+                  `)}
+            `)}
+        </div>
+      </ha-card>
+    `}};yt.styles=[Je,Ze,o`
+      .day {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--secondary-text-color);
+        margin: 6px 0 2px;
+      }
+      .day:first-child {
+        margin-top: 0;
+      }
+      .topic-row {
+        display: grid;
+        grid-template-columns: 26px 1fr;
+        gap: 10px;
+        padding: 5px 0;
+      }
+      .topic-row.missed {
+        border-left: 3px solid var(--lc-warn);
+        padding-left: 8px;
+      }
+      .no {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        background: var(--lc-brand-bg);
+        color: var(--lc-brand-strong);
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        font-size: 0.78rem;
+      }
+      .body {
+        min-width: 0;
+      }
+      .subj {
+        font-weight: 600;
+        font-size: 0.84rem;
+      }
+      .topic {
+        font-size: 0.8rem;
+        color: var(--primary-text-color);
+        opacity: 0.85;
+        overflow-wrap: anywhere;
+      }
+    `],e([me()],yt.prototype,"_config",void 0),yt=e([he("librus-lesson-topics-card")],yt);let wt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-school-trips-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass,a=e.map.school_trips,s=a?t.states[a]:void 0;if(!s)return this._message("mdi:bus-school",je(t,"card.school_trips.requires"));const i=s.attributes.upcoming??[],r=this._config.title??je(t,"card.school_trips.title");if(0===i.length)return this._message("mdi:bus-school",r,je(t,"card.school_trips.empty"));const o=i[0],n=s.attributes.days_until,c=o.date_from?new Date(`${o.date_from.slice(0,10)}T00:00:00`):null,d=this._config.max_items??4;return W`
+      <ha-card class="static">
+        <div class="header">
+          <div class="icon-badge"><ha-icon icon="mdi:bus-school"></ha-icon></div>
+          <div class="title-block">
+            <div class="title">${r}</div>
+            <div class="subtitle">${je(t,"card.school_trips.subtitle",{count:i.length})}</div>
+          </div>
+        </div>
+        <div class="hero">
+          ${c?W`<div class="date">
+                <b>${c.getDate()}</b>
+                <span>${c.toLocaleDateString(t.language,{month:"short"})}</span>
+              </div>`:q}
+          <div class="hero-text">
+            <div class="dest">${o.destination}</div>
+            ${c?W`<div class="meta">
+                  ${c.toLocaleDateString(t.language,{weekday:"long"})}${o.date_to&&o.date_to.slice(0,10)!==o.date_from?.slice(0,10)?W` – ${Oe(o.date_to,t.language)}`:q}
+                </div>`:q}
+          </div>
+          ${null!=n&&n<=7?W`<span class="soon">${this._when(n)}</span>`:q}
+        </div>
+        <div class="facts">
+          ${o.transport?W`<div class="fact"><ha-icon icon="mdi:bus"></ha-icon><span>${o.transport}</span></div>`:q}
+          ${o.route?W`<div class="fact"><ha-icon icon="mdi:map-marker-outline"></ha-icon><span>${o.route}</span></div>`:q}
+          ${o.coordinator?W`<div class="fact"><ha-icon icon="mdi:account-outline"></ha-icon><span>${o.coordinator}</span></div>`:q}
+        </div>
+        ${i.length>1?W`<div class="later">
+              ${i.slice(1,d).map(e=>W`<div class="later-row">
+                  <span class="later-dest">${e.destination}</span>
+                  <time>${e.date_from?Oe(e.date_from,t.language):""}</time>
+                </div>`)}
+            </div>`:q}
+      </ha-card>
+    `}_when(e){const t=this.hass;return e<=0?je(t,"card.school_trips.today"):1===e?je(t,"card.school_trips.tomorrow"):je(t,"card.school_trips.in_days",{days:e})}};wt.styles=[Je,Ze,o`
+      .hero {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+      }
+      .date {
+        width: 54px;
+        flex: none;
+        border-radius: 10px;
+        background: var(--lc-brand-bg);
+        color: var(--lc-brand-strong);
+        text-align: center;
+        padding: 6px 0;
+      }
+      .date b {
+        display: block;
+        font-size: 1.35rem;
+        line-height: 1.1;
+      }
+      .date span {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .hero-text {
+        min-width: 0;
+        flex: 1;
+      }
+      .dest {
+        font-weight: 600;
+        font-size: 0.92rem;
+        overflow-wrap: anywhere;
+      }
+      .meta {
+        font-size: 0.76rem;
+        color: var(--secondary-text-color);
+      }
+      .soon {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--lc-good);
+        background: var(--lc-good-bg);
+        padding: 2px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+        flex: none;
+      }
+      .facts {
+        display: grid;
+        gap: 6px;
+        font-size: 0.8rem;
+      }
+      .fact {
+        display: grid;
+        grid-template-columns: 18px 1fr;
+        gap: 8px;
+        align-items: start;
+      }
+      .fact ha-icon {
+        --mdc-icon-size: 16px;
+        color: var(--secondary-text-color);
+      }
+      .fact span {
+        overflow-wrap: anywhere;
+      }
+      .later {
+        display: grid;
+        gap: 6px;
+        border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.2));
+        padding-top: 10px;
+        font-size: 0.8rem;
+      }
+      .later-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .later-dest {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .later-row time {
+        color: var(--secondary-text-color);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+    `],e([me()],wt.prototype,"_config",void 0),wt=e([he("librus-school-trips-card")],wt);let xt=class extends Ge{constructor(){super(...arguments),this._open={}}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-exam-prep-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 5}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass,a=e.map.next_exam,s=a?t.states[a]:void 0,i="mdi:book-education-outline";if(!s)return this._message(i,je(t,"card.exam_prep.requires"));const r=s.attributes.upcoming??[],o=this._config.title??je(t,"card.exam_prep.title");if(r.length>0&&r.every(e=>void 0===e.topics))return this._message(i,o,je(t,"card.exam_prep.requires"));const n=this._config.days_ahead??14,c=r.filter(e=>(e.days_until??0)<=n);return 0===c.length?this._message(i,o,je(t,"card.exam_prep.empty",{days:n})):W`
+      <ha-card class="static">
+        <div class="header">
+          <div class="icon-badge"><ha-icon icon=${i}></ha-icon></div>
+          <div class="title-block">
+            <div class="title">${o}</div>
+            <div class="subtitle">
+              ${je(t,"card.exam_prep.subtitle",{count:c.length,days:n})}
+            </div>
+          </div>
+        </div>
+        <div class="exams">${c.map((e,t)=>this._exam(e,t))}</div>
+      </ha-card>
+    `}_key(e,t){return String(e.id??`${e.date}-${t}`)}_exam(e,t){const a=this.hass,s=this._key(e,t),i=this._open[s]??0===t,r=new Date(`${e.date.slice(0,10)}T00:00:00`),o=e.topics??[],n=e.days_until??0,c=e.topics_since?je(a,"card.exam_prep.since",{date:Oe(e.topics_since,a.language)}):je(a,"card.exam_prep.since_start"),d=[e.category,o.length?`${je(a,"card.exam_prep.topics",{count:o.length})} ${c}`:null,e.missed_topics?je(a,"card.exam_prep.missed",{count:e.missed_topics}):null].filter(Boolean).join(" · ");return W`
+      <div class="exam ${i?"open":""}">
+        <button class="top" @click=${()=>this._toggle(s,i)} aria-expanded=${i?"true":"false"}>
+          <div class="date">
+            <b>${r.getDate()}</b>
+            <span>${r.toLocaleDateString(a.language,{month:"short"})}</span>
+          </div>
+          <div class="body">
+            <div class="row1">
+              <span class="subject">${e.subject??e.content}</span>
+              <span class="pill ${n<=3?"warn":""}">${this._when(n)}</span>
+            </div>
+            <div class="meta">${d}</div>
+          </div>
+          <ha-icon class="caret" icon=${i?"mdi:menu-up":"mdi:menu-down"}></ha-icon>
+        </button>
+        ${i?o.length?W`<div class="topics">
+                ${e.more_topics?W`<div class="more">${je(a,"card.exam_prep.more",{count:e.more_topics})}</div>`:q}
+                ${o.map(e=>W`<div class="topic">
+                    <time>${Oe(e.date,a.language)}</time>
+                    <span class="text"
+                      >${e.topic}${(e.dates?.length??1)>1?W` <span
+                            class="times"
+                            title=${e.dates.map(e=>Oe(e,a.language)).join(", ")}
+                            >×${e.dates.length}</span
+                          >`:q}${e.absent?W` <span class="tag">${je(a,"card.exam_prep.absent")}</span>`:q}</span
+                    >
+                  </div>`)}
+              </div>`:W`<div class="none">
+                ${e.content?W`<div>${e.content}</div>`:q}
+                <div>${je(a,"card.exam_prep.no_topics")}</div>
+              </div>`:q}
+      </div>
+    `}_toggle(e,t){this._open={...this._open,[e]:!t}}_when(e){const t=this.hass;return e<=0?je(t,"card.exam_prep.today"):1===e?je(t,"card.exam_prep.tomorrow"):je(t,"card.exam_prep.in_days",{days:e})}};xt.styles=[Je,Ze,o`
+      .exams {
+        display: grid;
+        gap: 8px;
+      }
+      .exam {
+        border-radius: 10px;
+        background: var(--lc-chip-bg);
+        overflow: hidden;
+      }
+      .exam.open {
+        background: var(--lc-brand-bg);
+      }
+      .top {
+        all: unset;
+        box-sizing: border-box;
+        width: 100%;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+      .top:focus-visible {
+        outline: 2px solid var(--lc-brand);
+        outline-offset: -2px;
+        border-radius: 10px;
+      }
+      .date {
+        width: 46px;
+        flex: none;
+        border-radius: 9px;
+        background: var(--lc-brand-bg);
+        color: var(--lc-brand-strong);
+        text-align: center;
+        padding: 5px 0;
+      }
+      .exam.open .date {
+        background: var(--card-background-color, var(--ha-card-background));
+      }
+      .date b {
+        display: block;
+        font-size: 1.15rem;
+        line-height: 1.1;
+      }
+      .date span {
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .body {
+        flex: 1;
+        min-width: 0;
+      }
+      .row1 {
+        align-items: center;
+      }
+      .subject {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .pill {
+        font-size: 0.66rem;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 2px 8px;
+        white-space: nowrap;
+        background: var(--lc-brand-bg);
+        color: var(--lc-brand-strong);
+        flex: none;
+      }
+      .pill.warn {
+        background: var(--lc-warn-bg);
+        color: var(--lc-warn);
+      }
+      .meta {
+        font-size: 0.72rem;
+        color: var(--secondary-text-color);
+        margin-top: 2px;
+      }
+      .caret {
+        --mdc-icon-size: 20px;
+        color: var(--secondary-text-color);
+        flex: none;
+      }
+      .topics,
+      .none {
+        display: grid;
+        gap: 7px;
+        padding: 0 12px 12px;
+        font-size: 0.78rem;
+        line-height: 1.35;
+      }
+      .none {
+        color: var(--secondary-text-color);
+      }
+      .topic {
+        display: grid;
+        grid-template-columns: 44px 1fr;
+        gap: 8px;
+      }
+      .topic time {
+        font-size: 0.68rem;
+        color: var(--secondary-text-color);
+        padding-top: 2px;
+        font-variant-numeric: tabular-nums;
+      }
+      .text {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .tag {
+        font-size: 0.6rem;
+        font-weight: 700;
+        color: var(--lc-bad);
+        background: var(--lc-bad-bg);
+        border-radius: 999px;
+        padding: 1px 6px;
+        white-space: nowrap;
+      }
+      .times {
+        font-size: 0.62rem;
+        font-weight: 700;
+        color: var(--secondary-text-color);
+        background: var(--lc-chip-bg);
+        border-radius: 999px;
+        padding: 1px 6px;
+        white-space: nowrap;
+      }
+      .more {
+        font-size: 0.7rem;
+        color: var(--secondary-text-color);
+      }
+    `],e([me()],xt.prototype,"_config",void 0),e([me()],xt.prototype,"_open",void 0),xt=e([he("librus-exam-prep-card")],xt);let kt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-school-documents-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass,a=e.map.school_documents,s=a?t.states[a]:void 0,i="mdi:file-document-multiple-outline";if(!s)return this._message(i,je(t,"card.school_documents.requires"));const r=s.attributes.recent??[],o=this._config.title??je(t,"card.school_documents.title");if(0===r.length)return this._message(i,o,je(t,"card.school_documents.empty"));const n=r.filter(e=>this._isNew(e)).length,c=r.slice(0,this._config.max_items??6),d=n?je(t,"card.school_documents.subtitle_new",{count:r.length,fresh:n}):je(t,"card.school_documents.subtitle",{count:r.length});return W`
+      <ha-card class="static">
+        <div class="header">
+          <div class="icon-badge"><ha-icon icon=${i}></ha-icon></div>
+          <div class="title-block">
+            <div class="title">${o}</div>
+            <div class="subtitle">${d}</div>
+          </div>
+        </div>
+        <div class="docs">
+          ${c.map(e=>{const a=this._isNew(e),s=W`
+              <span class="file ${a?"new":""}"><ha-icon icon="mdi:file-document-outline"></ha-icon></span>
+              <span class="body">
+                <span class="row1">
+                  <span class="name">${e.name}</span>
+                  ${a?W`<span class="pill">${je(t,"card.school_documents.new")}</span>`:q}
+                </span>
+                ${e.added?W`<span class="meta"
+                      >${je(t,"card.school_documents.added",{date:Oe(e.added,t.language)})}</span
+                    >`:q}
+              </span>
+              ${e.url?W`<ha-icon class="open" icon="mdi:open-in-new"></ha-icon>`:q}
+            `;return e.url?W`<a class="doc" href=${e.url} target="_blank" rel="noopener noreferrer">${s}</a>`:W`<div class="doc">${s}</div>`})}
+        </div>
+      </ha-card>
+    `}_isNew(e){if(!e.added)return!1;const t=new Date(e.added.replace(" ","T"));return!Number.isNaN(t.getTime())&&Date.now()-t.getTime()<6048e5}};kt.styles=[Je,Ze,o`
+      .docs {
+        display: grid;
+        gap: 4px;
+      }
+      .doc {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 6px;
+        margin: 0 -6px;
+        border-radius: 10px;
+        color: inherit;
+        text-decoration: none;
+      }
+      a.doc:hover {
+        background: var(--lc-chip-bg);
+      }
+      a.doc:focus-visible {
+        outline: 2px solid var(--lc-brand);
+      }
+      .file {
+        width: 32px;
+        height: 32px;
+        flex: none;
+        border-radius: 8px;
+        background: var(--lc-chip-bg);
+        color: var(--secondary-text-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .file.new {
+        background: var(--lc-brand-bg);
+        color: var(--lc-brand);
+      }
+      .file ha-icon {
+        --mdc-icon-size: 18px;
+      }
+      .body {
+        flex: 1;
+        min-width: 0;
+        display: grid;
+        gap: 1px;
+      }
+      .row1 {
+        align-items: center;
+      }
+      .name {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .pill {
+        font-size: 0.64rem;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 2px 8px;
+        background: var(--lc-brand-bg);
+        color: var(--lc-brand-strong);
+        white-space: nowrap;
+        flex: none;
+      }
+      .meta {
+        font-size: 0.7rem;
+        color: var(--secondary-text-color);
+      }
+      .open {
+        --mdc-icon-size: 16px;
+        color: var(--secondary-text-color);
+        flex: none;
+      }
+    `],e([me()],kt.prototype,"_config",void 0),kt=e([he("librus-school-documents-card")],kt);let $t=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-justifications-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass,a=e.map.justifications,s=a?t.states[a]:void 0,i="mdi:clipboard-check-outline";if(!s)return this._message(i,je(t,"card.justifications.requires"));const r=e.map.unexcused_absences,o=r?t.states[r]:void 0,n=[...new Set((o?.attributes.awaiting_justification??[]).map(e=>e.slice(0,10)))].sort(),c=s.attributes.recent??[],d=Number(s.attributes.pending??0),l=Number(s.attributes.accepted??0),h=Number(s.attributes.rejected??0),u=this._config.title??je(t,"card.justifications.title");if(0===c.length&&0===n.length)return this._message(i,u,je(t,"card.justifications.empty"));const p=d?je(t,"card.justifications.subtitle_pending",{count:d}):je(t,"card.justifications.subtitle_done");return W`
+      <ha-card class="static">
+        <div class="header">
+          <div class="icon-badge ${n.length||d?"amber":"good"}">
+            <ha-icon icon=${i}></ha-icon>
+          </div>
+          <div class="title-block">
+            <div class="title">${u}</div>
+            <div class="subtitle">${p}</div>
+          </div>
+        </div>
+        ${n.length?W`<div class="todo">
+              <ha-icon icon="mdi:clock-outline"></ha-icon>
+              <div>
+                <div>${je(t,"card.justifications.to_excuse",{count:n.length})}</div>
+                <div class="todo-dates">
+                  ${n.map(e=>Oe(e,t.language)).join(", ")} ·
+                  ${je(t,"card.justifications.nothing_sent")}
+                </div>
+              </div>
+            </div>`:q}
+        ${c.length?W`<div class="chips">
+                <span class="chip">${je(t,"card.justifications.pending")} <span class="n">${d}</span></span>
+                <span class="chip">${je(t,"card.justifications.accepted")} <span class="n">${l}</span></span>
+                <span class="chip">${je(t,"card.justifications.rejected")} <span class="n">${h}</span></span>
+              </div>
+              <div class="list">
+                ${c.slice(0,this._config.max_items??5).map(e=>this._item(e))}
+              </div>`:q}
+      </ha-card>
+    `}_decision(e){if(e.decision)return e.decision;const t=(e.status||"").toLowerCase();return t.startsWith("accept")?"accepted":t.startsWith("reject")||t.startsWith("denied")||t.startsWith("refuse")?"rejected":"pending"}_item(e){const t=this.hass,a=this._decision(e),s=e.date_from?Oe(e.date_from,t.language):"",i=e.date_to?Oe(e.date_to,t.language):"",r=i&&i!==s?`${s} – ${i}`:s,o=[e.justified_absences?je(t,"card.justifications.lessons",{count:e.justified_absences}):null,e.posted?je(t,"card.justifications.sent",{date:Oe(e.posted,t.language)}):null].filter(Boolean);return W`
+      <div class="item ${a}">
+        <span class="stripe"></span>
+        <div class="body">
+          <div class="row1">
+            <span>${r}</span>
+            <span class="pill ${a}">${je(t,`card.justifications.${a}`)}</span>
+          </div>
+          <div class="item-text">
+            ${o.join(" · ")}${e.message?W` · „${e.message.trim()}”`:q}
+          </div>
+        </div>
+      </div>
+    `}};$t.styles=[Je,Ze,o`
+      .todo {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background: var(--lc-warn-bg);
+        color: var(--lc-warn);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+      .todo ha-icon {
+        --mdc-icon-size: 20px;
+        flex: none;
+      }
+      .todo-dates {
+        color: var(--primary-text-color);
+        font-weight: 400;
+        font-size: 0.74rem;
+        margin-top: 1px;
+      }
+      .list {
+        display: grid;
+        gap: 10px;
+      }
+      .item {
+        display: flex;
+        gap: 10px;
+      }
+      .stripe {
+        width: 3px;
+        flex: none;
+        border-radius: 2px;
+        background: var(--lc-warn);
+      }
+      .item.accepted .stripe {
+        background: var(--lc-good);
+      }
+      .item.rejected .stripe {
+        background: var(--lc-bad);
+      }
+      .body {
+        flex: 1;
+        min-width: 0;
+      }
+      .row1 {
+        align-items: center;
+      }
+      .pill {
+        font-size: 0.66rem;
+        font-weight: 700;
+        border-radius: 999px;
+        padding: 2px 8px;
+        white-space: nowrap;
+        flex: none;
+        background: var(--lc-warn-bg);
+        color: var(--lc-warn);
+      }
+      .pill.accepted {
+        background: var(--lc-good-bg);
+        color: var(--lc-good);
+      }
+      .pill.rejected {
+        background: var(--lc-bad-bg);
+        color: var(--lc-bad);
+      }
+      .item-text {
+        overflow-wrap: anywhere;
+      }
+    `],e([me()],$t.prototype,"_config",void 0),$t=e([he("librus-justifications-card")],$t);let zt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-subject-grades-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,a=this.hass,s=this._resolveAllByTranslationKey(t,"subject_average"),i=void 0!==this._config.subject_id?s.find(e=>e.subjectId===this._config.subject_id):s[0];if(!i)return this._message("mdi:notebook-outline",je(a,"card.grades.empty"));const r=a.states[i.entityId],o=[...r?.attributes.grades??[],...mt(r?.attributes),...gt(r?.attributes)],n=r?.attributes.points_percentage;if(0===o.length)return this._message("mdi:notebook-outline",je(a,"card.grades.empty"));const c=_t(o,this._config);if(0===c.length)return this._message("mdi:notebook-outline",je(a,"card.grade_log.empty_filtered"));const d=this._config.max_items,l=d?c.slice(0,d):c;return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:notebook-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${s.subject}</div>
-            <div class="subtitle">${r.state}</div>
+            <div class="title">${i.subject}</div>
+            <div class="subtitle">
+              ${be.has(r.state)&&"number"==typeof n?je(a,"card.grades.points_percentage",{value:n.toLocaleString(a.language,{maximumFractionDigits:1})}):r.state}
+            </div>
           </div>
         </div>
         <div class="scroll-list">
-          ${d.map(e=>R`
+          ${l.map(e=>W`
               <div class="list-item">
-                <div class="grade-chip">${e.value}</div>
+                <div class="grade-chip ${e.improved?"improved":""} ${e.points?`points ${bt(e.percentage)}`:""}">
+                  ${e.value}${e.points&&null!==e.percentage&&void 0!==e.percentage?W`<small>${Math.round(e.percentage)}%</small>`:q}
+                </div>
                 <div class="body">
                   <div class="row1">
-                    <span class="cat-label">${e.category??""}</span>
-                    ${e.date?R`<time>${We(e.date,i.language)}</time>`:q}
+                    <span><span class="cat-label">${e.category??""}</span>${e.improves?W` · <span class="fix-label">${je(a,"label.grade_improves",{value:e.improves})}</span>`:q}</span>
+                    ${e.date?W`<time>${Oe(e.date,a.language)}</time>`:q}
                   </div>
-                  ${e.comments.length?R`<div class="quote">${e.comments.join(" · ")}</div>`:q}
+                  ${e.comments.length?W`<div class="quote">${e.comments.join(" · ")}</div>`:q}
                 </div>
               </div>
             `)}
         </div>
       </ha-card>
-    `}};ot.styles=[Oe,Fe,n`
+    `}};zt.styles=[Je,Ze,o`
+      .grade-chip.improved {
+        text-decoration: line-through;
+        opacity: 0.55;
+      }
+      .fix-label {
+        color: var(--lc-good);
+        font-weight: 600;
+      }
       .grade-chip {
         flex: none;
         min-width: 26px;
@@ -904,38 +1623,38 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-size: 0.78rem;
         padding: 0 4px;
       }
-    `],e([ge()],ot.prototype,"_config",void 0),ot=e([he("librus-subject-grades-card")],ot);let ct=class extends Be{constructor(){super(...arguments),this._points=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-grade-trend-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}get _historyDays(){return this._config?.days??60}getCardSize(){return 3}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}_resolveEntityId(){if(!this.hass||!this._config)return;const e=this._resolveEntities();if("error"in e)return;const{deviceId:t,map:i}=e;if(void 0!==this._config.subject_id){const e=this._resolveAllByTranslationKey(t,"subject_average");return e.find(e=>e.subjectId===this._config.subject_id)?.entityId}return i.overall_average}async _fetch(e=!1){const t=this._resolveEntityId();if(!this.hass||!t)return;const i=new Date,a=new Date(i.getTime()-864e5*this._historyDays),s=`${t}:${i.toDateString()}:${this._historyDays}`;if(!e&&this._fetchedFor===s)return;this._fetchedFor=s;const r=this._beginFetch();try{const e=await async function(e,t,i,a){const s=`history/period/${encodeURIComponent(i.toISOString())}?filter_entity_id=${encodeURIComponent(t)}&end_time=${encodeURIComponent(a.toISOString())}`,r=await e.callApi("GET",s),n=r?.[0]??[],o=[];for(const e of n){const t=Number(e.state);if(!Number.isFinite(t))continue;const i=new Date(e.last_changed).getTime();if(Number.isNaN(i))continue;const a=o[o.length-1];a&&a.value===t||o.push({timestamp:i,value:t})}return o}(this.hass,t,a,i);this._isCurrentFetch(r)&&(this._points=e)}catch{this._isCurrentFetch(r)&&(this._points=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;this._fetch();const i=this._resolveEntityId(),a=void 0!==this._config.subject_id?this._resolveAllByTranslationKey(e.deviceId,"subject_average").find(e=>e.subjectId===this._config.subject_id)?.subject:void 0;if(!i||this._points.length<2)return this._message("mdi:chart-line",ze(t,"card.grade_trend.empty"));const s=this._points[0],r=this._points[this._points.length-1],n=Math.round(100*(r.value-s.value))/100,o=n>0?"mdi:trending-up":n<0?"mdi:trending-down":"mdi:trending-neutral",c=n>0?"good":n<0?"bad":"";return R`
+    `],e([me()],zt.prototype,"_config",void 0),zt=e([he("librus-subject-grades-card")],zt);let jt=class extends Ge{constructor(){super(...arguments),this._points=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-grade-trend-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}get _historyDays(){return this._config?.days??60}getCardSize(){return 3}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}_resolveEntityId(){if(!this.hass||!this._config)return;const e=this._resolveEntities();if("error"in e)return;const{deviceId:t,map:a}=e;if(void 0!==this._config.subject_id){const e=this._resolveAllByTranslationKey(t,"subject_average");return e.find(e=>e.subjectId===this._config.subject_id)?.entityId}return a.overall_average}async _fetch(e=!1){const t=this._resolveEntityId();if(!this.hass||!t)return;const a=new Date,s=new Date(a.getTime()-864e5*this._historyDays),i=`${t}:${a.toDateString()}:${this._historyDays}`;if(!e&&this._fetchedFor===i)return;this._fetchedFor=i;const r=this._beginFetch();try{const e=await async function(e,t,a,s){const i=`history/period/${encodeURIComponent(a.toISOString())}?filter_entity_id=${encodeURIComponent(t)}&end_time=${encodeURIComponent(s.toISOString())}`,r=await e.callApi("GET",i),o=r?.[0]??[],n=[];for(const e of o){const t=Number(e.state);if(!Number.isFinite(t))continue;const a=new Date(e.last_changed).getTime();if(Number.isNaN(a))continue;const s=n[n.length-1];s&&s.value===t||n.push({timestamp:a,value:t})}return n}(this.hass,t,s,a);this._isCurrentFetch(r)&&(this._points=e)}catch{this._isCurrentFetch(r)&&(this._points=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;this._fetch();const a=this._resolveEntityId(),s=void 0!==this._config.subject_id?this._resolveAllByTranslationKey(e.deviceId,"subject_average").find(e=>e.subjectId===this._config.subject_id)?.subject:void 0;if(!a||this._points.length<2)return this._message("mdi:chart-line",je(t,"card.grade_trend.empty"));const i=this._points[0],r=this._points[this._points.length-1],o=Math.round(100*(r.value-i.value))/100,n=o>0?"mdi:trending-up":o<0?"mdi:trending-down":"mdi:trending-neutral",c=o>0?"good":o<0?"bad":"";return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:chart-line"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??a??ze(t,"card.grade_trend.title")}</div>
-            <div class="subtitle">${ze(t,"card.grade_trend.subtitle",{days:this._historyDays})}</div>
+            <div class="title">${this._config.title??s??je(t,"card.grade_trend.title")}</div>
+            <div class="subtitle">${je(t,"card.grade_trend.subtitle",{days:this._historyDays})}</div>
           </div>
           <div class="trend ${c}">
-            <ha-icon icon=${o}></ha-icon>
-            <span>${n>0?"+":""}${n}</span>
+            <ha-icon icon=${n}></ha-icon>
+            <span>${o>0?"+":""}${o}</span>
           </div>
         </div>
         <div class="chart-row">
           <div class="current-value">${r.value.toFixed(2)}</div>
-          ${function(e,t={}){const i=t.width??280,a=t.height??72,s=t.colorVar??"var(--lc-brand)";if(e.length<2)return R`<svg width=${i} height=${a} viewBox="0 0 ${i} ${a}" class="line-chart"></svg>`;const r=e.map(e=>e.timestamp),n=e.map(e=>e.value),o=Math.min(...r),c=Math.max(...r),d=t.min??Math.min(...n),l=t.max??Math.max(...n),h=c-o||1,u=l-d||1,p=e=>6+(e-o)/h*(i-12),m=e=>a-6-(e-d)/u*(a-12),g=e.map(e=>`${p(e.timestamp).toFixed(1)},${m(e.value).toFixed(1)}`).join(" "),v=e[0],b=e[e.length-1],_=`${p(v.timestamp).toFixed(1)},${(a-6).toFixed(1)} ${g} ${p(b.timestamp).toFixed(1)},${(a-6).toFixed(1)}`;return R`
-    <svg width=${i} height=${a} viewBox="0 0 ${i} ${a}" class="line-chart">
-      <polygon points=${_} fill=${s} opacity="0.12"></polygon>
+          ${function(e,t={}){const a=t.width??280,s=t.height??72,i=t.colorVar??"var(--lc-brand)";if(e.length<2)return W`<svg width=${a} height=${s} viewBox="0 0 ${a} ${s}" class="line-chart"></svg>`;const r=e.map(e=>e.timestamp),o=e.map(e=>e.value),n=Math.min(...r),c=Math.max(...r),d=t.min??Math.min(...o),l=t.max??Math.max(...o),h=c-n||1,u=l-d||1,p=e=>6+(e-n)/h*(a-12),g=e=>s-6-(e-d)/u*(s-12),m=e.map(e=>`${p(e.timestamp).toFixed(1)},${g(e.value).toFixed(1)}`).join(" "),v=e[0],b=e[e.length-1],_=`${p(v.timestamp).toFixed(1)},${(s-6).toFixed(1)} ${m} ${p(b.timestamp).toFixed(1)},${(s-6).toFixed(1)}`;return W`
+    <svg width=${a} height=${s} viewBox="0 0 ${a} ${s}" class="line-chart">
+      <polygon points=${_} fill=${i} opacity="0.12"></polygon>
       <polyline
-        points=${g}
+        points=${m}
         fill="none"
-        stroke=${s}
+        stroke=${i}
         stroke-width="2"
         stroke-linejoin="round"
         stroke-linecap="round"
       ></polyline>
-      <circle cx=${p(b.timestamp)} cy=${m(b.value)} r="3" fill=${s}></circle>
+      <circle cx=${p(b.timestamp)} cy=${g(b.value)} r="3" fill=${i}></circle>
     </svg>
   `}(this._points,{colorVar:"var(--lc-brand)"})}
         </div>
       </ha-card>
-    `}};var dt,lt;ct.styles=[Oe,Fe,n`
+    `}};var Ct,St;jt.styles=[Je,Ze,o`
       .header {
         align-items: flex-start;
       }
@@ -972,41 +1691,49 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         min-width: 0;
         height: 56px;
       }
-    `],e([ge()],ct.prototype,"_config",void 0),e([ge()],ct.prototype,"_points",void 0),ct=e([he("librus-grade-trend-card")],ct),function(e){e.language="language",e.system="system",e.comma_decimal="comma_decimal",e.decimal_comma="decimal_comma",e.space_comma="space_comma",e.none="none"}(dt||(dt={})),function(e){e.language="language",e.system="system",e.am_pm="12",e.twenty_four="24"}(lt||(lt={}));var ht=["closed","locked","off"],ut=function(e,t,i,a){a=a||{},i=null==i?{}:i;var s=new Event(t,{bubbles:void 0===a.bubbles||a.bubbles,cancelable:Boolean(a.cancelable),composed:void 0===a.composed||a.composed});return s.detail=i,e.dispatchEvent(s),s},pt=function(e){ut(window,"haptic",e)},mt=function(e,t,i,a){if(a||(a={action:"more-info"}),!a.confirmation||a.confirmation.exemptions&&a.confirmation.exemptions.some(function(e){return e.user===t.user.id})||(pt("warning"),confirm(a.confirmation.text||"Are you sure you want to "+a.action+"?")))switch(a.action){case"more-info":(i.entity||i.camera_image)&&ut(e,"hass-more-info",{entityId:i.entity?i.entity:i.camera_image});break;case"navigate":a.navigation_path&&function(e,t,i){void 0===i&&(i=!1),i?history.replaceState(null,"",t):history.pushState(null,"",t),ut(window,"location-changed",{replace:i})}(0,a.navigation_path);break;case"url":a.url_path&&window.open(a.url_path);break;case"toggle":i.entity&&(function(e,t){(function(e,t,i){void 0===i&&(i=!0);var a,s=function(e){return e.substr(0,e.indexOf("."))}(t),r="group"===s?"homeassistant":s;switch(s){case"lock":a=i?"unlock":"lock";break;case"cover":a=i?"open_cover":"close_cover";break;default:a=i?"turn_on":"turn_off"}e.callService(r,a,{entity_id:t})})(e,t,ht.includes(e.states[t].state))}(t,i.entity),pt("success"));break;case"call-service":if(!a.service)return void pt("failure");var s=a.service.split(".",2);t.callService(s[0],s[1],a.service_data,a.target),pt("success");break;case"fire-dom-event":ut(e,"ll-custom",a)}};function gt(e){return void 0!==e&&"none"!==e.action}function vt(e,t,i){if(t&&gt(t))return a=>{e.hass&&(a.stopPropagation(),function(e,t,i){var a;i.tap_action&&(a=i.tap_action),mt(e,t,i,a)}(e,e.hass,{tap_action:t,entity:i}))}}function bt(e){return gt(e)}let _t=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-grade-goal-card",target:4.5}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass,s=this._resolveAllByTranslationKey(t,"subject_average"),r=void 0!==this._config.subject_id?s.find(e=>e.subjectId===this._config.subject_id):void 0,n=r?r.entityId:i.overall_average,o=n?a.states[n]:void 0,c=Number(o?.state);if(!o||Number.isNaN(c))return this._message("mdi:target",ze(a,"card.grade_goal.empty"));const d=this._config.target??4.5,l=r?Number(o.attributes.grade_count)||0:s.reduce((e,t)=>e+(a.states[t.entityId]?.attributes.grades?.length??0),0),h=c>=d,u=d<=1?h?100:0:Math.max(0,Math.min(100,(c-1)/(d-1)*100)),p=!h&&d<6&&l>0?Math.ceil(l*(d-c)/(6-d)):null;return R`
-      <ha-card @click=${vt(this,this._config.tap_action,n)}>
+    `],e([me()],jt.prototype,"_config",void 0),e([me()],jt.prototype,"_points",void 0),jt=e([he("librus-grade-trend-card")],jt),function(e){e.language="language",e.system="system",e.comma_decimal="comma_decimal",e.decimal_comma="decimal_comma",e.space_comma="space_comma",e.none="none"}(Ct||(Ct={})),function(e){e.language="language",e.system="system",e.am_pm="12",e.twenty_four="24"}(St||(St={}));var Dt=["closed","locked","off"],Tt=function(e,t,a,s){s=s||{},a=null==a?{}:a;var i=new Event(t,{bubbles:void 0===s.bubbles||s.bubbles,cancelable:Boolean(s.cancelable),composed:void 0===s.composed||s.composed});return i.detail=a,e.dispatchEvent(i),i},It=function(e){Tt(window,"haptic",e)},Nt=function(e,t,a,s){if(s||(s={action:"more-info"}),!s.confirmation||s.confirmation.exemptions&&s.confirmation.exemptions.some(function(e){return e.user===t.user.id})||(It("warning"),confirm(s.confirmation.text||"Are you sure you want to "+s.action+"?")))switch(s.action){case"more-info":(a.entity||a.camera_image)&&Tt(e,"hass-more-info",{entityId:a.entity?a.entity:a.camera_image});break;case"navigate":s.navigation_path&&function(e,t,a){void 0===a&&(a=!1),a?history.replaceState(null,"",t):history.pushState(null,"",t),Tt(window,"location-changed",{replace:a})}(0,s.navigation_path);break;case"url":s.url_path&&window.open(s.url_path);break;case"toggle":a.entity&&(function(e,t){(function(e,t,a){void 0===a&&(a=!0);var s,i=function(e){return e.substr(0,e.indexOf("."))}(t),r="group"===i?"homeassistant":i;switch(i){case"lock":s=a?"unlock":"lock";break;case"cover":s=a?"open_cover":"close_cover";break;default:s=a?"turn_on":"turn_off"}e.callService(r,s,{entity_id:t})})(e,t,Dt.includes(e.states[t].state))}(t,a.entity),It("success"));break;case"call-service":if(!s.service)return void It("failure");var i=s.service.split(".",2);t.callService(i[0],i[1],s.service_data,s.target),It("success");break;case"fire-dom-event":Tt(e,"ll-custom",s)}};function Et(e){return void 0!==e&&"none"!==e.action}function At(e,t,a){if(t&&Et(t))return s=>{e.hass&&(s.stopPropagation(),function(e,t,a){var s;a.tap_action&&(s=a.tap_action),Nt(e,t,a,s)}(e,e.hass,{tap_action:t,entity:a}))}}function Mt(e){return Et(e)}let Lt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-grade-goal-card",target:4.5}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass,i=this._resolveAllByTranslationKey(t,"subject_average"),r=void 0!==this._config.subject_id?i.find(e=>e.subjectId===this._config.subject_id):void 0,o=r?r.entityId:a.overall_average,n=o?s.states[o]:void 0,c=Number(n?.state);if(!n||Number.isNaN(c))return this._message("mdi:target",je(s,"card.grade_goal.empty"));const d=this._config.target??4.5,l=r?Number(n.attributes.grade_count)||0:i.reduce((e,t)=>e+(s.states[t.entityId]?.attributes.grades?.length??0),0),h=c>=d,u=d<=1?h?100:0:Math.max(0,Math.min(100,(c-1)/(d-1)*100)),p=r?et(n):void 0,g=void 0!==p&&p.weight>0,m=h?null:g?function(e,t,a){return e>=a?0:a>=6||!(t>0)?null:Math.max(1,Math.ceil((a*t-e*t)/(6-a)-1e-9))}(p.average,p.weight,d):d<6&&l>0?Math.ceil(l*(d-c)/(6-d)):null,v=r?p?.predicted:a.grade_forecast?Number(s.states[a.grade_forecast]?.state):void 0;return W`
+      <ha-card @click=${At(this,this._config.tap_action,o)}>
         <div class="header">
           <div class="icon-badge ${h?"good":""}">
             <ha-icon icon=${h?"mdi:flag-checkered":"mdi:target"}></ha-icon>
           </div>
           <div class="title-block">
-            <div class="title">${this._config.title??r?.subject??ze(a,"card.grade_goal.title")}</div>
+            <div class="title">${this._config.title??r?.subject??je(s,"card.grade_goal.title")}</div>
             <div class="subtitle">
-              ${ze(a,r?"card.grade_goal.title":"card.grade_goal.subtitle_overall")}
+              ${je(s,r?"card.grade_goal.title":"card.grade_goal.subtitle_overall")}
             </div>
           </div>
         </div>
         <div class="ring-row">
-          ${Ue(Math.round(u),h?"var(--lc-good)":"var(--lc-brand)",68,7)}
+          ${Ye(Math.round(u),h?"var(--lc-good)":"var(--lc-brand)",68,7)}
           <div>
             <div class="ring-num">${c.toFixed(2)}</div>
-            <div class="ring-label">${ze(a,"label.current")}</div>
+            <div class="ring-label">${je(s,"label.current")}</div>
           </div>
         </div>
         <hr />
         <div class="stats">
           <div class="stat">
             <div class="stat-value">${d.toFixed(2)}</div>
-            <div class="stat-label">${ze(a,"label.target")}</div>
+            <div class="stat-label">${je(s,"label.target")}</div>
           </div>
           <div class="stat ${h?"good":""}">
             <div class="stat-value">
-              ${h?ze(a,"card.grade_goal.reached"):null!==p?ze(a,"label.sixes_needed",{n:p}):"—"}
+              ${h?je(s,"card.grade_goal.reached"):null!==m?je(s,g?"label.sixes_needed_exact":"label.sixes_needed",{n:m}):"—"}
             </div>
-            <div class="stat-label">${h||null===p?"":ze(a,"label.to_go")}</div>
+            <div class="stat-label">${h||null===m?"":je(s,"label.to_go")}</div>
           </div>
+          ${void 0===v||Number.isNaN(v)?q:W`<div class="stat">
+                <div class="stat-value">
+                  ${r?v:v.toLocaleString(s.language,{maximumFractionDigits:2})}
+                </div>
+                <div class="stat-label">
+                  ${je(s,r?"label.forecast":"label.forecast_report_average")}
+                </div>
+              </div>`}
         </div>
       </ha-card>
-    `}};_t.styles=[Oe,Fe,n`
+    `}};Lt.styles=[Je,Ze,o`
       .ring-row {
         display: flex;
         align-items: center;
@@ -1026,23 +1753,33 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       .stat .stat-value {
         font-size: 0.95rem;
       }
-    `],e([ge()],_t.prototype,"_config",void 0),_t=e([he("librus-grade-goal-card")],_t);const yt=[1,2,3,4,5,6];let ft=class extends Be{constructor(){super(...arguments),this._grade=5,this._weight=1}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-grade-simulator-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a=this._resolveAllByTranslationKey(t,"subject_average"),s=void 0!==this._config.subject_id?a.find(e=>e.subjectId===this._config.subject_id):a[0],r=s?i.states[s.entityId]:void 0,n=Number(r?.state),o=Number(r?.attributes.grade_count)||0;if(!s||Number.isNaN(n))return this._message("mdi:calculator-variant-outline",ze(i,"card.grade_simulator.empty"));const c=(n*o+this._grade*this._weight)/(o+this._weight),d=Math.round(100*(c-n))/100,l=d>0?"good":d<0?"bad":"";return R`
+    `],e([me()],Lt.prototype,"_config",void 0),Lt=e([he("librus-grade-goal-card")],Lt);const Pt=[1,2,3,4,5,6];let Ft=class extends Ge{constructor(){super(...arguments),this._grade=5,this._weight=1}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-grade-simulator-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass,i=this._resolveAllByTranslationKey(t,"subject_average"),r=void 0!==this._config.subject_id?i.find(e=>e.subjectId===this._config.subject_id):i[0],o=r?s.states[r.entityId]:void 0,n=Number(o?.state),c=Number(o?.attributes.grade_count)||0;if(!r||Number.isNaN(n))return this._message("mdi:calculator-variant-outline",je(s,"card.grade_simulator.empty"));const d=et(o),l=void 0!==d&&d.weight>0,h=l?d.average:n,u=l?d.weight:c,p=(h*u+this._grade*this._weight)/(u+this._weight),g=Math.round(100*(p-h))/100,m=function(e,t){const a=t.grade_forecast?e.states[t.grade_forecast]?.attributes.thresholds:void 0;return Array.isArray(a)&&5===a.length?a.map(Number):Qe}(s,a),v=function(e,t){return 1+t.filter(t=>e>=t).length}(p,m),b=g>0?"good":g<0?"bad":"";return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:calculator-variant-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${s.subject}</div>
-            <div class="subtitle">${ze(i,"card.grade_simulator.subtitle")}</div>
+            <div class="title">${r.subject}</div>
+            <div class="subtitle">
+              ${je(s,l?"card.grade_simulator.subtitle_exact":"card.grade_simulator.subtitle")}
+            </div>
           </div>
         </div>
         <div class="projection">
-          <span class="from">${n.toFixed(2)}</span>
+          <span class="from">${h.toFixed(2)}</span>
           <ha-icon icon="mdi:arrow-right-thin"></ha-icon>
-          <span class="to ${l}">${c.toFixed(2)}</span>
-          ${0!==d?R`<span class="delta ${l}">${d>0?"+":""}${d}</span>`:q}
+          <span class="to ${b}">${p.toFixed(2)}</span>
+          ${0!==g?W`<span class="delta ${b}">${g>0?"+":""}${g}</span>`:q}
         </div>
+        ${d?W`<div class="report">
+              ${je(s,"card.grade_simulator.report")}
+              <b>${d.predicted}</b>
+              <ha-icon icon="mdi:arrow-right-thin"></ha-icon>
+              <b class=${v>d.predicted?"good":v<d.predicted?"bad":""}
+                >${v}</b
+              >
+            </div>`:q}
         <div class="grade-row">
-          ${yt.map(e=>R`
+          ${Pt.map(e=>W`
               <button
                 class="gbtn ${e===this._grade?"active":""}"
                 @click=${()=>{this._grade=e}}
@@ -1052,7 +1789,7 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
             `)}
         </div>
         <div class="weight-row">
-          <span class="wlabel">${ze(i,"label.weight")}</span>
+          <span class="wlabel">${je(s,"label.weight")}</span>
           <button
             class="wbtn"
             ?disabled=${this._weight<=1}
@@ -1070,7 +1807,7 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
           </button>
         </div>
       </ha-card>
-    `}};ft.styles=[Oe,Fe,n`
+    `}};Ft.styles=[Je,Ze,o`
       .projection {
         display: flex;
         align-items: baseline;
@@ -1108,6 +1845,26 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       }
       .delta.bad {
         color: var(--lc-bad);
+      }
+      .report {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.8rem;
+        color: var(--secondary-text-color);
+      }
+      .report b {
+        font-size: 0.95rem;
+        color: var(--primary-text-color);
+      }
+      .report b.good {
+        color: var(--lc-good);
+      }
+      .report b.bad {
+        color: var(--lc-bad);
+      }
+      .report ha-icon {
+        --mdc-icon-size: 16px;
       }
       .grade-row {
         display: flex;
@@ -1164,29 +1921,29 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         text-align: center;
         font-variant-numeric: tabular-nums;
       }
-    `],e([ge()],ft.prototype,"_config",void 0),e([ge()],ft.prototype,"_grade",void 0),e([ge()],ft.prototype,"_weight",void 0),ft=e([he("librus-grade-simulator-card")],ft);let wt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-semester-comparison-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a=this._resolveAllByTranslationKey(t,"subject_average").map(e=>{const t=i.states[e.entityId]?.attributes??{};return{subject:e.subject,s1:Je(t.average_semester_1),s2:Je(t.average_semester_2)}}).filter(e=>null!==e.s1||null!==e.s2).sort((e,t)=>e.subject.localeCompare(t.subject));return 0===a.length?this._message("mdi:swap-horizontal",ze(i,"card.semester_comparison.empty")):R`
+    `],e([me()],Ft.prototype,"_config",void 0),e([me()],Ft.prototype,"_grade",void 0),e([me()],Ft.prototype,"_weight",void 0),Ft=e([he("librus-grade-simulator-card")],Ft);let Bt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-semester-comparison-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,a=this.hass,s=this._resolveAllByTranslationKey(t,"subject_average").map(e=>{const t=a.states[e.entityId]?.attributes??{};return{subject:e.subject,s1:Re(t.average_semester_1),s2:Re(t.average_semester_2)}}).filter(e=>null!==e.s1||null!==e.s2).sort((e,t)=>e.subject.localeCompare(t.subject));return 0===s.length?this._message("mdi:swap-horizontal",je(a,"card.semester_comparison.empty")):W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:swap-horizontal"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(i,"card.semester_comparison.title")}</div>
-            <div class="subtitle">${ze(i,"card.semester_comparison.subtitle")}</div>
+            <div class="title">${this._config.title??je(a,"card.semester_comparison.title")}</div>
+            <div class="subtitle">${je(a,"card.semester_comparison.subtitle")}</div>
           </div>
         </div>
         <div class="rows">
           <div class="row head">
             <span class="subj"></span>
-            <span class="val">${ze(i,"card.semester_comparison.s1")}</span>
-            <span class="val">${ze(i,"card.semester_comparison.s2")}</span>
+            <span class="val">${je(a,"card.semester_comparison.s1")}</span>
+            <span class="val">${je(a,"card.semester_comparison.s2")}</span>
             <span class="delta"></span>
           </div>
-          ${a.map(e=>{const t=null!==e.s1&&null!==e.s2?Math.round(100*(e.s2-e.s1))/100:null,i=null===t?"":t>0?"good":t<0?"bad":"";return R`
+          ${s.map(e=>{const t=null!==e.s1&&null!==e.s2?Math.round(100*(e.s2-e.s1))/100:null,a=null===t?"":t>0?"good":t<0?"bad":"";return W`
               <div class="row">
                 <span class="subj" title=${e.subject}>${e.subject}</span>
                 <span class="val">${null!==e.s1?e.s1.toFixed(2):"—"}</span>
                 <span class="val strong">${null!==e.s2?e.s2.toFixed(2):"—"}</span>
-                <span class="delta ${i}">
-                  ${null===t?"":R`<ha-icon
+                <span class="delta ${a}">
+                  ${null===t?"":W`<ha-icon
                           icon=${t>0?"mdi:menu-up":t<0?"mdi:menu-down":"mdi:minus"}
                         ></ha-icon>${0!==t?Math.abs(t).toFixed(2):""}`}
                 </span>
@@ -1194,7 +1951,7 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
             `})}
         </div>
       </ha-card>
-    `}};wt.styles=[Oe,Fe,n`
+    `}};Bt.styles=[Je,Ze,o`
       .rows {
         display: flex;
         flex-direction: column;
@@ -1248,31 +2005,31 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       .delta.bad {
         color: var(--lc-bad);
       }
-    `],e([ge()],wt.prototype,"_config",void 0),wt=e([he("librus-semester-comparison-card")],wt);const kt=["1","2","3","4","5","6"],xt={1:"var(--lc-bad)",2:"var(--lc-bad)",3:"var(--lc-warn)",4:"var(--lc-good)",5:"var(--lc-good)",6:"var(--lc-good)",other:"var(--lc-neutral-dot)"};let $t=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-grade-distribution-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a={1:0,2:0,3:0,4:0,5:0,6:0,other:0};let s=0;for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=i.states[e.entityId]?.attributes.grades??[];for(const e of t){const t=/^([1-6])/.exec(e.value.trim())?.[1];a[t??"other"]+=1,s+=1}}if(0===s)return this._message("mdi:chart-bar",ze(i,"card.grades.empty"));const r=Math.max(...Object.values(a),1),n=[...kt,"other"];return R`
+    `],e([me()],Bt.prototype,"_config",void 0),Bt=e([he("librus-semester-comparison-card")],Bt);const Ot=["1","2","3","4","5","6"],Kt={1:"var(--lc-bad)",2:"var(--lc-bad)",3:"var(--lc-warn)",4:"var(--lc-good)",5:"var(--lc-good)",6:"var(--lc-good)",other:"var(--lc-neutral-dot)"};let Ut=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-grade-distribution-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,a=this.hass,s={1:0,2:0,3:0,4:0,5:0,6:0,other:0};let i=0;for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=a.states[e.entityId]?.attributes.grades??[];for(const e of t){const t=/^([1-6])/.exec(e.value.trim())?.[1];s[t??"other"]+=1,i+=1}}if(0===i)return this._message("mdi:chart-bar",je(a,"card.grades.empty"));const r=Math.max(...Object.values(s),1),o=[...Ot,"other"];return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:chart-bar"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.grade_distribution.title")}</div>
-            <div class="subtitle">${ze(i,"card.grade_distribution.subtitle",{count:s})}</div>
+            <div class="title">${je(a,"card.grade_distribution.title")}</div>
+            <div class="subtitle">${je(a,"card.grade_distribution.subtitle",{count:i})}</div>
           </div>
         </div>
         <div class="histogram">
-          ${n.map(e=>{const t=a[e];return R`
+          ${o.map(e=>{const t=s[e];return W`
               <div class="col">
                 <div class="col-count">${t>0?t:""}</div>
                 <div class="col-bar-track">
                   <div
                     class="col-bar"
-                    style="height:${t/r*100}%;background:${xt[e]}"
+                    style="height:${t/r*100}%;background:${Kt[e]}"
                   ></div>
                 </div>
-                <div class="col-label">${"other"===e?ze(i,"card.grade_distribution.other"):e}</div>
+                <div class="col-label">${"other"===e?je(a,"card.grade_distribution.other"):e}</div>
               </div>
             `})}
         </div>
       </ha-card>
-    `}};$t.styles=[Oe,Fe,n`
+    `}};Ut.styles=[Je,Ze,o`
       .histogram {
         display: flex;
         align-items: flex-end;
@@ -1310,22 +2067,22 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-weight: 700;
         margin-top: 4px;
       }
-    `],e([ge()],$t.prototype,"_config",void 0),$t=e([he("librus-grade-distribution-card")],$t);let zt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-grades-radar-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a=[];for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=i.states[e.entityId]?.state,s=void 0!==t?Number(t):NaN;Number.isFinite(s)&&a.push({label:e.subject,value:s})}if(a.length<3)return this._message("mdi:chart-timeline-variant",ze(i,"card.grades_radar.empty"));const s=a.reduce((e,t)=>e+t.value,0)/a.length;return R`
+    `],e([me()],Ut.prototype,"_config",void 0),Ut=e([he("librus-grade-distribution-card")],Ut);const Rt={matematyka:"Mat",fizyka:"Fiz",chemia:"Chem",biologia:"Bio",geografia:"Geo",historia:"Hist",informatyka:"Inf",muzyka:"Muz",plastyka:"Plas",religia:"Rel",etyka:"Ety",technika:"Tech",przyroda:"Przy","wychowanie fizyczne":"WF","zajęcia z wychowawcą":"GW","godzina wychowawcza":"GW","edukacja dla bezpieczeństwa":"EDB","wiedza o społeczeństwie":"WOS"},Wt={polski:"Pol",angielski:"Ang",niemiecki:"Niem",francuski:"Fra","hiszpański":"Hisz",rosyjski:"Ros","włoski":"Wł","łaciński":"Łac"},Ht=new Set(["z","i","w","o","dla","na","ze"]);function Gt(e){const t=e.replace(/\(.*\)/,"").trim(),a=t.toLowerCase();if(Rt[a])return Rt[a];const s=a.match(/^język\s+(\S+)/);if(s){const e=s[1];return Wt[e]??e.charAt(0).toUpperCase()+e.slice(1,3)}const i=t.split(/\s+/).filter(e=>!Ht.has(e.toLowerCase()));return i.length>1?i.slice(0,3).map(e=>e.charAt(0).toUpperCase()).join(""):t.length<=4?t:t.slice(0,3)}let qt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-grades-radar-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,a=this.hass,s=[];for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=a.states[e.entityId]?.state,i=void 0!==t?Number(t):NaN;Number.isFinite(i)&&s.push({label:Gt(e.subject),title:e.subject,value:i})}if(s.length<3)return this._message("mdi:chart-timeline-variant",je(a,"card.grades_radar.empty"));const i=s.reduce((e,t)=>e+t.value,0)/s.length;return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:chart-timeline-variant"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.grades_radar.title")}</div>
-            <div class="subtitle">${ze(i,"card.grades_radar.subtitle")}</div>
+            <div class="title">${je(a,"card.grades_radar.title")}</div>
+            <div class="subtitle">${je(a,"card.grades_radar.subtitle")}</div>
           </div>
         </div>
-        <div class="chart-wrap">${function(e,t={}){const i=t.width??220,a=t.height??200,s=t.max??6,r=t.colorVar??"var(--lc-brand)",n=t.ringCount??3,o=i/2,c=a/2-4,d=Math.min(i,a)/2-32,l=e.length;if(l<3)return R`<svg width=${i} height=${a} viewBox="0 0 ${i} ${a}" class="radar-chart"></svg>`;const h=e=>-Math.PI/2+2*e*Math.PI/l,u=(e,t)=>{const i=Math.max(0,Math.min(s,t))/s*d;return[o+i*Math.cos(h(e)),c+i*Math.sin(h(e))]},p=Array.from({length:n},(e,t)=>s*(t+1)/n),m=e.map((e,t)=>u(t,s)),g=e.map((e,t)=>u(t,e.value)),v=g.map(e=>e.join(",")).join(" ");return R`
-    <svg width=${i} height=${a} viewBox="0 0 ${i} ${a}" class="radar-chart">
-      ${p.map(t=>W`<polygon
-            points=${e.map((e,i)=>u(i,t).join(",")).join(" ")}
+        <div class="chart-wrap">${function(e,t={}){const a=t.width??220,s=t.height??200,i=t.max??6,r=t.colorVar??"var(--lc-brand)",o=t.ringCount??3,n=a/2,c=s/2-4,d=Math.min(a,s)/2-32,l=e.length;if(l<3)return W`<svg width=${a} height=${s} viewBox="0 0 ${a} ${s}" class="radar-chart"></svg>`;const h=e=>-Math.PI/2+2*e*Math.PI/l,u=(e,t)=>{const a=Math.max(0,Math.min(i,t))/i*d;return[n+a*Math.cos(h(e)),c+a*Math.sin(h(e))]},p=Array.from({length:o},(e,t)=>i*(t+1)/o),g=e.map((e,t)=>u(t,i)),m=e.map((e,t)=>u(t,e.value)),v=m.map(e=>e.join(",")).join(" ");return W`
+    <svg width=${a} height=${s} viewBox="0 0 ${a} ${s}" class="radar-chart">
+      ${p.map(t=>H`<polygon
+            points=${e.map((e,a)=>u(a,t).join(",")).join(" ")}
             class="radar-grid"
           ></polygon>`)}
-      ${m.map(([e,t])=>W`<line x1=${o} y1=${c} x2=${e} y2=${t} class="radar-axis"></line>`)}
+      ${g.map(([e,t])=>H`<line x1=${n} y1=${c} x2=${e} y2=${t} class="radar-axis"></line>`)}
       <polygon
         points=${v}
         fill=${r}
@@ -1334,66 +2091,66 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         stroke-width="2"
         stroke-linejoin="round"
       ></polygon>
-      ${g.map(([e,t])=>W`<circle cx=${e} cy=${t} r="3.2" fill=${r}></circle>`)}
-      ${e.map((e,t)=>{const[i,a]=u(t,1.18*s),r=Math.cos(h(t)),n=Math.abs(r)<.3?"middle":r>0?"start":"end";return W`<text x=${i} y=${a+3} text-anchor=${n} class="radar-label">${e.label}</text>`})}
+      ${m.map(([e,t])=>H`<circle cx=${e} cy=${t} r="3.2" fill=${r}></circle>`)}
+      ${e.map((e,t)=>{const[a,s]=u(t,1.18*i),r=Math.cos(h(t)),o=Math.abs(r)<.3?"middle":r>0?"start":"end";return H`<text x=${a} y=${s+3} text-anchor=${o} class="radar-label">${e.title?H`<title>${e.title}</title>`:""}${e.label}</text>`})}
     </svg>
-  `}(a,{max:6})}</div>
+  `}(s,{max:6})}</div>
         <div class="legend">
           <span class="legend-item">
             <span class="dot" style="background:var(--lc-brand)"></span>
-            ${ze(i,"label.average")} <b>${s.toFixed(2)}</b>
+            ${je(a,"label.average")} <b>${i.toFixed(2)}</b>
           </span>
         </div>
       </ha-card>
-    `}};zt.styles=[Oe,Fe],e([ge()],zt.prototype,"_config",void 0),zt=e([he("librus-grades-radar-card")],zt);const jt=Array.from({length:16},(e,t)=>`var(--lc-chart-${t+1})`);let Ct=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-grade-category-distribution-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a=new Map;for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=i.states[e.entityId]?.attributes.grades??[];for(const e of t){const t=e.category??"__uncategorized";a.set(t,(a.get(t)??0)+1)}}const s=[...a.values()].reduce((e,t)=>e+t,0);if(0===s)return this._message("mdi:chart-donut",ze(i,"card.grade_category_distribution.empty"));const r=[...a.entries()].sort((e,t)=>t[1]-e[1]).map(([e,t],a)=>({label:"__uncategorized"===e?ze(i,"card.grade_category_distribution.uncategorized"):e,value:t,colorVar:jt[a%jt.length]}));return R`
+    `}};qt.styles=[Je,Ze],e([me()],qt.prototype,"_config",void 0),qt=e([he("librus-grades-radar-card")],qt);const Jt=Array.from({length:16},(e,t)=>`var(--lc-chart-${t+1})`);let Zt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-grade-category-distribution-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,a=this.hass,s=new Map;for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=a.states[e.entityId]?.attributes.grades??[];for(const e of t){const t=e.category??"__uncategorized";s.set(t,(s.get(t)??0)+1)}}const i=[...s.values()].reduce((e,t)=>e+t,0);if(0===i)return this._message("mdi:chart-donut",je(a,"card.grade_category_distribution.empty"));const r=[...s.entries()].sort((e,t)=>t[1]-e[1]).map(([e,t],s)=>({label:"__uncategorized"===e?je(a,"card.grade_category_distribution.uncategorized"):e,value:t,colorVar:Jt[s%Jt.length]}));return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:chart-bar"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.grade_category_distribution.title")}</div>
-            <div class="subtitle">${ze(i,"card.grade_category_distribution.subtitle")}</div>
+            <div class="title">${je(a,"card.grade_category_distribution.title")}</div>
+            <div class="subtitle">${je(a,"card.grade_category_distribution.subtitle")}</div>
           </div>
         </div>
-        ${Ke(r)}
+        ${Ve(r)}
       </ha-card>
-    `}};Ct.styles=[Oe,Fe],e([ge()],Ct.prototype,"_config",void 0),Ct=e([he("librus-grade-category-distribution-card")],Ct);let St=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-latest-grade-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a=function(e,t){let i=null;for(const a of t){const t=e.states[a.entityId]?.attributes;t?.latest_grade&&t.latest_grade_date&&(!i||t.latest_grade_date>i.date)&&(i={subject:a.subject,grade:t.latest_grade,date:t.latest_grade_date,comments:t.latest_grade_comments??[]})}return i}(i,this._resolveAllByTranslationKey(t,"subject_average"));return a?R`
+    `}};Zt.styles=[Je,Ze],e([me()],Zt.prototype,"_config",void 0),Zt=e([he("librus-grade-category-distribution-card")],Zt);let Vt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-latest-grade-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,a=this.hass,s=function(e,t){let a=null;for(const s of t){const t=e.states[s.entityId]?.attributes;t?.latest_grade&&t.latest_grade_date&&(!a||t.latest_grade_date>a.date)&&(a={subject:s.subject,grade:t.latest_grade,date:t.latest_grade_date,comments:t.latest_grade_comments??[]})}return a}(a,this._resolveAllByTranslationKey(t,"subject_average"));return s?W`
       <ha-card>
         <div class="header">
           <div class="icon-badge amber"><ha-icon icon="mdi:star-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.latest_grade.title")}</div>
-            <div class="subtitle">${a.subject} &middot; ${We(a.date,i.language)}</div>
+            <div class="title">${je(a,"card.latest_grade.title")}</div>
+            <div class="subtitle">${s.subject} &middot; ${Oe(s.date,a.language)}</div>
           </div>
-          <div class="grade-badge">${a.grade}</div>
+          <div class="grade-badge">${s.grade}</div>
         </div>
-        ${a.comments.length?R`
+        ${s.comments.length?W`
               <hr />
-              ${a.comments.map(e=>R`<div class="quote">${e}</div>`)}
+              ${s.comments.map(e=>W`<div class="quote">${e}</div>`)}
             `:q}
       </ha-card>
-    `:this._message("mdi:star-outline",ze(i,"card.latest_grade.empty"))}};St.styles=[Oe,Fe,n`
+    `:this._message("mdi:star-outline",je(a,"card.latest_grade.empty"))}};Vt.styles=[Je,Ze,o`
       .grade-badge {
         font-size: 1.5rem;
         font-weight: 800;
         color: var(--lc-brand);
         flex: none;
       }
-    `],e([ge()],St.prototype,"_config",void 0),St=e([he("librus-latest-grade-card")],St);let Dt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-behaviour-grade-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.behaviour_grade?i.states[t.behaviour_grade]:void 0,s=(a?.attributes.recent??[])[0];if(!s)return this._message("mdi:medal-outline",ze(i,"card.behaviour_grade.empty"));const r=s.grade||s.short_name,n=!s.name&&s.value?s.value:null,o=(s.comments??[]).map(e=>e.trim()).filter(Boolean);return R`
+    `],e([me()],Vt.prototype,"_config",void 0),Vt=e([he("librus-latest-grade-card")],Vt);let Yt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-behaviour-grade-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.behaviour_grade?a.states[t.behaviour_grade]:void 0,i=(s?.attributes.recent??[])[0];if(!i)return this._message("mdi:medal-outline",je(a,"card.behaviour_grade.empty"));const r=i.grade||i.short_name,o=!i.name&&i.value?i.value:null,n=(i.comments??[]).map(e=>e.trim()).filter(Boolean);return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge good"><ha-icon icon="mdi:medal-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.behaviour_grade.title")}</div>
-            <div class="subtitle">${s.category??ze(i,"card.behaviour_grade.subtitle")}</div>
+            <div class="title">${je(a,"card.behaviour_grade.title")}</div>
+            <div class="subtitle">${i.category??je(a,"card.behaviour_grade.subtitle")}</div>
           </div>
-          ${r?R`<div class="grade-badge">${r}</div>`:q}
+          ${r?W`<div class="grade-badge">${r}</div>`:q}
         </div>
-        ${s.name?R`<div class="grade-name">${s.name}</div>`:q}
-        ${null!==n?R`<div class="stats"><div class="stat good"><div class="stat-value">${n>0?"+":""}${n}</div><div class="stat-label">pkt</div></div></div>`:q}
-        ${s.text?R`<div class="quote">${s.text}</div>`:q}
-        ${o.length?R`<div class="comment">${o.join(" · ")}</div>`:q}
+        ${i.name?W`<div class="grade-name">${i.name}</div>`:q}
+        ${null!==o?W`<div class="stats"><div class="stat good"><div class="stat-value">${o>0?"+":""}${o}</div><div class="stat-label">pkt</div></div></div>`:q}
+        ${i.text?W`<div class="quote">${i.text}</div>`:q}
+        ${n.length?W`<div class="comment">${n.join(" · ")}</div>`:q}
       </ha-card>
-    `}};Dt.styles=[Oe,Fe,n`
+    `}};Yt.styles=[Je,Ze,o`
       .grade-badge {
         font-size: 1.5rem;
         font-weight: 800;
@@ -1413,23 +2170,23 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         color: var(--secondary-text-color);
         line-height: 1.4;
       }
-    `],e([ge()],Dt.prototype,"_config",void 0),Dt=e([he("librus-behaviour-grade-card")],Dt);let Tt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-descriptive-grades-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.descriptive_grades?i.states[t.descriptive_grades]:void 0,s=a?.attributes.recent??[];return a&&0!==s.length?R`
+    `],e([me()],Yt.prototype,"_config",void 0),Yt=e([he("librus-behaviour-grade-card")],Yt);let Xt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-descriptive-grades-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.descriptive_grades?a.states[t.descriptive_grades]:void 0,i=s?.attributes.recent??[];return s&&0!==i.length?W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:text-box-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.descriptive_grades.title")}</div>
-            <div class="subtitle">${ze(i,"card.descriptive_grades.subtitle")}</div>
+            <div class="title">${je(a,"card.descriptive_grades.title")}</div>
+            <div class="subtitle">${je(a,"card.descriptive_grades.subtitle")}</div>
           </div>
         </div>
         <div class="scroll-list">
-          ${s.map(e=>R`
+          ${i.map(e=>W`
               <div class="list-item">
                 <span class="dot neutral"></span>
                 <div class="body">
                   <div class="row1">
                     <span>${e.subject??""}</span>
-                    ${e.date?R`<time>${We(e.date,i.language)}</time>`:q}
+                    ${e.date?W`<time>${Oe(e.date,a.language)}</time>`:q}
                   </div>
                   <div class="item-text">${e.value}</div>
                 </div>
@@ -1437,31 +2194,33 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
             `)}
         </div>
       </ha-card>
-    `:this._message("mdi:text-box-outline",ze(i,"card.descriptive_grades.empty"))}};Tt.styles=[Oe,Fe],e([ge()],Tt.prototype,"_config",void 0),Tt=e([he("librus-descriptive-grades-card")],Tt);let It=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-subject-spotlight-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a=this._resolveAllByTranslationKey(t,"subject_average").map(e=>({subject:e.subject,state:i.states[e.entityId]})).filter(e=>e.state&&!be.has(e.state.state)).map(e=>({subject:e.subject,value:Number(e.state.state)})).filter(e=>!Number.isNaN(e.value));if(a.length<2)return this._message("mdi:podium-gold",ze(i,"card.subject_spotlight.empty"));const s=a.reduce((e,t)=>t.value>e.value?t:e),r=a.reduce((e,t)=>t.value<e.value?t:e),n=e=>e.toLocaleString(i.language,{maximumFractionDigits:2});return R`
+    `:this._message("mdi:text-box-outline",je(a,"card.descriptive_grades.empty"))}};Xt.styles=[Je,Ze],e([me()],Xt.prototype,"_config",void 0),Xt=e([he("librus-descriptive-grades-card")],Xt);let Qt=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-subject-spotlight-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,a=this.hass,s=this._resolveAllByTranslationKey(t,"subject_average").map(e=>({subject:e.subject,state:a.states[e.entityId]})).filter(e=>e.state&&!be.has(e.state.state)).map(e=>({subject:e.subject,value:Number(e.state.state),forecast:et(e.state)?.predicted})).filter(e=>!Number.isNaN(e.value));if(s.length<2)return this._message("mdi:podium-gold",je(a,"card.subject_spotlight.empty"));const i=s.reduce((e,t)=>t.value>e.value?t:e),r=s.reduce((e,t)=>t.value<e.value?t:e),o=e=>e.toLocaleString(a.language,{maximumFractionDigits:2});return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:podium-gold"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.subject_spotlight.title")}</div>
-            <div class="subtitle">${ze(i,"card.subject_spotlight.subtitle")}</div>
+            <div class="title">${je(a,"card.subject_spotlight.title")}</div>
+            <div class="subtitle">${je(a,"card.subject_spotlight.subtitle")}</div>
           </div>
         </div>
         <div class="spotlight-row">
           <div class="spotlight-tile good">
             <ha-icon icon="mdi:trophy-outline"></ha-icon>
-            <div class="spotlight-value">${n(s.value)}</div>
-            <div class="spotlight-subject">${s.subject}</div>
-            <div class="spotlight-label">${ze(i,"card.subject_spotlight.best")}</div>
+            <div class="spotlight-value">${o(i.value)}</div>
+            <div class="spotlight-subject">${i.subject}</div>
+            <div class="spotlight-label">${je(a,"card.subject_spotlight.best")}</div>
+            ${void 0!==i.forecast?W`<div class="spotlight-forecast">${je(a,"label.forecast_grade",{grade:i.forecast})}</div>`:q}
           </div>
           <div class="spotlight-tile warn">
             <ha-icon icon="mdi:book-open-page-variant-outline"></ha-icon>
-            <div class="spotlight-value">${n(r.value)}</div>
+            <div class="spotlight-value">${o(r.value)}</div>
             <div class="spotlight-subject">${r.subject}</div>
-            <div class="spotlight-label">${ze(i,"card.subject_spotlight.weakest")}</div>
+            <div class="spotlight-label">${je(a,"card.subject_spotlight.weakest")}</div>
+            ${void 0!==r.forecast?W`<div class="spotlight-forecast">${je(a,"label.forecast_grade",{grade:r.forecast})}</div>`:q}
           </div>
         </div>
       </ha-card>
-    `}};It.styles=[Oe,Fe,n`
+    `}};Qt.styles=[Je,Ze,o`
       .spotlight-row {
         display: flex;
         gap: 10px;
@@ -1500,81 +2259,87 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-weight: 700;
         color: var(--primary-text-color);
       }
+      .spotlight-forecast {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--secondary-text-color);
+        margin-top: 2px;
+      }
       .spotlight-label {
         font-size: 0.62rem;
         color: var(--secondary-text-color);
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
-    `],e([ge()],It.prototype,"_config",void 0),It=e([he("librus-subject-spotlight-card")],It);const Et=/^obecno|^present/i,At=/uspr\.?/i;function Nt(e,t){return t?.[e]??Et.test(e)?"good":At.test(e)?"warn":"bad"}let Mt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-attendance-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.attendance?i.states[t.attendance]:void 0;if(!a)return this._message("mdi:calendar-remove",ze(i,"empty.generic_error"));const s=a.attributes.breakdown??{},r=a.attributes.presence_by_type,n=a.attributes.total_records??0,o=a.attributes.percentage,c=a.attributes.by_semester??{},d=Object.entries(c).sort(([e],[t])=>Number(e)-Number(t)),l=Number(a.state)||0,h=a.attributes.unexcused_count,u=a.attributes.excused_count,p=void 0!==h,m=Object.entries(s),g={good:"var(--lc-good)",warn:"var(--lc-warn)",bad:"var(--lc-bad)"},v=m.map(([e,t])=>({flexGrow:Math.max(t,.001),colorVar:g[Nt(e,r)],title:`${e}: ${t}`}));return R`
+    `],e([me()],Qt.prototype,"_config",void 0),Qt=e([he("librus-subject-spotlight-card")],Qt);const ea=/^obecno|^present/i,ta=/uspr\.?/i;function aa(e,t){return t?.[e]??ea.test(e)?"good":ta.test(e)?"warn":"bad"}let sa=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-attendance-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.attendance?a.states[t.attendance]:void 0;if(!s)return this._message("mdi:calendar-remove",je(a,"empty.generic_error"));const i=s.attributes.breakdown??{},r=s.attributes.presence_by_type,o=s.attributes.total_records??0,n=s.attributes.percentage,c=s.attributes.by_semester??{},d=Object.entries(c).sort(([e],[t])=>Number(e)-Number(t)),l=Number(s.state)||0,h=s.attributes.unexcused_count,u=s.attributes.excused_count,p=void 0!==h,g=Object.entries(i),m={good:"var(--lc-good)",warn:"var(--lc-warn)",bad:"var(--lc-bad)"},v=g.map(([e,t])=>({flexGrow:Math.max(t,.001),colorVar:m[aa(e,r)],title:`${e}: ${t}`}));return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge bad"><ha-icon icon="mdi:calendar-remove"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.attendance.title")}</div>
-            <div class="subtitle">${ze(i,"card.attendance.subtitle")}</div>
+            <div class="title">${je(a,"card.attendance.title")}</div>
+            <div class="subtitle">${je(a,"card.attendance.subtitle")}</div>
           </div>
         </div>
         <div class="stats">
-          ${null!=o?R`
-                <div class="stat ${o>=90?"good":o<75?"bad":""}">
-                  <div class="stat-value">${o}<span class="unit">%</span></div>
-                  <div class="stat-label">${ze(i,"stat.percentage")}</div>
+          ${null!=n?W`
+                <div class="stat ${n>=90?"good":n<75?"bad":""}">
+                  <div class="stat-value">${n}<span class="unit">%</span></div>
+                  <div class="stat-label">${je(a,"stat.percentage")}</div>
                 </div>
               `:q}
-          ${p?R`
+          ${p?W`
                 <div class="stat ${h>0?"bad":""}">
                   <div class="stat-value">${h}</div>
-                  <div class="stat-label">${ze(i,"stat.unexcused")}</div>
+                  <div class="stat-label" title=${je(a,"stat.unexcused")}>${je(a,"stat.unexcused_short")}</div>
                 </div>
                 <div class="stat ${u>0?"warn":""}">
                   <div class="stat-value">${u}</div>
-                  <div class="stat-label">${ze(i,"stat.excused")}</div>
+                  <div class="stat-label" title=${je(a,"stat.excused")}>${je(a,"stat.excused_short")}</div>
                 </div>
-              `:R`
+              `:W`
                 <div class="stat bad">
                   <div class="stat-value">${l}</div>
-                  <div class="stat-label">${ze(i,"stat.absences")}</div>
+                  <div class="stat-label">${je(a,"stat.absences")}</div>
                 </div>
               `}
           <div class="stat">
-            <div class="stat-value">${n}</div>
-            <div class="stat-label">${ze(i,"stat.records")}</div>
+            <div class="stat-value">${o}</div>
+            <div class="stat-label">${je(a,"stat.records")}</div>
           </div>
         </div>
-        ${v.length?function(e){return R`
+        ${v.length?function(e){return W`
     <div class="bar">
-      ${e.map(e=>R`<div
+      ${e.map(e=>W`<div
             class="seg"
             style="flex-grow:${e.flexGrow};background:${e.colorVar}"
             title=${e.title??""}
           ></div>`)}
     </div>
   `}(v):q}
-        ${m.length?R`
+        ${g.length?W`
               <div class="legend">
-                ${m.map(([e,t])=>R`
+                ${g.map(([e,t])=>W`
                     <span class="legend-item">
-                      <span class="legend-dot ${Nt(e,r)}"></span>${e}
+                      <span class="legend-dot ${aa(e,r)}"></span>${e}
                       <b>${t}</b>
                     </span>
                   `)}
               </div>
             `:q}
-        ${d.length>1?R`
+        ${d.length>1?W`
               <hr />
               <div class="semester-block">
-                <div class="semester-title">${ze(i,"card.attendance.by_semester")}</div>
-                ${d.map(([e,t])=>R`
+                <div class="semester-title">${je(a,"card.attendance.by_semester")}</div>
+                ${d.map(([e,t])=>W`
                     <div class="semester-row">
-                      <span>${ze(i,"card.attendance.semester",{n:e})}</span>
+                      <span>${je(a,"card.attendance.semester",{n:e})}</span>
                       <span class="semester-pct">${null!=t.percentage?`${t.percentage}%`:"–"}</span>
                     </div>
                   `)}
               </div>
             `:q}
       </ha-card>
-    `}};Mt.styles=[Oe,Fe,n`
+    `}};sa.styles=[Je,Ze,o`
       .legend {
         display: flex;
         flex-wrap: wrap;
@@ -1622,24 +2387,24 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-weight: 700;
         font-variant-numeric: tabular-nums;
       }
-    `],e([ge()],Mt.prototype,"_config",void 0),Mt=e([he("librus-attendance-card")],Mt);let Lt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-attendance-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.attendance?i.states[t.attendance]:void 0;if(!a)return this._message("mdi:calendar-remove",ze(i,"empty.generic_error"));const s=a.attributes.percentage,r=a.attributes.unexcused_count??(Number(a.state)||0),n=a.attributes.excused_count;return R`
-      <ha-card class="tile" @click=${vt(this,this._config.tap_action,t.attendance)}>
+    `],e([me()],sa.prototype,"_config",void 0),sa=e([he("librus-attendance-card")],sa);let ia=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-attendance-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.attendance?a.states[t.attendance]:void 0;if(!s)return this._message("mdi:calendar-remove",je(a,"empty.generic_error"));const i=s.attributes.percentage,r=s.attributes.unexcused_count??(Number(s.state)||0),o=s.attributes.excused_count;return W`
+      <ha-card class="tile" @click=${At(this,this._config.tap_action,t.attendance)}>
         <div class="icon-badge ${0===r?"good":"bad"}">
           <ha-icon icon="mdi:calendar-remove"></ha-icon>
         </div>
         <div class="tile-body">
           <div class="subj">
-            ${r} ${ze(i,"stat.absences").toLowerCase()}
+            ${r} ${je(a,"stat.absences").toLowerCase()}
           </div>
-          ${null!=s||n?R`
+          ${null!=i||o?W`
                 <div class="meta">
-                  ${null!=s?R`${ze(i,"stat.percentage")}: ${s}%`:q}
-                  ${n?R`${null!=s?" · ":""}${n} ${ze(i,"stat.excused").toLowerCase()}`:q}
+                  ${null!=i?W`${je(a,"stat.percentage")}: ${i}%`:q}
+                  ${o?W`${null!=i?" · ":""}${o} ${je(a,"stat.excused").toLowerCase()}`:q}
                 </div>
               `:q}
         </div>
       </ha-card>
-    `}};Lt.styles=[Oe,Fe,n`
+    `}};ia.styles=[Je,Ze,o`
       ha-card.tile {
         flex-direction: row;
         align-items: center;
@@ -1657,17 +2422,17 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         color: var(--secondary-text-color);
         margin-top: 1px;
       }
-    `],e([ge()],Lt.prototype,"_config",void 0),Lt=e([he("librus-attendance-tile-card")],Lt);const Pt=[0,1,2,3,4];let Bt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-attendance-heatmap-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.attendance?i.states[t.attendance]:void 0,s=a?.attributes.by_date;if(!a||!s||0===Object.keys(s).length)return this._message("mdi:calendar-blank-outline",ze(i,"card.attendance_heatmap.empty"));const r=t.school_class?i.states[t.school_class]:void 0,n=r?.attributes.school_year_start,o=new Date,c=tt(o),d=this._gridCache;let l,h;if(d&&d.byDate===s&&d.yearStartIso===n&&d.todayIso===c)({weeks:l,grid:h}=d);else{const e=at(o),t=n?at(new Date(`${n}T00:00:00`)):new Date(e.getTime()-96768e5);l=[];for(let i=new Date(t);i<=e;i.setDate(i.getDate()+7))l.push(new Date(i));h=R`${l.map(e=>R`
+    `],e([me()],ia.prototype,"_config",void 0),ia=e([he("librus-attendance-tile-card")],ia);const ra=[0,1,2,3,4];let oa=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-attendance-heatmap-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.attendance?a.states[t.attendance]:void 0,i=s?.attributes.by_date;if(!s||!i||0===Object.keys(i).length)return this._message("mdi:calendar-blank-outline",je(a,"card.attendance_heatmap.empty"));const r=t.school_class?a.states[t.school_class]:void 0,o=r?.attributes.school_year_start,n=new Date,c=lt(n),d=this._gridCache;let l,h;if(d&&d.byDate===i&&d.yearStartIso===o&&d.todayIso===c)({weeks:l,grid:h}=d);else{const e=ut(n),t=o?ut(new Date(`${o}T00:00:00`)):new Date(e.getTime()-96768e5);l=[];for(let a=new Date(t);a<=e;a.setDate(a.getDate()+7))l.push(new Date(a));h=W`${l.map(e=>W`
           <div class="heatmap-col">
-            ${Pt.map(t=>{const a=new Date(e);if(a.setDate(a.getDate()+t),a>o)return R`<span class="cell future"></span>`;const r=tt(a),n=s[r];return R`<span class="cell ${n??"none"}" title=${`${r}${n?` - ${ze(i,`card.attendance_heatmap.status.${n}`)}`:""}`}></span>`})}
+            ${ra.map(t=>{const s=new Date(e);if(s.setDate(s.getDate()+t),s>n)return W`<span class="cell future"></span>`;const r=lt(s),o=i[r];return W`<span class="cell ${o??"none"}" title=${`${r}${o?` - ${je(a,`card.attendance_heatmap.status.${o}`)}`:""}`}></span>`})}
           </div>
-        `)}`,this._gridCache={byDate:s,yearStartIso:n,todayIso:c,weeks:l,grid:h}}return R`
+        `)}`,this._gridCache={byDate:i,yearStartIso:o,todayIso:c,weeks:l,grid:h}}return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:calendar-blank-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.attendance_heatmap.title")}</div>
-            <div class="subtitle">${ze(i,"card.attendance_heatmap.subtitle")}</div>
+            <div class="title">${je(a,"card.attendance_heatmap.title")}</div>
+            <div class="subtitle">${je(a,"card.attendance_heatmap.subtitle")}</div>
           </div>
         </div>
         <div class="heatmap-scroll">
@@ -1676,13 +2441,13 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
           </div>
         </div>
         <div class="heatmap-legend">
-          <span class="legend-item"><span class="cell good"></span>${ze(i,"card.attendance_heatmap.status.good")}</span>
-          <span class="legend-item"><span class="cell warn"></span>${ze(i,"card.attendance_heatmap.status.warn")}</span>
-          <span class="legend-item"><span class="cell bad"></span>${ze(i,"card.attendance_heatmap.status.bad")}</span>
-          <span class="legend-item"><span class="cell none"></span>${ze(i,"card.attendance_heatmap.no_data")}</span>
+          <span class="legend-item"><span class="cell good"></span>${je(a,"card.attendance_heatmap.status.good")}</span>
+          <span class="legend-item"><span class="cell warn"></span>${je(a,"card.attendance_heatmap.status.warn")}</span>
+          <span class="legend-item"><span class="cell bad"></span>${je(a,"card.attendance_heatmap.status.bad")}</span>
+          <span class="legend-item"><span class="cell none"></span>${je(a,"card.attendance_heatmap.no_data")}</span>
         </div>
       </ha-card>
-    `}};Bt.styles=[Oe,Fe,n`
+    `}};oa.styles=[Je,Ze,o`
       .heatmap-scroll {
         overflow-x: auto;
         padding-bottom: 2px;
@@ -1734,25 +2499,25 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         width: 9px;
         height: 9px;
       }
-    `],e([ge()],Bt.prototype,"_config",void 0),Bt=e([he("librus-attendance-heatmap-card")],Bt);const Ot=[1,2,3,4,5],Ft=["excused","unexcused","late"],Kt={excused:"var(--lc-warn)",unexcused:"var(--lc-bad)",late:"var(--lc-brand)"},Ut={excused:"stat.excused",unexcused:"stat.unexcused",late:"stat.late"};let Ht=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-attendance-weekday-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.attendance?i.states[t.attendance]:void 0,s=a?.attributes.by_weekday,r=Ot.map(e=>{const t=s?.[String(e)];return(t?.excused??0)+(t?.unexcused??0)+(t?.late??0)}),n=r.reduce((e,t)=>e+t,0);if(!s||0===n)return this._message("mdi:chart-bar-stacked",ze(i,"card.attendance_weekday.empty"));const o=Math.max(...r,1),c={excused:0,unexcused:0,late:0};for(const e of Ot){const t=s[String(e)];t&&(c.excused+=t.excused,c.unexcused+=t.unexcused,c.late+=t.late)}const d=Ot.map(e=>new Date(2026,0,e+4).toLocaleDateString(i.language,{weekday:"short"}));return R`
+    `],e([me()],oa.prototype,"_config",void 0),oa=e([he("librus-attendance-heatmap-card")],oa);const na=[1,2,3,4,5],ca=["excused","unexcused","late"],da={excused:"var(--lc-warn)",unexcused:"var(--lc-bad)",late:"var(--lc-brand)"},la={excused:"stat.excused",unexcused:"stat.unexcused",late:"stat.late"};let ha=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-attendance-weekday-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.attendance?a.states[t.attendance]:void 0,i=s?.attributes.by_weekday,r=na.map(e=>{const t=i?.[String(e)];return(t?.excused??0)+(t?.unexcused??0)+(t?.late??0)}),o=r.reduce((e,t)=>e+t,0);if(!i||0===o)return this._message("mdi:chart-bar-stacked",je(a,"card.attendance_weekday.empty"));const n=Math.max(...r,1),c={excused:0,unexcused:0,late:0};for(const e of na){const t=i[String(e)];t&&(c.excused+=t.excused,c.unexcused+=t.unexcused,c.late+=t.late)}const d=na.map(e=>new Date(2026,0,e+4).toLocaleDateString(a.language,{weekday:"short"}));return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:chart-bar-stacked"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.attendance_weekday.title")}</div>
-            <div class="subtitle">${ze(i,"card.attendance_weekday.subtitle")}</div>
+            <div class="title">${je(a,"card.attendance_weekday.title")}</div>
+            <div class="subtitle">${je(a,"card.attendance_weekday.subtitle")}</div>
           </div>
         </div>
         <div class="weekday-bars">
-          ${Ot.map((e,t)=>{const a=s[String(e)],n=r[t],c=n>0?Math.max(22,n/o*84):4;return R`
+          ${na.map((e,t)=>{const s=i[String(e)],o=r[t],c=o>0?Math.max(22,o/n*84):4;return W`
               <div class="weekday-col">
-                <div class="weekday-total">${n||""}</div>
-                <div class="weekday-bar-stack" style="height:${c}px;${0===n?"background:var(--divider-color);":""}">
-                  ${Ft.filter(e=>a&&a[e]>0).map(e=>R`
+                <div class="weekday-total">${o||""}</div>
+                <div class="weekday-bar-stack" style="height:${c}px;${0===o?"background:var(--divider-color);":""}">
+                  ${ca.filter(e=>s&&s[e]>0).map(e=>W`
                       <div
                         class="seg"
-                        style="height:${(a[e]/n*c).toFixed(1)}px;background:${Kt[e]}"
-                        title="${ze(i,Ut[e])}: ${a[e]}"
+                        style="height:${(s[e]/o*c).toFixed(1)}px;background:${da[e]}"
+                        title="${je(a,la[e])}: ${s[e]}"
                       ></div>
                     `)}
                 </div>
@@ -1761,14 +2526,14 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
             `})}
         </div>
         <div class="legend">
-          ${Ft.map(e=>R`
+          ${ca.map(e=>W`
               <span class="legend-item">
-                <span class="dot" style="background:${Kt[e]}"></span>${ze(i,Ut[e])} <b>${c[e]}</b>
+                <span class="dot" style="background:${da[e]}"></span>${je(a,la[e])} <b>${c[e]}</b>
               </span>
             `)}
         </div>
       </ha-card>
-    `}};Ht.styles=[Oe,Fe,n`
+    `}};ha.styles=[Je,Ze,o`
       .weekday-bars {
         display: flex;
         align-items: flex-end;
@@ -1810,33 +2575,33 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         color: var(--secondary-text-color);
         font-weight: 700;
       }
-    `],e([ge()],Ht.prototype,"_config",void 0),Ht=e([he("librus-attendance-weekday-card")],Ht);let Rt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-attendance-subject-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.attendance?i.states[t.attendance]:void 0,s=a?.attributes.by_subject,r=Object.entries(s??{}).map(([e,t])=>({subject:e,unexcused:t.unexcused,excused:t.excused,total:t.unexcused+t.excused})).filter(e=>e.total>0).sort((e,t)=>t.total-e.total);if(0===r.length)return this._message("mdi:book-remove-outline",ze(i,"card.attendance_subject.empty"));const n=Math.max(1,...r.map(e=>e.total));return R`
+    `],e([me()],ha.prototype,"_config",void 0),ha=e([he("librus-attendance-weekday-card")],ha);let ua=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-attendance-subject-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.attendance?a.states[t.attendance]:void 0,i=s?.attributes.by_subject,r=Object.entries(i??{}).map(([e,t])=>({subject:e,unexcused:t.unexcused,excused:t.excused,total:t.unexcused+t.excused})).filter(e=>e.total>0).sort((e,t)=>t.total-e.total);if(0===r.length)return this._message("mdi:book-remove-outline",je(a,"card.attendance_subject.empty"));const o=Math.max(1,...r.map(e=>e.total));return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge bad"><ha-icon icon="mdi:book-remove-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.attendance_subject.title")}</div>
-            <div class="subtitle">${ze(i,"card.attendance_subject.subtitle")}</div>
+            <div class="title">${je(a,"card.attendance_subject.title")}</div>
+            <div class="subtitle">${je(a,"card.attendance_subject.subtitle")}</div>
           </div>
         </div>
         <div class="hbar-chart">
-          ${r.map(e=>{const t=Math.round(e.total/n*100),i=e.total?Math.round(e.unexcused/e.total*100):0,a=100-i;return R`
+          ${r.map(e=>{const t=Math.round(e.total/o*100),a=e.total?Math.round(e.unexcused/e.total*100):0,s=100-a;return W`
               <div class="hbar-row">
                 <span class="hbar-label" title=${e.subject}>${e.subject}</span>
                 <span class="sbar-track" style="width:${t}%">
-                  ${e.unexcused?R`<span class="sbar-seg unexcused" style="width:${i}%"></span>`:q}
-                  ${e.excused?R`<span class="sbar-seg excused" style="width:${a}%"></span>`:q}
+                  ${e.unexcused?W`<span class="sbar-seg unexcused" style="width:${a}%"></span>`:q}
+                  ${e.excused?W`<span class="sbar-seg excused" style="width:${s}%"></span>`:q}
                 </span>
                 <b class="hbar-val">${e.total}</b>
               </div>
             `})}
         </div>
         <div class="legend">
-          <span class="legend-item"><span class="dot" style="background:var(--lc-bad)"></span>${ze(i,"stat.unexcused")}</span>
-          <span class="legend-item"><span class="dot" style="background:var(--lc-warn)"></span>${ze(i,"stat.excused")}</span>
+          <span class="legend-item"><span class="dot" style="background:var(--lc-bad)"></span>${je(a,"stat.unexcused")}</span>
+          <span class="legend-item"><span class="dot" style="background:var(--lc-warn)"></span>${je(a,"stat.excused")}</span>
         </div>
       </ha-card>
-    `}};Rt.styles=[Oe,Fe,n`
+    `}};ua.styles=[Je,Ze,o`
       .sbar-track {
         height: 10px;
         border-radius: 5px;
@@ -1859,23 +2624,452 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       .sbar-seg.excused {
         background: var(--lc-warn);
       }
-    `],e([ge()],Rt.prototype,"_config",void 0),Rt=e([he("librus-attendance-subject-card")],Rt);const Wt={positive:"good",negative:"bad",neutral:"neutral"};let Gt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-behaviour-notices-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.behaviour_notices?i.states[t.behaviour_notices]:void 0,s=a?.attributes.recent??[],r=a&&Number(a.state)||0;return a&&0!==s.length?R`
+    `],e([me()],ua.prototype,"_config",void 0),ua=e([he("librus-attendance-subject-card")],ua);const pa=e=>e.total<5?"few":e.percentage<50?"bad":e.percentage<90?"warn":"good";let ga=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-subject-attendance-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.subject_attendance?a.states[t.subject_attendance]:void 0;if(!s)return this._message("mdi:calendar-check-outline",je(a,"card.subject_attendance.title"),je(a,"card.subject_attendance.needs_backend"));const i=s.attributes.subjects??{},r=Object.entries(i).map(([e,t])=>({name:e,...t,level:pa(t)})).sort((e,t)=>Number("few"===e.level)-Number("few"===t.level)||e.percentage-t.percentage||t.total-e.total);if(0===r.length)return this._message("mdi:calendar-check-outline",je(a,"card.subject_attendance.empty"));const o=r.filter(e=>"few"!==e.level),n=o[0],c=o.filter(e=>"bad"===e.level).length;return W`
+      <ha-card>
+        <div class="header">
+          <div class="icon-badge ${c?"bad":"good"}"><ha-icon icon="mdi:calendar-check-outline"></ha-icon></div>
+          <div class="title-block">
+            <div class="title">${this._config.title??je(a,"card.subject_attendance.title")}</div>
+            ${n?W`<div class="subtitle">
+                  ${je(a,"card.subject_attendance.lowest")} <b>${n.name} ${(e=>`${e.toLocaleString(a.language,{maximumFractionDigits:1})}%`)(n.percentage)}</b>
+                </div>`:q}
+          </div>
+          <span class="pill ${c?"bad":"good"}"
+            >${c?je(a,"card.subject_attendance.at_risk",{count:c}):je(a,"card.subject_attendance.no_risk")}</span
+          >
+        </div>
+        <div class="tiles">
+          ${r.map(e=>W`
+              <div
+                class="tile ${e.level}"
+                title=${je(a,"card.subject_attendance.tooltip",{subject:e.name,present:e.present,total:e.total})}
+              >
+                <div class="ab">${Gt(e.name)}</div>
+                <div class="v">${"few"===e.level?"–":`${Math.round(e.percentage)}%`}</div>
+                <div class="n">${e.present}/${e.total}</div>
+              </div>
+            `)}
+        </div>
+        <div class="legend">
+          <span class="legend-item"><span class="dot" style="background:var(--lc-good)"></span>${je(a,"card.subject_attendance.legend_good")}</span>
+          <span class="legend-item"><span class="dot" style="background:var(--lc-warn)"></span>${je(a,"card.subject_attendance.legend_warn")}</span>
+          <span class="legend-item"><span class="dot" style="background:var(--lc-bad)"></span>${je(a,"card.subject_attendance.legend_bad")}</span>
+          <span class="legend-item"><span class="dot" style="background:var(--lc-neutral-dot)"></span>${je(a,"card.subject_attendance.legend_few")}</span>
+        </div>
+      </ha-card>
+    `}};ga.styles=[Je,Ze,o`
+      .subtitle b {
+        color: var(--primary-text-color);
+      }
+      .pill {
+        margin-left: auto;
+        flex: none;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .pill.good {
+        background: var(--lc-good-bg);
+        color: var(--lc-good);
+      }
+      .pill.bad {
+        background: var(--lc-bad-bg);
+        color: var(--lc-bad);
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 7px;
+      }
+      .tile {
+        border-radius: 9px;
+        padding: 8px 4px 7px;
+        text-align: center;
+        background: var(--lc-chip-bg);
+        border: 1px solid transparent;
+      }
+      .tile .ab {
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--secondary-text-color);
+      }
+      .tile .v {
+        font-size: 0.95rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        margin-top: 2px;
+      }
+      .tile .n {
+        font-size: 0.64rem;
+        color: var(--secondary-text-color);
+        font-variant-numeric: tabular-nums;
+      }
+      .tile.good .v {
+        color: var(--lc-good);
+      }
+      .tile.warn {
+        background: var(--lc-warn-bg);
+      }
+      .tile.warn .v {
+        color: var(--lc-warn);
+      }
+      .tile.bad {
+        background: var(--lc-bad-bg);
+        border-color: var(--lc-bad);
+      }
+      .tile.bad .v {
+        color: var(--lc-bad);
+      }
+      .tile.few .v {
+        color: var(--secondary-text-color);
+        font-weight: 500;
+        font-size: 0.8rem;
+      }
+    `],e([me()],ga.prototype,"_config",void 0),ga=e([he("librus-subject-attendance-card")],ga);const ma=4.75;let va=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-report-card-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 5}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.grade_forecast?a.states[t.grade_forecast]:void 0;if(!s)return this._message("mdi:certificate-outline",je(a,"card.report_card.needs_backend"));const i=(s.attributes.subjects??[]).filter(e=>e&&"number"==typeof e.predicted);if(be.has(s.state)||0===i.length)return this._message("mdi:certificate-outline",je(a,"card.report_card.empty"));const r=Number(s.state),o=i.filter(e=>e.at_risk).length,n=i.filter(e=>e.declining).length,c=r>=ma,d=Math.max(0,Math.min(100,(r-4)/.75*100)),l=e=>e.toLocaleString(a.language,{minimumFractionDigits:2,maximumFractionDigits:2}),h="school_year"===s.attributes.basis?"school_year":"semester_1";return W`
+      <ha-card class="static">
+        <div class="header">
+          <div class="icon-badge ${c?"good":""}"><ha-icon icon="mdi:certificate-outline"></ha-icon></div>
+          <div class="title-block">
+            <div class="title">${this._config.title??je(a,"card.report_card.title")}</div>
+            <div class="subtitle">
+              ${je(a,"school_year"===h?"card.report_card.basis_school_year":"card.report_card.basis_semester_1")}
+            </div>
+          </div>
+        </div>
+
+        <div class="summary">
+          <div>
+            <div class="big">${l(r)}</div>
+            <div class="big-label">${je(a,"card.report_card.average")}</div>
+          </div>
+          <div class="chips">
+            ${o?W`<span class="chip bad">${je(a,"card.report_card.at_risk",{n:o})}</span>`:q}
+            ${n?W`<span class="chip warn">${je(a,"card.report_card.declining",{n:n})}</span>`:q}
+            ${o||n?q:W`<span class="chip good">${je(a,"card.report_card.all_clear")}</span>`}
+          </div>
+        </div>
+        <div class="honours">
+          <div class="hbar"><span class=${c?"done":""} style="width:${d}%"></span></div>
+          <div class="hrow">
+            <span>${je(a,"card.report_card.honours_from",{avg:l(ma)})}</span>
+            <span>
+              ${c?W`<b class="ok">${je(a,"card.report_card.honours_ok")}</b>`:W`${je(a,"card.report_card.missing")} <b>${l(ma-r)}</b>`}
+            </span>
+          </div>
+        </div>
+
+        <div class="tiles">
+          ${i.map(e=>W`
+              <div
+                class="tile ${e.at_risk?"bad":e.declining?"warn":6===e.predicted?"six":""}"
+                title=${`${e.subject}: ${l(e.average)}`}
+              >
+                <div class="g">${e.predicted}${e.declining?"↓":""}</div>
+                <div class="n">${e.subject}</div>
+                <div class="a">${l(e.average)}</div>
+              </div>
+            `)}
+        </div>
+
+        ${this._closest(i).length?W`
+              <hr />
+              <div class="closest">
+                <div class="ct">${je(a,"card.report_card.closest")}</div>
+                ${this._closest(i).map(([e,t])=>W`<div class="ci"><span>${e}</span><span>${t}</span></div>`)}
+              </div>
+            `:q}
+        <div class="foot">
+          ${je(a,"card.report_card.footer")}${c?W` ${je(a,"card.report_card.footer_behaviour")}`:q}
+        </div>
+      </ha-card>
+    `}_closest(e){const t=this.hass,a=[];for(const s of e.filter(e=>e.at_risk&&e.sixes_to_next))a.push([s.subject,je(t,"card.report_card.sixes_to",{n:s.sixes_to_next,grade:s.predicted+1})]);for(const s of e.filter(e=>!e.at_risk&&1===e.sixes_to_next))a.push([s.subject,je(t,"card.report_card.sixes_to",{n:1,grade:s.predicted+1})]);for(const s of e.filter(e=>1===e.ones_to_drop))a.push([s.subject,je(t,"card.report_card.one_drops",{grade:s.predicted-1})]);return a.slice(0,3)}};va.styles=[Je,Ze,o`
+      .summary {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .big {
+        font-size: 2rem;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        color: var(--lc-brand);
+      }
+      .big-label {
+        font-size: 0.7rem;
+        color: var(--secondary-text-color);
+        margin-top: 3px;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-left: auto;
+        justify-content: flex-end;
+      }
+      .chip {
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 4px 9px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .chip.good {
+        background: var(--lc-good-bg);
+        color: var(--lc-good);
+      }
+      .chip.bad {
+        background: var(--lc-bad-bg);
+        color: var(--lc-bad);
+      }
+      .chip.warn {
+        background: var(--lc-warn-bg);
+        color: var(--lc-warn);
+      }
+      .honours {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .hbar {
+        height: 6px;
+        border-radius: 3px;
+        background: var(--divider-color);
+        position: relative;
+        overflow: hidden;
+      }
+      .hbar span {
+        position: absolute;
+        inset: 0 auto 0 0;
+        background: var(--lc-amber);
+        border-radius: 3px;
+      }
+      .hbar span.done {
+        background: var(--lc-good);
+      }
+      .hrow {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 0.7rem;
+        color: var(--secondary-text-color);
+      }
+      .hrow b {
+        color: var(--primary-text-color);
+      }
+      .hrow b.ok {
+        color: var(--lc-good);
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+        gap: 6px;
+      }
+      .tile {
+        border-radius: 9px;
+        padding: 8px 6px 7px;
+        background: var(--lc-chip-bg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        text-align: center;
+        min-width: 0;
+      }
+      .tile .g {
+        font-size: 1.3rem;
+        font-weight: 800;
+        line-height: 1.1;
+        color: var(--lc-brand);
+      }
+      .tile .n {
+        font-size: 0.66rem;
+        font-weight: 600;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .tile .a {
+        font-size: 0.62rem;
+        color: var(--secondary-text-color);
+        font-variant-numeric: tabular-nums;
+      }
+      .tile.six .g {
+        color: var(--lc-good);
+      }
+      .tile.warn {
+        background: var(--lc-warn-bg);
+      }
+      .tile.warn .g {
+        color: var(--lc-warn);
+      }
+      .tile.bad {
+        background: var(--lc-bad-bg);
+      }
+      .tile.bad .g {
+        color: var(--lc-bad);
+      }
+      .closest {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .closest .ct {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--secondary-text-color);
+        font-weight: 700;
+      }
+      .closest .ci {
+        font-size: 0.76rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .closest .ci span:last-child {
+        color: var(--secondary-text-color);
+        white-space: nowrap;
+      }
+      .foot {
+        font-size: 0.66rem;
+        color: var(--secondary-text-color);
+        line-height: 1.35;
+      }
+    `],e([me()],va.prototype,"_config",void 0),va=e([he("librus-report-card-card")],va);function ba(e){return{ev:e,...ot(e)}}const _a={before:"mdi:weather-sunset-up",in:"mdi:bag-personal-outline",after:"mdi:home-outline",free:"mdi:palm-tree"},fa={before:"",in:"good",after:"",free:"amber"},ya={before:"card.school_day.status_before",in:"card.school_day.status_in",after:"card.school_day.status_after",free:"card.school_day.status_free"};let wa=class extends Ge{constructor(){super(...arguments),this._events=[],this._loaded=!1}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-school-day-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},9e5),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer),clearInterval(this._tickTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const a=t.map.timetable;if(!a)return;const s=new Date;s.setHours(0,0,0,0);const i=new Date(s);i.setDate(i.getDate()+10);const r=`${a}:${lt(s)}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const o=this._beginFetch();try{const e=await st(this.hass,a,s,i);this._isCurrentFetch(o)&&(this._events=e.filter(e=>!e.allDay))}catch{this._isCurrentFetch(o)&&(this._events=[])}finally{this._isCurrentFetch(o)&&(this._loaded=!0)}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;this._fetch();const a=new Date,s=lt(a),i=new Map;for(const e of[...this._events].sort((e,t)=>e.start.localeCompare(t.start))){const t=lt(new Date(e.start));i.has(t)||i.set(t,[]),i.get(t).push(ba(e))}const r=e=>e.filter(e=>!e.cancelled),o=i.get(s)??[],n=r(o),c=n.length?new Date(n[n.length-1].ev.end):void 0;let d;if(d=c&&a<c?s:[...i.keys()].sort().find(e=>e>s&&r(i.get(e)).length>0),!d)return this._loaded?this._message("mdi:palm-tree",je(t,"card.school_day.empty")):this._message("mdi:calendar-clock",je(t,"card.school_day.title"));const l=i.get(d),h=r(l),u=h[0],p=h[h.length-1],g=d===s,m=g?a<new Date(u.ev.start)?"before":"in":n.length?"after":"free",v=new Date(`${d}T12:00:00`),b=new Date(a);b.setDate(b.getDate()+1);const _=v.toLocaleDateString(t.language,{weekday:"short",day:"numeric",month:"short"}),f=g?`${je(t,"card.school_day.today")} · ${_}`:d===lt(b)?`${je(t,"card.school_day.tomorrow")} · ${_}`:_,y=e=>e.ev.location?`${e.name} · ${e.ev.location}`:e.name,w=e=>(new Date(e).getTime()-a.getTime())/6e4;let x,k,$;const z=g?h.find(e=>ct(e.ev,a)):void 0;if(z)x=je(t,"card.school_day.now"),k=z,$=je(t,"card.school_day.left",{minutes:Math.max(0,Math.round(w(z.ev.end)))});else if("in"===m){const e=h.find(e=>new Date(e.ev.start)>a)??p;x=je(t,"card.school_day.break"),k=e,$=Ce(t,w(e.ev.start))}else"before"===m?(x=je(t,"card.school_day.first"),k=u,$=Ce(t,w(u.ev.start))):(x=je(t,"card.school_day.first"),k=u,$=je(t,"card.school_day.from",{time:Be(u.ev.start)}));return W`
+      <ha-card>
+        <div class="header">
+          <div class="icon-badge ${fa[m]}"><ha-icon icon=${_a[m]}></ha-icon></div>
+          <div class="title-block">
+            <div class="title">${this._config.title??je(t,"card.school_day.title")}</div>
+            <div class="subtitle">${f}</div>
+          </div>
+          <span class="pill ${m}">${je(t,ya[m])}</span>
+        </div>
+        <div class="daybar">
+          ${l.map(e=>{const s=e.cancelled?"off":g&&ct(e.ev,a)?"now":g&&dt(e.ev,a)?"past":"",i=`${Be(e.ev.start)}–${Be(e.ev.end)} ${y(e)}${e.cancelled?` (${je(t,"card.school_day.cancelled")})`:e.substitution?` (${je(t,"card.school_day.substitution")})`:""}`;return W`<div class="seg ${s} ${e.substitution||e.roomChange||e.moved?"sub":""}" title=${i}>${Gt(e.name)}</div>`})}
+        </div>
+        <div class="ends"><span>${Be(u.ev.start)}</span><span>${Be(p.ev.end)}</span></div>
+        <div class="now-box">
+          <span class="lbl">${x}</span>
+          <span class="s">${y(k)}</span>
+          <span class="r">${$}</span>
+        </div>
+      </ha-card>
+    `}};wa.styles=[Je,Ze,o`
+      .pill {
+        margin-left: auto;
+        flex: none;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 9px;
+        border-radius: 999px;
+        white-space: nowrap;
+        background: var(--lc-chip-bg);
+        color: var(--secondary-text-color);
+      }
+      .pill.in {
+        background: var(--lc-good-bg);
+        color: var(--lc-good);
+      }
+      .pill.free {
+        background: var(--lc-amber-bg);
+        color: var(--lc-amber);
+      }
+      .daybar {
+        display: flex;
+        gap: 3px;
+      }
+      .seg {
+        flex: 1;
+        min-width: 0;
+        height: 30px;
+        border-radius: 6px;
+        background: var(--lc-ring-track);
+        display: grid;
+        place-items: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--secondary-text-color);
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .seg.past {
+        background: var(--lc-brand-bg);
+        color: var(--lc-brand-strong);
+        opacity: 0.6;
+      }
+      .seg.now {
+        background: var(--lc-brand);
+        color: #fff;
+      }
+      .seg.sub {
+        outline: 2px dashed var(--lc-amber);
+        outline-offset: -2px;
+      }
+      .seg.off {
+        background: transparent;
+        border: 1px dashed var(--divider-color);
+        text-decoration: line-through;
+        opacity: 0.7;
+      }
+      .ends {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.72rem;
+        color: var(--secondary-text-color);
+        font-variant-numeric: tabular-nums;
+        margin-top: -6px;
+      }
+      .now-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 9px;
+        background: var(--lc-chip-bg);
+        min-width: 0;
+      }
+      .now-box .lbl {
+        font-size: 0.78rem;
+        color: var(--secondary-text-color);
+        flex: none;
+      }
+      .now-box .s {
+        font-weight: 700;
+        font-size: 0.86rem;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .now-box .r {
+        margin-left: auto;
+        font-size: 0.78rem;
+        color: var(--secondary-text-color);
+        white-space: nowrap;
+        flex: none;
+      }
+    `],e([me()],wa.prototype,"_config",void 0),e([me()],wa.prototype,"_events",void 0),e([me()],wa.prototype,"_loaded",void 0),wa=e([he("librus-school-day-card")],wa);const xa={positive:"good",negative:"bad",neutral:"neutral"};let ka=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-behaviour-notices-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.behaviour_notices?a.states[t.behaviour_notices]:void 0,i=s?.attributes.recent??[],r=s&&Number(s.state)||0;return s&&0!==i.length?W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:alert-circle-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.behaviour_notices.title")}</div>
+            <div class="title">${je(a,"card.behaviour_notices.title")}</div>
             <div class="subtitle">${r}</div>
           </div>
         </div>
         <div class="scroll-list">
-          ${s.map(e=>R`
+          ${i.map(e=>W`
               <div class="list-item">
-                <span class="dot ${Wt[e.sentiment??"neutral"]}"></span>
+                <span class="dot ${xa[e.sentiment??"neutral"]}"></span>
                 <div class="body">
                   <div class="row1">
                     <span class="cat-label">${e.category??""}</span>
-                    ${e.date?R`<time>${We(e.date,i.language)}</time>`:q}
+                    ${e.date?W`<time>${Oe(e.date,a.language)}</time>`:q}
                   </div>
                   <div class="item-text">${e.text}</div>
                 </div>
@@ -1883,15 +3077,15 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
             `)}
         </div>
       </ha-card>
-    `:this._message("mdi:alert-circle-outline",ze(i,"card.behaviour_notices.empty"))}};Gt.styles=[Oe,Fe],e([ge()],Gt.prototype,"_config",void 0),Gt=e([he("librus-behaviour-notices-card")],Gt);let qt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-behaviour-notices-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.behaviour_notices?i.states[t.behaviour_notices]:void 0;if(!a)return this._message("mdi:alert-circle-outline",ze(i,"empty.generic_error"));const s=Number(a.state)||0,r=(a.attributes.recent??[])[0],n="negative"===r?.sentiment?"bad":"positive"===r?.sentiment?"good":"";return R`
-      <ha-card class="tile" @click=${vt(this,this._config.tap_action,t.behaviour_notices)}>
-        <div class="icon-badge ${n}"><ha-icon icon="mdi:alert-circle-outline"></ha-icon></div>
+    `:this._message("mdi:alert-circle-outline",je(a,"card.behaviour_notices.empty"))}};ka.styles=[Je,Ze],e([me()],ka.prototype,"_config",void 0),ka=e([he("librus-behaviour-notices-card")],ka);let $a=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-behaviour-notices-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.behaviour_notices?a.states[t.behaviour_notices]:void 0;if(!s)return this._message("mdi:alert-circle-outline",je(a,"empty.generic_error"));const i=Number(s.state)||0,r=(s.attributes.recent??[])[0],o="negative"===r?.sentiment?"bad":"positive"===r?.sentiment?"good":"";return W`
+      <ha-card class="tile" @click=${At(this,this._config.tap_action,t.behaviour_notices)}>
+        <div class="icon-badge ${o}"><ha-icon icon="mdi:alert-circle-outline"></ha-icon></div>
         <div class="tile-body">
-          <div class="subj">${s} ${ze(i,"card.behaviour_notices.title").toLowerCase()}</div>
-          ${r?.category?R`<div class="meta">${r.category}</div>`:q}
+          <div class="subj">${i} ${je(a,"card.behaviour_notices.title").toLowerCase()}</div>
+          ${r?.category?W`<div class="meta">${r.category}</div>`:q}
         </div>
       </ha-card>
-    `}};async function Jt(e,t,i,a="inbox"){return(await e.callWS({type:"call_service",domain:"librus_synergia",service:"get_message",service_data:{device_id:t,message_id:i,mailbox:a},return_response:!0})).response}qt.styles=[Oe,Fe,n`
+    `}};async function za(e,t,a,s="inbox"){return(await e.callWS({type:"call_service",domain:"librus_synergia",service:"get_message",service_data:{device_id:t,message_id:a,mailbox:s},return_response:!0})).response}async function ja(e,t,a,s,i){const r=`/api/librus_synergia/attachment/${encodeURIComponent(t)}/${encodeURIComponent(a)}/${encodeURIComponent(s)}`,o=e,n=o.fetchWithAuth?await o.fetchWithAuth(r):await fetch(r,{headers:{Authorization:`Bearer ${o.auth?.data?.access_token??""}`}});if(!n.ok)throw new Error(`HTTP ${n.status}`);const c=await n.blob(),d=URL.createObjectURL(c),l=document.createElement("a");l.href=d,l.download=function(e){if(!e)return null;const t=/filename\*=UTF-8''([^;]+)/i.exec(e);if(t)try{return decodeURIComponent(t[1])}catch{}const a=/filename="?([^";]+)"?/i.exec(e);return a?a[1]:null}(n.headers.get("Content-Disposition"))??i,document.body.appendChild(l),l.click(),l.remove(),setTimeout(()=>URL.revokeObjectURL(d),6e4)}$a.styles=[Je,Ze,o`
       ha-card.tile {
         flex-direction: row;
         align-items: center;
@@ -1912,46 +3106,53 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-    `],e([ge()],qt.prototype,"_config",void 0),qt=e([he("librus-behaviour-notices-tile-card")],qt);const Zt={inbox:"recent",substitutions:"substitutions_recent",alerts:"alerts_recent",justifications:"justifications_recent"},Vt=[{key:"inbox",label:"mailbox.inbox"},{key:"notes",label:"mailbox.notes"},{key:"alerts",label:"mailbox.alerts"},{key:"substitutions",label:"mailbox.substitutions"},{key:"absences",label:"mailbox.absences"},{key:"justifications",label:"mailbox.justifications"},{key:"trash",label:"mailbox.trash"}];let Yt=class extends Be{constructor(){super(...arguments),this._fullById={},this._pendingIds=new Set,this._errorIds=new Set}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-messages-card"}}get _mailbox(){return this._config?.mailbox&&Zt[this._config.mailbox]?this._config.mailbox:"inbox"}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}async _onMessageClick(e){if(this._expandedId===e.id)return void(this._expandedId=void 0);if(this._expandedId=e.id,this._fullById[e.id]||this._pendingIds.has(e.id))return;const t=this._resolveEntities();if("error"in t||!this.hass)return;const i=e.mailbox??this._mailbox;this._pendingIds=new Set(this._pendingIds).add(e.id);const a=new Set(this._errorIds);a.delete(e.id),this._errorIds=a;try{const a=await Jt(this.hass,t.deviceId,e.id,i);this._fullById={...this._fullById,[e.id]:a}}catch{this._errorIds=new Set(this._errorIds).add(e.id)}finally{const t=new Set(this._pendingIds);t.delete(e.id),this._pendingIds=t}}_renderMessageBody(e){const t=this.hass;if(this._expandedId!==e.id)return R`<div class="item-text"><b>${e.topic}</b> - ${e.content}</div>`;const i=this._fullById[e.id];return i?R`
-        <div class="item-text"><b>${i.topic}</b></div>
-        <div class="full-text">${i.content}</div>
-        ${i.attachments?.length?R`
+    `],e([me()],$a.prototype,"_config",void 0),$a=e([he("librus-behaviour-notices-tile-card")],$a);const Ca={inbox:"recent",substitutions:"substitutions_recent",alerts:"alerts_recent",justifications:"justifications_recent"},Sa=[{key:"inbox",label:"mailbox.inbox"},{key:"notes",label:"mailbox.notes"},{key:"alerts",label:"mailbox.alerts"},{key:"substitutions",label:"mailbox.substitutions"},{key:"absences",label:"mailbox.absences"},{key:"justifications",label:"mailbox.justifications"},{key:"trash",label:"mailbox.trash"}];let Da=class extends Ge{constructor(){super(...arguments),this._fullById={},this._pendingIds=new Set,this._errorIds=new Set,this._attachmentState={}}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-messages-card"}}get _mailbox(){return this._config?.mailbox&&Ca[this._config.mailbox]?this._config.mailbox:"inbox"}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}async _onMessageClick(e){if(this._expandedId===e.id)return void(this._expandedId=void 0);if(this._expandedId=e.id,this._fullById[e.id]||this._pendingIds.has(e.id))return;const t=this._resolveEntities();if("error"in t||!this.hass)return;const a=e.mailbox??this._mailbox;this._pendingIds=new Set(this._pendingIds).add(e.id);const s=new Set(this._errorIds);s.delete(e.id),this._errorIds=s;try{const s=await za(this.hass,t.deviceId,e.id,a);this._fullById={...this._fullById,[e.id]:s}}catch{this._errorIds=new Set(this._errorIds).add(e.id)}finally{const t=new Set(this._pendingIds);t.delete(e.id),this._pendingIds=t}}async _download(e,t,a,s,i){e.stopPropagation();const r=this._resolveEntities();if(this.hass&&!("error"in r)){this._attachmentState={...this._attachmentState,[s]:"loading"};try{await ja(this.hass,r.deviceId,t,a,i);const e={...this._attachmentState};delete e[s],this._attachmentState=e}catch{this._attachmentState={...this._attachmentState,[s]:"error"}}}}_renderMessageBody(e){const t=this.hass;if(this._expandedId!==e.id)return W`<div class="item-text"><b>${e.topic}</b> - ${e.content}</div>`;const a=this._fullById[e.id];return a?W`
+        <div class="item-text"><b>${a.topic}</b></div>
+        <div class="full-text">${a.content}</div>
+        ${a.attachments?.length?W`
               <div class="attachments">
-                ${i.attachments.map(e=>R`<div class="attachment" style="cursor:pointer" @click=${()=>__hcOpenAttachment(t,i,e)}>
-                    <ha-icon icon="mdi:paperclip"></ha-icon>${e.filename??e.id}
-                  </div>`)}
-                <div class="read-notice">${ze(t,"card.messages.attachment_notice")}</div>
+                ${a.attachments.map(a=>{const s=`${e.id}:${a.id}`,i=this._attachmentState[s];return W`<button
+                    class="attachment"
+                    type="button"
+                    ?disabled=${"loading"===i}
+                    @click=${t=>this._download(t,e.id,a.id,s,a.filename??a.id)}
+                  >
+                    <ha-icon icon=${"loading"===i?"mdi:progress-download":"mdi:paperclip"}></ha-icon>
+                    <span class="attachment-name">${a.filename??a.id}</span>
+                    ${"error"===i?W`<span class="attachment-error">${je(t,"card.messages.attachment_error")}</span>`:q}
+                  </button>`})}
+                <div class="read-notice">${je(t,"card.messages.attachment_notice")}</div>
               </div>
             `:q}
-        <div class="read-notice">${ze(t,"card.messages.read_notice")}</div>
-      `:this._errorIds.has(e.id)?R`<div class="item-text"><b>${e.topic}</b> - ${ze(t,"card.messages.fetch_failed")}</div>`:R`<div class="item-text"><b>${e.topic}</b> - ${ze(t,"empty.loading")}</div>`}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.unread_messages?i.states[t.unread_messages]:void 0;if(!a||"unavailable"===a.state)return this._message("mdi:email-outline",ze(i,"card.messages.unavailable"));const s=this._mailbox,r=a.attributes.mailbox_breakdown??{},n=a.attributes[Zt[s]]??[];Number(a.state);const o=this._config.max_items??6;return R`
+        <div class="read-notice">${je(t,"card.messages.read_notice")}</div>
+      `:this._errorIds.has(e.id)?W`<div class="item-text"><b>${e.topic}</b> - ${je(t,"card.messages.fetch_failed")}</div>`:W`<div class="item-text"><b>${e.topic}</b> - ${je(t,"empty.loading")}</div>`}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.unread_messages?a.states[t.unread_messages]:void 0;if(!s||"unavailable"===s.state)return this._message("mdi:email-outline",je(a,"card.messages.unavailable"));const i=this._mailbox,r=s.attributes.mailbox_breakdown??{},o=s.attributes[Ca[i]]??[];Number(s.state);const n=this._config.max_items??6;return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:email-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(i,"card.messages.title")}</div>
-            <div class="subtitle">${ze(i,`mailbox.${s}`)}</div>
+            <div class="title">${this._config.title??je(a,"card.messages.title")}</div>
+            <div class="subtitle">${je(a,`mailbox.${i}`)}</div>
           </div>
         </div>
         <div class="chips">
-          ${Vt.map(({key:e,label:t})=>R`
-              <span class="chip ${e===s?"hot":""}"
-                >${ze(i,t)} <span class="n">${r[e]??0}</span></span
+          ${Sa.map(({key:e,label:t})=>W`
+              <span class="chip ${e===i?"hot":""}"
+                >${je(a,t)} <span class="n">${r[e]??0}</span></span
               >
             `)}
         </div>
-        ${n.length?R`
+        ${o.length?W`
               <hr />
               <div class="scroll-list">
-                ${n.slice(0,o).map(e=>R`
+                ${o.slice(0,n).map(e=>W`
                     <div class="list-item clickable" @click=${()=>this._onMessageClick(e)}>
                       <span class="dot ${e.unread?"good":"neutral"}"></span>
                       <div class="body">
                         <div class="row1">
                           <span class="sender"
-                            >${e.sender}${e.has_attachment?R`<ha-icon class="clip" icon="mdi:paperclip"></ha-icon>`:q}</span
+                            >${e.sender}${e.has_attachment?W`<ha-icon class="clip" icon="mdi:paperclip"></ha-icon>`:q}</span
                           >
-                          ${e.date?R`<time>${We(e.date,i.language)}</time>`:q}
+                          ${e.date?W`<time>${Oe(e.date,a.language)}</time>`:q}
                         </div>
                         ${this._renderMessageBody(e)}
                       </div>
@@ -1960,7 +3161,7 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
               </div>
             `:q}
       </ha-card>
-    `}};Yt.styles=[Oe,Fe,n`
+    `}};Da.styles=[Je,Ze,o`
       .list-item.clickable {
         cursor: pointer;
       }
@@ -1991,24 +3192,42 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         display: flex;
         align-items: center;
         gap: 4px;
+        font: inherit;
         font-size: 0.75rem;
-        color: var(--primary-text-color);
+        color: var(--lc-brand);
+        background: none;
+        border: 0;
+        padding: 2px 0;
+        cursor: pointer;
+        text-align: left;
+      }
+      .attachment:disabled {
+        cursor: progress;
+        opacity: 0.7;
+      }
+      .attachment-name {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .attachment-error {
+        color: var(--lc-bad);
+        margin-left: 6px;
       }
       .attachment ha-icon {
         --mdc-icon-size: 14px;
         flex: none;
       }
-    `],e([ge()],Yt.prototype,"_config",void 0),e([ge()],Yt.prototype,"_expandedId",void 0),e([ge()],Yt.prototype,"_fullById",void 0),e([ge()],Yt.prototype,"_pendingIds",void 0),e([ge()],Yt.prototype,"_errorIds",void 0),Yt=e([he("librus-messages-card")],Yt);let Xt=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-messages-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.unread_messages?i.states[t.unread_messages]:void 0;if(!a||"unavailable"===a.state)return this._message("mdi:email-outline",ze(i,"card.messages.unavailable"));const s=Number(a.state)||0,r=(a.attributes.recent??[])[0];return R`
-      <ha-card class="tile" @click=${vt(this,this._config.tap_action,t.unread_messages)}>
-        <div class="icon-badge ${s>0?"amber":""}">
+    `],e([me()],Da.prototype,"_config",void 0),e([me()],Da.prototype,"_expandedId",void 0),e([me()],Da.prototype,"_fullById",void 0),e([me()],Da.prototype,"_pendingIds",void 0),e([me()],Da.prototype,"_errorIds",void 0),e([me()],Da.prototype,"_attachmentState",void 0),Da=e([he("librus-messages-card")],Da);let Ta=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-messages-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.unread_messages?a.states[t.unread_messages]:void 0;if(!s||"unavailable"===s.state)return this._message("mdi:email-outline",je(a,"card.messages.unavailable"));const i=Number(s.state)||0,r=(s.attributes.recent??[])[0];return W`
+      <ha-card class="tile" @click=${At(this,this._config.tap_action,t.unread_messages)}>
+        <div class="icon-badge ${i>0?"amber":""}">
           <ha-icon icon="mdi:email-outline"></ha-icon>
         </div>
         <div class="tile-body">
-          <div class="subj">${s} ${ze(i,"mailbox.inbox").toLowerCase()}</div>
-          ${r?R`<div class="meta">${r.sender} · ${r.topic}</div>`:q}
+          <div class="subj">${i} ${je(a,"mailbox.inbox").toLowerCase()}</div>
+          ${r?W`<div class="meta">${r.sender} · ${r.topic}</div>`:q}
         </div>
       </ha-card>
-    `}};function Qt(e){return`${e.mailbox}:${e.id}`}Xt.styles=[Oe,Fe,n`
+    `}};function Ia(e){return`${e.mailbox}:${e.id}`}Ta.styles=[Je,Ze,o`
       ha-card.tile {
         flex-direction: row;
         align-items: center;
@@ -2029,50 +3248,50 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-    `],e([ge()],Xt.prototype,"_config",void 0),Xt=e([he("librus-messages-tile-card")],Xt);let ei=class extends Be{constructor(){super(...arguments),this._fullByKey={},this._pendingKeys=new Set,this._errorKeys=new Set}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-substitutions-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}async _onClick(e){const t=Qt(e);if(this._expandedKey===t)return void(this._expandedKey=void 0);if(this._expandedKey=t,this._fullByKey[t]||this._pendingKeys.has(t))return;const i=this._resolveEntities();if("error"in i||!this.hass)return;this._pendingKeys=new Set(this._pendingKeys).add(t);const a=new Set(this._errorKeys);a.delete(t),this._errorKeys=a;try{const a=await Jt(this.hass,i.deviceId,e.id,e.mailbox);this._fullByKey={...this._fullByKey,[t]:a}}catch{this._errorKeys=new Set(this._errorKeys).add(t)}finally{const e=new Set(this._pendingKeys);e.delete(t),this._pendingKeys=e}}_renderBody(e){const t=this.hass,i=Qt(e);if(this._expandedKey!==i)return R`<div class="item-text"><b>${e.topic}</b> - ${e.content}</div>`;const a=this._fullByKey[i];return a?R`
-        <div class="item-text"><b>${a.topic}</b></div>
-        <div class="full-text">${a.content}</div>
-        ${a.attachments?.length?R`
+    `],e([me()],Ta.prototype,"_config",void 0),Ta=e([he("librus-messages-tile-card")],Ta);let Na=class extends Ge{constructor(){super(...arguments),this._fullByKey={},this._pendingKeys=new Set,this._errorKeys=new Set}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-substitutions-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}async _onClick(e){const t=Ia(e);if(this._expandedKey===t)return void(this._expandedKey=void 0);if(this._expandedKey=t,this._fullByKey[t]||this._pendingKeys.has(t))return;const a=this._resolveEntities();if("error"in a||!this.hass)return;this._pendingKeys=new Set(this._pendingKeys).add(t);const s=new Set(this._errorKeys);s.delete(t),this._errorKeys=s;try{const s=await za(this.hass,a.deviceId,e.id,e.mailbox);this._fullByKey={...this._fullByKey,[t]:s}}catch{this._errorKeys=new Set(this._errorKeys).add(t)}finally{const e=new Set(this._pendingKeys);e.delete(t),this._pendingKeys=e}}_renderBody(e){const t=this.hass,a=Ia(e);if(this._expandedKey!==a)return W`<div class="item-text"><b>${e.topic}</b> - ${e.content}</div>`;const s=this._fullByKey[a];return s?W`
+        <div class="item-text"><b>${s.topic}</b></div>
+        <div class="full-text">${s.content}</div>
+        ${s.attachments?.length?W`
               <div class="attachments">
-                ${a.attachments.map(e=>R`<div class="attachment" style="cursor:pointer" @click=${()=>__hcOpenAttachment(t,a,e)}>
+                ${s.attachments.map(e=>W`<div class="attachment">
                     <ha-icon icon="mdi:paperclip"></ha-icon>${e.filename??e.id}
                   </div>`)}
-                <div class="read-notice">${ze(t,"card.messages.attachment_notice")}</div>
+                <div class="read-notice">${je(t,"card.messages.attachment_notice")}</div>
               </div>
             `:q}
-        <div class="read-notice">${ze(t,"card.messages.read_notice")}</div>
-      `:this._errorKeys.has(i)?R`<div class="item-text"><b>${e.topic}</b> - ${ze(t,"card.messages.fetch_failed")}</div>`:R`<div class="item-text"><b>${e.topic}</b> - ${ze(t,"empty.loading")}</div>`}_renderSection(e,t){if(0===t.length)return q;const i=this.hass;return R`
+        <div class="read-notice">${je(t,"card.messages.read_notice")}</div>
+      `:this._errorKeys.has(a)?W`<div class="item-text"><b>${e.topic}</b> - ${je(t,"card.messages.fetch_failed")}</div>`:W`<div class="item-text"><b>${e.topic}</b> - ${je(t,"empty.loading")}</div>`}_renderSection(e,t){if(0===t.length)return q;const a=this.hass;return W`
       <div class="section-title">${e}</div>
       <div class="scroll-list">
-        ${t.map(e=>R`
+        ${t.map(e=>W`
             <div class="list-item clickable" @click=${()=>this._onClick(e)}>
               <span class="dot ${e.unread?"good":"neutral"}"></span>
               <div class="body">
                 <div class="row1">
                   <span class="sender"
-                    >${e.sender}${e.has_attachment?R`<ha-icon class="clip" icon="mdi:paperclip"></ha-icon>`:q}</span
+                    >${e.sender}${e.has_attachment?W`<ha-icon class="clip" icon="mdi:paperclip"></ha-icon>`:q}</span
                   >
-                  ${e.date?R`<time>${We(e.date,i.language)}</time>`:q}
+                  ${e.date?W`<time>${Oe(e.date,a.language)}</time>`:q}
                 </div>
                 ${this._renderBody(e)}
               </div>
             </div>
           `)}
       </div>
-    `}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.unread_messages?i.states[t.unread_messages]:void 0,s=a?.attributes.substitutions_recent??[],r=a?.attributes.alerts_recent??[],n=a?.attributes.justifications_recent??[];return!a||0===s.length&&0===r.length&&0===n.length?this._message("mdi:bell-alert-outline",ze(i,"card.substitutions.empty")):R`
+    `}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.unread_messages?a.states[t.unread_messages]:void 0,i=s?.attributes.substitutions_recent??[],r=s?.attributes.alerts_recent??[],o=s?.attributes.justifications_recent??[];return!s||0===i.length&&0===r.length&&0===o.length?this._message("mdi:bell-alert-outline",je(a,"card.substitutions.empty")):W`
       <ha-card>
         <div class="header">
           <div class="icon-badge amber"><ha-icon icon="mdi:bell-alert-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.substitutions.title")}</div>
-            <div class="subtitle">${ze(i,"card.substitutions.subtitle")}</div>
+            <div class="title">${je(a,"card.substitutions.title")}</div>
+            <div class="subtitle">${je(a,"card.substitutions.subtitle")}</div>
           </div>
         </div>
-        ${this._renderSection(ze(i,"mailbox.substitutions"),s)}
-        ${this._renderSection(ze(i,"mailbox.alerts"),r)}
-        ${this._renderSection(ze(i,"mailbox.justifications"),n)}
+        ${this._renderSection(je(a,"mailbox.substitutions"),i)}
+        ${this._renderSection(je(a,"mailbox.alerts"),r)}
+        ${this._renderSection(je(a,"mailbox.justifications"),o)}
       </ha-card>
-    `}};ei.styles=[Oe,Fe,n`
+    `}};Na.styles=[Je,Ze,o`
       .section-title {
         font-size: 0.65rem;
         color: var(--secondary-text-color);
@@ -2120,32 +3339,32 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         --mdc-icon-size: 14px;
         flex: none;
       }
-    `],e([ge()],ei.prototype,"_config",void 0),e([ge()],ei.prototype,"_expandedKey",void 0),e([ge()],ei.prototype,"_fullByKey",void 0),e([ge()],ei.prototype,"_pendingKeys",void 0),e([ge()],ei.prototype,"_errorKeys",void 0),ei=e([he("librus-substitutions-card")],ei);let ti=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-announcements-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}_toggleExpanded(e){this._expandedId=this._expandedId===e?void 0:e}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.unread_announcements?i.states[t.unread_announcements]:void 0,s=a?.attributes.recent??[];if(!a||0===s.length)return this._message("mdi:bullhorn-outline",ze(i,"card.announcements.empty"));const r=s.slice(0,this._config.max_items??10);return R`
+    `],e([me()],Na.prototype,"_config",void 0),e([me()],Na.prototype,"_expandedKey",void 0),e([me()],Na.prototype,"_fullByKey",void 0),e([me()],Na.prototype,"_pendingKeys",void 0),e([me()],Na.prototype,"_errorKeys",void 0),Na=e([he("librus-substitutions-card")],Na);let Ea=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-announcements-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}_toggleExpanded(e){this._expandedId=this._expandedId===e?void 0:e}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.unread_announcements?a.states[t.unread_announcements]:void 0,i=s?.attributes.recent??[];if(!s||0===i.length)return this._message("mdi:bullhorn-outline",je(a,"card.announcements.empty"));const r=i.slice(0,this._config.max_items??10);return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge amber"><ha-icon icon="mdi:bullhorn-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(i,"card.announcements.title")}</div>
-            <div class="subtitle">${a.state}</div>
+            <div class="title">${this._config.title??je(a,"card.announcements.title")}</div>
+            <div class="subtitle">${s.state}</div>
           </div>
         </div>
         <div class="scroll-list">
-          ${r.map((e,t)=>{const a=e.id??String(t);return R`
-              <div class="list-item clickable" @click=${()=>this._toggleExpanded(a)}>
+          ${r.map((e,t)=>{const s=e.id??String(t);return W`
+              <div class="list-item clickable" @click=${()=>this._toggleExpanded(s)}>
                 <span class="dot neutral"></span>
                 <div class="body">
                   <div class="row1">${e.subject}</div>
-                  ${e.start_date&&e.end_date?R`<div class="item-text">
-                        ${We(e.start_date,i.language)} –
-                        ${We(e.end_date,i.language)}
+                  ${e.start_date&&e.end_date?W`<div class="item-text">
+                        ${Oe(e.start_date,a.language)} –
+                        ${Oe(e.end_date,a.language)}
                       </div>`:q}
-                  ${this._expandedId===a?R`<div class="full-text">${e.content}</div>`:q}
+                  ${this._expandedId===s?W`<div class="full-text">${e.content}</div>`:q}
                 </div>
               </div>
             `})}
         </div>
       </ha-card>
-    `}};ti.styles=[Oe,Fe,n`
+    `}};Ea.styles=[Je,Ze,o`
       .list-item.clickable {
         cursor: pointer;
       }
@@ -2156,17 +3375,17 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         line-height: 1.5;
         white-space: pre-wrap;
       }
-    `],e([ge()],ti.prototype,"_config",void 0),e([ge()],ti.prototype,"_expandedId",void 0),ti=e([he("librus-announcements-card")],ti);let ii=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-announcements-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.unread_announcements?i.states[t.unread_announcements]:void 0;if(!a)return this._message("mdi:bullhorn-outline",ze(i,"empty.generic_error"));const s=Number(a.state)||0,r=(a.attributes.recent??[])[0];return R`
-      <ha-card class="tile" @click=${vt(this,this._config.tap_action,t.unread_announcements)}>
-        <div class="icon-badge ${s>0?"amber":""}">
+    `],e([me()],Ea.prototype,"_config",void 0),e([me()],Ea.prototype,"_expandedId",void 0),Ea=e([he("librus-announcements-card")],Ea);let Aa=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-announcements-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.unread_announcements?a.states[t.unread_announcements]:void 0;if(!s)return this._message("mdi:bullhorn-outline",je(a,"empty.generic_error"));const i=Number(s.state)||0,r=(s.attributes.recent??[])[0];return W`
+      <ha-card class="tile" @click=${At(this,this._config.tap_action,t.unread_announcements)}>
+        <div class="icon-badge ${i>0?"amber":""}">
           <ha-icon icon="mdi:bullhorn-outline"></ha-icon>
         </div>
         <div class="tile-body">
-          <div class="subj">${s} ${ze(i,"card.announcements.title").toLowerCase()}</div>
-          ${r?R`<div class="meta">${r.subject}</div>`:q}
+          <div class="subj">${i} ${je(a,"card.announcements.title").toLowerCase()}</div>
+          ${r?W`<div class="meta">${r.subject}</div>`:q}
         </div>
       </ha-card>
-    `}};ii.styles=[Oe,Fe,n`
+    `}};Aa.styles=[Je,Ze,o`
       ha-card.tile {
         flex-direction: row;
         align-items: center;
@@ -2187,64 +3406,66 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-    `],e([ge()],ii.prototype,"_config",void 0),ii=e([he("librus-announcements-tile-card")],ii);let ai=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-homework-assignments-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.homework_assignments?i.states[t.homework_assignments]:void 0,s=a?.attributes.recent??[];return a&&0!==s.length?R`
+    `],e([me()],Aa.prototype,"_config",void 0),Aa=e([he("librus-announcements-tile-card")],Aa);let Ma=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-homework-assignments-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.homework_assignments?a.states[t.homework_assignments]:void 0,i=s?.attributes.recent??[];return s&&0!==i.length?W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:notebook-edit-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.homework_assignments.title")}</div>
-            <div class="subtitle">${a.state}</div>
+            <div class="title">${je(a,"card.homework_assignments.title")}</div>
+            <div class="subtitle">${s.state}</div>
           </div>
         </div>
         <div class="scroll-list">
-          ${s.map(e=>R`
+          ${i.map(e=>W`
               <div class="list-item">
                 <span class="dot neutral"></span>
                 <div class="body">
                   <div class="row1">
                     <span>${e.topic}</span>
-                    ${e.due_date?R`<time>${ze(i,"label.due")} ${We(e.due_date,i.language)}</time>`:q}
+                    ${e.due_date?W`<time>${je(a,"label.due")} ${Oe(e.due_date,a.language)}</time>`:q}
                   </div>
-                  <div class="item-text">${e.text}${e.teacher?R` - ${e.teacher}`:q}</div>
+                  <div class="item-text">${e.text}${e.teacher?W` - ${e.teacher}`:q}</div>
                 </div>
               </div>
             `)}
         </div>
       </ha-card>
-    `:this._message("mdi:notebook-edit-outline",ze(i,"card.homework_assignments.empty"))}};ai.styles=[Oe,Fe],e([ge()],ai.prototype,"_config",void 0),ai=e([he("librus-homework-assignments-card")],ai);let si=class extends Be{constructor(){super(...arguments),this._done=new Set,this._storageKey=""}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-homework-checklist-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}_load(e){const t=`librus-hw-done:${e}`;if(this._storageKey!==t){this._storageKey=t;try{const e=window.localStorage.getItem(t);this._done=new Set(e?JSON.parse(e):[])}catch{this._done=new Set}}}_persist(e){const t=[...this._done].filter(t=>e.has(t));try{window.localStorage.setItem(this._storageKey,JSON.stringify(t))}catch{}}_toggle(e,t){const i=new Set(this._done);i.has(e)?i.delete(e):i.add(e),this._done=i,this._persist(t)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass;this._load(t);const s=i.homework_assignments?a.states[i.homework_assignments]:void 0,r=(s?.attributes.recent??[]).map((e,t)=>({...e,key:void 0!==e.id?String(e.id):`${e.topic}|${e.due_date??t}`}));if(0===r.length)return this._message("mdi:notebook-edit-outline",ze(a,"card.homework_assignments.empty"));const n=new Set(r.map(e=>e.key)),o=this._config.max_items??12,c=[...r].sort((e,t)=>{const i=this._done.has(e.key)?1:0,a=this._done.has(t.key)?1:0;return i!==a?i-a:(e.due_date??"").localeCompare(t.due_date??"")}),d=r.filter(e=>this._done.has(e.key)).length;return R`
+    `:this._message("mdi:notebook-edit-outline",je(a,"card.homework_assignments.empty"))}};Ma.styles=[Je,Ze],e([me()],Ma.prototype,"_config",void 0),Ma=e([he("librus-homework-assignments-card")],Ma);let La=class extends Ge{constructor(){super(...arguments),this._done=new Set,this._storageKey="",this._todoReading=!1,this._migrated=!1}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-homework-checklist-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}_load(e){const t=`librus-hw-done:${e}`;if(this._storageKey!==t){this._storageKey=t;try{const e=window.localStorage.getItem(t);this._done=new Set(e?JSON.parse(e):[])}catch{this._done=new Set}}}_persist(e){const t=[...this._done].filter(t=>e.has(t));try{window.localStorage.setItem(this._storageKey,JSON.stringify(t))}catch{}}_localDone(){try{const e=window.localStorage.getItem(this._storageKey);return new Set(e?JSON.parse(e):[])}catch{return new Set}}async _readTodo(e,t){const a=this.hass?.states[e],s=a?.last_updated;if(this.hass&&!this._todoReading&&s!==this._todoReadFor){this._todoReading=!0;try{const a=await this.hass.callWS({type:"todo/item/list",entity_id:e}),i=new Set(a.items.filter(e=>"completed"===e.status).map(e=>e.uid));if(!this._migrated){this._migrated=!0;const s=new Set(a.items.map(e=>e.uid));for(const a of this._localDone())t.has(a)&&s.has(a)&&!i.has(a)&&(i.add(a),this._setTodoStatus(e,a,!0));try{window.localStorage.removeItem(this._storageKey)}catch{}}this._done=i,this._todoUids=new Set(a.items.map(e=>e.uid)),this._todoReadFor=s}catch{this._todoReadFor=s}finally{this._todoReading=!1}}}async _setTodoStatus(e,t,a){await(this.hass?.callService("todo","update_item",{entity_id:e,item:t,status:a?"completed":"needs_action"}))}_toggle(e,t,a){const s=new Set(this._done),i=!s.has(e);i?s.add(e):s.delete(e),this._done=s,a?this._setTodoStatus(a,e,i).catch(()=>{this._todoReadFor=void 0,this.requestUpdate()}):this._persist(t)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass;this._load(t);const i=a.homework,r=a.homework_assignments?s.states[a.homework_assignments]:void 0,o=(r?.attributes.recent??[]).map((e,t)=>({...e,key:void 0!==e.id?String(e.id):`${e.topic}|${e.due_date??t}`}));if(0===o.length)return this._message("mdi:notebook-edit-outline",je(s,"card.homework_assignments.empty"));const n=new Set(o.map(e=>e.key));i&&this._readTodo(i,n);const c=i&&this._todoUids?o.filter(e=>this._todoUids.has(e.key)):o;if(0===c.length)return this._message("mdi:notebook-edit-outline",je(s,"card.homework_assignments.empty"));const d=this._config.max_items??12,l=[...c].sort((e,t)=>{const a=this._done.has(e.key)?1:0,s=this._done.has(t.key)?1:0;return a!==s?a-s:(e.due_date??"").localeCompare(t.due_date??"")}),h=c.filter(e=>this._done.has(e.key)).length;return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:notebook-edit-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(a,"card.homework_checklist.title")}</div>
+            <div class="title">${this._config.title??je(s,"card.homework_checklist.title")}</div>
             <div class="subtitle">
-              ${ze(a,"card.homework_checklist.progress",{done:d,total:r.length})}
+              ${je(s,"card.homework_checklist.progress",{done:h,total:c.length})}
             </div>
           </div>
         </div>
         <div class="scroll-list">
-          ${c.slice(0,o).map(e=>{const t=this._done.has(e.key);return R`
+          ${l.slice(0,d).map(e=>{const t=this._done.has(e.key);return W`
               <div
                 class="hw-item ${t?"done":""}"
                 role="checkbox"
                 aria-checked=${t}
                 tabindex="0"
-                @click=${()=>this._toggle(e.key,n)}
-                @keydown=${t=>{"Enter"!==t.key&&" "!==t.key||(t.preventDefault(),this._toggle(e.key,n))}}
+                @click=${()=>this._toggle(e.key,n,i)}
+                @keydown=${t=>{"Enter"!==t.key&&" "!==t.key||(t.preventDefault(),this._toggle(e.key,n,i))}}
               >
                 <span class="box"><ha-icon icon=${t?"mdi:checkbox-marked":"mdi:checkbox-blank-outline"}></ha-icon></span>
                 <div class="body">
                   <div class="row1">
-                    <span>${e.topic||e.text}</span>
-                    ${e.due_date?R`<time>${We(e.due_date,a.language)}</time>`:q}
+                    <span
+                      >${e.category?W`<span class="cat-label">${e.category}</span> `:q}${e.topic||e.text}</span
+                    >
+                    ${e.due_date?W`<time>${Oe(e.due_date,s.language)}</time>`:q}
                   </div>
-                  ${e.text&&e.text!==e.topic?R`<div class="item-text">${e.text}</div>`:q}
+                  ${e.text&&e.text!==e.topic?W`<div class="item-text">${e.text}</div>`:q}
                 </div>
               </div>
             `})}
         </div>
       </ha-card>
-    `}};si.styles=[Oe,Fe,n`
+    `}};La.styles=[Je,Ze,o`
       .hw-item {
         display: flex;
         gap: 10px;
@@ -2274,31 +3495,31 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       .hw-item.done .row1 span {
         text-decoration: line-through;
       }
-    `],e([ge()],si.prototype,"_config",void 0),e([ge()],si.prototype,"_done",void 0),si=e([he("librus-homework-checklist-card")],si);function ri(e){return e.length<=10?`${e}T00:00:00`:e}let ni=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-recent-activity-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass,s=[];for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=a.states[e.entityId]?.attributes.grades??[];for(const i of t)i.date&&s.push({date:i.date,icon:"mdi:notebook-outline",title:`${i.value} · ${e.subject}`,text:i.category??""})}const r=i.behaviour_notices?a.states[i.behaviour_notices]:void 0;for(const e of r?.attributes.recent??[])e.date&&s.push({date:e.date,icon:"mdi:alert-circle-outline",title:e.category??"",text:e.text});const n=i.unread_announcements?a.states[i.unread_announcements]:void 0;for(const e of n?.attributes.recent??[])e.creation_date&&s.push({date:e.creation_date,icon:"mdi:bullhorn-outline",title:e.subject,text:""});const o=i.unread_messages?a.states[i.unread_messages]:void 0;for(const e of o?.attributes.recent??[])e.date&&s.push({date:e.date,icon:"mdi:email-outline",title:`${e.sender} · ${e.topic}`,text:e.content});s.sort((e,t)=>ri(t.date).localeCompare(ri(e.date)));const c=s.slice(0,this._config.max_items??15);return 0===c.length?this._message("mdi:bell-outline",ze(a,"card.recent_activity.empty")):R`
+    `],e([me()],La.prototype,"_config",void 0),e([me()],La.prototype,"_done",void 0),e([me()],La.prototype,"_todoUids",void 0),La=e([he("librus-homework-checklist-card")],La);function Pa(e){return e.length<=10?`${e}T00:00:00`:e}let Fa=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-recent-activity-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass,i=[];for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=s.states[e.entityId]?.attributes.grades??[];for(const a of t)a.date&&i.push({date:a.date,icon:"mdi:notebook-outline",title:`${a.value} · ${e.subject}`,text:a.category??""})}const r=a.behaviour_notices?s.states[a.behaviour_notices]:void 0;for(const e of r?.attributes.recent??[])e.date&&i.push({date:e.date,icon:"mdi:alert-circle-outline",title:e.category??"",text:e.text});const o=a.unread_announcements?s.states[a.unread_announcements]:void 0;for(const e of o?.attributes.recent??[])e.creation_date&&i.push({date:e.creation_date,icon:"mdi:bullhorn-outline",title:e.subject,text:""});const n=a.unread_messages?s.states[a.unread_messages]:void 0;for(const e of n?.attributes.recent??[])e.date&&i.push({date:e.date,icon:"mdi:email-outline",title:`${e.sender} · ${e.topic}`,text:e.content});i.sort((e,t)=>Pa(t.date).localeCompare(Pa(e.date)));const c=i.slice(0,this._config.max_items??15);return 0===c.length?this._message("mdi:bell-outline",je(s,"card.recent_activity.empty")):W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:bell-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(a,"card.recent_activity.title")}</div>
-            <div class="subtitle">${ze(a,"card.recent_activity.subtitle")}</div>
+            <div class="title">${this._config.title??je(s,"card.recent_activity.title")}</div>
+            <div class="subtitle">${je(s,"card.recent_activity.subtitle")}</div>
           </div>
         </div>
         <div class="scroll-list">
-          ${c.map(e=>R`
+          ${c.map(e=>W`
               <div class="list-item">
                 <div class="type-icon"><ha-icon icon=${e.icon}></ha-icon></div>
                 <div class="body">
                   <div class="row1">
                     <span>${e.title}</span>
-                    <time>${We(e.date,a.language)}</time>
+                    <time>${Oe(e.date,s.language)}</time>
                   </div>
-                  ${e.text?R`<div class="item-text">${e.text}</div>`:q}
+                  ${e.text?W`<div class="item-text">${e.text}</div>`:q}
                 </div>
               </div>
             `)}
         </div>
       </ha-card>
-    `}};ni.styles=[Oe,Fe,n`
+    `}};Fa.styles=[Je,Ze,o`
       .type-icon {
         flex: none;
         width: 26px;
@@ -2314,31 +3535,32 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       .type-icon ha-icon {
         --mdc-icon-size: 15px;
       }
-    `],e([ge()],ni.prototype,"_config",void 0),ni=e([he("librus-recent-activity-card")],ni);let oi=class extends Be{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-today-lessons-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},3e5),this._tickTimer=setInterval(()=>this.requestUpdate(),6e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer),clearInterval(this._tickTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const i=t.map.timetable;if(!i)return;const a=new Date;a.setHours(0,0,0,0);const s=new Date(a);s.setDate(s.getDate()+1);const r=`${i}:${a.toDateString()}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const n=this._beginFetch();try{const e=(await Xe(this.hass,i,a,s)).filter(e=>!e.allDay).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(n)&&(this._events=e)}catch{this._isCurrentFetch(n)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:calendar-clock",ze(t,"card.today_lessons.empty"));const i=new Date;return R`
+    `],e([me()],Fa.prototype,"_config",void 0),Fa=e([he("librus-recent-activity-card")],Fa);let Ba=class extends Ge{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-today-lessons-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},3e5),this._tickTimer=setInterval(()=>this.requestUpdate(),6e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer),clearInterval(this._tickTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const a=t.map.timetable;if(!a)return;const s=new Date;s.setHours(0,0,0,0);const i=new Date(s);i.setDate(i.getDate()+1);const r=`${a}:${s.toDateString()}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const o=this._beginFetch();try{const e=(await st(this.hass,a,s,i)).filter(e=>!e.allDay).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(o)&&(this._events=e)}catch{this._isCurrentFetch(o)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:calendar-clock",je(t,"card.today_lessons.empty"));const a=new Date;return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:calendar-clock"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(t,"card.today_lessons.title")}</div>
-            <div class="subtitle">${ze(t,"card.today_lessons.subtitle")}</div>
+            <div class="title">${je(t,"card.today_lessons.title")}</div>
+            <div class="subtitle">${je(t,"card.today_lessons.subtitle")}</div>
           </div>
         </div>
         <div class="timeline">
-          ${this._events.map(e=>{const a=Qe(e,i),s=et(e,i);return R`
-              <div class="tl-item ${a?"now":""} ${s?"done":""}">
-                <span class="tl-time">${Re(e.start)}</span>
+          ${this._events.map(e=>{const s=ot(e),i=!s.cancelled&&ct(e,a),r=dt(e,a);return W`
+              <div class="tl-item ${i?"now":""} ${r?"done":""} ${s.cancelled?"lesson-cancelled":""}">
+                <span class="tl-time">${Be(e.start)}</span>
                 <span class="tl-dot"></span>
                 <div class="tl-body">
                   <div class="subj">
-                    ${e.summary} ${a?R`<span class="pill-now">${ze(t,"label.now")}</span>`:q}
+                    <span class="lesson-name">${s.name}</span>${Xe(t,s)}
+                    ${i?W`<span class="pill-now">${je(t,"label.now")}</span>`:q}
                   </div>
-                  ${e.location||e.description?R`<div class="meta">${[e.location,e.description].filter(Boolean).join(" · ")}</div>`:q}
+                  ${nt(e,s)?W`<div class="meta">${nt(e,s)}</div>`:q}
                 </div>
               </div>
             `})}
         </div>
       </ha-card>
-    `}};oi.styles=[Oe,Fe,n`
+    `}};Ba.styles=[Je,Ze,o`
       .timeline {
         display: flex;
         flex-direction: column;
@@ -2408,18 +3630,18 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         letter-spacing: 0.03em;
         text-transform: uppercase;
       }
-    `],e([ge()],oi.prototype,"_config",void 0),e([ge()],oi.prototype,"_events",void 0),oi=e([he("librus-today-lessons-card")],oi);let ci=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-next-lesson-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.timetable?i.states[t.timetable]:void 0,s=a?.attributes.message,r=a?.attributes.start_time;if(!a||!s||!r)return this._message("mdi:clock-outline",ze(i,"card.next_lesson.empty"));const n=new Date(__hcSrvDate(r,i)),o=new Date,c="on"===a.state,d=qe(n,o),l=a.attributes.location,h=a.attributes.description;return R`
-      <ha-card class="tile" @click=${vt(this,this._config.tap_action,t.timetable)}>
+    `],e([me()],Ba.prototype,"_config",void 0),e([me()],Ba.prototype,"_events",void 0),Ba=e([he("librus-today-lessons-card")],Ba);let Oa=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-next-lesson-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.timetable?a.states[t.timetable]:void 0,i=s?.attributes.message,r=s?.attributes.start_time;if(!s||!i||!r)return this._message("mdi:clock-outline",je(a,"card.next_lesson.empty"));const o=new Date(__hcSrvDate(r,a)),n=new Date,c="on"===s.state,d=Ue(o,n),l=s.attributes.location,h=s.attributes.description;return W`
+      <ha-card class="tile" @click=${At(this,this._config.tap_action,t.timetable)}>
         <div class="icon-badge ${c?"good":""}"><ha-icon icon="mdi:clock-outline"></ha-icon></div>
         <div class="tile-body">
-          <div class="subj">${s}</div>
+          <div class="subj">${i}</div>
           <div class="meta">
-            ${c?ze(i,"label.now"):`${Re(__hcSrvDate(r,i))} · ${je(i,d)}`}
+            ${c?je(a,"label.now"):`${Be(__hcSrvDate(r,a))} · ${Ce(a,d)}`}
             ${l?` · ${l}`:""}${h?` · ${h}`:""}
           </div>
         </div>
       </ha-card>
-    `}};ci.styles=[Oe,Fe,n`
+    `}};Oa.styles=[Je,Ze,o`
       ha-card.tile {
         flex-direction: row;
         align-items: center;
@@ -2437,26 +3659,26 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         color: var(--secondary-text-color);
         margin-top: 1px;
       }
-    `],e([ge()],ci.prototype,"_config",void 0),ci=e([he("librus-next-lesson-tile-card")],ci);let di=class extends Be{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-agenda-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},9e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const i=t.map.agenda;if(!i)return;const a=this._config.days_ahead??14,s=new Date;s.setHours(0,0,0,0);const r=new Date(s);r.setDate(r.getDate()+a);const n=`${i}:${s.toDateString()}:${a}`;if(!e&&this._fetchedFor===n)return;this._fetchedFor=n;const o=this._beginFetch();try{const e=(await Xe(this.hass,i,s,r)).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(o)&&(this._events=e)}catch{this._isCurrentFetch(o)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:calendar-text-outline",ze(t,"card.agenda.empty"));const i=new Map;for(const e of this._events){const t=e.start.slice(0,10);i.has(t)||i.set(t,[]),i.get(t).push(e)}return R`
+    `],e([me()],Oa.prototype,"_config",void 0),Oa=e([he("librus-next-lesson-tile-card")],Oa);let Ka=class extends Ge{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-agenda-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},9e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const a=t.map.agenda;if(!a)return;const s=this._config.days_ahead??14,i=new Date;i.setHours(0,0,0,0);const r=new Date(i);r.setDate(r.getDate()+s);const o=`${a}:${i.toDateString()}:${s}`;if(!e&&this._fetchedFor===o)return;this._fetchedFor=o;const n=this._beginFetch();try{const e=(await st(this.hass,a,i,r)).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(n)&&(this._events=e)}catch{this._isCurrentFetch(n)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:calendar-text-outline",je(t,"card.agenda.empty"));const a=new Map;for(const e of this._events){const t=e.start.slice(0,10);a.has(t)||a.set(t,[]),a.get(t).push(e)}return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:calendar-text-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(t,"card.agenda.title")}</div>
-            <div class="subtitle">${ze(t,"card.agenda.subtitle")}</div>
+            <div class="title">${this._config.title??je(t,"card.agenda.title")}</div>
+            <div class="subtitle">${je(t,"card.agenda.subtitle")}</div>
           </div>
         </div>
         <div class="scroll-list">
-          ${[...i.entries()].map(([e,i])=>R`
+          ${[...a.entries()].map(([e,a])=>W`
               <div class="day-group">
-                <div class="day-label">${We(e,t.language)}</div>
-                ${i.map(e=>{const{category:t,text:i}=Ve(e.summary);return R`
+                <div class="day-label">${Oe(e,t.language)}</div>
+                ${a.map(e=>{const{category:t,text:a}=He(e.summary);return W`
                     <div class="list-item">
                       <span class="dot neutral"></span>
                       <div class="body">
-                        ${t?R`<div class="cat-label-row"><span class="cat-label">${t}</span></div>`:q}
-                        <div class="row1">${i}</div>
-                        ${e.description?R`<div class="item-text">${e.description}</div>`:q}
+                        ${t?W`<div class="cat-label-row"><span class="cat-label">${t}</span></div>`:q}
+                        <div class="row1">${a}</div>
+                        ${e.description?W`<div class="item-text">${e.description}</div>`:q}
                       </div>
                     </div>
                   `})}
@@ -2464,7 +3686,7 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
             `)}
         </div>
       </ha-card>
-    `}};di.styles=[Oe,Fe,n`
+    `}};Ka.styles=[Je,Ze,o`
       .day-group {
         display: flex;
         flex-direction: column;
@@ -2480,27 +3702,27 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
-    `],e([ge()],di.prototype,"_config",void 0),e([ge()],di.prototype,"_events",void 0),di=e([he("librus-agenda-card")],di);const li=new Set(["unknown","unavailable",""]),hi="sprawdzian";let ui=class extends Be{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-exam-countdown-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},9e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}_sensorExams(){if(!this.hass)return;const e=this._resolveEntities();if("error"in e)return;const t=e.map.next_exam?this.hass.states[e.map.next_exam]:void 0;if(!t||li.has(t.state))return;const i=(new Date).toLocaleDateString("en-CA"),a=(t.attributes.upcoming??[]).filter(e=>e.date>=i).sort((e,t)=>e.date.localeCompare(t.date)).map(e=>({date:e.date,text:[e.subject,e.content].filter(Boolean).join(" — ")||e.category||""}));return 0===a.length?[{date:t.state,text:t.attributes.subject??""}]:a}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;if(void 0!==this._sensorExams())return;const i=t.map.agenda;if(!i)return;const a=new Date;a.setHours(0,0,0,0);const s=new Date(a);s.setDate(s.getDate()+90);const r=this._config.exam_keywords||hi,n=`${i}:${a.toDateString()}:${r}`;if(!e&&this._fetchedFor===n)return;this._fetchedFor=n;const o=function(e){const t=(e||hi).split(",").map(e=>e.trim()).filter(Boolean).map(e=>e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));return new RegExp(t.length?t.join("|"):hi,"i")}(this._config.exam_keywords),c=this._beginFetch();try{const e=(await Xe(this.hass,i,a,s)).filter(e=>{const{category:t}=Ve(e.summary);return null!==t&&o.test(t)}).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(c)&&(this._events=e)}catch{this._isCurrentFetch(c)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;this._fetch();const i=this._sensorExams()??this._events.map(e=>({date:e.start,text:Ve(e.summary).text}));if(0===i.length)return this._message("mdi:clipboard-text-outline",ze(t,"card.exam_countdown.empty"));const[a,...s]=i,r=Ge(new Date,new Date(`${a.date.slice(0,10)}T00:00:00`));return R`
-      <ha-card @click=${vt(this,this._config.tap_action,e.map.next_exam||e.map.agenda)}>
+    `],e([me()],Ka.prototype,"_config",void 0),e([me()],Ka.prototype,"_events",void 0),Ka=e([he("librus-agenda-card")],Ka);const Ua=new Set(["unknown","unavailable",""]),Ra="sprawdzian";let Wa=class extends Ge{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-exam-countdown-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},9e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}_sensorExams(){if(!this.hass)return;const e=this._resolveEntities();if("error"in e)return;const t=e.map.next_exam?this.hass.states[e.map.next_exam]:void 0;if(!t||Ua.has(t.state))return;const a=(new Date).toLocaleDateString("en-CA"),s=(t.attributes.upcoming??[]).filter(e=>e.date>=a).sort((e,t)=>e.date.localeCompare(t.date)).map(e=>({date:e.date,text:[e.subject,e.content].filter(Boolean).join(" — ")||e.category||""}));return 0===s.length?[{date:t.state,text:t.attributes.subject??""}]:s}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;if(void 0!==this._sensorExams())return;const a=t.map.agenda;if(!a)return;const s=new Date;s.setHours(0,0,0,0);const i=new Date(s);i.setDate(i.getDate()+90);const r=this._config.exam_keywords||Ra,o=`${a}:${s.toDateString()}:${r}`;if(!e&&this._fetchedFor===o)return;this._fetchedFor=o;const n=function(e){const t=(e||Ra).split(",").map(e=>e.trim()).filter(Boolean).map(e=>e.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));return new RegExp(t.length?t.join("|"):Ra,"i")}(this._config.exam_keywords),c=this._beginFetch();try{const e=(await st(this.hass,a,s,i)).filter(e=>{const{category:t}=He(e.summary);return null!==t&&n.test(t)}).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(c)&&(this._events=e)}catch{this._isCurrentFetch(c)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;this._fetch();const a=this._sensorExams()??this._events.map(e=>({date:e.start,text:He(e.summary).text}));if(0===a.length)return this._message("mdi:clipboard-text-outline",je(t,"card.exam_countdown.empty"));const[s,...i]=a,r=Ke(new Date,new Date(`${s.date.slice(0,10)}T00:00:00`));return W`
+      <ha-card @click=${At(this,this._config.tap_action,e.map.next_exam||e.map.agenda)}>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:clipboard-text-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(t,"card.exam_countdown.title")}</div>
-            <div class="subtitle">${We(a.date,t.language)}</div>
+            <div class="title">${this._config.title??je(t,"card.exam_countdown.title")}</div>
+            <div class="subtitle">${Oe(s.date,t.language)}</div>
           </div>
         </div>
         <div class="countdown">
           <span class="big">${r}</span>
-          <span class="unit">${ze(t,"label.days_until")}<br /><b>${a.text}</b></span>
+          <span class="unit">${je(t,"label.days_until")}<br /><b>${s.text}</b></span>
         </div>
-        ${s.length?R`
+        ${i.length?W`
               <hr />
               <div class="chips">
-                ${s.slice(0,4).map(e=>R`<span class="chip">${e.text} <span class="n">${We(e.date,t.language)}</span></span>`)}
+                ${i.slice(0,4).map(e=>W`<span class="chip">${e.text} <span class="n">${Oe(e.date,t.language)}</span></span>`)}
               </div>
             `:q}
       </ha-card>
-    `}};ui.styles=[Oe,Fe,n`
+    `}};Wa.styles=[Je,Ze,o`
       .countdown {
         display: flex;
         align-items: baseline;
@@ -2518,27 +3740,27 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         color: var(--secondary-text-color);
         line-height: 1.4;
       }
-    `],e([ge()],ui.prototype,"_config",void 0),e([ge()],ui.prototype,"_events",void 0),ui=e([he("librus-exam-countdown-card")],ui);let pi=class extends Be{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-free-days-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},36e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const i=t.map.free_days;if(!i)return;const a=new Date;a.setHours(0,0,0,0);const s=new Date(a);s.setDate(s.getDate()+240);const r=`${i}:${a.toDateString()}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const n=this._beginFetch();try{const e=(await Xe(this.hass,i,a,s)).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(n)&&(this._events=e)}catch{this._isCurrentFetch(n)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:beach",ze(t,"card.free_days.empty"));const i=new Date,[a,...s]=this._events,r=Ge(i,new Date(`${a.start}T00:00:00`));return R`
+    `],e([me()],Wa.prototype,"_config",void 0),e([me()],Wa.prototype,"_events",void 0),Wa=e([he("librus-exam-countdown-card")],Wa);let Ha=class extends Ge{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-free-days-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},36e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const a=t.map.free_days;if(!a)return;const s=new Date;s.setHours(0,0,0,0);const i=new Date(s);i.setDate(i.getDate()+240);const r=`${a}:${s.toDateString()}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const o=this._beginFetch();try{const e=(await st(this.hass,a,s,i)).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(o)&&(this._events=e)}catch{this._isCurrentFetch(o)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:beach",je(t,"card.free_days.empty"));const a=new Date,[s,...i]=this._events,r=Ke(a,new Date(`${s.start}T00:00:00`));return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge amber"><ha-icon icon="mdi:beach"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(t,"card.free_days.title")}</div>
-            <div class="subtitle">${a.summary}</div>
+            <div class="title">${je(t,"card.free_days.title")}</div>
+            <div class="subtitle">${s.summary}</div>
           </div>
         </div>
         <div class="countdown">
           <span class="big">${r}</span>
-          <span class="unit">${ze(t,"label.days_until")}<br /><b>${a.summary}</b></span>
+          <span class="unit">${je(t,"label.days_until")}<br /><b>${s.summary}</b></span>
         </div>
-        ${s.length?R`
+        ${i.length?W`
               <hr />
               <div class="chips">
-                ${s.slice(0,4).map(e=>R`<span class="chip">${e.summary} <span class="n">${We(e.start,t.language)}</span></span>`)}
+                ${i.slice(0,4).map(e=>W`<span class="chip">${e.summary} <span class="n">${Oe(e.start,t.language)}</span></span>`)}
               </div>
             `:q}
       </ha-card>
-    `}};pi.styles=[Oe,Fe,n`
+    `}};Ha.styles=[Je,Ze,o`
       .countdown {
         display: flex;
         align-items: baseline;
@@ -2556,15 +3778,15 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         color: var(--secondary-text-color);
         line-height: 1.4;
       }
-    `],e([ge()],pi.prototype,"_config",void 0),e([ge()],pi.prototype,"_events",void 0),pi=e([he("librus-free-days-card")],pi);let mi=class extends Be{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-free-days-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},36e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const i=t.map.free_days;if(!i)return;const a=new Date;a.setHours(0,0,0,0);const s=new Date(a);s.setDate(s.getDate()+240);const r=`${i}:${a.toDateString()}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const n=this._beginFetch();try{const e=(await Xe(this.hass,i,a,s)).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(n)&&(this._events=e)}catch{this._isCurrentFetch(n)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:beach",ze(t,"card.free_days.empty"));const[i]=this._events,a=Ge(new Date,new Date(`${i.start}T00:00:00`));return R`
-      <ha-card class="tile" @click=${vt(this,this._config.tap_action,e.map.free_days)}>
+    `],e([me()],Ha.prototype,"_config",void 0),e([me()],Ha.prototype,"_events",void 0),Ha=e([he("librus-free-days-card")],Ha);let Ga=class extends Ge{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-free-days-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},36e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const a=t.map.free_days;if(!a)return;const s=new Date;s.setHours(0,0,0,0);const i=new Date(s);i.setDate(i.getDate()+240);const r=`${a}:${s.toDateString()}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const o=this._beginFetch();try{const e=(await st(this.hass,a,s,i)).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(o)&&(this._events=e)}catch{this._isCurrentFetch(o)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:beach",je(t,"card.free_days.empty"));const[a]=this._events,s=Ke(new Date,new Date(`${a.start}T00:00:00`));return W`
+      <ha-card class="tile" @click=${At(this,this._config.tap_action,e.map.free_days)}>
         <div class="icon-badge amber"><ha-icon icon="mdi:beach"></ha-icon></div>
         <div class="tile-body">
-          <div class="subj">${a} ${ze(t,"label.days").toLowerCase()}</div>
-          <div class="meta">${i.summary}</div>
+          <div class="subj">${s} ${je(t,"label.days").toLowerCase()}</div>
+          <div class="meta">${a.summary}</div>
         </div>
       </ha-card>
-    `}};function gi(e){const t=new Date(e).getDay();return 0===t?7:t}mi.styles=[Oe,Fe,n`
+    `}};function qa(e){const t=new Date(e).getDay();return 0===t?7:t}Ga.styles=[Je,Ze,o`
       ha-card.tile {
         flex-direction: row;
         align-items: center;
@@ -2585,33 +3807,33 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-    `],e([ge()],mi.prototype,"_config",void 0),e([ge()],mi.prototype,"_events",void 0),mi=e([he("librus-free-days-tile-card")],mi);let vi=class extends Be{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-week-timetable-card"}}get _dayCount(){return this._config?.show_saturday?6:5}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer),clearInterval(this._tickTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const i=t.map.timetable;if(!i)return;const a=st(new Date),s=new Date(a);s.setDate(s.getDate()+this._dayCount);const r=`${i}:${a.toDateString()}:${this._dayCount}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const n=this._beginFetch();try{const e=await Xe(this.hass,i,a,s);this._isCurrentFetch(n)&&(this._events=e)}catch{this._isCurrentFetch(n)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:calendar-week-outline",ze(t,"card.week_timetable.empty"));const i=this._dayCount,a=Array.from({length:i},()=>[]);for(const e of this._events){const t=gi(e.start);t>=1&&t<=i&&a[t-1].push(e)}a.forEach(e=>e.sort((e,t)=>e.start.localeCompare(t.start)));const s=e.map.school?t.states[e.map.school]:void 0,r=s?.attributes.bell_schedule??[],n=a.map(e=>e.map(e=>function(e,t){const i=function(e){return e.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:!1})}(new Date(e.start)),a=t.find(e=>e.start===i);return a?a.lesson_no:t.find(e=>e.start<=i&&i<e.end)?.lesson_no}(e,r))),o=r.length>0&&n.every(e=>e.every(e=>void 0!==e));let c,d;if(o){const e=n.flat(),t=Math.min(...e),i=Math.max(...e);c=Array.from({length:i-t+1},(e,i)=>t+i),d=c.map(e=>a.map((t,i)=>t.filter((t,a)=>n[i][a]===e)))}else{const e=Math.max(...a.map(e=>e.length),1);c=Array.from({length:e},(e,t)=>t+1),d=c.map((e,t)=>a.map(e=>e[t]?[e[t]]:[]))}const l=Array.from({length:i},(e,i)=>new Date(2026,0,i+5).toLocaleDateString(t.language,{weekday:"short"})),h=new Date,u=gi(h.toISOString())-1,p=u>=0&&u<i?a[u]:[],m=p.find(e=>Qe(e,h)),g=p.find(e=>new Date(e.start)>h),v=!m&&!!g&&p.some(e=>et(e,h));return R`
+    `],e([me()],Ga.prototype,"_config",void 0),e([me()],Ga.prototype,"_events",void 0),Ga=e([he("librus-free-days-tile-card")],Ga);let Ja=class extends Ge{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-week-timetable-card"}}get _dayCount(){return this._config?.show_saturday?6:5}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 4}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer),clearInterval(this._tickTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const a=t.map.timetable;if(!a)return;const s=pt(new Date),i=new Date(s);i.setDate(i.getDate()+this._dayCount);const r=`${a}:${s.toDateString()}:${this._dayCount}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const o=this._beginFetch();try{const e=await st(this.hass,a,s,i);this._isCurrentFetch(o)&&(this._events=e)}catch{this._isCurrentFetch(o)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:calendar-week-outline",je(t,"card.week_timetable.empty"));const a=this._dayCount,s=Array.from({length:a},()=>[]);for(const e of this._events){const t=qa(e.start);t>=1&&t<=a&&s[t-1].push(e)}s.forEach(e=>e.sort((e,t)=>e.start.localeCompare(t.start)));const i=e.map.school?t.states[e.map.school]:void 0,r=i?.attributes.bell_schedule??[],o=s.map(e=>e.map(e=>function(e,t){const a=function(e){return e.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:!1})}(new Date(e.start)),s=t.find(e=>e.start===a);return s?s.lesson_no:t.find(e=>e.start<=a&&a<e.end)?.lesson_no}(e,r))),n=r.length>0&&o.every(e=>e.every(e=>void 0!==e));let c,d;if(n){const e=o.flat(),t=Math.min(...e),a=Math.max(...e);c=Array.from({length:a-t+1},(e,a)=>t+a),d=c.map(e=>s.map((t,a)=>t.filter((t,s)=>o[a][s]===e)))}else{const e=Math.max(...s.map(e=>e.length),1);c=Array.from({length:e},(e,t)=>t+1),d=c.map((e,t)=>s.map(e=>e[t]?[e[t]]:[]))}const l=Array.from({length:a},(e,a)=>new Date(2026,0,a+5).toLocaleDateString(t.language,{weekday:"short"})),h=new Date,u=qa(h.toISOString())-1,p=(u>=0&&u<a?s[u]:[]).filter(e=>!ot(e).cancelled),g=p.find(e=>ct(e,h)),m=p.find(e=>new Date(e.start)>h),v=!g&&!!m&&p.some(e=>dt(e,h));return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:calendar-week-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(t,"card.week_timetable.title")}</div>
+            <div class="title">${je(t,"card.week_timetable.title")}</div>
             <div class="subtitle">
-              ${v?ze(t,"card.week_timetable.break_now",{minutes:qe(new Date(g.start),h)}):ze(t,function(e){return gi(e.toISOString())>=6}(new Date)?"card.week_timetable.subtitle_upcoming":"card.week_timetable.subtitle")}
+              ${v?je(t,"card.week_timetable.break_now",{minutes:Ue(new Date(m.start),h)}):je(t,function(e){return qa(e.toISOString())>=6}(new Date)?"card.week_timetable.subtitle_upcoming":"card.week_timetable.subtitle")}
             </div>
           </div>
         </div>
         <div
           class="week-grid"
-          style="grid-template-columns: 24px repeat(${i}, 1fr); grid-template-rows: auto repeat(${c.length}, 1fr);"
+          style="grid-template-columns: 24px repeat(${a}, 1fr); grid-template-rows: auto repeat(${c.length}, 1fr);"
         >
           <span class="h"></span>
-          ${l.map(e=>R`<span class="h">${e}</span>`)}
-          ${c.map((e,t)=>R`
+          ${l.map(e=>W`<span class="h">${e}</span>`)}
+          ${c.map((e,a)=>W`
             <span class="n">${e}</span>
-            ${d[t].map((e,t)=>{const i=e[0];if(!i)return R`<div class="cell empty"></div>`;const a=t===u,s=a&&e.some(e=>Qe(e,h)),r=v&&a&&e.includes(g);return R`<div
-                class="cell on ${s?"current":""} ${r?"next":""}"
-                title=${e.map(e=>e.summary).join(" / ")}
-              >${function(e){const t=e.replace(/\(.*\)/,"").trim();return t.length<=4?t:t.slice(0,3)}(i.summary)}${e.length>1?"+":""}</div>`})}
+            ${d[a].map((e,a)=>{if(!e.length)return W`<div class="cell empty"></div>`;const s=e.map(e=>ot(e)),i=Math.max(0,s.findIndex(e=>!e.cancelled)),r=s[i],o=s.every(e=>e.cancelled),n=s.some(e=>e.substitution||e.roomChange||e.moved),c=a===u,d=c&&e.some((e,t)=>!s[t].cancelled&&ct(e,h)),l=v&&c&&e.includes(m),p=s.map(e=>e.cancelled?`${e.name} (${je(t,"label.lesson_cancelled")})`:e.roomChange&&e.rooms?`${e.name} (${je(t,"label.lesson_room_change",{from:e.rooms[0],to:e.rooms[1]})})`:e.moved?`${e.name} (${je(t,"label.lesson_moved")})`:e.substitution?`${e.name} (${je(t,"label.lesson_substitution")})`:e.name).join(" / ");return W`<div
+                class="cell on ${d?"current":""} ${l?"next":""} ${o?"off":""} ${n&&!o?"sub":""}"
+                title=${p}
+              >${Gt(r.name)}${e.length>1?"+":""}</div>`})}
           `)}
         </div>
       </ha-card>
-    `}};vi.styles=[Oe,Fe,n`
+    `}};Ja.styles=[Je,Ze,o`
       .week-grid {
         display: grid;
         grid-template-columns: 24px repeat(5, 1fr); /* overridden inline per show_saturday */
@@ -2665,28 +3887,42 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       .cell.empty {
         background: transparent;
       }
-    `],e([ge()],vi.prototype,"_config",void 0),e([ge()],vi.prototype,"_events",void 0),vi=e([he("librus-week-timetable-card")],vi);const bi=new Set(["unknown","unavailable",""]);function _i(e){return e.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:!1})}function yi(e){return`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}let fi=class extends Be{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-bell-schedule-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},9e5),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer),clearInterval(this._tickTimer)}_targetDay(){const e=this._nextLessonDateIso();if(e){const t=new Date(`${e}T00:00:00`);if(!Number.isNaN(t.getTime()))return t}const t=new Date;return t.setHours(0,0,0,0),t}_nextLessonDateIso(){if(!this.hass)return;const e=this._resolveEntities();if("error"in e)return;const t=e.map.next_lesson?this.hass.states[e.map.next_lesson]:void 0,i=t?.attributes.date;return i&&!bi.has(t?.state??"")?i:void 0}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const i=t.map.timetable;if(!i)return;const a=this._targetDay(),s=new Date(a);s.setDate(s.getDate()+1);const r=`${i}:${yi(a)}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const n=this._beginFetch();try{const e=(await Xe(this.hass,i,a,s)).filter(e=>!e.allDay);this._isCurrentFetch(n)&&(this._events=e)}catch{this._isCurrentFetch(n)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass;this._fetch();const a=t.school?i.states[t.school]:void 0,s=a?.attributes.bell_schedule??[];if(0===s.length)return this._message("mdi:bell-outline",ze(i,"card.bell_schedule.empty"));const r=new Map;for(const e of this._events){const t=_i(new Date(e.start));!r.has(t)&&e.summary&&r.set(t,{subject:e.summary,room:e.location||void 0})}const n=yi(this._targetDay())===yi(new Date),o=_i(new Date),c=t.current_lesson?i.states[t.current_lesson]:void 0,d=t.next_lesson?i.states[t.next_lesson]:void 0,l=c&&!bi.has(c.state)?c.state:void 0,h=d&&!bi.has(d.state)?d.state:void 0;let u;if(l)u=`${l} · ${ze(i,"label.now")}`;else if(h){const e=Number(d?.attributes.minutes_until);u=Number.isNaN(e)?h:`${h} · ${je(i,e)}`}else u=ze(i,"label.after_school");return R`
-      <ha-card @click=${vt(this,this._config.tap_action,t.school)}>
+      /* Cancelled: struck through on a dashed outline; substitution: amber
+         dashed outline (same marks as the School day card). */
+      .cell.off {
+        background: transparent;
+        border: 1px dashed var(--divider-color);
+        text-decoration: line-through;
+        opacity: 0.7;
+      }
+      .cell.sub {
+        outline: 2px dashed var(--lc-amber);
+        outline-offset: -2px;
+      }
+    `],e([me()],Ja.prototype,"_config",void 0),e([me()],Ja.prototype,"_events",void 0),Ja=e([he("librus-week-timetable-card")],Ja);const Za=new Set(["unknown","unavailable",""]);function Va(e){return e.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",hour12:!1})}function Ya(e){return`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}let Xa=class extends Ge{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-bell-schedule-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},9e5),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer),clearInterval(this._tickTimer)}_targetDay(){const e=this._nextLessonDateIso();if(e){const t=new Date(`${e}T00:00:00`);if(!Number.isNaN(t.getTime()))return t}const t=new Date;return t.setHours(0,0,0,0),t}_nextLessonDateIso(){if(!this.hass)return;const e=this._resolveEntities();if("error"in e)return;const t=e.map.next_lesson?this.hass.states[e.map.next_lesson]:void 0,a=t?.attributes.date;return a&&!Za.has(t?.state??"")?a:void 0}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const a=t.map.timetable;if(!a)return;const s=this._targetDay(),i=new Date(s);i.setDate(i.getDate()+1);const r=`${a}:${Ya(s)}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const o=this._beginFetch();try{const e=(await st(this.hass,a,s,i)).filter(e=>!e.allDay);this._isCurrentFetch(o)&&(this._events=e)}catch{this._isCurrentFetch(o)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass;this._fetch();const s=t.school?a.states[t.school]:void 0,i=s?.attributes.bell_schedule??[];if(0===i.length)return this._message("mdi:bell-outline",je(a,"card.bell_schedule.empty"));const r=new Map;for(const e of this._events){const t=Va(new Date(e.start)),a=ot(e),s=r.get(t);e.summary&&(!s||s.info.cancelled&&!a.cancelled)&&r.set(t,{info:a,room:e.location||void 0})}const o=i.map(e=>r.has(e.start)),n=o.indexOf(!0),c=o.lastIndexOf(!0),d=-1===n?i:i.slice(n,c+1),l=Ya(this._targetDay())===Ya(new Date),h=Va(new Date),u=t.current_lesson?a.states[t.current_lesson]:void 0,p=t.next_lesson?a.states[t.next_lesson]:void 0,g=u&&!Za.has(u.state)?u.state:void 0,m=p&&!Za.has(p.state)?p.state:void 0;let v;if(g)v=`${g} · ${je(a,"label.now")}`;else if(m){const e=Number(p?.attributes.minutes_until);v=Number.isNaN(e)?m:`${m} · ${Ce(a,e)}`}else v=je(a,"label.after_school");return W`
+      <ha-card @click=${At(this,this._config.tap_action,t.school)}>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:bell-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(i,"card.bell_schedule.title")}</div>
-            <div class="subtitle">${u}</div>
+            <div class="title">${this._config.title??je(a,"card.bell_schedule.title")}</div>
+            <div class="subtitle">${v}</div>
           </div>
         </div>
         <div class="periods">
-          ${s.map(e=>{const t=r.get(e.start),a=n&&e.start<=o&&o<=e.end,s=n&&o>e.end;return R`
-              <div class="period ${a?"current":""} ${s?"past":""} ${t?"":"free"}">
-                <span class="pnum">${ze(i,"label.lesson_short",{n:e.lesson_no})}</span>
+          ${d.map(e=>{const t=r.get(e.start),s=l&&e.start<=h&&h<=e.end,i=l&&h>e.end;return W`
+              <div
+                class="period ${s&&!t?.info.cancelled?"current":""} ${i?"past":""} ${t?"":"free"} ${t?.info.cancelled?"lesson-cancelled":""}"
+              >
+                <span class="pnum">${je(a,"label.lesson_short",{n:e.lesson_no})}</span>
                 <span class="ptime">${e.start}<span class="dash">–</span>${e.end}</span>
-                ${t?R`<span class="psubj"
-                      >${t.subject}${t.room?R` <span class="proom">${t.room}</span>`:q}</span
+                ${t?W`<span class="psubj"
+                      ><span class="lesson-name">${t.info.name}</span>${Xe(a,t.info)}${t.room?W` <span class="proom">${t.room}</span>`:q}</span
                     >`:q}
               </div>
             `})}
         </div>
       </ha-card>
-    `}};fi.styles=[Oe,Fe,n`
+    `}};Xa.styles=[Je,Ze,o`
       .periods {
         display: flex;
         flex-direction: column;
@@ -2743,72 +3979,73 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         color: var(--secondary-text-color);
         font-size: 0.72rem;
       }
-    `],e([ge()],fi.prototype,"_config",void 0),e([ge()],fi.prototype,"_events",void 0),fi=e([he("librus-bell-schedule-card")],fi);const wi=Array.from({length:16},(e,t)=>`var(--lc-chart-${t+1})`);let ki=class extends Be{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-subject-time-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}get _dayCount(){return this._config?.show_saturday?6:5}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const i=t.map.timetable;if(!i)return;const a=st(new Date),s=new Date(a);s.setDate(s.getDate()+this._dayCount);const r=`${i}:${a.toDateString()}:${this._dayCount}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const n=this._beginFetch();try{const e=await Xe(this.hass,i,a,s);this._isCurrentFetch(n)&&(this._events=e)}catch{this._isCurrentFetch(n)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:chart-bar",ze(t,"card.subject_time.empty"));const i=new Map;for(const e of this._events)e.summary&&i.set(e.summary,(i.get(e.summary)??0)+1);const a=[...i.entries()].sort((e,t)=>t[1]-e[1]).map(([e,t],i)=>({label:e,value:t,colorVar:wi[i%wi.length]}));return R`
+    `],e([me()],Xa.prototype,"_config",void 0),e([me()],Xa.prototype,"_events",void 0),Xa=e([he("librus-bell-schedule-card")],Xa);const Qa=Array.from({length:16},(e,t)=>`var(--lc-chart-${t+1})`);let es=class extends Ge{constructor(){super(...arguments),this._events=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-subject-time-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}get _dayCount(){return this._config?.show_saturday?6:5}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const a=t.map.timetable;if(!a)return;const s=pt(new Date),i=new Date(s);i.setDate(i.getDate()+this._dayCount);const r=`${a}:${s.toDateString()}:${this._dayCount}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const o=this._beginFetch();try{const e=await st(this.hass,a,s,i);this._isCurrentFetch(o)&&(this._events=e)}catch{this._isCurrentFetch(o)&&(this._events=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass;if(this._fetch(),0===this._events.length)return this._message("mdi:chart-bar",je(t,"card.subject_time.empty"));const a=new Map;for(const e of this._events){if(!e.summary)continue;const t=ot(e);t.cancelled||a.set(t.name,(a.get(t.name)??0)+1)}const s=[...a.entries()].sort((e,t)=>t[1]-e[1]).map(([e,t],a)=>({label:e,value:t,colorVar:Qa[a%Qa.length]}));return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:chart-bar"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(t,"card.subject_time.title")}</div>
-            <div class="subtitle">${ze(t,"card.subject_time.subtitle")}</div>
+            <div class="title">${je(t,"card.subject_time.title")}</div>
+            <div class="subtitle">${je(t,"card.subject_time.subtitle")}</div>
           </div>
         </div>
-        ${Ke(a)}
+        ${Ve(s)}
       </ha-card>
-    `}};ki.styles=[Oe,Fe],e([ge()],ki.prototype,"_config",void 0),e([ge()],ki.prototype,"_events",void 0),ki=e([he("librus-subject-time-card")],ki);let xi=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-school-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.school?i.states[t.school]:void 0,s=t.school_class?i.states[t.school_class]:void 0;if(!a)return this._message("mdi:school",ze(i,"empty.generic_error"));const r=a.attributes.town,n=a.attributes.street,o=a.attributes.head_teacher,c=s?.attributes.homeroom_teacher,d=s?.attributes.first_semester_end,l=s?.attributes.school_year_end;return R`
+    `}};es.styles=[Je,Ze],e([me()],es.prototype,"_config",void 0),e([me()],es.prototype,"_events",void 0),es=e([he("librus-subject-time-card")],es);let ts=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-school-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.school?a.states[t.school]:void 0,i=t.school_class?a.states[t.school_class]:void 0;if(!s)return this._message("mdi:school",je(a,"empty.generic_error"));const r=s.attributes.town,o=s.attributes.street,n=s.attributes.head_teacher,c=i?.attributes.homeroom_teacher,d=i?.attributes.first_semester_end,l=i?.attributes.school_year_end,h=ke(a,t);return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:school"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${a.state}</div>
-            <div class="subtitle">${[r,n].filter(Boolean).join(", ")}</div>
+            <div class="title">${s.state}</div>
+            <div class="subtitle">${[r,o].filter(Boolean).join(", ")}</div>
           </div>
         </div>
         <div class="stats">
-          ${s?R`<div class="stat"><div class="stat-value">${s.state}</div><div class="stat-label">Klasa</div></div>`:q}
-          ${c?R`<div class="stat"><div class="stat-value" style="font-size:0.95rem;">${c}</div><div class="stat-label">${ze(i,"label.tutor")}</div></div>`:q}
+          ${i?W`<div class="stat"><div class="stat-value">${i.state}</div><div class="stat-label">${je(a,"label.class")}</div></div>`:q}
+          ${void 0!==h?W`<div class="stat"><div class="stat-value">${h}</div><div class="stat-label">${je(a,"label.student_number")}</div></div>`:q}
+          ${c?W`<div class="stat"><div class="stat-value" style="font-size:0.95rem;">${c}</div><div class="stat-label">${je(a,"label.tutor")}</div></div>`:q}
         </div>
-        ${o?R`<div class="item-text">${ze(i,"label.head_teacher")}: ${o}</div>`:q}
-        ${d||l?R`
+        ${n?W`<div class="item-text">${je(a,"label.head_teacher")}: ${n}</div>`:q}
+        ${d||l?W`
               <hr />
               <div class="chips">
-                ${d?R`<span class="chip">${ze(i,"label.semester_ends")} <span class="n">${We(d,i.language)}</span></span>`:q}
-                ${l?R`<span class="chip">${ze(i,"label.year_ends")} <span class="n">${We(l,i.language)}</span></span>`:q}
+                ${d?W`<span class="chip">${je(a,"label.semester_ends")} <span class="n">${Oe(d,a.language)}</span></span>`:q}
+                ${l?W`<span class="chip">${je(a,"label.year_ends")} <span class="n">${Oe(l,a.language)}</span></span>`:q}
               </div>
             `:q}
       </ha-card>
-    `}};xi.styles=[Oe,Fe],e([ge()],xi.prototype,"_config",void 0),xi=e([he("librus-school-card")],xi);let $i=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-school-year-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),36e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.school_class?i.states[t.school_class]:void 0,s=a?.attributes.school_year_start,r=a?.attributes.first_semester_end,n=a?.attributes.school_year_end;if(!a||!s||!n)return this._message("mdi:party-popper",ze(i,"card.school_year.empty"));const o=new Date,c=new Date(`${s}T00:00:00`),d=new Date(`${n}T00:00:00`),l=Math.max(1,Ge(c,d)),h=Math.min(l,Math.max(0,Ge(c,o))),u=Math.round(h/l*100),p=Math.max(0,Ge(o,d)),m=!r||tt(o)<=r,g=m&&r?r:n,v=Math.max(0,Ge(o,new Date(`${g}T00:00:00`)));return R`
-      <ha-card @click=${vt(this,this._config.tap_action,t.school_class)}>
+    `}};ts.styles=[Je,Ze],e([me()],ts.prototype,"_config",void 0),ts=e([he("librus-school-card")],ts);let as=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-school-year-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),36e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.school_class?a.states[t.school_class]:void 0,i=s?.attributes.school_year_start,r=s?.attributes.first_semester_end,o=s?.attributes.school_year_end;if(!s||!i||!o)return this._message("mdi:party-popper",je(a,"card.school_year.empty"));const n=new Date,c=new Date(`${i}T00:00:00`),d=new Date(`${o}T00:00:00`),l=Math.max(1,Ke(c,d)),h=Math.min(l,Math.max(0,Ke(c,n))),u=Math.round(h/l*100),p=Math.max(0,Ke(n,d)),g=!r||lt(n)<=r,m=g&&r?r:o,v=Math.max(0,Ke(n,new Date(`${m}T00:00:00`)));return W`
+      <ha-card @click=${At(this,this._config.tap_action,t.school_class)}>
         <div class="header">
           <div class="icon-badge amber"><ha-icon icon="mdi:party-popper"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.school_year.title")}</div>
-            <div class="subtitle">${We(n,i.language)}</div>
+            <div class="title">${je(a,"card.school_year.title")}</div>
+            <div class="subtitle">${Oe(o,a.language)}</div>
           </div>
         </div>
         <div class="ring-row">
-          ${Ue(u,"var(--lc-brand)",68,7)}
+          ${Ye(u,"var(--lc-brand)",68,7)}
           <div>
             <div class="ring-num">${p}</div>
-            <div class="ring-label">${ze(i,"label.days_until_year_end")}</div>
+            <div class="ring-label">${je(a,"label.days_until_year_end")}</div>
           </div>
         </div>
         <hr />
         <div class="stats">
           <div class="stat">
-            <div class="stat-value">${ze(i,"card.attendance.semester",{n:m?1:2})}</div>
-            <div class="stat-label">${ze(i,"label.current_semester")}</div>
+            <div class="stat-value">${je(a,"card.attendance.semester",{n:g?1:2})}</div>
+            <div class="stat-label">${je(a,"label.current_semester")}</div>
           </div>
           <div class="stat">
             <div class="stat-value">${v}</div>
-            <div class="stat-label">${ze(i,"label.days_until_semester_end")}</div>
+            <div class="stat-label">${je(a,"label.days_until_semester_end")}</div>
           </div>
           <div class="stat">
             <div class="stat-value">${u}<span class="unit">%</span></div>
-            <div class="stat-label">${ze(i,"label.year_progress")}</div>
+            <div class="stat-label">${je(a,"label.year_progress")}</div>
           </div>
         </div>
       </ha-card>
-    `}};$i.styles=[Oe,Fe,n`
+    `}};as.styles=[Je,Ze,o`
       .ring-row {
         display: flex;
         align-items: center;
@@ -2825,92 +4062,94 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-size: 0.72rem;
         color: var(--secondary-text-color);
       }
-    `],e([ge()],$i.prototype,"_config",void 0),$i=e([he("librus-school-year-card")],$i);let zi=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-today-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),6e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=e=>t[e]?i.states[t[e]]:void 0,s=a("lucky_number"),r=a("unread_messages"),n=a("unread_announcements"),o=a("timetable"),c=o?.attributes.message,d=o?.attributes.start_time,l="on"===o?.state;return R`
-      <ha-card @click=${vt(this,this._config.tap_action,t.timetable)}>
+    `],e([me()],as.prototype,"_config",void 0),as=e([he("librus-school-year-card")],as);let ss=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-today-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),6e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=e=>t[e]?a.states[t[e]]:void 0,i=s("lucky_number"),r=s("unread_messages"),o=s("unread_announcements"),n=s("timetable"),c=n?.attributes.message,d=n?.attributes.start_time,l="on"===n?.state;return W`
+      <ha-card @click=${At(this,this._config.tap_action,t.timetable)}>
         <div class="header">
           <div class="icon-badge amber"><ha-icon icon="mdi:white-balance-sunny"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.today.title")}</div>
-            <div class="subtitle">${(new Date).toLocaleDateString(i.language,{weekday:"long",day:"numeric",month:"long"})}</div>
+            <div class="title">${je(a,"card.today.title")}</div>
+            <div class="subtitle">${(new Date).toLocaleDateString(a.language,{weekday:"long",day:"numeric",month:"long"})}</div>
           </div>
         </div>
         <div class="stats">
-          ${s&&!be.has(s.state)&&!1!==s.attributes.is_today?R`<div class="stat"><div class="stat-value">${s.state}</div><div class="stat-label">${ze(i,"stat.lucky_number")}</div></div>`:q}
-          ${r&&!be.has(r.state)?R`<div class="stat"><div class="stat-value">${r.state}</div><div class="stat-label">${ze(i,"card.messages.title")}</div></div>`:q}
-          ${n&&!be.has(n.state)?R`<div class="stat"><div class="stat-value">${n.state}</div><div class="stat-label">${ze(i,"card.announcements.title")}</div></div>`:q}
+          ${i&&!be.has(i.state)&&!1!==i.attributes.is_today?W`<div class="stat"><div class="stat-value">${i.state}</div><div class="stat-label">${je(a,"stat.lucky_number")}</div></div>`:q}
+          ${r&&!be.has(r.state)?W`<div class="stat"><div class="stat-value">${r.state}</div><div class="stat-label">${je(a,"card.messages.title")}</div></div>`:q}
+          ${o&&!be.has(o.state)?W`<div class="stat"><div class="stat-value">${o.state}</div><div class="stat-label">${je(a,"card.announcements.title")}</div></div>`:q}
         </div>
-        ${c&&d?R`
+        ${c&&d?W`
               <hr />
               <div class="list-item">
                 <span class="dot ${l?"good":"neutral"}"></span>
                 <div class="body">
                   <div class="row1">${c}</div>
-                  ${l?q:R`<div class="item-text">${je(i,qe(new Date(__hcSrvDate(d,i)),new Date))}</div>`}
+                  ${l?q:W`<div class="item-text">${Ce(a,Ue(new Date(__hcSrvDate(d,a)),new Date))}</div>`}
                 </div>
               </div>
             `:q}
       </ha-card>
-    `}};function ji(e){return`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}function Ci(e){const t=new Date(e);for(t.setHours(0,0,0,0),t.setDate(t.getDate()+1);0===t.getDay()||6===t.getDay();)t.setDate(t.getDate()+1);return t}zi.styles=[Oe,Fe],e([ge()],zi.prototype,"_config",void 0),zi=e([he("librus-today-card")],zi);let Si=class extends Be{constructor(){super(...arguments),this._lessons=[]}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-tomorrow-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const i=t.map.timetable;if(!i)return;const a=Ci(new Date),s=new Date(a);s.setDate(s.getDate()+1);const r=`${i}:${ji(a)}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const n=this._beginFetch();try{const e=(await Xe(this.hass,i,a,s)).filter(e=>!e.allDay).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(n)&&(this._lessons=e)}catch{this._isCurrentFetch(n)&&(this._lessons=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass;this._fetch();const a=Ci(new Date),s=ji(a),r=new Date;r.setHours(0,0,0,0),r.setDate(r.getDate()+1);const n=s===ji(r),o=t.homework_assignments?i.states[t.homework_assignments]:void 0,c=(o?.attributes.recent??[]).filter(e=>(e.due_date??"").slice(0,10)===s),d=t.next_exam?i.states[t.next_exam]:void 0,l=(d?.attributes.upcoming??[]).filter(e=>e.date===s);if(0===this._lessons.length&&0===c.length&&0===l.length)return this._message("mdi:calendar-arrow-right",ze(i,"card.tomorrow.empty"));const h=this._lessons[0],u=this._lessons[this._lessons.length-1];return R`
+    `}};function is(e){return`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}function rs(e){const t=new Date(e);for(t.setHours(0,0,0,0),t.setDate(t.getDate()+1);0===t.getDay()||6===t.getDay();)t.setDate(t.getDate()+1);return t}ss.styles=[Je,Ze],e([me()],ss.prototype,"_config",void 0),ss=e([he("librus-today-card")],ss);let os=class extends Ge{constructor(){super(...arguments),this._lessons=[]}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-tomorrow-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer)}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this._resolveEntities();if("error"in t)return;const a=t.map.timetable;if(!a)return;const s=rs(new Date),i=new Date(s);i.setDate(i.getDate()+1);const r=`${a}:${is(s)}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const o=this._beginFetch();try{const e=(await st(this.hass,a,s,i)).filter(e=>!e.allDay).sort((e,t)=>e.start.localeCompare(t.start));this._isCurrentFetch(o)&&(this._lessons=e)}catch{this._isCurrentFetch(o)&&(this._lessons=[])}}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass;this._fetch();const s=rs(new Date),i=is(s),r=new Date;r.setHours(0,0,0,0),r.setDate(r.getDate()+1);const o=i===is(r),n=t.homework_assignments?a.states[t.homework_assignments]:void 0,c=(n?.attributes.recent??[]).filter(e=>(e.due_date??"").slice(0,10)===i),d=t.next_exam?a.states[t.next_exam]:void 0,l=(d?.attributes.upcoming??[]).filter(e=>e.date===i);if(0===this._lessons.length&&0===c.length&&0===l.length)return this._message("mdi:calendar-arrow-right",je(a,"card.tomorrow.empty"));const h=this._lessons.filter(e=>!ot(e).cancelled),u=h[0],p=h[h.length-1];return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:calendar-arrow-right"></ha-icon></div>
           <div class="title-block">
             <div class="title">
-              ${this._config.title??ze(i,n?"card.tomorrow.title":"card.tomorrow.title_next_school_day")}
+              ${this._config.title??je(a,o?"card.tomorrow.title":"card.tomorrow.title_next_school_day")}
             </div>
             <div class="subtitle">
-              ${a.toLocaleDateString(i.language,{weekday:"long",day:"numeric",month:"long"})}
+              ${s.toLocaleDateString(a.language,{weekday:"long",day:"numeric",month:"long"})}
             </div>
           </div>
         </div>
-        ${this._lessons.length?R`
+        ${this._lessons.length?W`
               <div class="stats">
                 <div class="stat">
-                  <div class="stat-value">${this._lessons.length}</div>
-                  <div class="stat-label">${ze(i,"card.tomorrow.lessons")}</div>
+                  <div class="stat-value">${h.length}</div>
+                  <div class="stat-label">${je(a,"card.tomorrow.lessons")}</div>
                 </div>
-                <div class="stat">
-                  <div class="stat-value">${Re(h.start)}</div>
-                  <div class="stat-label">${ze(i,"card.tomorrow.starts")}</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-value">${Re(u.end)}</div>
-                  <div class="stat-label">${ze(i,"card.tomorrow.ends")}</div>
-                </div>
+                ${u?W`
+                      <div class="stat">
+                        <div class="stat-value">${Be(u.start)}</div>
+                        <div class="stat-label">${je(a,"card.tomorrow.starts")}</div>
+                      </div>
+                      <div class="stat">
+                        <div class="stat-value">${Be(p.end)}</div>
+                        <div class="stat-label">${je(a,"card.tomorrow.ends")}</div>
+                      </div>
+                    `:q}
               </div>
             `:q}
-        ${l.length||c.length?R`
+        ${l.length||c.length?W`
               <div class="alerts">
-                ${l.map(e=>R`
+                ${l.map(e=>W`
                     <div class="alert-row">
                       <span class="dot bad"></span>
                       <span>${e.category?`${e.category}: `:""}${e.subject??""}</span>
                     </div>
                   `)}
-                ${c.length?R`
+                ${c.length?W`
                       <div class="alert-row">
                         <span class="dot warn"></span>
-                        <span>${ze(i,"card.tomorrow.homework",{n:c.length})}</span>
+                        <span>${je(a,"card.tomorrow.homework",{n:c.length})}</span>
                       </div>
                     `:q}
               </div>
             `:q}
-        ${this._lessons.length?R`
+        ${this._lessons.length?W`
               <hr />
               <div class="scroll-list">
-                ${this._lessons.map(e=>R`
-                    <div class="list-item">
-                      <span class="lt">${Re(e.start)}</span>
+                ${this._lessons.map(e=>{const t=ot(e);return W`
+                    <div class="list-item ${t.cancelled?"lesson-cancelled":""}">
+                      <span class="lt">${Be(e.start)}</span>
                       <div class="body">
-                        <div class="row1">${e.summary}</div>
-                        ${e.location||e.description?R`<div class="item-text">${[e.location,e.description].filter(Boolean).join(" · ")}</div>`:q}
+                        <div class="row1"><span><span class="lesson-name">${t.name}</span>${Xe(a,t)}</span></div>
+                        ${nt(e,t)?W`<div class="item-text">${nt(e,t)}</div>`:q}
                       </div>
                     </div>
-                  `)}
+                  `})}
               </div>
             `:q}
       </ha-card>
-    `}};Si.styles=[Oe,Fe,n`
+    `}};os.styles=[Je,Ze,o`
       .alerts {
         display: flex;
         flex-direction: column;
@@ -2932,38 +4171,38 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-variant-numeric: tabular-nums;
         padding-top: 1px;
       }
-    `],e([ge()],Si.prototype,"_config",void 0),e([ge()],Si.prototype,"_lessons",void 0),Si=e([he("librus-tomorrow-card")],Si);const Di=/\s*\((odwołane|zastępstwo)\)\s*$/i,Ti=["var(--lc-chart-1)","var(--lc-chart-2)","var(--lc-chart-3)","var(--lc-chart-7)","var(--lc-chart-8)","var(--lc-chart-10)"];function Ii(e){const t=new Date(e);for(t.setHours(0,0,0,0),t.setDate(t.getDate()+1);0===t.getDay()||6===t.getDay();)t.setDate(t.getDate()+1);return t}const Ei=e=>new Date(e).getTime();function Ai(e,t,i){if(void 0===e)return{skipped:0,free:!1,started:!1,unknown:!0};const a=e.filter(e=>!e.allDay&&e.start.slice(0,10)===t).sort((e,t)=>Ei(e.start)-Ei(t.start)),s=a.filter(e=>!/\(odwołane\)\s*$/i.test(e.summary)),r=s[0];return r?{lesson:{start:r.start,subject:r.summary.replace(Di,""),room:r.location||void 0,substitution:/\(zastępstwo\)\s*$/i.test(r.summary)},skipped:a.filter(e=>Ei(e.start)<Ei(r.start)&&!s.includes(e)).length,free:!1,started:Ei(r.start)<=i.getTime(),unknown:!1}:{skipped:0,free:!0,started:!1,unknown:!1}}function Ni(e,t,i){if(i?.trim())return i.trim();const a=e.devices?.[t];if(a?.name_by_user)return a.name_by_user;return(a?.name??"").replace(/^e-dziennik\s+/i,"").trim().split(/\s+/)[0]||a?.name||t}let Mi=class extends Be{constructor(){super(...arguments),this._events=new Map}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-first-lesson-card"}}setConfig(e){this._config=e}getCardSize(){return 1+2*Math.max(1,this._events.size)}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5),this._tickTimer=setInterval(()=>this.requestUpdate(),6e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer),clearInterval(this._tickTimer)}_deviceIds(){const e=ye(this.hass),t=this._config?.devices;return t?.length?t.filter(t=>e.includes(t)):[...e].sort((e,t)=>Ni(this.hass,e,this._config?.names?.[e]).localeCompare(Ni(this.hass,t,this._config?.names?.[t])))}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this.hass,i=this._deviceIds(),a=new Date;a.setHours(0,0,0,0);const s=Ii(a);s.setDate(s.getDate()+1);const r=`${i.join(",")}:${tt(a)}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const n=this._beginFetch(),o=await Promise.all(i.map(async e=>{const i=we(t,e).timetable;if(!i)return[e,void 0];try{return[e,await Xe(t,i,a,s)]}catch{return[e,void 0]}}));this._isCurrentFetch(n)&&(this._events=new Map(o))}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this.hass,t=this._config,i=this._deviceIds();if(0===i.length)return this._message("mdi:alert-circle-outline",ze(e,"error.no_device"));if(this._fetch(),0===this._events.size)return this._message("mdi:alarm",ze(e,"empty.loading"));const a=new Date,s=tt(a),r=Ii(a),n=tt(r),o=new Date(a);o.setDate(o.getDate()+1);const c=n===tt(o),d=Boolean(t.only_tomorrow),l=i.map((i,r)=>({deviceId:i,name:Ni(e,i,t.names?.[i]),color:Ti[r%Ti.length],today:Ai(this._events.get(i),s,a),next:Ai(this._events.get(i),n,a)}));if(l.every(e=>(d||e.today.free)&&e.next.free))return this._message("mdi:alarm",ze(e,"card.first_lesson.empty"));const h=!d&&l.some(e=>e.today.lesson&&!e.today.started),u=h?"today":"next",p=l.filter(e=>e[u].lesson&&!e[u].started).reduce((e,t)=>!e||Ei(t[u].lesson.start)<Ei(e[u].lesson.start)?t:e,void 0),m=c?ze(e,"card.first_lesson.tomorrow"):r.toLocaleDateString(e.language,{weekday:"short"});let g="";if(p){const t=h?"card.first_lesson.earliest_today":c?"card.first_lesson.earliest_tomorrow":"card.first_lesson.earliest_on",[i,a]=ze(e,t,{day:r.toLocaleDateString(e.language,{weekday:"long"}),who:"\0"}).split("\0");g=R`${i}<b>${p.name} ${Re(p[u].lesson.start)}</b>${a??""}`}return R`
+    `],e([me()],os.prototype,"_config",void 0),e([me()],os.prototype,"_lessons",void 0),os=e([he("librus-tomorrow-card")],os);const ns=/\s*\((odwołane|zastępstwo)\)\s*$/i,cs=["var(--lc-chart-1)","var(--lc-chart-2)","var(--lc-chart-3)","var(--lc-chart-7)","var(--lc-chart-8)","var(--lc-chart-10)"];function ds(e){const t=new Date(e);for(t.setHours(0,0,0,0),t.setDate(t.getDate()+1);0===t.getDay()||6===t.getDay();)t.setDate(t.getDate()+1);return t}const ls=e=>new Date(e).getTime();function hs(e,t,a){if(void 0===e)return{skipped:0,free:!1,started:!1,unknown:!0};const s=e.filter(e=>!e.allDay&&e.start.slice(0,10)===t).sort((e,t)=>ls(e.start)-ls(t.start)),i=s.filter(e=>!/\(odwołane\)\s*$/i.test(e.summary)),r=i[0];return r?{lesson:{start:r.start,subject:r.summary.replace(ns,""),room:r.location||void 0,substitution:/\(zastępstwo\)\s*$/i.test(r.summary)},skipped:s.filter(e=>ls(e.start)<ls(r.start)&&!i.includes(e)).length,free:!1,started:ls(r.start)<=a.getTime(),unknown:!1}:{skipped:0,free:!0,started:!1,unknown:!1}}function us(e,t,a){if(a?.trim())return a.trim();const s=e.devices?.[t];if(s?.name_by_user)return s.name_by_user;return(s?.name??"").replace(/^e-dziennik\s+/i,"").trim().split(/\s+/)[0]||s?.name||t}let ps=class extends Ge{constructor(){super(...arguments),this._events=new Map}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-first-lesson-card"}}setConfig(e){this._config=e}getCardSize(){return 1+2*Math.max(1,this._events.size)}connectedCallback(){super.connectedCallback(),this._refreshTimer=setInterval(()=>{this._fetch(!0)},18e5),this._tickTimer=setInterval(()=>this.requestUpdate(),6e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._refreshTimer),clearInterval(this._tickTimer)}_deviceIds(){const e=fe(this.hass),t=this._config?.devices;return t?.length?t.filter(t=>e.includes(t)):[...e].sort((e,t)=>us(this.hass,e,this._config?.names?.[e]).localeCompare(us(this.hass,t,this._config?.names?.[t])))}async _fetch(e=!1){if(!this.hass||!this._config)return;const t=this.hass,a=this._deviceIds(),s=new Date;s.setHours(0,0,0,0);const i=ds(s);i.setDate(i.getDate()+1);const r=`${a.join(",")}:${lt(s)}`;if(!e&&this._fetchedFor===r)return;this._fetchedFor=r;const o=this._beginFetch(),n=await Promise.all(a.map(async e=>{const a=we(t,e).timetable;if(!a)return[e,void 0];try{return[e,await st(t,a,s,i)]}catch{return[e,void 0]}}));this._isCurrentFetch(o)&&(this._events=new Map(n))}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this.hass,t=this._config,a=this._deviceIds();if(0===a.length)return this._message("mdi:alert-circle-outline",je(e,"error.no_device"));if(this._fetch(),0===this._events.size)return this._message("mdi:alarm",je(e,"empty.loading"));const s=new Date,i=lt(s),r=ds(s),o=lt(r),n=new Date(s);n.setDate(n.getDate()+1);const c=o===lt(n),d=Boolean(t.only_tomorrow),l=a.map((a,r)=>({deviceId:a,name:us(e,a,t.names?.[a]),color:cs[r%cs.length],today:hs(this._events.get(a),i,s),next:hs(this._events.get(a),o,s)}));if(l.every(e=>(d||e.today.free)&&e.next.free))return this._message("mdi:alarm",je(e,"card.first_lesson.empty"));const h=!d&&l.some(e=>e.today.lesson&&!e.today.started),u=h?"today":"next",p=l.filter(e=>e[u].lesson&&!e[u].started).reduce((e,t)=>!e||ls(t[u].lesson.start)<ls(e[u].lesson.start)?t:e,void 0),g=c?je(e,"card.first_lesson.tomorrow"):r.toLocaleDateString(e.language,{weekday:"short"});let m="";if(p){const t=h?"card.first_lesson.earliest_today":c?"card.first_lesson.earliest_tomorrow":"card.first_lesson.earliest_on",[a,s]=je(e,t,{day:r.toLocaleDateString(e.language,{weekday:"long"}),who:"\0"}).split("\0");m=W`${a}<b>${p.name} ${Be(p[u].lesson.start)}</b>${s??""}`}return W`
       <ha-card class="static">
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:alarm"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${t.title??ze(e,"card.first_lesson.title")}</div>
-            ${g?R`<div class="subtitle">${g}</div>`:q}
+            <div class="title">${t.title??je(e,"card.first_lesson.title")}</div>
+            ${m?W`<div class="subtitle">${m}</div>`:q}
           </div>
         </div>
         <div class="kids">
-          ${l.map((t,i)=>R`
-              ${i>0?R`<hr />`:q}
+          ${l.map((t,a)=>W`
+              ${a>0?W`<hr />`:q}
               <div class="kid">
                 <div class="avatar" style="background:${t.color}">${t.name.slice(0,1).toUpperCase()}</div>
                 <div class="kname">${t.name}</div>
                 <div class="lines">
-                  ${d?q:this._line(ze(e,"card.first_lesson.today"),t.today,{on:h,first:h&&p===t,past:t.today.started||!h})}
-                  ${this._line(m,t.next,{on:!h,first:!h&&p===t,past:!1})}
+                  ${d?q:this._line(je(e,"card.first_lesson.today"),t.today,{on:h,first:h&&p===t,past:t.today.started||!h})}
+                  ${this._line(g,t.next,{on:!h,first:!h&&p===t,past:!1})}
                 </div>
               </div>
             `)}
         </div>
       </ha-card>
-    `}_line(e,t,i){const a=this.hass,s=`line${i.first?" first":""}${i.past?" past":""}`,r=R`<span class="day ${i.on?"on":""}">${e}</span>`;if(t.unknown||t.free||!t.lesson){const e=t.unknown?ze(a,"card.first_lesson.no_data"):ze(a,"card.first_lesson.free");return R`<div class=${s}>${r}<span class="time">–</span><span class="subj muted">${e}</span></div>`}const n=t.lesson,o=[];return 1===t.skipped&&o.push(ze(a,"card.first_lesson.first_canceled")),t.skipped>1&&o.push(ze(a,"card.first_lesson.first_n_canceled",{n:t.skipped})),n.substitution&&o.push(ze(a,"card.first_lesson.substitution")),R`
-      <div class=${s}>
+    `}_line(e,t,a){const s=this.hass,i=`line${a.first?" first":""}${a.past?" past":""}`,r=W`<span class="day ${a.on?"on":""}">${e}</span>`;if(t.unknown||t.free||!t.lesson){const e=t.unknown?je(s,"card.first_lesson.no_data"):je(s,"card.first_lesson.free");return W`<div class=${i}>${r}<span class="time">–</span><span class="subj muted">${e}</span></div>`}const o=t.lesson,n=[];return 1===t.skipped&&n.push(je(s,"card.first_lesson.first_canceled")),t.skipped>1&&n.push(je(s,"card.first_lesson.first_n_canceled",{n:t.skipped})),o.substitution&&n.push(je(s,"card.first_lesson.substitution")),W`
+      <div class=${i}>
         ${r}
-        <span class="time">${Re(n.start)}</span>
+        <span class="time">${Be(o.start)}</span>
         <span class="subj"
-          >${n.subject}${n.room&&!this._config?.hide_room?R`<span class="muted"> · ${n.room}</span>`:q}${o.map(e=>R` <span class="chip">${e}</span>`)}</span
+          >${o.subject}${o.room&&!this._config?.hide_room?W`<span class="muted"> · ${o.room}</span>`:q}${n.map(e=>W` <span class="chip">${e}</span>`)}</span
         >
       </div>
-    `}};Mi.styles=[Oe,Fe,n`
+    `}};ps.styles=[Je,Ze,o`
       .kids {
         display: flex;
         flex-direction: column;
@@ -3056,53 +4295,53 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         color: var(--lc-brand);
         font-weight: 700;
       }
-    `],e([ge()],Mi.prototype,"_config",void 0),e([ge()],Mi.prototype,"_events",void 0),Mi=e([he("librus-first-lesson-card")],Mi);let Li=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-week-summary-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass,s=i.attendance?a.states[i.attendance]:void 0,r=i.behaviour_notices?a.states[i.behaviour_notices]:void 0,n=i.agenda?a.states[i.agenda]:void 0,o=new Date;o.setDate(o.getDate()-7);const c=tt(o),d=this._resolveAllByTranslationKey(t,"subject_average").filter(e=>{const t=a.states[e.entityId]?.attributes.latest_grade_date;return t&&t>=c}).length,l=n?.attributes.message;return R`
-      <ha-card @click=${vt(this,this._config.tap_action,i.overall_average)}>
+    `],e([me()],ps.prototype,"_config",void 0),e([me()],ps.prototype,"_events",void 0),ps=e([he("librus-first-lesson-card")],ps);let gs=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-week-summary-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass,i=a.attendance?s.states[a.attendance]:void 0,r=a.behaviour_notices?s.states[a.behaviour_notices]:void 0,o=a.agenda?s.states[a.agenda]:void 0,n=new Date;n.setDate(n.getDate()-7);const c=lt(n),d=this._resolveAllByTranslationKey(t,"subject_average").filter(e=>{const t=s.states[e.entityId]?.attributes.latest_grade_date;return t&&t>=c}).length,l=o?.attributes.message;return W`
+      <ha-card @click=${At(this,this._config.tap_action,a.overall_average)}>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:calendar-check-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(a,"card.week_summary.title")}</div>
+            <div class="title">${je(s,"card.week_summary.title")}</div>
           </div>
         </div>
         <div class="stats">
           <div class="stat">
             <div class="stat-value">${d}</div>
-            <div class="stat-label">${ze(a,"stat.new_grades")}</div>
+            <div class="stat-label">${je(s,"stat.new_grades")}</div>
           </div>
-          ${s&&!be.has(s.state)?(()=>{const e=s.attributes.unexcused_count??Number(s.state);return R`<div class="stat ${e>0?"bad":""}"><div class="stat-value">${e}</div><div class="stat-label">${ze(a,"stat.absences")}</div></div>`})():q}
-          ${r&&!be.has(r.state)?R`<div class="stat"><div class="stat-value">${r.state}</div><div class="stat-label">${ze(a,"card.behaviour_notices.title")}</div></div>`:q}
+          ${i&&!be.has(i.state)?(()=>{const e=i.attributes.unexcused_count??Number(i.state);return W`<div class="stat ${e>0?"bad":""}"><div class="stat-value">${e}</div><div class="stat-label">${je(s,"stat.absences")}</div></div>`})():q}
+          ${r&&!be.has(r.state)?W`<div class="stat"><div class="stat-value">${r.state}</div><div class="stat-label">${je(s,"card.behaviour_notices.title")}</div></div>`:q}
         </div>
-        ${l?(()=>{const{category:e,text:t}=Ve(l);return R`
+        ${l?(()=>{const{category:e,text:t}=He(l);return W`
                 <hr />
                 <div class="list-item">
                   <span class="dot neutral"></span>
                   <div class="body">
-                    ${e?R`<div class="cat-label-row"><span class="cat-label">${e}</span></div>`:q}
+                    ${e?W`<div class="cat-label-row"><span class="cat-label">${e}</span></div>`:q}
                     <div class="row1">${t}</div>
-                    ${n?.attributes.start_time?R`<div class="item-text">${We(String(n.attributes.start_time),a.language)}</div>`:q}
+                    ${o?.attributes.start_time?W`<div class="item-text">${Oe(String(o.attributes.start_time),s.language)}</div>`:q}
                   </div>
                 </div>
               `})():q}
       </ha-card>
-    `}};Li.styles=[Oe,Fe],e([ge()],Li.prototype,"_config",void 0),Li=e([he("librus-week-summary-card")],Li);let Pi=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-lucky-number-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.lucky_number?i.states[t.lucky_number]:void 0;if(!a)return this._message("mdi:dice-5-outline",ze(i,"empty.generic_error"));if(be.has(a.state))return this._message("mdi:dice-5-outline",ze(i,"card.lucky_number.empty"));const s=a.attributes.is_today,r=a.attributes.day,n=a.attributes.is_yours,o=!1===s&&r,c=n?o?ze(i,"card.lucky_number.yours_for_date",{date:We(r,i.language)}):ze(i,"card.lucky_number.yours_today"):o?ze(i,"card.lucky_number.subtitle_for_date",{date:We(r,i.language)}):ze(i,"card.lucky_number.subtitle");return R`
+    `}};gs.styles=[Je,Ze],e([me()],gs.prototype,"_config",void 0),gs=e([he("librus-week-summary-card")],gs);let ms=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-lucky-number-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.lucky_number?a.states[t.lucky_number]:void 0;if(!s)return this._message("mdi:dice-5-outline",je(a,"empty.generic_error"));if(be.has(s.state))return this._message("mdi:dice-5-outline",je(a,"card.lucky_number.empty"));const i=s.attributes.is_today,r=s.attributes.day,o=s.attributes.is_yours,n=!1===i&&r,c=o?n?je(a,"card.lucky_number.yours_for_date",{date:Oe(r,a.language)}):je(a,"card.lucky_number.yours_today"):n?je(a,"card.lucky_number.subtitle_for_date",{date:Oe(r,a.language)}):je(a,"card.lucky_number.subtitle");return W`
       <ha-card
-        class=${[bt(this._config.tap_action)?"":"static",n?"yours":""].filter(Boolean).join(" ")}
-        @click=${vt(this,this._config.tap_action,t.lucky_number)}
+        class=${[Mt(this._config.tap_action)?"":"static",o?"yours":""].filter(Boolean).join(" ")}
+        @click=${At(this,this._config.tap_action,t.lucky_number)}
       >
         <div class="header">
-          <div class="icon-badge ${n?"good":"amber"}">
-            <ha-icon icon=${n?"mdi:party-popper":"mdi:dice-5-outline"}></ha-icon>
+          <div class="icon-badge ${o?"good":"amber"}">
+            <ha-icon icon=${o?"mdi:party-popper":"mdi:dice-5-outline"}></ha-icon>
           </div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.lucky_number.title")}</div>
+            <div class="title">${je(a,"card.lucky_number.title")}</div>
             <div class="subtitle">${c}</div>
           </div>
         </div>
         <div class="number-wrap">
-          <div class="number">${a.state}</div>
+          <div class="number">${s.state}</div>
         </div>
       </ha-card>
-    `}};Pi.styles=[Oe,Fe,n`
+    `}};ms.styles=[Je,Ze,o`
       .number-wrap {
         display: flex;
         justify-content: center;
@@ -3124,21 +4363,23 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       ha-card.yours .number {
         color: var(--lc-good);
       }
-    `],e([ge()],Pi.prototype,"_config",void 0),Pi=e([he("librus-lucky-number-card")],Pi);let Bi=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-student-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass,s=a.devices?.[t]?.name_by_user||a.devices?.[t]?.name||"",r=i.school_class?a.states[i.school_class]?.state:void 0,n=[],o=i.attendance?a.states[i.attendance]:void 0,c=o?.attributes.total_records;if(o&&c){const e=Number(o.state)||0;n.push({key:"attendance",label:ze(a,"stat.attendance_score"),value:Math.round((c-e)/c*100),colorVar:"var(--lc-good)"})}const d=i.behaviour_notices?a.states[i.behaviour_notices]:void 0;d&&!be.has(d.state)&&n.push({key:"behaviour",label:ze(a,"stat.behaviour_score"),value:Math.max(0,100-10*Number(d.state)),colorVar:"var(--lc-brand)"});const l=i.overall_average?a.states[i.overall_average]:void 0;l&&!be.has(l.state)&&n.push({key:"grades",label:ze(a,"stat.grades_score"),value:Math.round(Number(l.state)/6*100),colorVar:"var(--lc-amber)"});const h=this._resolveAllByTranslationKey(t,"subject_average");if(h.length){const e=h.filter(e=>{const t=a.states[e.entityId]?.attributes.grade_count;return t&&t>0}).length;n.push({key:"activity",label:ze(a,"stat.activity_score"),value:Math.round(e/h.length*100),colorVar:"var(--lc-brand)"})}if(0===n.length)return this._message("mdi:cards-outline",ze(a,"empty.generic_error"));const u=Math.round(n.reduce((e,t)=>e+t.value,0)/n.length);return R`
-      <ha-card class="tcard" @click=${vt(this,this._config.tap_action,i.overall_average)}>
+    `],e([me()],ms.prototype,"_config",void 0),ms=e([he("librus-lucky-number-card")],ms);let vs=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-student-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass,i=s.devices?.[t]?.name_by_user||s.devices?.[t]?.name||"",r=a.school_class?s.states[a.school_class]?.state:void 0,o=ke(s,a),n=[],c=a.attendance?s.states[a.attendance]:void 0,d=c?.attributes.total_records;if(c&&d){const e=Number(c.state)||0;n.push({key:"attendance",label:je(s,"stat.attendance_score"),value:Math.round((d-e)/d*100),colorVar:"var(--lc-good)"})}const l=a.behaviour_notices?s.states[a.behaviour_notices]:void 0;l&&!be.has(l.state)&&n.push({key:"behaviour",label:je(s,"stat.behaviour_score"),value:Math.max(0,100-10*Number(l.state)),colorVar:"var(--lc-brand)"});const h=a.overall_average?s.states[a.overall_average]:void 0;h&&!be.has(h.state)&&n.push({key:"grades",label:je(s,"stat.grades_score"),value:Math.round(Number(h.state)/6*100),colorVar:"var(--lc-amber)"});const u=this._resolveAllByTranslationKey(t,"subject_average");if(u.length){const e=u.filter(e=>{const t=s.states[e.entityId]?.attributes.grade_count;return t&&t>0}).length;n.push({key:"activity",label:je(s,"stat.activity_score"),value:Math.round(e/u.length*100),colorVar:"var(--lc-brand)"})}if(0===n.length)return this._message("mdi:cards-outline",je(s,"empty.generic_error"));const p=Math.round(n.reduce((e,t)=>e+t.value,0)/n.length);return W`
+      <ha-card class="tcard" @click=${At(this,this._config.tap_action,a.overall_average)}>
         <div class="tcard-inner">
           <div class="tcard-head">
             <div>
-              <div class="tcard-name">${s}</div>
-              ${r?R`<div class="tcard-class">${r}</div>`:q}
+              <div class="tcard-name">${i}</div>
+              ${r?W`<div class="tcard-class">
+                    ${r}${void 0!==o?` · ${je(s,"label.student_number_short",{n:o})}`:""}
+                  </div>`:q}
             </div>
             <div class="tcard-rating">
-              <div class="v">${u}</div>
-              <div class="l">${ze(a,"stat.overall_rating")}</div>
+              <div class="v">${p}</div>
+              <div class="l">${je(s,"stat.overall_rating")}</div>
             </div>
           </div>
           <div class="tcard-bars">
-            ${n.map(e=>R`
+            ${n.map(e=>W`
                 <div class="tbar-row">
                   <span class="name">${e.label}</span>
                   <span class="bar"
@@ -3150,7 +4391,7 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
           </div>
         </div>
       </ha-card>
-    `}};Bi.styles=[Oe,Fe,n`
+    `}};vs.styles=[Je,Ze,o`
       ha-card.tcard {
         padding: 3px;
         background: linear-gradient(165deg, var(--lc-brand-strong), var(--lc-brand) 55%, var(--lc-amber) 165%);
@@ -3226,48 +4467,48 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         width: 22px;
         text-align: right;
       }
-    `],e([ge()],Bi.prototype,"_config",void 0),Bi=e([he("librus-student-card")],Bi);let Oi=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-streak-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=ze(i,"label.days"),s=[],r=t.attendance_streak?i.states[t.attendance_streak]:void 0;if(r&&!be.has(r.state))s.push({key:"attendance",label:ze(i,"card.streak.attendance"),value:Number(r.state),unit:a});else{const e=t.attendance?i.states[t.attendance]:void 0,r=e?.attributes.last_absence_date,n=t.school_class?i.states[t.school_class]?.attributes.school_year_start:void 0,o=r?new Date(`${r}T00:00:00`):n?new Date(`${n}T00:00:00`):void 0;o&&s.push({key:"attendance",label:ze(i,"card.streak.attendance"),value:Math.max(0,Ge(o,new Date)),unit:a})}const n=t.behaviour_streak?i.states[t.behaviour_streak]:void 0;n&&!be.has(n.state)&&s.push({key:"behaviour",label:ze(i,"card.streak.behaviour"),value:Number(n.state),unit:a});const o=t.good_grade_streak?i.states[t.good_grade_streak]:void 0;return o&&!be.has(o.state)&&s.push({key:"grades",label:ze(i,"card.streak.grades"),value:Number(o.state)}),0===s.length?this._message("mdi:fire",ze(i,"empty.generic_error")):R`
+    `],e([me()],vs.prototype,"_config",void 0),vs=e([he("librus-student-card")],vs);let bs=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-streak-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=je(a,"label.days"),i=[],r=t.attendance_streak?a.states[t.attendance_streak]:void 0;if(r&&!be.has(r.state))i.push({key:"attendance",label:je(a,"card.streak.attendance"),value:Number(r.state),unit:s});else{const e=t.attendance?a.states[t.attendance]:void 0,r=e?.attributes.last_absence_date,o=t.school_class?a.states[t.school_class]?.attributes.school_year_start:void 0,n=r?new Date(`${r}T00:00:00`):o?new Date(`${o}T00:00:00`):void 0;n&&i.push({key:"attendance",label:je(a,"card.streak.attendance"),value:Math.max(0,Ke(n,new Date)),unit:s})}const o=t.behaviour_streak?a.states[t.behaviour_streak]:void 0;o&&!be.has(o.state)&&i.push({key:"behaviour",label:je(a,"card.streak.behaviour"),value:Number(o.state),unit:s});const n=t.good_grade_streak?a.states[t.good_grade_streak]:void 0;return n&&!be.has(n.state)&&i.push({key:"grades",label:je(a,"card.streak.grades"),value:Number(n.state)}),0===i.length?this._message("mdi:fire",je(a,"empty.generic_error")):W`
       <ha-card
-        class=${bt(this._config.tap_action)?"":"static"}
-        @click=${vt(this,this._config.tap_action,t.attendance_streak??t.attendance)}
+        class=${Mt(this._config.tap_action)?"":"static"}
+        @click=${At(this,this._config.tap_action,t.attendance_streak??t.attendance)}
       >
         <div class="header">
           <div class="icon-badge amber"><ha-icon icon="mdi:fire"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${ze(i,"card.streak.title")}</div>
+            <div class="title">${je(a,"card.streak.title")}</div>
           </div>
         </div>
         <div class="stats">
-          ${s.map(e=>R`
+          ${i.map(e=>W`
               <div class="stat">
-                <div class="stat-value">${e.value}${e.unit?R`<span class="unit">${e.unit}</span>`:q}</div>
+                <div class="stat-value">${e.value}${e.unit?W`<span class="unit">${e.unit}</span>`:q}</div>
                 <div class="stat-label">${e.label}</div>
               </div>
             `)}
         </div>
       </ha-card>
-    `}};Oi.styles=[Oe,Fe],e([ge()],Oi.prototype,"_config",void 0),Oi=e([he("librus-streak-card")],Oi);const Fi=["bronze","silver","gold","diamond"],Ki={bronze:0,silver:3,gold:4,diamond:5},Ui={bronze:"var(--lc-bronze)",silver:"var(--lc-silver)",gold:"var(--lc-amber)",diamond:"var(--lc-diamond)"},Hi={bronze:"bronze",silver:"silver",gold:"amber",diamond:"diamond"},Ri={bronze:"mdi:medal-outline",silver:"mdi:trophy-outline",gold:"mdi:trophy",diamond:"mdi:diamond-stone"};let Wi=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-rank-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.rank?i.states[t.rank]:void 0;if(!a)return this._message("mdi:alert-circle-outline",ze(i,"empty.generic_error"));if(be.has(a.state)||(s=a.state,!Fi.includes(s)))return this._message("mdi:trophy-outline",ze(i,"card.rank.empty"));var s;const r=a.state,n=a.attributes.average,o=a.attributes.points_to_next_tier,c=Fi.indexOf(r),d=Fi[c+1],l=Ki[r],h=d?Ki[d]:void 0,u=void 0!==n&&void 0!==h?(n-l)/(h-l)*100:100;return R`
-      <ha-card @click=${vt(this,this._config.tap_action,t.rank)}>
+    `}};bs.styles=[Je,Ze],e([me()],bs.prototype,"_config",void 0),bs=e([he("librus-streak-card")],bs);const _s=["bronze","silver","gold","diamond"],fs={bronze:0,silver:3,gold:4,diamond:5},ys={bronze:"var(--lc-bronze)",silver:"var(--lc-silver)",gold:"var(--lc-amber)",diamond:"var(--lc-diamond)"},ws={bronze:"bronze",silver:"silver",gold:"amber",diamond:"diamond"},xs={bronze:"mdi:medal-outline",silver:"mdi:trophy-outline",gold:"mdi:trophy",diamond:"mdi:diamond-stone"};let ks=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-rank-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.rank?a.states[t.rank]:void 0;if(!s)return this._message("mdi:alert-circle-outline",je(a,"empty.generic_error"));if(be.has(s.state)||(i=s.state,!_s.includes(i)))return this._message("mdi:trophy-outline",je(a,"card.rank.empty"));var i;const r=s.state,o=s.attributes.average,n=s.attributes.points_to_next_tier,c=_s.indexOf(r),d=_s[c+1],l=fs[r],h=d?fs[d]:void 0,u=void 0!==o&&void 0!==h?(o-l)/(h-l)*100:100;return W`
+      <ha-card @click=${At(this,this._config.tap_action,t.rank)}>
         <div class="header">
-          <div class="icon-badge ${Hi[r]}">
-            <ha-icon icon=${Ri[r]}></ha-icon>
+          <div class="icon-badge ${ws[r]}">
+            <ha-icon icon=${xs[r]}></ha-icon>
           </div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(i,"card.rank.title")}</div>
+            <div class="title">${this._config.title??je(a,"card.rank.title")}</div>
           </div>
         </div>
         <div class="ring-row">
-          ${Ue(Math.round(u),Ui[r],68,7)}
+          ${Ye(Math.round(u),ys[r],68,7)}
           <div>
-            <div class="ring-num" style="color:${Ui[r]}">${ze(i,`rank.${r}`)}</div>
-            <div class="ring-label">${void 0!==n?n.toFixed(2):"—"}</div>
+            <div class="ring-num" style="color:${ys[r]}">${je(a,`rank.${r}`)}</div>
+            <div class="ring-label">${void 0!==o?o.toFixed(2):"—"}</div>
           </div>
         </div>
         <div class="hint">
-          ${null!=o?R`${o.toFixed(2)} ${ze(i,"label.to_next_rank")}`:ze(i,"label.top_rank")}
+          ${null!=n?W`${n.toFixed(2)} ${je(a,"label.to_next_rank")}`:je(a,"label.top_rank")}
         </div>
       </ha-card>
-    `}};Wi.styles=[Oe,Fe,n`
+    `}};ks.styles=[Je,Ze,o`
       .ring-row {
         display: flex;
         align-items: center;
@@ -3289,26 +4530,26 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         color: var(--secondary-text-color);
         margin-top: 10px;
       }
-    `],e([ge()],Wi.prototype,"_config",void 0),Wi=e([he("librus-rank-card")],Wi);const Gi=[{sensorKey:"good_grade_streak",idPrefix:"good_grade_streak",thresholds:[5,10,20]},{sensorKey:"attendance_streak",idPrefix:"attendance_streak",thresholds:[7,30,90]},{sensorKey:"behaviour_streak",idPrefix:"behaviour_streak",thresholds:[7,30,90]}];let qi=class extends Be{constructor(){super(...arguments),this._unlocked=[],this._storageKey="",this._subscribeGeneration=0,this._torndown=!1}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-achievements-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._torndown=!1}disconnectedCallback(){super.disconnectedCallback(),this._torndown=!0,this._subscribeGeneration++,this._unsubscribe?.(),this._unsubscribe=void 0,this._subscribedDeviceId=void 0}_load(e){const t=`librus-achievements:${e}`;if(this._storageKey!==t){this._storageKey=t;try{const e=window.localStorage.getItem(t);this._unlocked=e?JSON.parse(e):[]}catch{this._unlocked=[]}}}_persist(){try{window.localStorage.setItem(this._storageKey,JSON.stringify(this._unlocked.slice(-50)))}catch{}}async _subscribe(e){if(this._subscribedDeviceId===e||!this.hass)return;this._subscribedDeviceId=e,this._unsubscribe?.(),this._unsubscribe=void 0;const t=++this._subscribeGeneration,i=this.hass.devices[e]?.config_entries??[],a=await this.hass.connection.subscribeEvents(e=>{const t=e.data;i.length&&t.entry_id&&!i.includes(t.entry_id)||this._unlocked.some(e=>e.id===t.id)||(this._unlocked=[...this._unlocked,{id:t.id,title:t.title,when:(new Date).toISOString()}],this._persist())},"librus_synergia_achievement_unlocked");this._torndown||t!==this._subscribeGeneration?a():this._unsubscribe=a}_nextMilestoneHint(e,t){let i;for(const a of Gi){const s=t[a.sensorKey],r=s?e.states[s]:void 0;if(!r||be.has(r.state))continue;const n=Number(r.state);if(Number.isFinite(n))for(const t of a.thresholds){if(n>=t)continue;const s=t-n;if(!i||s<i.gap){i={gap:s,remaining:s,title:ze(e,`achievement.${a.idPrefix}_${t}`)}}break}}return i?{remaining:i.remaining,title:i.title}:void 0}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass;this._load(t),this._subscribe(t);const s=this._nextMilestoneHint(a,i);if(0===this._unlocked.length)return this._message("mdi:trophy-outline",ze(a,"card.achievements.empty"),s?ze(a,"card.achievements.next_hint",{n:s.remaining,title:s.title}):void 0);const r=[...this._unlocked].sort((e,t)=>t.when.localeCompare(e.when));return R`
+    `],e([me()],ks.prototype,"_config",void 0),ks=e([he("librus-rank-card")],ks);const $s=[{sensorKey:"good_grade_streak",idPrefix:"good_grade_streak",thresholds:[5,10,20]},{sensorKey:"attendance_streak",idPrefix:"attendance_streak",thresholds:[7,30,90]},{sensorKey:"behaviour_streak",idPrefix:"behaviour_streak",thresholds:[7,30,90]}];let zs=class extends Ge{constructor(){super(...arguments),this._unlocked=[],this._storageKey="",this._subscribeGeneration=0,this._torndown=!1}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-achievements-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}connectedCallback(){super.connectedCallback(),this._torndown=!1}disconnectedCallback(){super.disconnectedCallback(),this._torndown=!0,this._subscribeGeneration++,this._unsubscribe?.(),this._unsubscribe=void 0,this._subscribedDeviceId=void 0}_load(e){const t=`librus-achievements:${e}`;if(this._storageKey!==t){this._storageKey=t;try{const e=window.localStorage.getItem(t);this._unlocked=e?JSON.parse(e):[]}catch{this._unlocked=[]}}}_persist(){try{window.localStorage.setItem(this._storageKey,JSON.stringify(this._unlocked.slice(-50)))}catch{}}async _subscribe(e){if(this._subscribedDeviceId===e||!this.hass)return;this._subscribedDeviceId=e,this._unsubscribe?.(),this._unsubscribe=void 0;const t=++this._subscribeGeneration,a=this.hass.devices[e]?.config_entries??[],s=await this.hass.connection.subscribeEvents(e=>{const t=e.data;a.length&&t.entry_id&&!a.includes(t.entry_id)||this._unlocked.some(e=>e.id===t.id)||(this._unlocked=[...this._unlocked,{id:t.id,title:t.title,when:(new Date).toISOString()}],this._persist())},"librus_synergia_achievement_unlocked");this._torndown||t!==this._subscribeGeneration?s():this._unsubscribe=s}_nextMilestoneHint(e,t){let a;for(const s of $s){const i=t[s.sensorKey],r=i?e.states[i]:void 0;if(!r||be.has(r.state))continue;const o=Number(r.state);if(Number.isFinite(o))for(const t of s.thresholds){if(o>=t)continue;const i=t-o;if(!a||i<a.gap){a={gap:i,remaining:i,title:je(e,`achievement.${s.idPrefix}_${t}`)}}break}}return a?{remaining:a.remaining,title:a.title}:void 0}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass;this._load(t),this._subscribe(t);const i=this._nextMilestoneHint(s,a);if(0===this._unlocked.length)return this._message("mdi:trophy-outline",je(s,"card.achievements.empty"),i?je(s,"card.achievements.next_hint",{n:i.remaining,title:i.title}):void 0);const r=[...this._unlocked].sort((e,t)=>t.when.localeCompare(e.when));return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge amber"><ha-icon icon="mdi:trophy"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(a,"card.achievements.title")}</div>
-            <div class="subtitle">${ze(a,"card.achievements.count",{n:r.length})}</div>
+            <div class="title">${this._config.title??je(s,"card.achievements.title")}</div>
+            <div class="subtitle">${je(s,"card.achievements.count",{n:r.length})}</div>
           </div>
         </div>
         <div class="chips">
-          ${r.map(e=>R`<span class="chip hot"><ha-icon icon="mdi:trophy-award"></ha-icon>${e.title}</span>`)}
+          ${r.map(e=>W`<span class="chip hot"><ha-icon icon="mdi:trophy-award"></ha-icon>${e.title}</span>`)}
         </div>
-        ${s?R`
+        ${i?W`
               <div class="next-hint">
                 <ha-icon icon="mdi:target"></ha-icon>
-                <span>${ze(a,"card.achievements.next_hint",{n:s.remaining,title:s.title})}</span>
+                <span>${je(s,"card.achievements.next_hint",{n:i.remaining,title:i.title})}</span>
               </div>
             `:q}
       </ha-card>
-    `}};qi.styles=[Oe,Fe,n`
+    `}};zs.styles=[Je,Ze,o`
       .chip.hot {
         gap: 6px;
       }
@@ -3329,26 +4570,26 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         --mdc-icon-size: 16px;
         flex-shrink: 0;
       }
-    `],e([ge()],qi.prototype,"_config",void 0),e([ge()],qi.prototype,"_unlocked",void 0),qi=e([he("librus-achievements-card")],qi);let Ji=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-teachers-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=t.school?i.states[t.school]:void 0,s=a?.attributes.subject_teachers??{},r=Object.entries(s),n=t.school_class?i.states[t.school_class]:void 0,o=n?.attributes.homeroom_teacher;return o||0!==r.length?R`
+    `],e([me()],zs.prototype,"_config",void 0),e([me()],zs.prototype,"_unlocked",void 0),zs=e([he("librus-achievements-card")],zs);let js=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-teachers-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass,s=t.school?a.states[t.school]:void 0,i=s?.attributes.subject_teachers??{},r=Object.entries(i),o=t.school_class?a.states[t.school_class]:void 0,n=o?.attributes.homeroom_teacher;return n||0!==r.length?W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:account-group-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(i,"card.teachers.title")}</div>
-            <div class="subtitle">${ze(i,"card.teachers.count",{n:r.length})}</div>
+            <div class="title">${this._config.title??je(a,"card.teachers.title")}</div>
+            <div class="subtitle">${je(a,"card.teachers.count",{n:r.length})}</div>
           </div>
         </div>
         <div class="scroll-list">
-          ${o?R`
+          ${n?W`
                 <div class="list-item">
                   <span class="dot warn"></span>
                   <div class="body">
-                    <div class="row1"><span>${ze(i,"card.teachers.homeroom")}</span></div>
-                    <div class="item-text">${o}</div>
+                    <div class="row1"><span>${je(a,"card.teachers.homeroom")}</span></div>
+                    <div class="item-text">${n}</div>
                   </div>
                 </div>
               `:q}
-          ${r.map(([e,t])=>R`
+          ${r.map(([e,t])=>W`
               <div class="list-item">
                 <span class="dot neutral"></span>
                 <div class="body">
@@ -3359,38 +4600,38 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
             `)}
         </div>
       </ha-card>
-    `:this._message("mdi:account-group-outline",ze(i,"card.teachers.empty"))}};Ji.styles=[Oe,Fe],e([ge()],Ji.prototype,"_config",void 0),Ji=e([he("librus-teachers-card")],Ji);let Zi=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-level-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass;let s=0,r=0;for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=a.states[e.entityId]?.attributes.grades??[];for(const e of t){s+=1;const t=/^([1-6])/.exec(e.value.trim())?.[1];t&&Number(t)>=4&&(r+=1)}}const n=i.attendance?a.states[i.attendance]:void 0,o=n?.attributes.total_records??0,c=n?.attributes.unexcused_count??0,d=n?.attributes.excused_count??0,l=8*s+7*r,h=1*Math.max(0,o-c-d),u=l+h,{level:p,into:m,span:g}=function(e){let t=1,i=0,a=100;for(;e>=i+a;)i+=a,t+=1,a+=100;return{level:t,into:e-i,span:a}}(u),v=m/g*100;return R`
+    `:this._message("mdi:account-group-outline",je(a,"card.teachers.empty"))}};js.styles=[Je,Ze],e([me()],js.prototype,"_config",void 0),js=e([he("librus-teachers-card")],js);let Cs=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-level-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass;let i=0,r=0;for(const e of this._resolveAllByTranslationKey(t,"subject_average")){const t=s.states[e.entityId]?.attributes.grades??[];for(const e of t){i+=1;const t=/^([1-6])/.exec(e.value.trim())?.[1];t&&Number(t)>=4&&(r+=1)}}const o=a.attendance?s.states[a.attendance]:void 0,n=o?.attributes.total_records??0,c=o?.attributes.unexcused_count??0,d=o?.attributes.excused_count??0,l=8*i+7*r,h=1*Math.max(0,n-c-d),u=l+h,{level:p,into:g,span:m}=function(e){let t=1,a=0,s=100;for(;e>=a+s;)a+=s,t+=1,s+=100;return{level:t,into:e-a,span:s}}(u),v=g/m*100;return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:progress-star"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(a,"card.level.title")}</div>
-            <div class="subtitle">${ze(a,"card.level.subtitle")}</div>
+            <div class="title">${this._config.title??je(s,"card.level.title")}</div>
+            <div class="subtitle">${je(s,"card.level.subtitle")}</div>
           </div>
         </div>
         <div class="ring-row">
-          ${Ue(Math.round(v),"var(--lc-brand)",68,7)}
+          ${Ye(Math.round(v),"var(--lc-brand)",68,7)}
           <div>
-            <div class="ring-num">${ze(a,"label.level",{n:p})}</div>
-            <div class="ring-label">${ze(a,"label.xp_to_next",{n:g-m})}</div>
+            <div class="ring-num">${je(s,"label.level",{n:p})}</div>
+            <div class="ring-label">${je(s,"label.xp_to_next",{n:m-g})}</div>
           </div>
         </div>
         <div class="stats">
           <div class="stat">
             <div class="stat-value">${l}</div>
-            <div class="stat-label">${ze(a,"label.xp_from_grades")}</div>
+            <div class="stat-label">${je(s,"label.xp_from_grades")}</div>
           </div>
           <div class="stat">
             <div class="stat-value">${h}</div>
-            <div class="stat-label">${ze(a,"label.xp_from_attendance")}</div>
+            <div class="stat-label">${je(s,"label.xp_from_attendance")}</div>
           </div>
           <div class="stat">
             <div class="stat-value">${u}</div>
-            <div class="stat-label">${ze(a,"label.xp_total")}</div>
+            <div class="stat-label">${je(s,"label.xp_total")}</div>
           </div>
         </div>
       </ha-card>
-    `}};Zi.styles=[Oe,Fe,n`
+    `}};Cs.styles=[Je,Ze,o`
       .ring-row {
         display: flex;
         align-items: center;
@@ -3406,27 +4647,27 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-size: 0.76rem;
         color: var(--secondary-text-color);
       }
-    `],e([ge()],Zi.prototype,"_config",void 0),Zi=e([he("librus-level-card")],Zi);const Vi=[{id:"naukowiec",icon:"mdi:flask-outline",subjects:["Matematyka","Fizyka","Chemia","Informatyka","Biologia","Geografia"],avgChipKey:"hero.chip.avg_naukowiec"},{id:"humanista",icon:"mdi:book-open-page-variant-outline",subjects:["Język polski","Historia","Wiedza o społeczeństwie","Filozofia"],avgChipKey:"hero.chip.avg_humanista"},{id:"poliglota",icon:"mdi:translate",subjects:["Język angielski","Język niemiecki","Język francuski","Język hiszpański","Język rosyjski","Język włoski"],avgChipKey:"hero.chip.avg_poliglota"},{id:"artysta",icon:"mdi:palette-outline",subjects:["Plastyka","Muzyka"],avgChipKey:"hero.chip.avg_artysta"},{id:"sportowiec",icon:"mdi:run",subjects:["Wychowanie fizyczne"],avgChipKey:"hero.chip.avg_sportowiec"}],Yi={wojownik:"mdi:shield-check-outline",meteor:"mdi:meteor",feniks:"mdi:fire",spolecznik:"mdi:hand-heart-outline",kolekcjoner:"mdi:trophy-outline",prymus:"mdi:crown-outline",wszechstronny:"mdi:scale-balance"};function Xi(e,t){return{icon:t,nameKey:{archetype:`hero.${e}.archetype_name`,hero:`hero.${e}.hero_name`},descKey:{archetype:`hero.${e}.archetype_desc`,hero:`hero.${e}.hero_desc`}}}const Qi={};for(const e of Vi)Qi[e.id]=Xi(e.id,e.icon);for(const[e,t]of Object.entries(Yi))Qi[e]=Xi(e,t);function ea(e){return e.toFixed(1)}function ta(e,t){let i=0,a=0;for(const s of e)!t.includes(s.subject)||null===s.average||s.gradeCount<=0||(i+=s.average*s.gradeCount,a+=s.gradeCount);return a>0?{avg:i/a,count:a}:null}const ia="librus-hero-history:";function aa(e){try{const t=window.localStorage.getItem(`librus-achievements:${e}`);if(!t)return 0;const i=JSON.parse(t);return Array.isArray(i)?i.length:0}catch{return 0}}let sa=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-hero-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}updated(e){super.updated(e),this._pendingHistory&&function(e,t){try{const i=`${ia}${e}`,a=window.localStorage.getItem(i),s=a?JSON.parse(a):[],r=s[s.length-1];if(r&&r.id===t)return;s.push({id:t,when:(new Date).toISOString()}),window.localStorage.setItem(i,JSON.stringify(s.slice(-30)))}catch{}}(this._pendingHistory.deviceId,this._pendingHistory.resultId)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass,s="hero"===this._config.mode?"hero":"archetype",r=this._resolveAllByTranslationKey(t,"subject_average").map(e=>{const t=a.states[e.entityId],i=t?.attributes.grades??[];return{subject:e.subject,average:t?Je(t.state):null,gradeCount:i.length}}),n=i.overall_average?a.states[i.overall_average]:void 0,o=i.attendance?a.states[i.attendance]:void 0,c=i.attendance_streak?a.states[i.attendance_streak]:void 0,d=i.good_grade_streak?a.states[i.good_grade_streak]:void 0,l=i.behaviour_grade?a.states[i.behaviour_grade]:void 0,h=i.behaviour_notices?a.states[i.behaviour_notices]:void 0,u=h?.attributes.recent??[],p=function(e){const t=e.subjects.filter(e=>e.gradeCount>0);if(!(t.length>0||null!==e.attendanceStreak||null!==e.behaviourShortName))return null;if(null!==e.overallAverage&&e.overallAverage>=5.3&&t.length>=4)return{...Qi.prymus,id:"prymus",evidence:[{key:"hero.chip.overall_avg_full",vars:{n:ea(e.overallAverage)}},{key:"hero.chip.subjects_count",vars:{n:t.length}}]};if(e.achievementCount>=5)return{...Qi.kolekcjoner,id:"kolekcjoner",evidence:[{key:"hero.chip.badges",vars:{n:e.achievementCount}},{key:"hero.chip.various_categories"}]};if(null!==e.overallSemester1&&null!==e.overallSemester2&&e.overallSemester2-e.overallSemester1>=.5)return{...Qi.feniks,id:"feniks",evidence:[{key:"hero.chip.semester1",vars:{n:ea(e.overallSemester1)}},{key:"hero.chip.semester2",vars:{n:ea(e.overallSemester2)}}]};if(null!==e.attendanceStreak&&e.attendanceStreak>=30&&0===e.unexcusedCount)return{...Qi.wojownik,id:"wojownik",evidence:[{key:"hero.chip.streak_days",vars:{n:e.attendanceStreak}},{key:"hero.chip.unexcused",vars:{n:0}}]};if(null!==e.goodGradeStreak&&e.goodGradeStreak>=10)return{...Qi.meteor,id:"meteor",evidence:[{key:"hero.chip.good_streak",vars:{n:e.goodGradeStreak}},null!==e.overallAverage?{key:"hero.chip.overall_avg",vars:{n:ea(e.overallAverage)}}:{key:"hero.chip.various_categories"}]};const i=e.recentNoteSentiments.filter(e=>"positive"===e).length,a=e.recentNoteSentiments.filter(e=>"negative"===e).length;if("wz"===e.behaviourShortName&&i>=2&&0===a)return{...Qi.spolecznik,id:"spolecznik",evidence:[{key:"hero.chip.behaviour",vars:{name:e.behaviourShortName}},{key:"hero.chip.positive_notes",vars:{n:i}}]};const s=Vi.map(t=>({cluster:t,result:ta(e.subjects,t.subjects)})).filter(e=>null!==e.result);if(s.length>0){s.sort((e,t)=>t.result.avg-e.result.avg);const e=s[0],t=s[1],i=t?e.result.avg-t.result.avg:e.result.avg;if(e.result.count>=2&&i>=.4)return{...Qi[e.cluster.id],id:e.cluster.id,evidence:[{key:e.cluster.avgChipKey,vars:{n:ea(e.result.avg)}},{key:"hero.chip.grades",vars:{n:e.result.count}}]}}const r=s.length>=2?s[0].result.avg-s[s.length-1].result.avg:0;return{...Qi.wszechstronny,id:"wszechstronny",evidence:[{key:"hero.chip.spread",vars:{n:ea(r)}},{key:"hero.chip.subjects_count",vars:{n:t.length}}]}}({subjects:r,overallAverage:Je(n?.state),overallSemester1:Je(n?.attributes.average_semester_1),overallSemester2:Je(n?.attributes.average_semester_2),attendanceStreak:Je(c?.state),unexcusedCount:Je(o?.attributes.unexcused_count),goodGradeStreak:Je(d?.state),behaviourShortName:l&&!["unknown","unavailable"].includes(l.state)?l.state:null,recentNoteSentiments:u.map(e=>e.sentiment),achievementCount:aa(t)});return p?(this._pendingHistory={deviceId:t,resultId:p.id},R`
+    `],e([me()],Cs.prototype,"_config",void 0),Cs=e([he("librus-level-card")],Cs);const Ss=[{id:"naukowiec",icon:"mdi:flask-outline",subjects:["Matematyka","Fizyka","Chemia","Informatyka","Biologia","Geografia"],avgChipKey:"hero.chip.avg_naukowiec"},{id:"humanista",icon:"mdi:book-open-page-variant-outline",subjects:["Język polski","Historia","Wiedza o społeczeństwie","Filozofia"],avgChipKey:"hero.chip.avg_humanista"},{id:"poliglota",icon:"mdi:translate",subjects:["Język angielski","Język niemiecki","Język francuski","Język hiszpański","Język rosyjski","Język włoski"],avgChipKey:"hero.chip.avg_poliglota"},{id:"artysta",icon:"mdi:palette-outline",subjects:["Plastyka","Muzyka"],avgChipKey:"hero.chip.avg_artysta"},{id:"sportowiec",icon:"mdi:run",subjects:["Wychowanie fizyczne"],avgChipKey:"hero.chip.avg_sportowiec"}],Ds={wojownik:"mdi:shield-check-outline",meteor:"mdi:meteor",feniks:"mdi:fire",spolecznik:"mdi:hand-heart-outline",kolekcjoner:"mdi:trophy-outline",prymus:"mdi:crown-outline",wszechstronny:"mdi:scale-balance"};function Ts(e,t){return{icon:t,nameKey:{archetype:`hero.${e}.archetype_name`,hero:`hero.${e}.hero_name`},descKey:{archetype:`hero.${e}.archetype_desc`,hero:`hero.${e}.hero_desc`}}}const Is={};for(const e of Ss)Is[e.id]=Ts(e.id,e.icon);for(const[e,t]of Object.entries(Ds))Is[e]=Ts(e,t);function Ns(e){return e.toFixed(1)}function Es(e,t){let a=0,s=0;for(const i of e)!t.includes(i.subject)||null===i.average||i.gradeCount<=0||(a+=i.average*i.gradeCount,s+=i.gradeCount);return s>0?{avg:a/s,count:s}:null}const As="librus-hero-history:";function Ms(e){try{const t=window.localStorage.getItem(`librus-achievements:${e}`);if(!t)return 0;const a=JSON.parse(t);return Array.isArray(a)?a.length:0}catch{return 0}}let Ls=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-hero-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 2}updated(e){super.updated(e),this._pendingHistory&&function(e,t){try{const a=`${As}${e}`,s=window.localStorage.getItem(a),i=s?JSON.parse(s):[],r=i[i.length-1];if(r&&r.id===t)return;i.push({id:t,when:(new Date).toISOString()}),window.localStorage.setItem(a,JSON.stringify(i.slice(-30)))}catch{}}(this._pendingHistory.deviceId,this._pendingHistory.resultId)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass,i="hero"===this._config.mode?"hero":"archetype",r=this._resolveAllByTranslationKey(t,"subject_average").map(e=>{const t=s.states[e.entityId],a=t?.attributes.grades??[];return{subject:e.subject,average:t?Re(t.state):null,gradeCount:a.length}}),o=a.overall_average?s.states[a.overall_average]:void 0,n=a.attendance?s.states[a.attendance]:void 0,c=a.attendance_streak?s.states[a.attendance_streak]:void 0,d=a.good_grade_streak?s.states[a.good_grade_streak]:void 0,l=a.behaviour_grade?s.states[a.behaviour_grade]:void 0,h=a.behaviour_notices?s.states[a.behaviour_notices]:void 0,u=h?.attributes.recent??[],p=function(e){const t=e.subjects.filter(e=>e.gradeCount>0);if(!(t.length>0||null!==e.attendanceStreak||null!==e.behaviourShortName))return null;if(null!==e.overallAverage&&e.overallAverage>=5.3&&t.length>=4)return{...Is.prymus,id:"prymus",evidence:[{key:"hero.chip.overall_avg_full",vars:{n:Ns(e.overallAverage)}},{key:"hero.chip.subjects_count",vars:{n:t.length}}]};if(e.achievementCount>=5)return{...Is.kolekcjoner,id:"kolekcjoner",evidence:[{key:"hero.chip.badges",vars:{n:e.achievementCount}},{key:"hero.chip.various_categories"}]};if(null!==e.overallSemester1&&null!==e.overallSemester2&&e.overallSemester2-e.overallSemester1>=.5)return{...Is.feniks,id:"feniks",evidence:[{key:"hero.chip.semester1",vars:{n:Ns(e.overallSemester1)}},{key:"hero.chip.semester2",vars:{n:Ns(e.overallSemester2)}}]};if(null!==e.attendanceStreak&&e.attendanceStreak>=30&&0===e.unexcusedCount)return{...Is.wojownik,id:"wojownik",evidence:[{key:"hero.chip.streak_days",vars:{n:e.attendanceStreak}},{key:"hero.chip.unexcused",vars:{n:0}}]};if(null!==e.goodGradeStreak&&e.goodGradeStreak>=10)return{...Is.meteor,id:"meteor",evidence:[{key:"hero.chip.good_streak",vars:{n:e.goodGradeStreak}},null!==e.overallAverage?{key:"hero.chip.overall_avg",vars:{n:Ns(e.overallAverage)}}:{key:"hero.chip.various_categories"}]};const a=e.recentNoteSentiments.filter(e=>"positive"===e).length,s=e.recentNoteSentiments.filter(e=>"negative"===e).length;if("wz"===e.behaviourShortName&&a>=2&&0===s)return{...Is.spolecznik,id:"spolecznik",evidence:[{key:"hero.chip.behaviour",vars:{name:e.behaviourShortName}},{key:"hero.chip.positive_notes",vars:{n:a}}]};const i=Ss.map(t=>({cluster:t,result:Es(e.subjects,t.subjects)})).filter(e=>null!==e.result);if(i.length>0){i.sort((e,t)=>t.result.avg-e.result.avg);const e=i[0],t=i[1],a=t?e.result.avg-t.result.avg:e.result.avg;if(e.result.count>=2&&a>=.4)return{...Is[e.cluster.id],id:e.cluster.id,evidence:[{key:e.cluster.avgChipKey,vars:{n:Ns(e.result.avg)}},{key:"hero.chip.grades",vars:{n:e.result.count}}]}}const r=i.length>=2?i[0].result.avg-i[i.length-1].result.avg:0;return{...Is.wszechstronny,id:"wszechstronny",evidence:[{key:"hero.chip.spread",vars:{n:Ns(r)}},{key:"hero.chip.subjects_count",vars:{n:t.length}}]}}({subjects:r,overallAverage:Re(o?.state),overallSemester1:Re(o?.attributes.average_semester_1),overallSemester2:Re(o?.attributes.average_semester_2),attendanceStreak:Re(c?.state),unexcusedCount:Re(n?.attributes.unexcused_count),goodGradeStreak:Re(d?.state),behaviourShortName:l&&!["unknown","unavailable"].includes(l.state)?l.state:null,recentNoteSentiments:u.map(e=>e.sentiment),achievementCount:Ms(t)});return p?(this._pendingHistory={deviceId:t,resultId:p.id},W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:creation-outline"></ha-icon></div>
           <div class="title-block">
             <div class="title">
-              ${this._config.title??ze(a,"hero"===s?"card.hero.title_hero":"card.hero.title_archetype")}
+              ${this._config.title??je(s,"hero"===i?"card.hero.title_hero":"card.hero.title_archetype")}
             </div>
-            <div class="subtitle">${ze(a,"card.hero.subtitle")}</div>
+            <div class="subtitle">${je(s,"card.hero.subtitle")}</div>
           </div>
         </div>
         <div class="result">
           <div class="result-badge"><ha-icon icon=${p.icon}></ha-icon></div>
-          <div class="result-name">${ze(a,p.nameKey[s])}</div>
-          <div class="result-desc">${ze(a,p.descKey[s])}</div>
+          <div class="result-name">${je(s,p.nameKey[i])}</div>
+          <div class="result-desc">${je(s,p.descKey[i])}</div>
         </div>
         <div class="evidence">
-          ${p.evidence.map(e=>R`<span class="evidence-chip">${ze(a,e.key,e.vars)}</span>`)}
+          ${p.evidence.map(e=>W`<span class="evidence-chip">${je(s,e.key,e.vars)}</span>`)}
         </div>
       </ha-card>
-    `):(this._pendingHistory=void 0,this._message("mdi:creation-outline",ze(a,"card.hero.empty")))}};sa.styles=[Oe,Fe,n`
+    `):(this._pendingHistory=void 0,this._message("mdi:creation-outline",je(s,"card.hero.empty")))}};Ls.styles=[Je,Ze,o`
       /* Fixed-height contract: name and description each reserve exactly 2
          lines, and there are always exactly 2 evidence chips on one row -
          so the card's height never changes across any result. The copy in
@@ -3497,51 +4738,51 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         white-space: nowrap;
         flex: none;
       }
-    `],e([ge()],sa.prototype,"_config",void 0),sa=e([he("librus-hero-card")],sa);const ra={wz:10,bdb:8,db:6,popr:4,ndp:2,ng:0},na={diamond:10,gold:7.5,silver:5,bronze:2.5};function oa(e,t){const i=Vi.find(e=>e.id===t);if(!i)return 0;const a=ta(e,i.subjects);return a?Math.round(10*(a.avg/6*10+Number.EPSILON))/10:0}const ca=10,da=["1","2","3","4","5","7"],la=260,ha=240;let ua=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-hero-stats-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}_renderStatRadar(e,t){const i=Math.min(la,ha)/2-34,a=e.length,s=e=>-Math.PI/2+2*e*Math.PI/a,r=(e,t)=>{const a=Math.max(0,Math.min(ca,t))/ca*i;return[130+a*Math.cos(s(e)),116+a*Math.sin(s(e))]},n=[1/3,2/3,1].map(t=>e.map((e,i)=>r(i,ca*t).join(",")).join(" ")),o=e.map((e,t)=>r(t,ca)),c=e.map((e,t)=>r(t,e.value).join(",")).join(" "),d=e.map((e,t)=>r(t,Math.max(e.value,1.5)));return R`
-      <svg width=${la} height=${ha} viewBox="0 0 ${la} ${ha}" class="radar-chart">
-        ${n.map(e=>W`<polygon points=${e} class="radar-grid"></polygon>`)}
-        ${o.map(([e,t])=>W`<line x1=${130} y1=${116} x2=${e} y2=${t} class="radar-axis"></line>`)}
+    `],e([me()],Ls.prototype,"_config",void 0),Ls=e([he("librus-hero-card")],Ls);const Ps={wz:10,bdb:8,db:6,popr:4,ndp:2,ng:0},Fs={diamond:10,gold:7.5,silver:5,bronze:2.5};function Bs(e,t){const a=Ss.find(e=>e.id===t);if(!a)return 0;const s=Es(e,a.subjects);return s?Math.round(10*(s.avg/6*10+Number.EPSILON))/10:0}const Os=10,Ks=["1","2","3","4","5","7"],Us=260,Rs=240;let Ws=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-hero-stats-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}_renderStatRadar(e,t){const a=Math.min(Us,Rs)/2-34,s=e.length,i=e=>-Math.PI/2+2*e*Math.PI/s,r=(e,t)=>{const s=Math.max(0,Math.min(Os,t))/Os*a;return[130+s*Math.cos(i(e)),116+s*Math.sin(i(e))]},o=[1/3,2/3,1].map(t=>e.map((e,a)=>r(a,Os*t).join(",")).join(" ")),n=e.map((e,t)=>r(t,Os)),c=e.map((e,t)=>r(t,e.value).join(",")).join(" "),d=e.map((e,t)=>r(t,Math.max(e.value,1.5)));return W`
+      <svg width=${Us} height=${Rs} viewBox="0 0 ${Us} ${Rs}" class="radar-chart">
+        ${o.map(e=>H`<polygon points=${e} class="radar-grid"></polygon>`)}
+        ${n.map(([e,t])=>H`<line x1=${130} y1=${116} x2=${e} y2=${t} class="radar-axis"></line>`)}
         <polygon points=${c} class="radar-fill-polygon"></polygon>
-        ${d.map(([t,i],a)=>{const s=`var(--lc-chart-${da[a%da.length]})`;return W`
-            <circle cx=${t} cy=${i} r="11" class="vertex-badge" style="stroke:${s}"></circle>
-            <foreignObject x=${t-9} y=${i-9} width="18" height="18">
-              ${R`<div class="vertex-icon" style="color:${s}"><ha-icon icon=${e[a].icon}></ha-icon></div>`}
+        ${d.map(([t,a],s)=>{const i=`var(--lc-chart-${Ks[s%Ks.length]})`;return H`
+            <circle cx=${t} cy=${a} r="11" class="vertex-badge" style="stroke:${i}"></circle>
+            <foreignObject x=${t-9} y=${a-9} width="18" height="18">
+              ${W`<div class="vertex-icon" style="color:${i}"><ha-icon icon=${e[s].icon}></ha-icon></div>`}
             </foreignObject>
           `})}
-        ${e.map((e,i)=>{const[a,n]=r(i,1.14*ca),o=Math.cos(s(i)),c=Math.abs(o)<.3?"middle":o>0?"start":"end";return W`<text x=${a} y=${n+3} text-anchor=${c} class="radar-label">${ze(t,e.labelKey)}</text>`})}
+        ${e.map((e,a)=>{const[s,o]=r(a,1.14*Os),n=Math.cos(i(a)),c=Math.abs(n)<.3?"middle":n>0?"start":"end";return H`<text x=${s} y=${o+3} text-anchor=${c} class="radar-label">${je(t,e.labelKey)}</text>`})}
       </svg>
-    `}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:i}=e,a=this.hass,s=this._resolveAllByTranslationKey(t,"subject_average").map(e=>{const t=a.states[e.entityId],i=(t?.attributes.grades??[]).length;return{subject:e.subject,average:t?Je(t.state):null,gradeCount:i}}),r=i.attendance_streak?a.states[i.attendance_streak]:void 0,n=i.behaviour_grade?a.states[i.behaviour_grade]:void 0,o=i.rank?a.states[i.rank]:void 0,c=function(e){const t=null!==e.attendanceStreak?Math.round(100*Math.min(1,e.attendanceStreak/30))/10:0,i=e.behaviourShortName?ra[e.behaviourShortName]??5:0,a=e.rankTier?na[e.rankTier]??0:0;return[{id:"sila",labelKey:"hero_stat.sila",icon:"mdi:arm-flex-outline",value:oa(e.subjects,"sportowiec")},{id:"intelekt",labelKey:"hero_stat.intelekt",icon:"mdi:flask-outline",value:oa(e.subjects,"naukowiec")},{id:"wiedza",labelKey:"hero_stat.wiedza",icon:"mdi:book-open-page-variant-outline",value:oa(e.subjects,"humanista")},{id:"charyzma",labelKey:"hero_stat.charyzma",icon:"mdi:hand-heart-outline",value:i},{id:"wytrwalosc",labelKey:"hero_stat.wytrwalosc",icon:"mdi:shield-check-outline",value:t},{id:"szczescie",labelKey:"hero_stat.szczescie",icon:"mdi:clover-outline",value:a}]}({subjects:s,attendanceStreak:Je(r?.state),behaviourShortName:n&&!["unknown","unavailable"].includes(n.state)?n.state:null,rankTier:o&&!["unknown","unavailable"].includes(o.state)?o.state:null});if(c.every(e=>0===e.value))return this._message("mdi:arm-flex-outline",ze(a,"card.hero_stats.empty"));const d=Math.round(c.reduce((e,t)=>e+t.value,0));return R`
+    `}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t,map:a}=e,s=this.hass,i=this._resolveAllByTranslationKey(t,"subject_average").map(e=>{const t=s.states[e.entityId],a=(t?.attributes.grades??[]).length;return{subject:e.subject,average:t?Re(t.state):null,gradeCount:a}}),r=a.attendance_streak?s.states[a.attendance_streak]:void 0,o=a.behaviour_grade?s.states[a.behaviour_grade]:void 0,n=a.rank?s.states[a.rank]:void 0,c=function(e){const t=null!==e.attendanceStreak?Math.round(100*Math.min(1,e.attendanceStreak/30))/10:0,a=e.behaviourShortName?Ps[e.behaviourShortName]??5:0,s=e.rankTier?Fs[e.rankTier]??0:0;return[{id:"sila",labelKey:"hero_stat.sila",icon:"mdi:arm-flex-outline",value:Bs(e.subjects,"sportowiec")},{id:"intelekt",labelKey:"hero_stat.intelekt",icon:"mdi:flask-outline",value:Bs(e.subjects,"naukowiec")},{id:"wiedza",labelKey:"hero_stat.wiedza",icon:"mdi:book-open-page-variant-outline",value:Bs(e.subjects,"humanista")},{id:"charyzma",labelKey:"hero_stat.charyzma",icon:"mdi:hand-heart-outline",value:a},{id:"wytrwalosc",labelKey:"hero_stat.wytrwalosc",icon:"mdi:shield-check-outline",value:t},{id:"szczescie",labelKey:"hero_stat.szczescie",icon:"mdi:clover-outline",value:s}]}({subjects:i,attendanceStreak:Re(r?.state),behaviourShortName:o&&!["unknown","unavailable"].includes(o.state)?o.state:null,rankTier:n&&!["unknown","unavailable"].includes(n.state)?n.state:null});if(c.every(e=>0===e.value))return this._message("mdi:arm-flex-outline",je(s,"card.hero_stats.empty"));const d=Math.round(c.reduce((e,t)=>e+t.value,0));return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:arm-flex-outline"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(a,"card.hero_stats.title")}</div>
-            <div class="subtitle">${ze(a,"card.hero_stats.subtitle")}</div>
+            <div class="title">${this._config.title??je(s,"card.hero_stats.title")}</div>
+            <div class="subtitle">${je(s,"card.hero_stats.subtitle")}</div>
           </div>
           <div class="power-badge">
             <div class="power-n">${d}</div>
-            <div class="power-l">${ze(a,"card.hero_stats.power")}</div>
+            <div class="power-l">${je(s,"card.hero_stats.power")}</div>
           </div>
         </div>
-        <div class="chart-wrap glow">${this._renderStatRadar(c,a)}</div>
+        <div class="chart-wrap glow">${this._renderStatRadar(c,s)}</div>
         <div class="stat-bars">
-          ${c.map((e,t)=>{const i=`var(--lc-chart-${da[t%da.length]})`;return R`
+          ${c.map((e,t)=>{const a=`var(--lc-chart-${Ks[t%Ks.length]})`;return W`
               <div class="stat-row">
-                <div class="stat-icon" style="background:color-mix(in srgb, ${i} 16%, transparent); color:${i}">
+                <div class="stat-icon" style="background:color-mix(in srgb, ${a} 16%, transparent); color:${a}">
                   <ha-icon icon=${e.icon}></ha-icon>
                 </div>
                 <div class="stat-mid">
-                  <span class="stat-name">${ze(a,e.labelKey)}</span>
+                  <span class="stat-name">${je(s,e.labelKey)}</span>
                   <div class="stat-track">
-                    <div class="stat-fill" style="width:${e.value/ca*100}%; background:${i}"></div>
+                    <div class="stat-fill" style="width:${e.value/Os*100}%; background:${a}"></div>
                   </div>
                 </div>
-                <span class="stat-value" style="color:${i}">${e.value.toFixed(1)}</span>
+                <span class="stat-value" style="color:${a}">${e.value.toFixed(1)}</span>
               </div>
             `})}
         </div>
       </ha-card>
-    `}};ua.styles=[Oe,Fe,n`
+    `}};Ws.styles=[Je,Ze,o`
       .header {
         align-items: center;
       }
@@ -3650,33 +4891,33 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-weight: 800;
         font-variant-numeric: tabular-nums;
       }
-    `],e([ge()],ua.prototype,"_config",void 0),ua=e([he("librus-hero-stats-card")],ua);let pa=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-hero-history-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,i=this.hass,a="hero"===this._config.mode?"hero":"archetype",s=function(e){try{const t=window.localStorage.getItem(`${ia}${e}`);if(!t)return[];const i=JSON.parse(t);return Array.isArray(i)?i:[]}catch{return[]}}(t);if(0===s.length)return this._message("mdi:history",ze(i,"card.hero_history.empty"));const r=new Date,n=[...s].reverse().map((e,t)=>{const i=Qi[e.id],a=new Date(e.when),n=0===t?r:new Date(s[s.length-t].when);return{entry:e,catalog:i,isCurrent:0===t,days:Math.max(0,Ge(a,n))}});return R`
+    `],e([me()],Ws.prototype,"_config",void 0),Ws=e([he("librus-hero-stats-card")],Ws);let Hs=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-hero-history-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 3}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{deviceId:t}=e,a=this.hass,s="hero"===this._config.mode?"hero":"archetype",i=function(e){try{const t=window.localStorage.getItem(`${As}${e}`);if(!t)return[];const a=JSON.parse(t);return Array.isArray(a)?a:[]}catch{return[]}}(t);if(0===i.length)return this._message("mdi:history",je(a,"card.hero_history.empty"));const r=new Date,o=[...i].reverse().map((e,t)=>{const a=Is[e.id],s=new Date(e.when),o=0===t?r:new Date(i[i.length-t].when);return{entry:e,catalog:a,isCurrent:0===t,days:Math.max(0,Ke(s,o))}});return W`
       <ha-card>
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:history"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title??ze(i,"card.hero_history.title")}</div>
-            <div class="subtitle">${ze(i,"card.hero_history.subtitle")}</div>
+            <div class="title">${this._config.title??je(a,"card.hero_history.title")}</div>
+            <div class="subtitle">${je(a,"card.hero_history.subtitle")}</div>
           </div>
         </div>
         <div class="scroll-list">
-          ${n.map(e=>R`
+          ${o.map(e=>W`
               <div class="list-item">
                 <div class="type-icon"><ha-icon icon=${e.catalog?.icon??"mdi:help-circle"}></ha-icon></div>
                 <div class="body">
                   <div class="row1">
-                    <span>${e.catalog?ze(i,e.catalog.nameKey[a]):e.entry.id}</span>
-                    <time>${We(e.entry.when,i.language)}</time>
+                    <span>${e.catalog?je(a,e.catalog.nameKey[s]):e.entry.id}</span>
+                    <time>${Oe(e.entry.when,a.language)}</time>
                   </div>
                   <div class="item-text">
-                    ${e.isCurrent?ze(i,"card.hero_history.current",{n:e.days}):`${e.days} ${ze(i,"label.days")}`}
+                    ${e.isCurrent?je(a,"card.hero_history.current",{n:e.days}):`${e.days} ${je(a,"label.days")}`}
                   </div>
                 </div>
               </div>
             `)}
         </div>
       </ha-card>
-    `}};pa.styles=[Oe,Fe,n`
+    `}};Hs.styles=[Je,Ze,o`
       .type-icon {
         flex: none;
         width: 26px;
@@ -3692,15 +4933,15 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       .type-icon ha-icon {
         --mdc-icon-size: 15px;
       }
-    `],e([ge()],pa.prototype,"_config",void 0),pa=e([he("librus-hero-history-card")],pa);const ma=["overall_average","attendance","school"];let ga=class extends Be{static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-last-update-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,i=this.hass,a=ma.map(e=>t[e]).find(e=>e&&i.states[e]),s=a?i.states[a]:void 0;if(!s)return this._message("mdi:clock-check-outline",ze(i,"empty.generic_error"));const r=s.last_reported??s.last_updated;return R`
-      <ha-card class="tile">
+    `],e([me()],Hs.prototype,"_config",void 0),Hs=e([he("librus-hero-history-card")],Hs);const Gs=["overall_average","attendance","school"];let qs=class extends Ge{static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-last-update-tile-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return 1}connectedCallback(){super.connectedCallback(),this._tickTimer=setInterval(()=>this.requestUpdate(),3e4)}disconnectedCallback(){super.disconnectedCallback(),clearInterval(this._tickTimer)}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const{map:t}=e,a=this.hass;let s;const i=t.last_update?a.states[t.last_update]:void 0;if(i&&!["unknown","unavailable"].includes(i.state))s=i.state;else{const e=Gs.map(e=>t[e]).find(e=>e&&a.states[e]),i=e?a.states[e]:void 0;if(!i)return this._message("mdi:clock-check-outline",je(a,"empty.generic_error"));s=i.last_reported??i.last_updated}const r=t.status?a.states[t.status]:void 0,o="stale"===r?.state||"error"===r?.state,n=r?.attributes.next_attempt,c=o?je(a,"card.last_update.not_responding",{time:"string"==typeof n?qe(n,a.language):"?"}):je(a,"card.last_update.subtitle");return W`
+      <ha-card class="tile ${o?"stale":""}">
         <div class="icon-badge"><ha-icon icon="mdi:clock-check-outline"></ha-icon></div>
         <div class="tile-body">
-          <div class="subj">${function(e,t){if(!t)return"";const i=new Date(t).getTime();if(Number.isNaN(i))return"";const a=Math.max(0,Math.floor((Date.now()-i)/6e4));if(a<1)return ze(e,"label.just_now");if(a<60)return ze(e,"label.minutes_ago",{minutes:a});const s=Math.floor(a/60);return s<24?ze(e,"label.hours_ago",{hours:s}):ze(e,"label.days_ago",{days:Math.floor(s/24)})}(i,r)}</div>
-          <div class="meta">${ze(i,"card.last_update.subtitle")}</div>
+          <div class="subj">${function(e,t){if(!t)return"";const a=new Date(t).getTime();if(Number.isNaN(a))return"";const s=Math.max(0,Math.floor((Date.now()-a)/6e4));if(s<1)return je(e,"label.just_now");if(s<60)return je(e,"label.minutes_ago",{minutes:s});const i=Math.floor(s/60);return i<24?je(e,"label.hours_ago",{hours:i}):je(e,"label.days_ago",{days:Math.floor(i/24)})}(a,s)}</div>
+          <div class="meta">${c}</div>
         </div>
       </ha-card>
-    `}};ga.styles=[Oe,Fe,n`
+    `}};qs.styles=[Je,Ze,o`
       ha-card.tile {
         flex-direction: row;
         align-items: center;
@@ -3713,77 +4954,84 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
         font-weight: 700;
         font-size: 0.86rem;
       }
+      ha-card.stale .icon-badge {
+        background: var(--lc-warn-bg);
+        color: var(--lc-warn);
+      }
+      ha-card.stale .subj {
+        color: var(--lc-warn);
+      }
       .meta {
         font-size: 0.7rem;
         color: var(--secondary-text-color);
         margin-top: 1px;
       }
-    `],e([ge()],ga.prototype,"_config",void 0),ga=e([he("librus-last-update-tile-card")],ga);const va=["grades","attendance","behaviour","next_week","school_news"],ba={good:"good",ok:"ok",caution:"caution"};let _a=class extends Be{constructor(){super(...arguments),this._pressing=!1}static getConfigElement(){return Le()}static getStubConfig(){return{type:"custom:librus-ai-summary-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return this._config?.summary_only?4:8}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass,i=e.map.weekly_summary,a=e.map.weekly_summary_generate,s=i?t.states[i]:void 0;if(!s)return this._message("mdi:creation-outline",ze(t,"card.ai_summary.setup"),ze(t,"card.ai_summary.setup_hint"));const r=s.attributes,n=Boolean(r.generating)||this._pressing,o=be.has(s.state)?void 0:s.state;if(!o)return R`
+    `],e([me()],qs.prototype,"_config",void 0),qs=e([he("librus-last-update-tile-card")],qs);const Js=["grades","attendance","behaviour","next_week","school_news"],Zs={good:"good",ok:"ok",caution:"caution"};let Vs=class extends Ge{constructor(){super(...arguments),this._pressing=!1}static getConfigElement(){return Pe()}static getStubConfig(){return{type:"custom:librus-ai-summary-card"}}setConfig(e){this._config=e,this._configuredDeviceId=e.device_id}getCardSize(){return this._config?.summary_only?4:8}render(){if(!this._config||!this.hass)return q;this._syncTheme();const e=this._resolveEntities();if("error"in e)return e.error;const t=this.hass,a=e.map.weekly_summary,s=e.map.weekly_summary_generate,i=a?t.states[a]:void 0;if(!i)return this._message("mdi:creation-outline",je(t,"card.ai_summary.setup"),je(t,"card.ai_summary.setup_hint"));const r=i.attributes,o=Boolean(r.generating)||this._pressing,n=be.has(i.state)?void 0:i.state;if(!n)return W`
         <ha-card class="static">
           <div class="empty">
             <ha-icon icon="mdi:creation-outline"></ha-icon>
-            <div class="t1">${ze(t,n?"card.ai_summary.generating":"card.ai_summary.waiting")}</div>
+            <div class="t1">${je(t,o?"card.ai_summary.generating":"card.ai_summary.waiting")}</div>
             <div class="t2">${r.error?String(r.error):this._nextRun(r)}</div>
           </div>
-          ${this._footer(r,a,n,!1)}
+          ${this._footer(r,s,o,!1)}
         </ha-card>
-      `;const c="string"==typeof r.status?r.status:void 0,d=r.sections??{},l=va.filter(e=>d[e]?.text),h=Array.isArray(r.advice)?r.advice:[],u="string"==typeof r.warning&&r.warning?r.warning:void 0,p="string"==typeof r.summary&&r.summary?r.summary:void 0,m=this._tab&&l.includes(this._tab)?this._tab:l[0],g=!0===this._config.summary_only;return R`
+      `;const c="string"==typeof r.status?r.status:void 0,d=r.sections??{},l=Js.filter(e=>d[e]?.text),h=Array.isArray(r.advice)?r.advice:[],u="string"==typeof r.warning&&r.warning?r.warning:void 0,p="string"==typeof r.summary&&r.summary?r.summary:void 0,g=this._tab&&l.includes(this._tab)?this._tab:l[0],m=!0===this._config.summary_only;return W`
       <ha-card class="static">
         <div class="header">
           <div class="icon-badge"><ha-icon icon="mdi:creation"></ha-icon></div>
           <div class="title-block">
-            <div class="title">${this._config.title||ze(t,"card.ai_summary.title")}</div>
+            <div class="title">${this._config.title||je(t,"card.ai_summary.title")}</div>
             <div class="subtitle">${this._subtitle(r)}</div>
           </div>
-          ${c&&ba[c]?R`<span class="pill ${ba[c]}">${ze(t,`ai_summary.status.${c}`)}</span>`:q}
+          ${c&&Zs[c]?W`<span class="pill ${Zs[c]}">${je(t,`ai_summary.status.${c}`)}</span>`:q}
         </div>
-        <div class="headline">${o}</div>
-        ${u?R`<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><div>${u}</div></div>`:q}
-        ${g?q:l.length&&m?R`${this._tabs(d,l,m)} ${this._panel(m,d[m])}`:p?R`<div class="prose">${this._paragraphs(p)}</div>`:q}
-        ${h.length?R`
+        <div class="headline">${n}</div>
+        ${u?W`<div class="warning"><ha-icon icon="mdi:alert"></ha-icon><div>${u}</div></div>`:q}
+        ${m?q:l.length&&g?W`${this._tabs(d,l,g)} ${this._panel(g,d[g])}`:p?W`<div class="prose">${this._paragraphs(p)}</div>`:q}
+        ${h.length?W`
               <div class="advice">
-                <div class="label">${ze(t,"card.ai_summary.advice")}</div>
+                <div class="label">${je(t,"card.ai_summary.advice")}</div>
                 <ol>
-                  ${h.map(e=>R`<li>${e}</li>`)}
+                  ${h.map(e=>W`<li>${e}</li>`)}
                 </ol>
               </div>
             `:q}
-        ${this._footer(r,a,n,!0)}
+        ${this._footer(r,s,o,!0)}
       </ha-card>
-    `}_subtitle(e){const t=this.hass,i=[],a=new Intl.DateTimeFormat(t.language,{day:"numeric",month:"numeric"}),s="string"==typeof e.week_from?new Date(`${e.week_from}T12:00:00`):void 0,r="string"==typeof e.week_to?new Date(`${e.week_to}T12:00:00`):void 0;return s&&r&&!Number.isNaN(s.getTime())&&!Number.isNaN(r.getTime())&&i.push(`${a.format(s)} – ${a.format(r)}`),"student"!==e.audience&&"parent"!==e.audience||i.push(ze(t,`card.ai_summary.for_${e.audience}`)),i.join(" · ")}_nextRun(e){const t=this.hass;if(e.paused)return ze(t,"card.ai_summary.paused");const i="string"==typeof e.next_run?new Date(e.next_run):void 0;if(!i||Number.isNaN(i.getTime()))return"";return ze(t,"card.ai_summary.next_run",{when:new Intl.DateTimeFormat(t.language,{weekday:"short",day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}).format(i)})}_footer(e,t,i,a){const s=this.hass,r=t&&!0!==this._config?.hide_generate,n=this._pressError??(a&&e.error?String(e.error):void 0);return R`
+    `}_subtitle(e){const t=this.hass,a=[],s=new Intl.DateTimeFormat(t.language,{day:"numeric",month:"numeric"}),i="string"==typeof e.week_from?new Date(`${e.week_from}T12:00:00`):void 0,r="string"==typeof e.week_to?new Date(`${e.week_to}T12:00:00`):void 0;return i&&r&&!Number.isNaN(i.getTime())&&!Number.isNaN(r.getTime())&&a.push(`${s.format(i)} – ${s.format(r)}`),"student"!==e.audience&&"parent"!==e.audience||a.push(je(t,`card.ai_summary.for_${e.audience}`)),a.join(" · ")}_nextRun(e){const t=this.hass;if(e.paused)return je(t,"card.ai_summary.paused");const a="string"==typeof e.next_run?new Date(e.next_run):void 0;if(!a||Number.isNaN(a.getTime()))return"";return je(t,"card.ai_summary.next_run",{when:new Intl.DateTimeFormat(t.language,{weekday:"short",day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}).format(a)})}_footer(e,t,a,s){const i=this.hass,r=t&&!0!==this._config?.hide_generate,o=this._pressError??(s&&e.error?String(e.error):void 0);return W`
       <div class="foot">
         <div class="foot-text">
-          ${a?R`<span>${this._nextRun(e)}</span><span>${ze(s,"card.ai_summary.disclaimer")}</span>`:q}
-          ${n?R`<span class="err">${n}</span>`:q}
+          ${s?W`<span>${this._nextRun(e)}</span><span>${je(i,"card.ai_summary.disclaimer")}</span>`:q}
+          ${o?W`<span class="err">${o}</span>`:q}
         </div>
-        ${r?R`<button class="gen" type="button" ?disabled=${i} @click=${()=>this._generate(t)}>
-              <ha-icon icon=${i?"mdi:timer-sand":"mdi:refresh"}></ha-icon>
-              ${ze(s,i?"card.ai_summary.generating":"card.ai_summary.generate")}
+        ${r?W`<button class="gen" type="button" ?disabled=${a} @click=${()=>this._generate(t)}>
+              <ha-icon icon=${a?"mdi:timer-sand":"mdi:refresh"}></ha-icon>
+              ${je(i,a?"card.ai_summary.generating":"card.ai_summary.generate")}
             </button>`:q}
       </div>
-    `}async _generate(e){if(this.hass&&!this._pressing){this._pressing=!0,this._pressError=void 0;try{await this.hass.callService("button","press",{entity_id:e})}catch(e){this._pressError=e instanceof Error?e.message:String(e?.message??e)}finally{this._pressing=!1}}}_tabs(e,t,i){const a=this.hass;return R`
+    `}async _generate(e){if(this.hass&&!this._pressing){this._pressing=!0,this._pressError=void 0;try{await this.hass.callService("button","press",{entity_id:e})}catch(e){this._pressError=e instanceof Error?e.message:String(e?.message??e)}finally{this._pressing=!1}}}_tabs(e,t,a){const s=this.hass;return W`
       <div class="tabs" role="tablist">
-        ${t.map(t=>{const s=ba[e[t]?.status??""]??"none";return R`
+        ${t.map(t=>{const i=Zs[e[t]?.status??""]??"none";return W`
             <button
               class="tab"
               type="button"
               role="tab"
-              aria-selected=${t===i?"true":"false"}
+              aria-selected=${t===a?"true":"false"}
               @click=${()=>this._tab=t}
             >
-              <span class="sdot ${s}"></span>${ze(a,`ai_summary.section.${t}`)}
+              <span class="sdot ${i}"></span>${je(s,`ai_summary.section.${t}`)}
             </button>
           `})}
       </div>
-    `}_panel(e,t){const i=this.hass,a=t.status?ba[t.status]:void 0;return R`
+    `}_panel(e,t){const a=this.hass,s=t.status?Zs[t.status]:void 0;return W`
       <div class="panel" role="tabpanel">
         <div class="panel-head">
-          <span>${ze(i,`ai_summary.section.${e}`)}</span>
-          ${a?R`<span class="pill small ${a}">${ze(i,`ai_summary.status.${t.status}`)}</span>`:q}
+          <span>${je(a,`ai_summary.section.${e}`)}</span>
+          ${s?W`<span class="pill small ${s}">${je(a,`ai_summary.status.${t.status}`)}</span>`:q}
         </div>
         <div class="prose">${this._paragraphs(t.text??"")}</div>
       </div>
-    `}_paragraphs(e){return e.split(/\n\s*\n/).map(e=>e.trim()).filter(Boolean).map(e=>R`<p>${e}</p>`)}};_a.styles=[Oe,Fe,n`
+    `}_paragraphs(e){return e.split(/\n\s*\n/).map(e=>e.trim()).filter(Boolean).map(e=>W`<p>${e}</p>`)}};Vs.styles=[Je,Ze,o`
       .pill {
         font-size: 0.72rem;
         font-weight: 700;
@@ -3970,4 +5218,4 @@ const he=e=>(t,i)=>{void 0!==i?i.addInitializer(()=>{customElements.define(e,t)}
       :host(.compact) .foot-text {
         display: none;
       }
-    `],e([ge()],_a.prototype,"_config",void 0),e([ge()],_a.prototype,"_tab",void 0),e([ge()],_a.prototype,"_pressing",void 0),e([ge()],_a.prototype,"_pressError",void 0),_a=e([he("librus-ai-summary-card")],_a),window.customCards=window.customCards||[],window.customCards.push({type:"librus-grades-card",name:"Librus - Średnia ocen",description:"Średnia ogólna i średnie z każdego przedmiotu, z paskami porównawczymi.",preview:!0},{type:"librus-grade-log-card",name:"Librus - Dziennik ocen",description:"Wszystkie oceny ze wszystkich przedmiotów w jednej chronologicznej liście.",preview:!0},{type:"librus-subject-grades-card",name:"Librus - Oceny z przedmiotu",description:"Pełna lista ocen z JEDNEGO wybranego przedmiotu (wybór w konfiguracji karty).",preview:!0},{type:"librus-grade-trend-card",name:"Librus - Trend średniej",description:"Jak zmieniała się średnia (ogólna lub przedmiotu) w ostatnich 60 dniach.",preview:!0},{type:"librus-grade-goal-card",name:"Librus - Cel oceny",description:"Postęp do wybranej docelowej średniej (ogólnej lub z przedmiotu) + ile ocen brakuje.",preview:!0},{type:"librus-grade-simulator-card",name:"Librus - Symulator ocen",description:"A gdyby następna ocena to __ (waga __)? Zobacz, gdzie wylądowałaby średnia z przedmiotu.",preview:!0},{type:"librus-semester-comparison-card",name:"Librus - Porównanie semestrów",description:"Średnia z semestru 1 i 2 dla każdego przedmiotu obok siebie, ze zmianą.",preview:!0},{type:"librus-grade-distribution-card",name:"Librus - Rozkład ocen",description:"Histogram: ile było szóstek, piątek, czwórek itd. ze wszystkich przedmiotów.",preview:!0},{type:"librus-grades-radar-card",name:"Librus - Profil ocen (radar)",description:"Wykres pajęczynowy średnich wszystkich przedmiotów na jednym wykresie.",preview:!0},{type:"librus-grade-category-distribution-card",name:"Librus - Oceny wg kategorii",description:"Poziomy wykres słupkowy: ile ocen ze sprawdzianów, kartkówek, odpowiedzi itd.",preview:!0},{type:"librus-latest-grade-card",name:"Librus - Ostatnia ocena",description:"Najnowsza ocena ze wszystkich przedmiotów, wraz z komentarzem nauczyciela.",preview:!0},{type:"librus-behaviour-grade-card",name:"Librus - Ocena zachowania",description:"Formalna ocena zachowania, odrębna od uwag.",preview:!0},{type:"librus-descriptive-grades-card",name:"Librus - Oceny opisowe",description:"Oceny opisowe (nienumeryczne), jeśli szkoła je stosuje.",preview:!0},{type:"librus-subject-spotlight-card",name:"Librus - Najlepszy i najsłabszy przedmiot",description:"Dwa skrajne przedmioty wg średniej, obliczone z sensorów średnich per przedmiot.",preview:!0},{type:"librus-attendance-card",name:"Librus - Frekwencja",description:"Liczba realnych nieobecności i spóźnień, z rozbiciem na typy, % i podziałem na semestr.",preview:!0},{type:"librus-attendance-tile-card",name:"Librus - Frekwencja (kafelek)",description:"Kompaktowy kafelek z liczbą nieobecności i frekwencją %.",preview:!0},{type:"librus-attendance-heatmap-card",name:"Librus - Frekwencja (mapa roku)",description:"Mapa dni całego roku szkolnego kolorowana wg statusu frekwencji, w stylu GitHub contributions.",preview:!0},{type:"librus-attendance-weekday-card",name:"Librus - Nieobecności wg dnia tygodnia",description:"Słupek na każdy dzień tygodnia podzielony na usprawiedliwione/nieusprawiedliwione/spóźnienia.",preview:!0},{type:"librus-attendance-subject-card",name:"Librus - Nieobecności wg przedmiotu",description:"Ranking przedmiotów wg liczby nieobecności, podzielony na usprawiedliwione/nieusprawiedliwione.",preview:!0},{type:"librus-behaviour-notices-card",name:"Librus - Uwagi",description:"Lista uwag z kategorią i zabarwieniem (pozytywna/negatywna/neutralna).",preview:!0},{type:"librus-behaviour-notices-tile-card",name:"Librus - Uwagi (kafelek)",description:"Kompaktowy kafelek z liczbą uwag i ostatnią kategorią.",preview:!0},{type:"librus-messages-card",name:"Librus - Wiadomości",description:"Nieprzeczytane wiadomości ze wszystkich skrzynek i podgląd ostatnich z odebranych.",preview:!0},{type:"librus-messages-tile-card",name:"Librus - Wiadomości (kafelek)",description:"Kompaktowy kafelek z liczbą nieprzeczytanych i ostatnim nadawcą.",preview:!0},{type:"librus-substitutions-card",name:"Librus - Zastępstwa i alerty",description:"Pełna treść zastępstw i alertów - kliknij, by rozwinąć.",preview:!0},{type:"librus-announcements-card",name:"Librus - Ogłoszenia",description:"Nieprzeczytane ogłoszenia z tablicy szkolnej.",preview:!0},{type:"librus-announcements-tile-card",name:"Librus - Ogłoszenia (kafelek)",description:"Kompaktowy kafelek z liczbą nieprzeczytanych ogłoszeń.",preview:!0},{type:"librus-homework-assignments-card",name:"Librus - Zadania domowe",description:"Lista realnych zadań domowych z terminami.",preview:!0},{type:"librus-homework-checklist-card",name:"Librus - Zadania do odhaczenia",description:"Zadania domowe z polem wyboru - odhaczone lądują na dole (stan zapisany lokalnie w przeglądarce).",preview:!0},{type:"librus-recent-activity-card",name:"Librus - Co nowego",description:"Wspólny, chronologiczny feed najnowszych ocen, uwag, ogłoszeń i wiadomości.",preview:!0},{type:"librus-today-lessons-card",name:"Librus - Dzisiejszy plan lekcji",description:"Oś czasu dzisiejszych lekcji z podświetleniem aktualnej.",preview:!0},{type:"librus-next-lesson-tile-card",name:"Librus - Najbliższa lekcja",description:"Kompaktowy kafelek z najbliższą lub trwającą lekcją.",preview:!0},{type:"librus-agenda-card",name:"Librus - Terminarz",description:"Nadchodzące wydarzenia z terminarza, pogrupowane wg dnia.",preview:!0},{type:"librus-exam-countdown-card",name:"Librus - Najbliższy sprawdzian",description:"Odliczanie do najbliższego sprawdzianu z terminarza, wyodrębnione z ogólnej listy.",preview:!0},{type:"librus-free-days-card",name:"Librus - Dni wolne",description:"Odliczanie do najbliższej przerwy i lista kolejnych dni wolnych.",preview:!0},{type:"librus-free-days-tile-card",name:"Librus - Dni wolne (kafelek)",description:"Kompaktowy kafelek z odliczaniem do najbliższej przerwy.",preview:!0},{type:"librus-week-timetable-card",name:"Librus - Plan tygodniowy",description:"Siatka planu lekcji na cały tydzień.",preview:!0},{type:"librus-bell-schedule-card",name:"Librus - Plan dnia",description:"Rozkład dzwonków na dziś z podświetleniem bieżącej lekcji.",preview:!0},{type:"librus-subject-time-card",name:"Librus - Podział czasu lekcji",description:"Poziomy wykres słupkowy liczby lekcji w tygodniu na przedmiot, z planu lekcji.",preview:!0},{type:"librus-school-card",name:"Librus - Szkoła i klasa",description:"Nazwa i adres szkoły, klasa, wychowawca, terminy semestru.",preview:!0},{type:"librus-school-year-card",name:"Librus - Koniec roku szkolnego",description:"Odliczanie do końca roku szkolnego, pasek postępu roku i data końca semestru.",preview:!0},{type:"librus-today-card",name:"Librus - Dziś",description:"Szczęśliwy numerek, nieprzeczytane wiadomości/ogłoszenia i najbliższa lekcja w jednym miejscu.",preview:!0},{type:"librus-tomorrow-card",name:"Librus - Jutro",description:"Następny dzień nauki: lekcje, zadania na termin i sprawdziany (ogarnia weekend).",preview:!0},{type:"librus-first-lesson-card",name:"Librus - Pierwsza lekcja",description:"O której i od czego zaczyna każde dziecko dziś i w następny dzień nauki - wszystkie dzieci na jednej karcie.",preview:!0},{type:"librus-week-summary-card",name:"Librus - Tydzień w skrócie",description:"Nowe oceny, nieobecności, uwagi i najbliższe wydarzenie w tym tygodniu.",preview:!0},{type:"librus-lucky-number-card",name:"Librus - Szczęśliwy numerek",description:"Dzisiejszy szczęśliwy numerek w dużym formacie.",preview:!0},{type:"librus-student-card",name:"Librus - Karta ucznia",description:"Zabawowa karta w stylu trading-card, licząca ogólną ocenę z frekwencji/zachowania/ocen/aktywności.",preview:!0},{type:"librus-streak-card",name:"Librus - Passy",description:"Trzy serie: bez nieobecności, bez uwag, dobrych ocen z rzędu.",preview:!0},{type:"librus-rank-card",name:"Librus - Ranga",description:"Brąz/Srebro/Złoto/Diament wg średniej ocen, z pierścieniem postępu do kolejnej rangi.",preview:!0},{type:"librus-achievements-card",name:"Librus - Osiągnięcia",description:"Gablota trofeów - odblokowane odznaki grywalizacji (pierwsza szóstka, serie ocen/frekwencji/zachowania). Śledzi je na żywo od dodania karty.",preview:!0},{type:"librus-teachers-card",name:"Librus - Nauczyciele",description:"Wychowawca i nauczyciele przedmiotów, wyliczeni z planu lekcji.",preview:!0},{type:"librus-level-card",name:"Librus - Poziom",description:"Licznik XP za oceny i frekwencję z pierścieniem postępu - w przeciwieństwie do Rangi rośnie tylko w górę.",preview:!0},{type:"librus-hero-card",name:"Librus - Bohater",description:"Jeden wynik liczony z ocen, frekwencji, zachowania i serii - jako archetyp ucznia albo postać RPG (tryb w ustawieniach karty).",preview:!0},{type:"librus-hero-stats-card",name:"Librus - Statystyki bohatera",description:"Karta postaci RPG - sześć statystyk (Siła/Intelekt/Wiedza/Charyzma/Wytrwałość/Szczęście) na wykresie radarowym, liczonych z ocen, frekwencji, zachowania i rangi.",preview:!0},{type:"librus-hero-history-card",name:"Librus - Historia bohatera",description:"Oś czasu poprzednich wyników karty Bohater - kiedy się zmieniały i jak długo trwały (śledzone od dodania karty, lokalnie w przeglądarce).",preview:!0},{type:"librus-last-update-tile-card",name:"Librus - Ostatnia aktualizacja",description:"Ile czasu temu integracja ostatnio pobrała dane z Librusa.",preview:!0},{type:"librus-ai-summary-card",name:"Librus - Podsumowanie tygodnia (AI)",description:"Tygodniowe podsumowanie nauki napisane przez AI: oceny, frekwencja, zachowanie, następny tydzień i rady.",preview:!0}),console.info("%c LIBRUS-SYNERGIA-CARDS %c 53 cards loaded ","color: #fff; background: #4f46e5; font-weight: 700; border-radius: 3px 0 0 3px; padding: 2px 6px;","color: #4f46e5; background: transparent; font-weight: 500;");
+    `],e([me()],Vs.prototype,"_config",void 0),e([me()],Vs.prototype,"_tab",void 0),e([me()],Vs.prototype,"_pressing",void 0),e([me()],Vs.prototype,"_pressError",void 0),Vs=e([he("librus-ai-summary-card")],Vs),window.customCards=window.customCards||[],window.customCards.push({type:"librus-grades-card",name:"Librus - Średnia ocen",description:"Średnia ogólna i średnie z każdego przedmiotu, z paskami porównawczymi.",preview:!0},{type:"librus-lesson-topics-card",name:"Librus - Co było na lekcji",description:"Tematy lekcji z ostatnich dni szkolnych, dzień po dniu; lekcje z nieobecnością wyróżnione.",preview:!0},{type:"librus-school-trips-card",name:"Librus - Wycieczki",description:"Najbliższa wycieczka szkolna: data, transport, trasa i opiekun, plus kolejne wycieczki.",preview:!0},{type:"librus-exam-prep-card",name:"Librus - Do sprawdzianu",description:"Sprawdziany z najbliższych dni z tematami do powtórki od poprzedniego sprawdzianu; opuszczone lekcje wyróżnione.",preview:!0},{type:"librus-school-documents-card",name:"Librus - Dokumenty szkoły",description:"Formularze i regulaminy udostępnione przez szkołę, z linkiem do otwarcia w Synergii.",preview:!0},{type:"librus-justifications-card",name:"Librus - Usprawiedliwienia",description:"Dni do usprawiedliwienia i wysłane usprawiedliwienia z decyzją szkoły.",preview:!0},{type:"librus-grade-log-card",name:"Librus - Dziennik ocen",description:"Wszystkie oceny ze wszystkich przedmiotów w jednej chronologicznej liście.",preview:!0},{type:"librus-subject-grades-card",name:"Librus - Oceny z przedmiotu",description:"Pełna lista ocen z JEDNEGO wybranego przedmiotu (wybór w konfiguracji karty).",preview:!0},{type:"librus-grade-trend-card",name:"Librus - Trend średniej",description:"Jak zmieniała się średnia (ogólna lub przedmiotu) w ostatnich 60 dniach.",preview:!0},{type:"librus-grade-goal-card",name:"Librus - Cel oceny",description:"Postęp do wybranej docelowej średniej (ogólnej lub z przedmiotu) + ile ocen brakuje.",preview:!0},{type:"librus-grade-simulator-card",name:"Librus - Symulator ocen",description:"A gdyby następna ocena to __ (waga __)? Zobacz, gdzie wylądowałaby średnia z przedmiotu.",preview:!0},{type:"librus-semester-comparison-card",name:"Librus - Porównanie semestrów",description:"Średnia z semestru 1 i 2 dla każdego przedmiotu obok siebie, ze zmianą.",preview:!0},{type:"librus-grade-distribution-card",name:"Librus - Rozkład ocen",description:"Histogram: ile było szóstek, piątek, czwórek itd. ze wszystkich przedmiotów.",preview:!0},{type:"librus-grades-radar-card",name:"Librus - Profil ocen (radar)",description:"Wykres pajęczynowy średnich wszystkich przedmiotów na jednym wykresie.",preview:!0},{type:"librus-grade-category-distribution-card",name:"Librus - Oceny wg kategorii",description:"Poziomy wykres słupkowy: ile ocen ze sprawdzianów, kartkówek, odpowiedzi itd.",preview:!0},{type:"librus-latest-grade-card",name:"Librus - Ostatnia ocena",description:"Najnowsza ocena ze wszystkich przedmiotów, wraz z komentarzem nauczyciela.",preview:!0},{type:"librus-behaviour-grade-card",name:"Librus - Ocena zachowania",description:"Formalna ocena zachowania, odrębna od uwag.",preview:!0},{type:"librus-descriptive-grades-card",name:"Librus - Oceny opisowe",description:"Oceny opisowe (nienumeryczne), jeśli szkoła je stosuje.",preview:!0},{type:"librus-subject-spotlight-card",name:"Librus - Najlepszy i najsłabszy przedmiot",description:"Dwa skrajne przedmioty wg średniej, obliczone z sensorów średnich per przedmiot.",preview:!0},{type:"librus-attendance-card",name:"Librus - Frekwencja",description:"Liczba realnych nieobecności i spóźnień, z rozbiciem na typy, % i podziałem na semestr.",preview:!0},{type:"librus-attendance-tile-card",name:"Librus - Frekwencja (kafelek)",description:"Kompaktowy kafelek z liczbą nieobecności i frekwencją %.",preview:!0},{type:"librus-attendance-heatmap-card",name:"Librus - Frekwencja (mapa roku)",description:"Mapa dni całego roku szkolnego kolorowana wg statusu frekwencji, w stylu GitHub contributions.",preview:!0},{type:"librus-attendance-weekday-card",name:"Librus - Nieobecności wg dnia tygodnia",description:"Słupek na każdy dzień tygodnia podzielony na usprawiedliwione/nieusprawiedliwione/spóźnienia.",preview:!0},{type:"librus-attendance-subject-card",name:"Librus - Nieobecności wg przedmiotu",description:"Ranking przedmiotów wg liczby nieobecności, podzielony na usprawiedliwione/nieusprawiedliwione.",preview:!0},{type:"librus-school-day-card",name:"Librus - Dzień szkolny",description:"Lekcje dzisiaj (albo w następny dzień szkolny) jako pasek: bieżąca podświetlona, odwołane przekreślone, pod spodem co teraz i ile zostało.",preview:!0},{type:"librus-report-card-card",name:"Librus - Świadectwo (prognoza)",description:"Przewidywane oceny na świadectwo ze średnich: kafelki przedmiotów, średnia świadectwa, droga do paska i co jedna ocena może zmienić.",preview:!0},{type:"librus-subject-attendance-card",name:"Librus - Frekwencja z przedmiotów",description:"Kafelki z procentem obecności na każdym przedmiocie, kolorem widać, gdzie jest problem.",preview:!0},{type:"librus-behaviour-notices-card",name:"Librus - Uwagi",description:"Lista uwag z kategorią i zabarwieniem (pozytywna/negatywna/neutralna).",preview:!0},{type:"librus-behaviour-notices-tile-card",name:"Librus - Uwagi (kafelek)",description:"Kompaktowy kafelek z liczbą uwag i ostatnią kategorią.",preview:!0},{type:"librus-messages-card",name:"Librus - Wiadomości",description:"Nieprzeczytane wiadomości ze wszystkich skrzynek i podgląd ostatnich z odebranych.",preview:!0},{type:"librus-messages-tile-card",name:"Librus - Wiadomości (kafelek)",description:"Kompaktowy kafelek z liczbą nieprzeczytanych i ostatnim nadawcą.",preview:!0},{type:"librus-substitutions-card",name:"Librus - Zastępstwa i alerty",description:"Pełna treść zastępstw i alertów - kliknij, by rozwinąć.",preview:!0},{type:"librus-announcements-card",name:"Librus - Ogłoszenia",description:"Nieprzeczytane ogłoszenia z tablicy szkolnej.",preview:!0},{type:"librus-announcements-tile-card",name:"Librus - Ogłoszenia (kafelek)",description:"Kompaktowy kafelek z liczbą nieprzeczytanych ogłoszeń.",preview:!0},{type:"librus-homework-assignments-card",name:"Librus - Zadania domowe",description:"Lista realnych zadań domowych z terminami.",preview:!0},{type:"librus-homework-checklist-card",name:"Librus - Zadania do odhaczenia",description:"Zadania domowe z polem wyboru - odhaczone lądują na dole (stan zapisany lokalnie w przeglądarce).",preview:!0},{type:"librus-recent-activity-card",name:"Librus - Co nowego",description:"Wspólny, chronologiczny feed najnowszych ocen, uwag, ogłoszeń i wiadomości.",preview:!0},{type:"librus-today-lessons-card",name:"Librus - Dzisiejszy plan lekcji",description:"Oś czasu dzisiejszych lekcji z podświetleniem aktualnej.",preview:!0},{type:"librus-next-lesson-tile-card",name:"Librus - Najbliższa lekcja",description:"Kompaktowy kafelek z najbliższą lub trwającą lekcją.",preview:!0},{type:"librus-agenda-card",name:"Librus - Terminarz",description:"Nadchodzące wydarzenia z terminarza, pogrupowane wg dnia.",preview:!0},{type:"librus-exam-countdown-card",name:"Librus - Najbliższy sprawdzian",description:"Odliczanie do najbliższego sprawdzianu z terminarza, wyodrębnione z ogólnej listy.",preview:!0},{type:"librus-free-days-card",name:"Librus - Dni wolne",description:"Odliczanie do najbliższej przerwy i lista kolejnych dni wolnych.",preview:!0},{type:"librus-free-days-tile-card",name:"Librus - Dni wolne (kafelek)",description:"Kompaktowy kafelek z odliczaniem do najbliższej przerwy.",preview:!0},{type:"librus-week-timetable-card",name:"Librus - Plan tygodniowy",description:"Siatka planu lekcji na cały tydzień.",preview:!0},{type:"librus-bell-schedule-card",name:"Librus - Plan dnia",description:"Rozkład dzwonków na dziś z podświetleniem bieżącej lekcji.",preview:!0},{type:"librus-subject-time-card",name:"Librus - Podział czasu lekcji",description:"Poziomy wykres słupkowy liczby lekcji w tygodniu na przedmiot, z planu lekcji.",preview:!0},{type:"librus-school-card",name:"Librus - Szkoła i klasa",description:"Nazwa i adres szkoły, klasa, wychowawca, terminy semestru.",preview:!0},{type:"librus-school-year-card",name:"Librus - Koniec roku szkolnego",description:"Odliczanie do końca roku szkolnego, pasek postępu roku i data końca semestru.",preview:!0},{type:"librus-today-card",name:"Librus - Dziś",description:"Szczęśliwy numerek, nieprzeczytane wiadomości/ogłoszenia i najbliższa lekcja w jednym miejscu.",preview:!0},{type:"librus-tomorrow-card",name:"Librus - Jutro",description:"Następny dzień nauki: lekcje, zadania na termin i sprawdziany (ogarnia weekend).",preview:!0},{type:"librus-first-lesson-card",name:"Librus - Pierwsza lekcja",description:"O której i od czego zaczyna każde dziecko dziś i w następny dzień nauki - wszystkie dzieci na jednej karcie.",preview:!0},{type:"librus-week-summary-card",name:"Librus - Tydzień w skrócie",description:"Nowe oceny, nieobecności, uwagi i najbliższe wydarzenie w tym tygodniu.",preview:!0},{type:"librus-lucky-number-card",name:"Librus - Szczęśliwy numerek",description:"Dzisiejszy szczęśliwy numerek w dużym formacie.",preview:!0},{type:"librus-student-card",name:"Librus - Karta ucznia",description:"Zabawowa karta w stylu trading-card, licząca ogólną ocenę z frekwencji/zachowania/ocen/aktywności.",preview:!0},{type:"librus-streak-card",name:"Librus - Passy",description:"Trzy serie: bez nieobecności, bez uwag, dobrych ocen z rzędu.",preview:!0},{type:"librus-rank-card",name:"Librus - Ranga",description:"Brąz/Srebro/Złoto/Diament wg średniej ocen, z pierścieniem postępu do kolejnej rangi.",preview:!0},{type:"librus-achievements-card",name:"Librus - Osiągnięcia",description:"Gablota trofeów - odblokowane odznaki grywalizacji (pierwsza szóstka, serie ocen/frekwencji/zachowania). Śledzi je na żywo od dodania karty.",preview:!0},{type:"librus-teachers-card",name:"Librus - Nauczyciele",description:"Wychowawca i nauczyciele przedmiotów, wyliczeni z planu lekcji.",preview:!0},{type:"librus-level-card",name:"Librus - Poziom",description:"Licznik XP za oceny i frekwencję z pierścieniem postępu - w przeciwieństwie do Rangi rośnie tylko w górę.",preview:!0},{type:"librus-hero-card",name:"Librus - Bohater",description:"Jeden wynik liczony z ocen, frekwencji, zachowania i serii - jako archetyp ucznia albo postać RPG (tryb w ustawieniach karty).",preview:!0},{type:"librus-hero-stats-card",name:"Librus - Statystyki bohatera",description:"Karta postaci RPG - sześć statystyk (Siła/Intelekt/Wiedza/Charyzma/Wytrwałość/Szczęście) na wykresie radarowym, liczonych z ocen, frekwencji, zachowania i rangi.",preview:!0},{type:"librus-hero-history-card",name:"Librus - Historia bohatera",description:"Oś czasu poprzednich wyników karty Bohater - kiedy się zmieniały i jak długo trwały (śledzone od dodania karty, lokalnie w przeglądarce).",preview:!0},{type:"librus-last-update-tile-card",name:"Librus - Ostatnia aktualizacja",description:"Ile czasu temu integracja ostatnio pobrała dane z Librusa.",preview:!0},{type:"librus-ai-summary-card",name:"Librus - Podsumowanie tygodnia (AI)",description:"Tygodniowe podsumowanie nauki napisane przez AI: oceny, frekwencja, zachowanie, następny tydzień i rady.",preview:!0}),console.info("%c LIBRUS-SYNERGIA-CARDS %c 64 cards loaded ","color: #fff; background: #4f46e5; font-weight: 700; border-radius: 3px 0 0 3px; padding: 2px 6px;","color: #4f46e5; background: transparent; font-weight: 500;");

@@ -1,12 +1,22 @@
 {
   "domain": "librus_synergia",
   "name": "Librus Synergia (unofficial)",
-  "codeowners": ["@MichalZaniewicz"],
+  "after_dependencies": [
+    "recorder"
+  ],
+  "codeowners": [
+    "@MichalZaniewicz"
+  ],
   "config_flow": true,
-  "documentation": "https://github.com/MichalZaniewicz/ha-librus-synergia",
+  "dependencies": [
+    "http"
+  ],
+  "documentation": "https://github.com/MichalZaniewicz/ha-librus-synergia/wiki",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/MichalZaniewicz/ha-librus-synergia/issues",
-  "requirements": ["librus-synergia==0.3.1"],
-  "version": "0.10.0"
+  "requirements": [
+    "librus-synergia==0.3.7"
+  ],
+  "version": "0.12.1"
 }

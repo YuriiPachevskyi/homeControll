@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -11,7 +11,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, UnitOfTime
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -37,41 +37,58 @@ class _MinuteTick:  # homeControll local patch: minute tick
 from librus_synergia.models import (
     AttendanceTypeData,
     BehaviourGradeData,
-    GradeCategoryData,
     GradeData,
     HomeworkEventData,
     LessonData,
     LibrusData,
     MessageData,
+    PointGradeData,
 )
+from librus_synergia.parsers import justified_dates, plan_differences, point_grades_percentage
 
 from . import LibrusConfigEntry, librus_device_info
 from .ai_summary import MAX_STATE_LENGTH, LibrusWeeklySummary
 from .const import (
     ATTR_SUBJECT_ID,
-    DOMAIN,
     AVERAGE_MODE_ARITHMETIC,
     AVERAGE_MODE_WEIGHTED,
     CONF_ANNOUNCEMENTS_ENABLED,
     CONF_AVERAGE_MODE,
     CONF_BEHAVIOUR_GRADES_ENABLED,
     CONF_DESCRIPTIVE_GRADES_ENABLED,
+    CONF_HIDE_EMPTY_SUBJECTS,
     CONF_STUDENT_NUMBER,
     DEFAULT_ANNOUNCEMENTS_ENABLED,
     DEFAULT_AVERAGE_MODE,
     DEFAULT_BEHAVIOUR_GRADES_ENABLED,
     DEFAULT_DESCRIPTIVE_GRADES_ENABLED,
+    DEFAULT_HIDE_EMPTY_SUBJECTS,
+    DOMAIN,
+    STATUS_OPTIONS,
 )
 from .coordinator import (
     LibrusDataUpdateCoordinator,
     days_since_last_absence,
-    calculate_average as _calculate_average,
     days_since_last_negative_note,
     good_grade_streak,
+    grade_improvements,
     infer_subject_id,
-    parse_grade_value,
+    lesson_change,
+    school_file_url,
     teacher_subject_ids,
 )
+from .coordinator import (
+    calculate_average as _calculate_average,
+)
+from .exam_prep import ExamPrep, exam_prep, topics_as_dicts, upcoming_exams
+from .forecast import (
+    HONOURS_AVERAGE,
+    SubjectForecast,
+    forecast_basis,
+    report_average,
+    subject_forecasts,
+)
+from .school_day import MinuteRefresh, SchoolDay, next_end, next_start, school_days
 
 
 def _latest_grade(grades: list[GradeData], *, subject_id: int | None = None) -> GradeData | None:
@@ -174,29 +191,21 @@ def _lesson_attrs(
         ),
         "is_substitution": lesson.is_substitution,
         "has_parallel_group": _has_parallel_group(day, lesson, data),
+        **_lesson_change_attrs(day, lesson, data),
     }
 
 
-# Agenda ("HomeWorks") category names that mark a graded assessment worth
-# counting down to. `Sprawdzian` and `Diagnoza` are confirmed-live real
-# category names for this account; "praca klasowa"/"kartkówka"/"egzamin"
-# are the other standard Polish assessment names. Best-effort by design -
-# a school naming a test category something else just won't be picked up
-# (no false positives is the priority over catching every one).
-#
-# CONFIRMED real-world gap (GitHub issue #1, "Kartkowki w inne"): some
-# teachers file a "kartkówka" under the generic `Inne` (Other) category
-# and only name it in the free-text description instead - a category-only
-# match misses these entirely. `_upcoming()` below therefore also tests
-# `item.content` against this same regex as a fallback whenever the
-# category itself doesn't match, rather than requiring a second, separate
-# keyword list to stay in sync with this one.
-#
-# "quiz" added on user request (same issue thread) - another word some
-# teachers use for a short/informal test, same as "kartkówka".
-_EXAM_CATEGORY_RE = re.compile(
-    r"sprawdzian|praca\s+klasowa|kartków|egzamin|diagnoz|quiz", re.IGNORECASE
-)
+def _lesson_change_attrs(day: date, lesson: LessonData, data: LibrusData) -> dict[str, Any]:
+    """`change` (substitution / room_change / moved) and the original
+    subject, teacher and room of a substituted lesson."""
+    change = lesson_change(day, lesson, data)
+    return {
+        "change": change["kind"],
+        "room_changed": change["room_changed"],
+        "original_classroom": change["original_classroom"],
+        "original_subject": change["original_subject"],
+        "original_teacher": change["original_teacher"],
+    }
 
 
 def _bell_schedule(timetable: dict[date, list[LessonData]]) -> list[dict[str, Any]]:
@@ -239,6 +248,56 @@ def _subject_teachers(data: LibrusData) -> dict[str, list[str]]:
     return {subject: sorted(names) for subject, names in sorted(seen.items())}
 
 
+def _point_grade_log(data: LibrusData, grades: list[PointGradeData]) -> list[dict[str, Any]]:
+    """Point grades newest first, for attributes."""
+    return [
+        {
+            "value": g.value,
+            "points": g.points,
+            "max_points": g.max_points,
+            "percentage": g.percentage,
+            "category": g.category,
+            "weight": g.weight,
+            "counts_to_average": g.counts_to_average,
+            "date": g.add_date,
+            "subject": data.subjects.get(g.subject_id) if g.subject_id is not None else None,
+            "teacher": data.teachers.get(g.teacher_id) if g.teacher_id is not None else None,
+        }
+        for g in sorted(grades, key=lambda g: g.add_date or "", reverse=True)
+    ]
+
+
+def _text_grade_attrs(data: LibrusData, subject_id: int) -> dict[str, Any]:
+    """A subject's text grades (free text instead of a number) - only when
+    it has any."""
+    grades = [g for g in data.text_grades if g.subject_id == subject_id]
+    if not grades:
+        return {}
+    return {
+        "text_grades": [
+            {
+                "value": g.value,
+                "category": g.category,
+                "date": g.date,
+                "teacher": data.teachers.get(g.teacher_id) if g.teacher_id is not None else None,
+            }
+            for g in grades
+        ]
+    }
+
+
+def _point_grade_attrs(data: LibrusData, subject_id: int) -> dict[str, Any]:
+    """A subject's point grades and their percentage - only when it has any,
+    so 1-6 schools see no extra attributes."""
+    grades = [g for g in data.point_grades if g.subject_id == subject_id]
+    if not grades:
+        return {}
+    return {
+        "points_percentage": point_grades_percentage(grades),
+        "point_grades": _point_grade_log(data, grades),
+    }
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: LibrusConfigEntry,
@@ -249,11 +308,19 @@ async def async_setup_entry(
     async_add_entities(
         [
             LibrusOverallAverageSensor(coordinator, entry),
+            LibrusGradeForecastSensor(coordinator, entry),
             LibrusAttendanceSensor(coordinator, entry),
             LibrusUnexcusedAbsencesSensor(coordinator, entry),
+            LibrusJustificationsSensor(coordinator, entry),
+            LibrusLessonTopicsSensor(coordinator, entry),
+            LibrusPlanChangesSensor(coordinator, entry),
+            LibrusSchoolTripsSensor(coordinator, entry),
+            LibrusSchoolDocumentsSensor(coordinator, entry),
             LibrusSubjectAttendanceSensor(coordinator, entry),
             LibrusNextLessonSensor(coordinator, entry),
             LibrusCurrentLessonSensor(coordinator, entry),
+            LibrusSchoolStartSensor(coordinator, entry),
+            LibrusSchoolEndSensor(coordinator, entry),
             LibrusNextExamSensor(coordinator, entry),
             LibrusLuckyNumberSensor(coordinator, entry),
             LibrusUnreadAnnouncementsSensor(coordinator, entry),
@@ -268,8 +335,16 @@ async def async_setup_entry(
             LibrusBehaviourStreakSensor(coordinator, entry),
             LibrusGoodGradeStreakSensor(coordinator, entry),
             LibrusRankSensor(coordinator, entry),
+            LibrusStatusSensor(coordinator, entry),
+            LibrusLastUpdateSensor(coordinator, entry),
         ]
     )
+
+    # Point grades: only at schools that use them.
+    if coordinator.point_grades_enabled or (
+        coordinator.data is not None and coordinator.data.point_grades
+    ):
+        async_add_entities([LibrusPointGradesSensor(coordinator, entry)])
 
     # The weekly AI summary exists only while an ai_task entity is picked in
     # the options.
@@ -283,16 +358,21 @@ async def async_setup_entry(
     # Subjects are only known from live account data - discover new ones as
     # the coordinator sees them and add an average sensor per subject.
     known_subject_ids: set[int] = set()
+    hide_empty = bool(entry.options.get(CONF_HIDE_EMPTY_SUBJECTS, DEFAULT_HIDE_EMPTY_SUBJECTS))
 
     def _add_new_subjects() -> None:
         data = coordinator.data
         if data is None:
             return
-        # Fall back to subject ids seen on grades even if the (unverified)
-        # Subjects lookup hasn't resolved a name for it yet.
-        seen_ids = set(data.subjects) | {
-            g.subject_id for g in data.grades if g.subject_id is not None
+        graded_ids = {
+            g.subject_id
+            for g in (*data.grades, *data.point_grades, *data.text_grades)
+            if g.subject_id is not None
         }
+        # Fall back to subject ids seen on grades even if the (unverified)
+        # Subjects lookup hasn't resolved a name for it yet. With "hide
+        # subjects without grades" on, only subjects that have a grade.
+        seen_ids = graded_ids if hide_empty else set(data.subjects) | graded_ids
         new_ids = seen_ids - known_subject_ids
         if not new_ids:
             return
@@ -301,12 +381,38 @@ async def async_setup_entry(
             LibrusSubjectAverageSensor(coordinator, entry, subject_id) for subject_id in new_ids
         )
 
+    if hide_empty and coordinator.data is not None:
+        # Turning the option on removes the existing sensors of subjects
+        # that still have no grade (the options change reloads the entry).
+        graded = {
+            str(g.subject_id)
+            for g in (
+                *coordinator.data.grades,
+                *coordinator.data.point_grades,
+                *coordinator.data.text_grades,
+            )
+            if g.subject_id is not None
+        }
+        registry = er.async_get(hass)
+        prefix, suffix = f"{entry.entry_id}_subject_", "_average"
+        for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+            uid = reg_entry.unique_id
+            if uid.startswith(prefix) and uid.endswith(suffix):
+                if uid[len(prefix) : -len(suffix)] not in graded:
+                    registry.async_remove(reg_entry.entity_id)
+
     _add_new_subjects()
     entry.async_on_unload(coordinator.async_add_listener(_add_new_subjects))
 
 
 class LibrusSensorBase(CoordinatorEntity[LibrusDataUpdateCoordinator], SensorEntity):
-    """Common bits for every Librus Synergia sensor."""
+    """Common bits for every Librus Synergia sensor.
+
+    Lists and per-item breakdowns in attributes are kept out of the recorder
+    (`_unrecorded_attributes` on each sensor): they change with every new
+    record, and storing a copy each time grows the database for no use -
+    history graphs only need the state. Templates and cards still read them
+    from the live state."""
 
     _attr_has_entity_name = True
 
@@ -371,6 +477,7 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
     discovered dynamically."""
 
     _attr_translation_key = "subject_average"
+    _unrecorded_attributes = frozenset({"grades", "latest_grade_comments", "point_grades"})
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 2
 
@@ -426,6 +533,7 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
         ]
         count = len(subject_grades)
         categories = self.coordinator.data.grade_categories
+        improves, improved = grade_improvements(grades)
         # Full per-grade list for this one subject - lets a dashboard card
         # show the actual grade log, not just the computed average. Sorted
         # newest-first; date is a plain "YYYY-MM-DD"-prefixed string from
@@ -441,6 +549,10 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
                     if g.teacher_id is not None
                     else None
                 ),
+                # Corrections: `improves` is the earlier grade's value on a
+                # correction, `improved` marks the earlier grade itself.
+                "improves": improves.get(g.id),
+                "improved": g.id in improved,
             }
             for g in sorted(subject_grades, key=lambda g: g.add_date or "", reverse=True)
         ]
@@ -478,6 +590,86 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
                 semester=2,
                 weighted=self._weighted,
             ),
+            **self._forecast_attrs(),
+            **_point_grade_attrs(self.coordinator.data, self._subject_id),
+            **_text_grade_attrs(self.coordinator.data, self._subject_id),
+        }
+
+    def _forecast_attrs(self) -> dict[str, Any]:
+        forecast = next(
+            (
+                f
+                for f in subject_forecasts(
+                    self.coordinator.data,
+                    dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date(),
+                    self.coordinator.grade_thresholds,
+                    weighted=self._weighted,
+                )
+                if f.subject_id == self._subject_id
+            ),
+            None,
+        )
+        if forecast is None:
+            return {"predicted_grade": None}
+        return {
+            # The average and weight total the forecast is computed on
+            # (this semester, or the whole year in semester 2).
+            "forecast_average": forecast.average,
+            "forecast_weight": forecast.weight_total,
+            "predicted_grade": forecast.predicted,
+            "next_grade_at": forecast.next_grade_at,
+            "sixes_to_next_grade": forecast.sixes_to_next,
+            "ones_to_drop_grade": forecast.ones_to_drop,
+            "forecast_declining": forecast.declining,
+        }
+
+
+class LibrusGradeForecastSensor(LibrusSensorBase):
+    """The report card the averages point to: state = the mean of every
+    subject's forecast grade, attributes = the forecast per subject (worst
+    first), subjects at risk of a 1 and subjects whose forecast fell by a
+    grade in the last two weeks. See forecast.py."""
+
+    _attr_translation_key = "grade_forecast"
+    _unrecorded_attributes = frozenset({"subjects"})
+    _attr_icon = "mdi:crystal-ball"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 2
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "grade_forecast")
+
+    def _forecasts(self) -> list[SubjectForecast]:
+        return subject_forecasts(
+            self.coordinator.data,
+            dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date(),
+            self.coordinator.grade_thresholds,
+            weighted=self._weighted,
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        if self.coordinator.data is None:
+            return None
+        return report_average(self._forecasts())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        data = self.coordinator.data
+        if data is None:
+            return None
+        forecasts = self._forecasts()
+        average = report_average(forecasts)
+        basis, _semester = forecast_basis(data, dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date())
+        return {
+            "basis": basis,
+            "thresholds": list(self.coordinator.grade_thresholds),
+            # Only the average part of "świadectwo z wyróżnieniem" - the
+            # behaviour grade must be at least very good as well.
+            "honours_average": average is not None and average >= HONOURS_AVERAGE,
+            "at_risk": [f.subject for f in forecasts if f.at_risk],
+            "declining": [f.subject for f in forecasts if f.declining],
+            "subjects": [f.as_dict() for f in forecasts],
         }
 
 
@@ -556,6 +748,9 @@ class LibrusAttendanceSensor(LibrusSensorBase):
     """
 
     _attr_translation_key = "attendance"
+    _unrecorded_attributes = frozenset(
+        {"breakdown", "presence_by_type", "by_date", "by_semester", "by_weekday", "by_subject"}
+    )
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:calendar-remove"
 
@@ -630,12 +825,10 @@ class LibrusAttendanceSensor(LibrusSensorBase):
             if existing is None or _STATUS_RANK[status] > _STATUS_RANK[existing]:
                 by_date[a.date] = status
 
-        # Independent attendance-percentage calculation - inspired by a
-        # feature comparison against dani3l0/librusik (a third-party
-        # Librus web client), which computes this itself rather than
-        # relying on Librus's own UI showing it (some schools disable
-        # theirs). AttendanceData.semester was already parsed but never
-        # actually used until now.
+        # Attendance percentage computed here rather than relying on
+        # Librus's own UI showing it (some schools disable theirs).
+        # AttendanceData.semester was already parsed but never actually
+        # used until now.
         total_records = len(data.attendances)
         presence_records = sum(
             1
@@ -742,9 +935,14 @@ class LibrusUnexcusedAbsencesSensor(LibrusSensorBase):
     number a parent actually needs to act on (the Attendance sensor blends
     excused and unexcused into its state). Pairs with the
     `librus_synergia_new_absence` event. `recent_dates` in attributes
-    lists the days still needing a justification."""
+    lists the days still needing a justification; `awaiting_justification`
+    leaves out the days a justification was already sent for (and not
+    rejected), `justification_sent` lists those."""
 
     _attr_translation_key = "unexcused_absences"
+    _unrecorded_attributes = frozenset(
+        {"recent_dates", "awaiting_justification", "justification_sent"}
+    )
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:account-alert-outline"
 
@@ -774,7 +972,67 @@ class LibrusUnexcusedAbsencesSensor(LibrusSensorBase):
             },
             reverse=True,
         )[:10]
-        return {"excused_count": excused, "recent_dates": recent_dates}
+        covered = justified_dates(data.justifications)
+        return {
+            "excused_count": excused,
+            "recent_dates": recent_dates,
+            "awaiting_justification": [d for d in recent_dates if d[:10] not in covered],
+            "justification_sent": [d for d in recent_dates if d[:10] in covered],
+        }
+
+
+class LibrusJustificationsSensor(LibrusSensorBase):
+    """Absence justifications the parent submitted: the state is how many
+    are still waiting for the school's decision. `recent` lists them
+    (newest first) with their status; `accepted`/`rejected`/`pending` are
+    the counts. Pairs with `librus_synergia_justification_status`."""
+
+    _attr_translation_key = "justifications"
+    _unrecorded_attributes = frozenset({"recent"})
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:file-document-check-outline"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "justifications")
+
+    @property
+    def native_value(self) -> int | None:
+        if self.coordinator.data is None:
+            return None
+        return sum(1 for j in self.coordinator.data.justifications if j.is_pending)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.coordinator.data is None:
+            return None
+        items = self.coordinator.data.justifications
+        return {
+            "accepted": sum(1 for j in items if j.is_accepted),
+            "rejected": sum(1 for j in items if j.is_rejected),
+            "pending": sum(1 for j in items if j.is_pending),
+            "recent": [
+                {
+                    "id": j.id,
+                    "status": j.status,
+                    # The school's decision, from `status` (whose raw
+                    # values differ between Librus versions).
+                    "decision": "accepted"
+                    if j.is_accepted
+                    else "rejected"
+                    if j.is_rejected
+                    else "pending",
+                    "posted": j.posted,
+                    "date_from": j.date_from,
+                    "date_to": j.date_to,
+                    "lessons": [{"date": day, "lesson_no": number} for day, number in j.lessons],
+                    "justified_absences": j.justified_absences,
+                    "message": j.message[:300],
+                    "teachers": j.teachers,
+                    "has_attachment": j.has_attachment,
+                }
+                for j in items[:10]
+            ],
+        }
 
 
 # Below this share of attended lessons a student can be left unclassified
@@ -823,6 +1081,7 @@ class LibrusSubjectAttendanceSensor(LibrusSensorBase):
     `subject` and `at_risk`."""
 
     _attr_translation_key = "subject_attendance"
+    _unrecorded_attributes = frozenset({"subjects"})
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_suggested_display_precision = 1
@@ -1008,6 +1267,21 @@ class LibrusRankSensor(LibrusSensorBase):
         }
 
 
+def _student_number(
+    coordinator: LibrusDataUpdateCoordinator,
+) -> tuple[int | None, str | None]:
+    """The class register number and where it came from: the number typed
+    in Configure wins (`"options"`), otherwise the one read from Librus
+    (`"librus"`: the student's record, informacja page as a fallback)."""
+    entry = coordinator.config_entry
+    raw = entry.options.get(CONF_STUDENT_NUMBER) if entry else None
+    if raw is not None:
+        return int(raw), "options"
+    if coordinator.student_number_from_librus is not None:
+        return coordinator.student_number_from_librus, "librus"
+    return None, None
+
+
 class LibrusLuckyNumberSensor(LibrusSensorBase):
     """The most recently published "szczęśliwy numerek" (lucky number).
 
@@ -1041,9 +1315,7 @@ class LibrusLuckyNumberSensor(LibrusSensorBase):
         if self.coordinator.data is None or self.coordinator.data.lucky_number is None:
             return None
         day = self.coordinator.data.lucky_number.day
-        entry = self.coordinator.config_entry
-        raw_student_number = entry.options.get(CONF_STUDENT_NUMBER) if entry else None
-        student_number = int(raw_student_number) if raw_student_number is not None else None
+        student_number, source = _student_number(self.coordinator)
         is_yours = (
             student_number == self.coordinator.data.lucky_number.number
             if student_number is not None
@@ -1053,6 +1325,7 @@ class LibrusLuckyNumberSensor(LibrusSensorBase):
             "day": day,
             "is_today": day == dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date().isoformat() if day else None,
             "student_number": student_number,
+            "student_number_source": source,
             "is_yours": is_yours,
         }
 
@@ -1063,6 +1336,7 @@ class LibrusUnreadAnnouncementsSensor(LibrusSensorBase):
     Behaviour notices and Unread messages sensors' pattern."""
 
     _attr_translation_key = "unread_announcements"
+    _unrecorded_attributes = frozenset({"recent"})
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:bullhorn"
 
@@ -1118,6 +1392,7 @@ class LibrusBehaviourNoticesSensor(LibrusSensorBase):
     """Count of behaviour notices ("uwagi"), with a short recent-items list."""
 
     _attr_translation_key = "behaviour_notices"
+    _unrecorded_attributes = frozenset({"recent"})
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:alert-circle-outline"
 
@@ -1156,11 +1431,10 @@ class LibrusBehaviourNoticesSensor(LibrusSensorBase):
 class LibrusHomeworkAssignmentsSensor(LibrusSensorBase):
     """Count of real homework assignments ("zadania domowe") - distinct
     from the Agenda calendar's general `HomeWorks` feed (tests/trips/etc.
-    too). Fields CONFIRMED via szkolny-android's reference parser
-    (2026-09-06), but never seen populated - the test account's
-    `HomeWorkAssignments` endpoint has always been empty."""
+    too). Fields confirmed live with real assignments (2026-09-17)."""
 
     _attr_translation_key = "homework_assignments"
+    _unrecorded_attributes = frozenset({"recent"})
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:notebook-edit-outline"
 
@@ -1194,6 +1468,9 @@ class LibrusHomeworkAssignmentsSensor(LibrusSensorBase):
                         else None
                     ),
                     "topic": a.topic,
+                    "category": data.homework_assignment_categories.get(a.category_id)
+                    if a.category_id is not None
+                    else None,
                     # Long instructions (projects, lapbooks) are common -
                     # 200 chars cut real ones mid-sentence.
                     "text": a.text[:1000],
@@ -1216,6 +1493,7 @@ class LibrusBehaviourGradeSensor(LibrusSensorBase):
     (`BehaviourGradeData.display`/`name`, librus-synergia 0.3.1)."""
 
     _attr_translation_key = "behaviour_grade"
+    _unrecorded_attributes = frozenset({"recent"})
     _attr_icon = "mdi:medal-outline"
 
     def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
@@ -1266,7 +1544,7 @@ class LibrusBehaviourGradeSensor(LibrusSensorBase):
                     "category": categories.get(g.category_id) if g.category_id else None,
                     "date": g.add_date,
                     "text": g.text[:200],
-                    "comments": g.comments,
+                    "comments": [c.strip() for c in g.comments],
                 }
                 for g in recent
             ]
@@ -1280,6 +1558,7 @@ class LibrusDescriptiveGradesSensor(LibrusSensorBase):
     populated."""
 
     _attr_translation_key = "descriptive_grades"
+    _unrecorded_attributes = frozenset({"recent"})
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:text-box-outline"
 
@@ -1350,12 +1629,15 @@ class LibrusUnreadMessagesSensor(LibrusSensorBase):
     Reading this sensor never marks anything read in real Librus - the
     coordinator only ever calls the message LIST/count endpoints, never a
     single-message detail endpoint (see LibrusApiClient's Wiadomości
-    methods). `unknown` if this Librus install doesn't have the messages
+    methods). `unavailable` if this Librus install doesn't have the messages
     module enabled at all (`messages_available=False`), rather than 0 -
     those are different situations and shouldn't look the same.
     """
 
     _attr_translation_key = "unread_messages"
+    _unrecorded_attributes = frozenset(
+        {"recent", "substitutions_recent", "alerts_recent", "justifications_recent"}
+    )
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:email-outline"
 
@@ -1403,6 +1685,7 @@ class LibrusSchoolSensor(LibrusSensorBase):
     (refreshed on the same 24h cadence as subjects/teachers/classrooms)."""
 
     _attr_translation_key = "school"
+    _unrecorded_attributes = frozenset({"bell_schedule", "subject_teachers"})
     _attr_icon = "mdi:school"
 
     def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
@@ -1465,6 +1748,9 @@ class LibrusClassSensor(LibrusSensorBase):
         tutor = data.teachers.get(cls.tutor_id) if cls.tutor_id is not None else None
         return {
             "homeroom_teacher": tutor,
+            # Class register number ("nr w dzienniku") - same value and
+            # precedence as the Lucky number sensor's attribute.
+            "student_number": _student_number(self.coordinator)[0],
             "school_year_start": cls.begin_school_year,
             "first_semester_end": cls.end_first_semester,
             "school_year_end": cls.end_school_year,
@@ -1560,89 +1846,459 @@ class LibrusCurrentLessonSensor(_MinuteTick, LibrusSensorBase):
         return attrs
 
 
+class _LibrusSchoolTimeSensor(MinuteRefresh, LibrusSensorBase):
+    """Timestamp of the next first-lesson start / last-lesson end - a
+    sensor an automation can trigger on with an offset ("45 minutes
+    before school starts"). Re-checked every minute so it moves on to the
+    next school day right after the moment passes."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def _pick(self) -> SchoolDay | None:
+        raise NotImplementedError
+
+    def _moment(self, school_day: SchoolDay) -> datetime:
+        raise NotImplementedError
+
+    def _lesson(self, school_day: SchoolDay) -> LessonData:
+        raise NotImplementedError
+
+    @property
+    def native_value(self) -> datetime | None:
+        picked = self._pick()
+        return self._moment(picked) if picked else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        picked = self._pick()
+        if picked is None or self.coordinator.data is None:
+            return None
+        lesson = self._lesson(picked)
+        return {
+            "date": picked.day.isoformat(),
+            "is_today": picked.day == dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date(),
+            "lesson_no": lesson.lesson_no,
+            "subject": _lesson_subject(lesson, self.coordinator.data),
+        }
+
+
+class LibrusSchoolStartSensor(_LibrusSchoolTimeSensor):
+    """Start of the first lesson of today (until it starts), then of the
+    next school day. For alarm clocks."""
+
+    _attr_translation_key = "school_start"
+    _attr_icon = "mdi:alarm"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "school_start")
+
+    def _pick(self) -> SchoolDay | None:
+        return next_start(school_days(self.coordinator.data), dt_util.now())
+
+    def _moment(self, school_day: SchoolDay) -> datetime:
+        return school_day.first_start
+
+    def _lesson(self, school_day: SchoolDay) -> LessonData:
+        return school_day.first_lesson
+
+
+class LibrusSchoolEndSensor(_LibrusSchoolTimeSensor):
+    """End of the last lesson of today (until it ends), then of the next
+    school day. For pick-up reminders."""
+
+    _attr_translation_key = "school_end"
+    _attr_icon = "mdi:home-import-outline"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "school_end")
+
+    def _pick(self) -> SchoolDay | None:
+        return next_end(school_days(self.coordinator.data), dt_util.now())
+
+    def _moment(self, school_day: SchoolDay) -> datetime:
+        return school_day.last_end
+
+    def _lesson(self, school_day: SchoolDay) -> LessonData:
+        return school_day.last_lesson
+
+
 class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):
     """Date of the next graded assessment ("sprawdzian" and friends) from
     the Agenda feed. State is a date (`device_class: date`); attributes
-    carry `days_until`, the subject, the category name, the description and
-    an `upcoming` list. `unknown` when nothing assessment-like is on the
-    agenda. Exam detection is by the Agenda category name, falling back to
-    the free-text description when the category itself doesn't match (see
-    `_EXAM_CATEGORY_RE`) - deliberately conservative."""
+    carry `days_until`, the subject, the category name, the description,
+    the topics to revise (lessons held in that subject since the previous
+    test - see exam_prep.py) and an `upcoming` list with the same for each
+    test. `unknown` when nothing assessment-like is on the agenda. Exam
+    detection is by the Agenda category name, falling back to the free-text
+    description (see `exam_prep.EXAM_RE`) - deliberately conservative."""
 
     _attr_translation_key = "next_exam"
+    _unrecorded_attributes = frozenset({"upcoming", "topics"})
     _attr_device_class = SensorDeviceClass.DATE
     _attr_icon = "mdi:file-document-alert-outline"
 
     def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
         super().__init__(coordinator, entry, "next_exam")
 
-    def _upcoming(self) -> list[tuple[date, HomeworkEventData]]:
+    def _prep(self) -> list[ExamPrep]:
         if self.coordinator.data is None:
             return []
-        data = self.coordinator.data
-        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
-        out: list[tuple[date, HomeworkEventData]] = []
-        for item in data.homeworks:
-            if not item.date:
-                continue
-            category = (
-                data.homework_categories.get(item.category_id)
-                if item.category_id is not None
-                else None
-            )
-            category_match = category is not None and _EXAM_CATEGORY_RE.search(category)
-            content_match = item.content and _EXAM_CATEGORY_RE.search(item.content)
-            if not category_match and not content_match:
-                continue
-            try:
-                day = date.fromisoformat(item.date[:10])
-            except ValueError:
-                continue
-            if day < today:
-                continue
-            out.append((day, item))
-        out.sort(key=lambda pair: pair[0])
-        return out
+        return exam_prep(self.coordinator.data, dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date(), limit=10)
 
     @property
     def native_value(self) -> date | None:
-        upcoming = self._upcoming()
+        upcoming = upcoming_exams(self.coordinator.data, dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()) if self.coordinator.data else []
         return upcoming[0][0] if upcoming else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        upcoming = self._upcoming()
-        if not upcoming:
+        preps = self._prep()
+        if not preps:
             return None
-        data = self.coordinator.data
         today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
-        day, item = upcoming[0]
-
-        def _subject(it: HomeworkEventData) -> str | None:
-            return data.subjects.get(it.subject_id) if it.subject_id is not None else None
-
-        def _category(it: HomeworkEventData) -> str | None:
-            return (
-                data.homework_categories.get(it.category_id)
-                if it.category_id is not None
-                else None
-            )
-
+        first = preps[0]
         return {
-            "days_until": (day - today).days,
-            "subject": _subject(item),
-            "category": _category(item),
-            "content": item.content,
+            "days_until": (first.day - today).days,
+            "subject": first.subject,
+            "category": first.category,
+            "content": first.item.content,
+            "topics": topics_as_dicts(first),
+            "topics_since": first.since.isoformat() if first.since else None,
+            "missed_topics": first.missed,
             "upcoming": [
                 {
-                    "date": d.isoformat(),
-                    "subject": _subject(it),
-                    "category": _category(it),
-                    "content": it.content[:200],
+                    "id": prep.item.id,
+                    "date": prep.day.isoformat(),
+                    "days_until": (prep.day - today).days,
+                    "subject": prep.subject,
+                    "category": prep.category,
+                    "content": prep.item.content[:200],
+                    "topics": topics_as_dicts(prep),
+                    "topics_since": prep.since.isoformat() if prep.since else None,
+                    "missed_topics": prep.missed,
+                    "more_topics": prep.more_topics,
                 }
-                for d, it in upcoming[:10]
+                for prep in preps
             ],
         }
+
+
+class LibrusPointGradesSensor(LibrusSensorBase):
+    """Point grades (schools grading in points or percent, e.g. 0-100):
+    the state is the share of points earned, weighted by category - only
+    categories counting towards the average. Per subject in `subjects`,
+    every grade in `recent`. Created only where the school uses them."""
+
+    _attr_translation_key = "point_grades"
+    _unrecorded_attributes = frozenset({"subjects", "recent"})
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 1
+    _attr_icon = "mdi:percent-circle-outline"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "point_grades")
+
+    @property
+    def native_value(self) -> float | None:
+        if self.coordinator.data is None:
+            return None
+        return point_grades_percentage(self.coordinator.data.point_grades)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        data = self.coordinator.data
+        if data is None:
+            return None
+        by_subject: dict[Any, list[PointGradeData]] = {}
+        for grade in data.point_grades:
+            by_subject.setdefault(grade.subject_id, []).append(grade)
+        subjects = {
+            (data.subjects.get(subject_id) if subject_id is not None else None)
+            or str(subject_id): {
+                ATTR_SUBJECT_ID: subject_id,
+                "percentage": point_grades_percentage(grades),
+                "count": len(grades),
+            }
+            for subject_id, grades in by_subject.items()
+        }
+        return {
+            "count": len(data.point_grades),
+            "subjects": dict(sorted(subjects.items())),
+            "recent": _point_grade_log(data, data.point_grades),
+        }
+
+
+def _as_lesson_no(value: Any) -> int | None:
+    """Attendances carry LessonNo raw (a string or a number)."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+class LibrusLessonTopicsSensor(LibrusSensorBase):
+    """What was taught: lessons held with their topics (Librus's
+    `Realizations`). The state is how many lessons today have a topic;
+    `today` and `recent` (the last 14 days, newest first) list them."""
+
+    _attr_translation_key = "lesson_topics"
+    _unrecorded_attributes = frozenset({"today", "recent"})
+    _attr_icon = "mdi:book-open-page-variant-outline"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "lesson_topics")
+
+    def _rows(self, since: str | None = None, only: str | None = None) -> list[dict[str, Any]]:
+        data = self.coordinator.data
+        # Lessons the student missed (a non-presence attendance record on the
+        # same date and lesson number) - "what to catch up on".
+        missed = {
+            ((a.date or "")[:10], _as_lesson_no(a.lesson_no))
+            for a in data.attendances
+            if (t := _attendance_type(data, a.type_id)) is not None and not t.is_presence_kind
+        }
+        rows = []
+        for t in data.lesson_topics:
+            day = (t.date or "")[:10]
+            if (only and day != only) or (since and day < since):
+                continue
+            rows.append(
+                {
+                    "date": day,
+                    "lesson_no": t.lesson_no,
+                    "subject": data.subjects.get(t.subject_id) if t.subject_id is not None else None,
+                    "topic": t.topic,
+                    "is_trip": t.is_trip,
+                    "absent": (day, t.lesson_no) in missed,
+                }
+            )
+        return rows
+
+    @property
+    def native_value(self) -> int | None:
+        if self.coordinator.data is None:
+            return None
+        return len(self._rows(only=dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date().isoformat()))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.coordinator.data is None:
+            return None
+        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
+        return {
+            "today": sorted(self._rows(only=today.isoformat()), key=lambda r: r["lesson_no"] or 0),
+            "recent": self._rows(since=(today - timedelta(days=14)).isoformat())[:80],
+        }
+
+
+class LibrusPlanChangesSensor(LibrusSensorBase):
+    """How this week and next differ from the standing weekly plan
+    (`TimetableEntries`): the state is how many lesson slots from today on
+    differ; `changes` lists them (cancelled, missing, extra, another
+    subject, another room, a weekday without lessons). `unknown` until the
+    standing plan has been read."""
+
+    _attr_translation_key = "plan_changes"
+    _unrecorded_attributes = frozenset({"changes"})
+    _attr_icon = "mdi:calendar-alert"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "plan_changes")
+
+    def _changes(self) -> list[dict[str, Any]] | None:
+        data = self.coordinator.data
+        if data is None or not data.standing_timetable:
+            return None
+        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
+
+        def name(table: dict[Any, str], key: Any) -> str | None:
+            # Timetable ids can come as strings ("41999"), lookups use ints.
+            if key is None:
+                return None
+            return table.get(key) or table.get(_as_lesson_no(key)) or str(key)
+
+        return [
+            {
+                "date": diff.date.isoformat(),
+                "lesson_no": diff.lesson_no,
+                "kind": diff.kind,
+                "subject": name(data.subjects, diff.subject_id),
+                "planned_subject": name(data.subjects, diff.planned_subject_id),
+                "classroom": name(data.classrooms, diff.classroom_id),
+                "planned_classroom": diff.planned_classroom,
+                "free_day": diff.free_day,
+            }
+            for diff in plan_differences(data.timetable, data.standing_timetable, data.free_days)
+            if diff.date >= today
+        ]
+
+    @property
+    def native_value(self) -> int | None:
+        changes = self._changes()
+        return len(changes) if changes is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        changes = self._changes()
+        if changes is None:
+            return None
+        return {"changes": changes}
+
+
+class LibrusSchoolTripsSensor(LibrusSensorBase):
+    """School trips: the state is the date of the next one; destination,
+    route, transport and coordinator in attributes, plus `upcoming` and
+    `past` lists."""
+
+    _attr_translation_key = "school_trips"
+    _attr_device_class = SensorDeviceClass.DATE
+    _unrecorded_attributes = frozenset({"upcoming", "past"})
+    _attr_icon = "mdi:bus-school"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "school_trips")
+
+    def _split(self) -> tuple[list[Any], list[Any]]:
+        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date().isoformat()
+        trips = self.coordinator.data.school_trips
+        upcoming = [t for t in trips if (t.date_to or t.date_from or "")[:10] >= today]
+        past = [t for t in trips if (t.date_to or t.date_from or "")[:10] < today]
+        return upcoming, past
+
+    @property
+    def native_value(self) -> date | None:
+        if self.coordinator.data is None:
+            return None
+        upcoming, _ = self._split()
+        if not upcoming or not upcoming[0].date_from:
+            return None
+        try:
+            return date.fromisoformat(upcoming[0].date_from[:10])
+        except ValueError:
+            return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.coordinator.data is None:
+            return None
+        upcoming, past = self._split()
+
+        def row(t: Any) -> dict[str, Any]:
+            return {
+                "destination": t.destination,
+                "route": t.route,
+                "transport": t.transport,
+                "date_from": t.date_from,
+                "date_to": t.date_to,
+                "coordinator": t.coordinator,
+            }
+
+        nxt = row(upcoming[0]) if upcoming else {}
+        days_until = None
+        if self.native_value is not None:
+            days_until = (self.native_value - dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()).days
+        return {
+            **nxt,
+            "days_until": days_until,
+            "upcoming": [row(t) for t in upcoming],
+            "past": [row(t) for t in reversed(past[-5:])],
+        }
+
+
+class LibrusSchoolDocumentsSensor(LibrusSensorBase):
+    """Documents the school shares with parents (forms, regulations): the
+    state is how many there are; `recent` lists them with a link (opens in
+    Synergia, where you are logged in)."""
+
+    _attr_translation_key = "school_documents"
+    _unrecorded_attributes = frozenset({"recent"})
+    _attr_icon = "mdi:file-document-multiple-outline"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "school_documents")
+
+    @property
+    def native_value(self) -> int | None:
+        if self.coordinator.data is None:
+            return None
+        return len(self.coordinator.data.school_files)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.coordinator.data is None:
+            return None
+        return {
+            "recent": [
+                {"id": f.id, "name": f.name, "added": f.added, "url": school_file_url(f.download_path)}
+                for f in self.coordinator.data.school_files[:20]
+            ]
+        }
+
+
+class LibrusStatusSensor(LibrusSensorBase):
+    """Connection health: `ok`, `degraded` (some section failed this cycle
+    and its last good copy is shown), `stale` (Librus isn't answering, the
+    last data is shown) or `error` (no usable data - the other entities are
+    unavailable). Stays available itself so the outage can be seen."""
+
+    _attr_translation_key = "status"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = STATUS_OPTIONS
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:lan-check"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "status")
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def native_value(self) -> str:
+        return self.coordinator.status
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        coordinator = self.coordinator
+
+        def iso(value: datetime | None) -> str | None:
+            return value.isoformat() if value else None
+
+        return {
+            "data_source": coordinator.data_source,
+            "last_success": iso(coordinator.last_success_at),
+            "last_attempt": iso(coordinator.last_attempt_at),
+            "last_error": coordinator.last_error,
+            "failures": coordinator.failures,
+            "next_attempt": iso(coordinator.next_attempt_at),
+            "fallback_sections": sorted(coordinator.fallback_sections),
+            "degraded_endpoints": {
+                label: since.isoformat() for label, since in coordinator.degraded_endpoints.items()
+            },
+        }
+
+
+class LibrusLastUpdateSensor(LibrusSensorBase):
+    """When Librus last answered a full refresh - survives restarts, so it
+    also tells how old the data shown during an outage is."""
+
+    _attr_translation_key = "last_update"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:cloud-clock-outline"
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "last_update")
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.last_success_at is not None
+
+    @property
+    def native_value(self) -> datetime | None:
+        return self.coordinator.last_success_at
 
 
 class LibrusWeeklySummarySensor(SensorEntity):

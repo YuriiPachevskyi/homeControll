@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Librus Synergia (nieoficjalna)",
-        "description": "Zaloguj się swoim loginem Librus (np. \"1234567u\") i hasłem. Integracja korzysta z prywatnego API webowego Librusa i może naruszać regulamin Librusa - używasz własnego konta na własne ryzyko. Sesja zwykle wygasa po około dobie i nie da się jej cicho odnowić bez hasła, dlatego - inaczej niż w niektórych integracjach - hasło JEST zapisywane (razem z sesją), żeby umożliwić automatyczne, codzienne odnawianie logowania; nigdy nie opuszcza Twojej instancji Home Assistant.",
+        "description": "Zaloguj się swoim loginem Librus (np. \"1234567u\") i hasłem. Integracja korzysta z prywatnego API webowego Librusa i może naruszać regulamin Librusa - używasz własnego konta na własne ryzyko. Integracja podtrzymuje sesję przez odświeżanie Librusa, ale gdy to niemożliwe (np. po dłuższym wyłączeniu Home Assistanta) musi zalogować się od nowa, dlatego - inaczej niż w niektórych integracjach - hasło JEST zapisywane (razem z sesją), żeby zrobić to bez pytania Cię o nie; nigdy nie opuszcza Twojej instancji Home Assistant.",
         "data": {
           "username": "Login",
           "password": "Hasło"
@@ -79,6 +79,9 @@
           "free_days_enabled": "Pobieraj kalendarz dni wolnych",
           "average_mode": "Średnia pokazywana jako stan sensora",
           "student_number": "Numer ucznia w dzienniku",
+          "grade_thresholds": "Progi prognozy ocen",
+          "hide_empty_subjects": "Ukryj przedmioty bez ocen",
+          "smart_polling": "Sprytne odświeżanie",
           "quiet_hours_enabled": "Włącz ciszę nocną (bez odpytywania w nocy)",
           "quiet_hours_start": "Początek ciszy nocnej",
           "quiet_hours_end": "Koniec ciszy nocnej"
@@ -91,7 +94,10 @@
           "descriptive_grades_enabled": "Gdy wyłączone, sensor Oceny opisowe staje się niedostępny i nie są wykonywane żadne zapytania o oceny opisowe.",
           "free_days_enabled": "Gdy wyłączone, kalendarz Dni wolne nie jest tworzony i nie są wykonywane żadne zapytania o dni wolne.",
           "average_mode": "Ważona uwzględnia wagi kategorii ocen (tak liczy sam Librus). Arytmetyczna to zwykła średnia tych samych ocen. Obie są zawsze dostępne w atrybutach.",
-          "student_number": "Opcjonalne - Librus nie udostępnia tej informacji w API, więc trzeba wpisać ją ręcznie. Gdy podany, sensor Szczęśliwy numerek pokaże, czy to Twój numerek. Zostaw puste, aby wyłączyć.",
+          "student_number": "Opcjonalne - numer jest pobierany z Librusa automatycznie. Wpisz go tylko, jeśli chcesz go nadpisać. Sensor Szczęśliwy numerek pokazuje na jego podstawie, czy to Twój numerek.",
+          "grade_thresholds": "Minimalna średnia na 2, 3, 4, 5 i 6, po przecinku (np. 1.75, 2.75, 3.75, 4.75, 5.50). Sprawdź statut szkoły (WSO) - szkoły mają różne progi. Używane przez sensor Prognoza ocen i czujnik Zagrożenie oceną.",
+          "hide_empty_subjects": "Średnia z przedmiotu pojawia się dopiero po jego pierwszej ocenie (np. Religia na początku roku). Istniejące sensory takich przedmiotów zostaną usunięte i wrócą z pierwszą oceną.",
+          "smart_polling": "Oszczędza zapytania, kiedy nic się nie dzieje. W dni szkolne od 6:00 do 22:00 dane odświeżają się co interwał ustawiony wyżej. W dzień bez lekcji (weekend, ferie) najwyżej raz na godzinę, a w nocy (22:00-6:00) najwyżej co 3 godziny. Akcja Odśwież (librus_synergia.refresh) zawsze pobiera od razu. Godziny ciszy poniżej, jeśli włączone, nadal działają.",
           "quiet_hours_enabled": "Gdy włączone, w oknie poniżej nie są pobierane żadne dane z Librusa - encje po prostu zachowują ostatni znany stan przez noc.",
           "quiet_hours_start": "Używane tylko, gdy cisza nocna jest włączona powyżej.",
           "quiet_hours_end": "Używane tylko, gdy cisza nocna jest włączona powyżej. Może być wcześniejsze niż godzina początku (np. 23:00 -> 06:00), aby obejmować północ."
@@ -145,8 +151,42 @@
     }
   },
   "entity": {
+    "event": {
+      "grade_event": { "name": "Nowa ocena", "state_attributes": { "event_type": { "state": { "new_grade": "Nowa ocena" } } } },
+      "note_event": { "name": "Nowa uwaga", "state_attributes": { "event_type": { "state": { "positive": "Pozytywna", "negative": "Negatywna", "neutral": "Neutralna" } } } },
+      "absence_event": { "name": "Nowa nieobecność", "state_attributes": { "event_type": { "state": { "unexcused": "Nieusprawiedliwiona", "excused": "Usprawiedliwiona" } } } },
+      "timetable_change_event": { "name": "Zmiana w planie", "state_attributes": { "event_type": { "state": { "canceled": "Lekcja odwołana", "substitution": "Zastępstwo" } } } },
+      "homework_event": { "name": "Nowe zadanie domowe", "state_attributes": { "event_type": { "state": { "new_homework": "Nowe zadanie domowe" } } } },
+      "agenda_event": { "name": "Nowy wpis w terminarzu", "state_attributes": { "event_type": { "state": { "new_entry": "Nowy wpis" } } } },
+      "agenda_change_event": { "name": "Zmiana w terminarzu", "state_attributes": { "event_type": { "state": { "changed": "Zmieniony", "removed": "Usunięty" } } } },
+      "justification_event": { "name": "Decyzja w usprawiedliwieniu", "state_attributes": { "event_type": { "state": { "accepted": "Przyjęte", "rejected": "Odrzucone", "changed": "Zmiana statusu" } } } },
+      "school_trip_event": { "name": "Nowa wycieczka", "state_attributes": { "event_type": { "state": { "new_trip": "Nowa wycieczka" } } } },
+      "school_document_event": { "name": "Nowy dokument szkoły", "state_attributes": { "event_type": { "state": { "new_document": "Nowy dokument" } } } },
+      "announcement_event": { "name": "Nowe ogłoszenie", "state_attributes": { "event_type": { "state": { "new_announcement": "Nowe ogłoszenie" } } } },
+      "message_event": { "name": "Nowa wiadomość", "state_attributes": { "event_type": { "state": { "new_message": "Nowa wiadomość" } } } },
+      "forecast_event": { "name": "Zmiana prognozy oceny", "state_attributes": { "event_type": { "state": { "up": "W górę", "down": "W dół" } } } },
+      "achievement_event": { "name": "Nowe osiągnięcie", "state_attributes": { "event_type": { "state": { "unlocked": "Odblokowane" } } } }
+    },
+    "binary_sensor": {
+      "school_day_today": { "name": "Dzień szkolny dziś" },
+      "school_day_tomorrow": { "name": "Dzień szkolny jutro" },
+      "grade_risk": { "name": "Zagrożenie oceną" },
+      "in_school": { "name": "Na lekcjach" }
+    },
+    "todo": {
+      "homework": { "name": "Zadania domowe" }
+    },
     "sensor": {
+      "lesson_topics": { "name": "Tematy lekcji" },
+      "plan_changes": { "name": "Zmiany względem stałego planu" },
+      "school_trips": { "name": "Najbliższa wycieczka" },
+      "school_documents": { "name": "Dokumenty szkoły" },
+      "justifications": { "name": "Usprawiedliwienia" },
+      "point_grades": { "name": "Oceny punktowe" },
+      "status": { "name": "Status połączenia", "state": { "ok": "OK", "degraded": "Częściowo z zapisanych danych", "stale": "Librus nie odpowiada", "error": "Błąd" } },
+      "last_update": { "name": "Ostatnia udana aktualizacja" },
       "weekly_summary": { "name": "Podsumowanie tygodnia" },
+      "grade_forecast": { "name": "Prognoza ocen" },
       "overall_average": { "name": "Średnia ocen" },
       "subject_average": { "name": "Średnia - {subject}" },
       "attendance": { "name": "Nieobecności" },
@@ -154,6 +194,8 @@
       "subject_attendance": { "name": "Najniższa frekwencja z przedmiotu" },
       "next_lesson": { "name": "Następna lekcja" },
       "current_lesson": { "name": "Bieżąca lekcja" },
+      "school_start": { "name": "Początek lekcji" },
+      "school_end": { "name": "Koniec lekcji" },
       "next_exam": { "name": "Najbliższy sprawdzian" },
       "lucky_number": { "name": "Szczęśliwy numerek" },
       "unread_announcements": { "name": "Nieprzeczytane ogłoszenia" },

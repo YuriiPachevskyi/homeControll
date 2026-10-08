@@ -24,9 +24,18 @@ from librus_synergia.models import (
 
 from . import LibrusConfigEntry, librus_device_info
 from .const import CONF_FREE_DAYS_ENABLED, DEFAULT_FREE_DAYS_ENABLED
-from .coordinator import LibrusDataUpdateCoordinator, merge_timetables
+from .coordinator import LibrusDataUpdateCoordinator, lesson_change, merge_timetables
 
 _LOGGER = logging.getLogger(__name__)
+
+# Summary suffix per lesson change (see coordinator.lesson_change). The
+# companion cards match these to mark the lesson.
+_CHANGE_LABELS = {
+    "canceled": "odwołane",
+    "substitution": "zastępstwo",
+    "room_change": "zmiana sali",
+    "moved": "przeniesiona",
+}
 
 
 async def async_setup_entry(
@@ -78,6 +87,21 @@ def _inclusive_end_date(end_date: datetime) -> date:
     return (end_date - timedelta(microseconds=1)).date()
 
 
+_TOPIC_INDEX: dict[int, dict[tuple[str, int | None], str]] = {}
+
+
+def _lesson_topic(day: date, lesson: LessonData, data: LibrusData) -> str | None:
+    """The topic Librus has for this lesson (same date and lesson number;
+    `Realizations`), if it has been held and filled in."""
+    key = id(data.lesson_topics)
+    index = _TOPIC_INDEX.get(key)
+    if index is None:
+        index = {((t.date or "")[:10], t.lesson_no): t.topic for t in data.lesson_topics if t.topic}
+        _TOPIC_INDEX.clear()
+        _TOPIC_INDEX[key] = index
+    return index.get((day.isoformat(), lesson.lesson_no))
+
+
 def _lesson_to_event(day: date, lesson: LessonData, data: LibrusData) -> CalendarEvent | None:
     if lesson.hour_from is None or lesson.hour_to is None:
         return None
@@ -92,11 +116,10 @@ def _lesson_to_event(day: date, lesson: LessonData, data: LibrusData) -> Calenda
         if lesson.subject_id is not None
         else "Lekcja"
     )
+    change = lesson_change(day, lesson, data)
     summary = subject_name
-    if lesson.is_canceled:
-        summary = f"{summary} (odwołane)"
-    elif lesson.is_substitution:
-        summary = f"{summary} (zastępstwo)"
+    if change["kind"] is not None:
+        summary = f"{summary} ({_CHANGE_LABELS[change['kind']]})"
 
     # Kindergarten blocks can list several teachers (PR #8).
     teacher_ids = lesson.teacher_ids or (
@@ -108,12 +131,34 @@ def _lesson_to_event(day: date, lesson: LessonData, data: LibrusData) -> Calenda
         data.classrooms.get(lesson.classroom_id) if lesson.classroom_id is not None else None
     )
 
+    # First line the teacher (as before), then what a substitution changes.
+    lines = [teacher_name or ""]
+    # The original subject only when it differs ("Zastępstwo za: Jan Kowal"
+    # for the same subject with another teacher).
+    original_subject = change["original_subject"]
+    if original_subject == subject_name:
+        original_subject = None
+    if change["kind"] == "substitution" and (original_subject or change["original_teacher"]):
+        replaced = ", ".join(n for n in (original_subject, change["original_teacher"]) if n)
+        lines.append(f"Zastępstwo za: {replaced}")
+    if change["room_changed"]:
+        lines.append(f"Zmiana sali: {change['original_classroom'] or '?'} → {classroom_name or '?'}")
+    topic = _lesson_topic(day, lesson, data)
+    if topic:
+        lines.append(f"Temat: {topic}")
+    if change["kind"] == "moved":
+        when = change["original_date"] or ""
+        when = f"{when[8:10]}.{when[5:7]}" if len(when) >= 10 else when
+        number = change["original_lesson_no"]
+        lines.append(f"Przeniesiona z: {when}" + (f", lekcja {number}" if number is not None else ""))
+    description = "\n".join(lines).strip() or None
+
     return CalendarEvent(
         start=dt_util.as_local(datetime.combine(day, start_time, tzinfo=_SCHOOL_TZ)),
         end=dt_util.as_local(datetime.combine(day, end_time, tzinfo=_SCHOOL_TZ)),
         summary=summary,
         location=classroom_name,
-        description=teacher_name,
+        description=description,
     )
 
 

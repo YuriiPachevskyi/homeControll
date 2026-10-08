@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Librus Synergia (unofficial)",
-        "description": "Log in with your Librus login (e.g. \"1234567u\") and password. This uses Librus's private web API and may violate Librus's Terms of Service - use your own account at your own risk. Your session normally expires after about a day with no way to silently renew it without your password, so - unlike some integrations - your password IS stored (alongside the session) to allow unattended daily refresh; it never leaves your Home Assistant instance.",
+        "description": "Log in with your Librus login (e.g. \"1234567u\") and password. This uses Librus's private web API and may violate Librus's Terms of Service - use your own account at your own risk. The integration keeps its session alive through Librus's own refresh, but when that isn't possible (e.g. after Home Assistant was off for a while) it has to log in again, so - unlike some integrations - your password IS stored (alongside the session) to allow that without asking you; it never leaves your Home Assistant instance.",
         "data": {
           "username": "Login",
           "password": "Password"
@@ -79,6 +79,9 @@
           "free_days_enabled": "Fetch free days calendar",
           "average_mode": "Grade average shown as the sensor state",
           "student_number": "Student's number in the class register",
+          "grade_thresholds": "Grade forecast thresholds",
+          "hide_empty_subjects": "Hide subjects without grades",
+          "smart_polling": "Smart polling",
           "quiet_hours_enabled": "Enable quiet hours (skip polling overnight)",
           "quiet_hours_start": "Quiet hours start",
           "quiet_hours_end": "Quiet hours end"
@@ -91,7 +94,10 @@
           "descriptive_grades_enabled": "When off, the Descriptive grades sensor goes unavailable and no DescriptiveGrades calls are made.",
           "free_days_enabled": "When off, the Free days calendar entity is not created and no free-days calls are made.",
           "average_mode": "Weighted uses each grade category's weight (what Librus itself shows). Arithmetic is a plain mean of the same grades. Both stay available as attributes either way.",
-          "student_number": "Optional - Librus's API doesn't expose this anywhere, so it has to be entered by hand. When set, the Lucky number sensor shows whether it's your number. Leave blank to disable.",
+          "student_number": "Optional - the number is read from Librus automatically. Fill this in only to override it. The Lucky number sensor uses it to show whether it's your number.",
+          "grade_thresholds": "Minimum average for a 2, 3, 4, 5 and 6, comma separated (e.g. 1.75, 2.75, 3.75, 4.75, 5.50). Check your school's statute (WSO) - schools use different ones. Used by the Grade forecast sensor and the Grade at risk binary sensor.",
+          "hide_empty_subjects": "No average sensor for a subject until it gets its first grade (e.g. Religia early in the year). Existing sensors of such subjects are removed; they come back with the first grade.",
+          "smart_polling": "Saves requests when nothing is happening. On school days between 06:00 and 22:00 data is refreshed at the poll interval above. On a day without lessons (weekend, holidays) at most once an hour, and at night (22:00-06:00) at most every 3 hours. The Refresh action (librus_synergia.refresh) always fetches straight away. Quiet hours below, if on, still apply.",
           "quiet_hours_enabled": "When on, no data is fetched from Librus during the window below - entities just keep their last known state overnight.",
           "quiet_hours_start": "Only used while quiet hours are enabled above.",
           "quiet_hours_end": "Only used while quiet hours are enabled above. Can be earlier than the start time (e.g. 23:00 -> 06:00) to span midnight."
@@ -145,8 +151,42 @@
     }
   },
   "entity": {
+    "event": {
+      "grade_event": { "name": "New grade", "state_attributes": { "event_type": { "state": { "new_grade": "New grade" } } } },
+      "note_event": { "name": "New behaviour note", "state_attributes": { "event_type": { "state": { "positive": "Positive", "negative": "Negative", "neutral": "Neutral" } } } },
+      "absence_event": { "name": "New absence", "state_attributes": { "event_type": { "state": { "unexcused": "Unexcused", "excused": "Excused" } } } },
+      "timetable_change_event": { "name": "Timetable change", "state_attributes": { "event_type": { "state": { "canceled": "Lesson cancelled", "substitution": "Substitution" } } } },
+      "homework_event": { "name": "New homework", "state_attributes": { "event_type": { "state": { "new_homework": "New homework" } } } },
+      "agenda_event": { "name": "New agenda entry", "state_attributes": { "event_type": { "state": { "new_entry": "New entry" } } } },
+      "agenda_change_event": { "name": "Agenda entry changed", "state_attributes": { "event_type": { "state": { "changed": "Changed", "removed": "Removed" } } } },
+      "justification_event": { "name": "Absence justification decided", "state_attributes": { "event_type": { "state": { "accepted": "Accepted", "rejected": "Rejected", "changed": "Status changed" } } } },
+      "school_trip_event": { "name": "New school trip", "state_attributes": { "event_type": { "state": { "new_trip": "New trip" } } } },
+      "school_document_event": { "name": "New school document", "state_attributes": { "event_type": { "state": { "new_document": "New document" } } } },
+      "announcement_event": { "name": "New announcement", "state_attributes": { "event_type": { "state": { "new_announcement": "New announcement" } } } },
+      "message_event": { "name": "New message", "state_attributes": { "event_type": { "state": { "new_message": "New message" } } } },
+      "forecast_event": { "name": "Grade forecast changed", "state_attributes": { "event_type": { "state": { "up": "Up", "down": "Down" } } } },
+      "achievement_event": { "name": "Achievement unlocked", "state_attributes": { "event_type": { "state": { "unlocked": "Unlocked" } } } }
+    },
+    "binary_sensor": {
+      "school_day_today": { "name": "School day today" },
+      "school_day_tomorrow": { "name": "School day tomorrow" },
+      "grade_risk": { "name": "Grade at risk" },
+      "in_school": { "name": "At school" }
+    },
+    "todo": {
+      "homework": { "name": "Homework" }
+    },
     "sensor": {
+      "lesson_topics": { "name": "Lesson topics" },
+      "plan_changes": { "name": "Changes to the usual timetable" },
+      "school_trips": { "name": "Next school trip" },
+      "school_documents": { "name": "School documents" },
+      "justifications": { "name": "Absence justifications" },
+      "point_grades": { "name": "Point grades" },
+      "status": { "name": "Connection status", "state": { "ok": "OK", "degraded": "Partly from saved data", "stale": "Librus not responding", "error": "Error" } },
+      "last_update": { "name": "Last successful update" },
       "weekly_summary": { "name": "Weekly summary" },
+      "grade_forecast": { "name": "Grade forecast" },
       "overall_average": { "name": "Overall grade average" },
       "subject_average": { "name": "{subject} average" },
       "attendance": { "name": "Absences" },
@@ -154,6 +194,8 @@
       "subject_attendance": { "name": "Lowest subject attendance" },
       "next_lesson": { "name": "Next lesson" },
       "current_lesson": { "name": "Current lesson" },
+      "school_start": { "name": "School start" },
+      "school_end": { "name": "School end" },
       "next_exam": { "name": "Next exam" },
       "lucky_number": { "name": "Lucky number" },
       "unread_announcements": { "name": "Unread announcements" },
