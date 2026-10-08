@@ -94,17 +94,23 @@ BOILER_NOTE = (
     "{%- set bm = rows | selectattr('kind', 'eq', 'month') | rejectattr('boiler', 'none') | list | last"
     " if rows | selectattr('kind', 'eq', 'month') | rejectattr('boiler', 'none') | list else none -%}\n"
     + MONTH_NAME +
-    "{%- if bm %}<p><span>{{ month_name[bm.label.split(' ')[0]] }},</span> <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: <b>{{ bm.house | round(0) | int }} kWh</b>, "
-    "з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>: <b><i>{{ bm.boiler | round(0) | int }} kWh</i></b>."
+    "{%- if bm %}<p>"
+    # the month's lines: solar generation (the table's Сонце column), export,
+    # house load - the month's name only on the first, the others get an empty
+    # label so the icons stay in one column
+    "{% if bm.solar is not none %}<span>{{ month_name[bm.label.split(' ')[0]] }}</span> <ha-icon icon=\"mdi:solar-power-variant\"></ha-icon>: "
+    "<b><span>{{ bm.solar | round(0) | int }}</span> kWh</b><br>{% endif %}"
+    "<span>{% if bm.solar is none %}{{ month_name[bm.label.split(' ')[0]] }}{% endif %}</span> <ha-icon icon=\"mdi:transmission-tower-export\"></ha-icon>: <b><span>{{ bm.exp | round(0) | int }}</span> kWh</b>, "
+    "<em>сальдо:</em> <b><span>{{ (bm.exp - bm.imp) | round(0) | int }}</span> kWh</b>"  # export - import, what ENERA pays for
+    "{% if bm.net is not none %} <small>({{ '%+d' % bm.net }} ₴)</small>{% endif %}<br>"
+    "<span></span> <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: <b><span>{{ bm.house | round(0) | int }}</span> kWh</b>, "
+    "<em>з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>:</em> <b><span>{{ bm.boiler | round(0) | int }}</span> kWh</b>"
     # today's line; not on the 1st, when it would just repeat the month's numbers
-    "{% if now().day != 1 %}<br><span>Сьогодні,</span> <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: "
-    "<b>{{ states('sensor.home_load_energy_daily') | float(0) | round(0) | int }} kWh</b>, "
-    "з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>: "
-    "<b><i>{{ states('sensor.boiler_ten_energy_estimate_daily') | float(0) | round(0) | int }} kWh</i></b>."
-    "{% endif %}<br>"
-    "<span>Експорт,</span> <ha-icon icon=\"mdi:transmission-tower-export\"></ha-icon>: <b>{{ bm.exp | round(0) | int }} kWh</b>, "
-    "сальдо: <b>{{ (bm.exp - bm.imp) | round(0) | int }} kWh</b>"  # export - import, what ENERA pays for
-    "{% if bm.net is not none %} <small>({{ '%+d' % bm.net }} ₴)</small>{% endif %}."
+    "{% if now().day != 1 %}<br><span>Сьогодні</span> <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: "
+    "<b><span>{{ states('sensor.home_load_energy_daily') | float(0) | round(0) | int }}</span> kWh</b>, "
+    "<em>з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>:</em> "
+    "<b><span>{{ states('sensor.boiler_ten_energy_estimate_daily') | float(0) | round(0) | int }}</span> kWh</b>"
+    "{% endif %}"
     "</p>\n\n{% endif %}"
 )
 
@@ -193,6 +199,11 @@ def css(phone: bool) -> str:
         "p small { font-size: inherit; color: #4caf50; }\n"  # the export ₴, green like in the table
     # the line labels at a fixed width, so the icons after them line up in a column
     "p span { display: inline-block; min-width: 4.6em; }\n"
+    # the numbers at one width, right-aligned: the kWh (and so the "з них")
+    # of all lines in one column
+    "p b span { min-width: 2.3em; text-align: right; }\n"
+    # "сальдо:" and "з них <boiler>:" at one width: the second kWh column lines up too
+    "p em { font-style: normal; display: inline-block; min-width: 4.4em; }\n"
     )
 
 
