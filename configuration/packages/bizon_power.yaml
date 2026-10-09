@@ -1,0 +1,96 @@
+# Bizon (desktop PC, 192.168.1.4) power, estimated: it has no meter.
+# - Idle: the 6kW load (it sits on that port) steps by ~80 W at every
+#   suspend/resume - 15 transitions 2026-10-03..07 from its journal, median
+#   79 W, range 52-115 W (after subtracting the boiler estimate). Asleep or off
+#   (no ping) = 0.
+# - On top of that, what the CPU and GPU draw above idle, at the wall (/0.88
+#   PSU efficiency): CPU from the Glances CPU usage, ~1.1 W per % for the Ryzen
+#   9 3900XT (~110 W package above idle at 100 %) -> 1.25 W/%; GPU measured by
+#   nvidia-smi (GTX 1660 SUPER, ~10 W idle, 125 W limit) -> (W - 10) x 1.14.
+#   Glances itself reports no watts (no RAPL without root, GPU plugin empty).
+
+command_line:
+  - binary_sensor:
+      name: "Bizon Awake"
+      unique_id: bizon_awake
+      command: "ping -c1 -W2 192.168.1.4 >/dev/null 2>&1 && echo ON || echo OFF"
+      payload_on: "ON"
+      payload_off: "OFF"
+      device_class: running
+      scan_interval: 30
+  - sensor:
+      name: "Bizon GPU Power"
+      unique_id: bizon_gpu_power
+      # unavailable while Bizon sleeps (ssh times out after 3 s)
+      command: >-
+        ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=3
+        yurii@192.168.1.4 "nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits"
+      unit_of_measurement: W
+      device_class: power
+      state_class: measurement
+      value_template: "{{ value | float(0) | round(1) }}"
+      scan_interval: 60
+
+template:
+  - sensor:
+      - name: "Bizon Power"
+        unique_id: bizon_power
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        icon: mdi:desktop-tower-monitor
+        state: >-
+          {% if is_state('binary_sensor.bizon_awake', 'on') %}
+            {% set cpu = states('sensor.192_168_1_4_cpu_usage') | float(0) %}
+            {% set gpu = states('sensor.bizon_gpu_power') | float(10) %}
+            {{ (80 + 1.25 * cpu + [gpu - 10, 0] | max * 1.14) | round(0) }}
+          {% else %}0{% endif %}
+
+  # Lifetime and today's energy: every minute and on every power
+  # change, adds the power of the interval just ended (left Riemann sum). The
+  # previous state is read through states.sensor.bizon_energy (`this` belongs
+  # to each entity, not to the shared actions).
+  - trigger:
+      - trigger: state
+        entity_id: sensor.bizon_power
+        to: ~
+      - trigger: time_pattern
+        minutes: "/1"
+      - trigger: homeassistant
+        event: start
+      - trigger: event
+        event_type: event_template_reloaded
+    actions:
+      - variables:
+          s: >-
+            {% set prev = states.sensor.bizon_energy %}
+            {% set a = prev.attributes if prev is not none else {} %}
+            {% set total = prev.state | float(0) if prev is not none else 0 %}
+            {% set t = as_timestamp(now()) %}
+            {% set today = now().date() | string %}
+            {% set lt = a.get('last_ts', t) | float(t) %}
+            {% set dt = [[t - lt, 0] | max, 300] | min %}
+            {% set kwh = a.get('last_w', 0) | float(0) * dt / 3600000 %}
+            {% set today_kwh = a.get('today_kwh', 0) | float(0) if a.get('day') == today else 0 %}
+            {{ {'total': (total + kwh) | round(4), 'today_kwh': (today_kwh + kwh) | round(4),
+                'day': today,
+                'last_ts': t, 'last_w': states('sensor.bizon_power') | float(0)} }}
+    sensor:
+      - name: "Bizon Energy"
+        unique_id: bizon_energy
+        unit_of_measurement: kWh
+        device_class: energy
+        state_class: total_increasing
+        icon: mdi:desktop-tower-monitor
+        state: "{{ s.total }}"
+        attributes:
+          last_ts: "{{ s.last_ts }}"
+          last_w: "{{ s.last_w }}"
+          day: "{{ s.day }}"
+          today_kwh: "{{ s.today_kwh }}"
+      - name: "Bizon Energy Today"
+        unique_id: bizon_energy_today
+        unit_of_measurement: kWh
+        device_class: energy
+        icon: mdi:desktop-tower-monitor
+        state: "{{ s.today_kwh | round(3) }}"

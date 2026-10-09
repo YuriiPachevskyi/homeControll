@@ -1,0 +1,143 @@
+# Washing machine, recognised from the 6kW inverter's load: it has no meter or
+# Wi-Fi of its own. Its TEN heating the water is a flat +1.5..1.8 kW step for
+# 13-17 min at the start of a wash (seen 2026-10-07/08, five washes); the only
+# other step that size is the kettle, 2-4 min. So: house load without the boiler
+# (whose relays sit on the same load port) above washer_w for at least
+# washer_min_s, but not longer than washer_max_s (25 min: a winter AC on heat,
+# an electric heater or the heating TENs hold that much for longer; the washer
+# heats 13-17 min, longer with cold winter water or a hot program) = a wash.
+# Only the heating is counted - the drum (100-300 W)
+# drowns in the rest of the house and the end of a wash can't be seen.
+# No notification (user: not needed). Shown as the second (bottom) individual
+# device of the Home power-flow-card-plus, under Boiler, and as "Washer" inside
+# the 6kW load on the Energy dashboard.
+
+template:
+  # State machine, re-run on every load sample (~5 s): base load (slow average
+  # while the load is under 600 W, so an iron or AC doesn't lift it), the
+  # current high-load episode and the energy above the base in it. An episode
+  # ends after 30 s below the threshold (bridges dips) and counts as a wash only
+  # if it lasted washer_min_s; done_count/last_kwh then tell sensor.washer_energy
+  # to add it. Live display (power, today) starts after show_s, past any kettle.
+  # Its own previous state is read through states.sensor.washer_tracker (`this`
+  # belongs to each entity, not to the shared actions). The tracker is excluded
+  # from the recorder (below).
+  - trigger:
+      - trigger: state
+        entity_id: sensor.total_load_power_realtime
+        to: ~
+    conditions:
+      - condition: template
+        value_template: "{{ is_number(states('sensor.total_load_power_realtime')) }}"
+    actions:
+      - variables:
+          s: >-
+            {% set washer_w, washer_min_s, washer_max_s, show_s = 1200, 480, 1500, 300 %}
+            {% set a = states.sensor.washer_tracker.attributes if states.sensor.washer_tracker is not none else {} %}
+            {% set t = as_timestamp(now()) %}
+            {% set today = now().date() | string %}
+            {% set w = [states('sensor.total_load_power_realtime') | float(0)
+                        - states('sensor.boiler_ten_power_estimate') | float(0), 0] | max %}
+            {% set lt = a.get('last_ts', t) | float(t) %}
+            {% set lw = a.get('last_w', w) | float(w) %}
+            {% set dt = [[t - lt, 0] | max, 60] | min %}
+            {% set base = a.get('base', 150) | float(150) %}
+            {% set active = a.get('active', false) %}
+            {% set start = a.get('start', 0) | float(0) %}
+            {% set acc = a.get('acc', 0) | float(0) %}
+            {% set low_since = a.get('low_since', 0) | float(0) %}
+            {% set done_count = a.get('done_count', 0) | int(0) %}
+            {% set last_kwh = a.get('last_kwh', 0) | float(0) %}
+            {% set today_kwh = a.get('today_kwh', 0) | float(0) if a.get('day') == today else 0 %}
+            {% if active %}{% set acc = acc + [lw - base, 0] | max * dt / 3600 %}{% endif %}
+            {% if active and w >= washer_w %}
+              {% set low_since = 0 %}
+            {% elif active %}
+              {% if low_since == 0 %}{% set low_since = t %}{% endif %}
+              {% if t - low_since >= 30 %}
+                {% if washer_min_s <= low_since - start <= washer_max_s %}
+                  {% set done_count = done_count + 1 %}
+                  {% set last_kwh = (acc / 1000) | round(3) %}
+                  {% set today_kwh = today_kwh + last_kwh %}
+                {% endif %}
+                {% set active, acc, low_since = false, 0, 0 %}
+              {% endif %}
+            {% elif w >= washer_w %}
+              {% set active, start, acc, low_since = true, t, 0, 0 %}
+            {% elif w < 600 %}
+              {% set base = 0.9 * base + 0.1 * w %}
+            {% endif %}
+            {% set shown = active and low_since == 0 and show_s <= t - start <= washer_max_s %}
+            {{ {'last_ts': t, 'last_w': w | round(0), 'base': base | round(1), 'active': active,
+                'start': start, 'acc': acc | round(2), 'low_since': low_since,
+                'done_count': done_count, 'last_kwh': last_kwh, 'day': today,
+                'today_kwh': today_kwh | round(3),
+                'power': ([w - base, 0] | max | round(0)) if shown else 0,
+                'today_live': (today_kwh + (acc / 1000 if shown else 0)) | round(3)} }}
+    sensor:
+      - name: "Washer Tracker"
+        unique_id: washer_tracker
+        icon: mdi:washing-machine
+        state: "{{ 'heating' if s.active else 'idle' }}"
+        attributes:
+          last_ts: "{{ s.last_ts }}"
+          last_w: "{{ s.last_w }}"
+          base: "{{ s.base }}"
+          active: "{{ s.active }}"
+          start: "{{ s.start }}"
+          acc: "{{ s.acc }}"
+          low_since: "{{ s.low_since }}"
+          done_count: "{{ s.done_count }}"
+          last_kwh: "{{ s.last_kwh }}"
+          day: "{{ s.day }}"
+          today_kwh: "{{ s.today_kwh }}"
+      # TEN power while heating (0 otherwise) and today's energy incl. the wash
+      # heating right now - what the Home power-flow card shows
+      - name: "Washer Power"
+        unique_id: washer_power
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        icon: mdi:washing-machine
+        state: "{{ s.power }}"
+      - name: "Washer Energy Today"
+        unique_id: washer_energy_today
+        unit_of_measurement: kWh
+        device_class: energy
+        icon: mdi:washing-machine
+        state: "{{ s.today_live }}"
+
+  # Lifetime TEN energy of the washer (Energy dashboard: "Washer", inside the 6kW
+  # load next to Boiler). Grows only when a wash's heating has finished.
+  - trigger:
+      - trigger: state
+        entity_id: sensor.washer_tracker
+        attribute: done_count
+        id: done
+      - trigger: homeassistant
+        event: start
+      - trigger: event
+        event_type: event_template_reloaded
+    sensor:
+      - name: "Washer Energy"
+        unique_id: washer_energy
+        unit_of_measurement: kWh
+        device_class: energy
+        state_class: total_increasing
+        icon: mdi:washing-machine
+        state: >-
+          {% set total = this.state | float(0) if this is defined else 0 %}
+          {% if trigger.id == 'done' and trigger.from_state is not none
+                and trigger.to_state.attributes.get('done_count', 0) | int(0)
+                    > trigger.from_state.attributes.get('done_count', 0) | int(0) %}
+            {% set total = total + trigger.to_state.attributes.get('last_kwh', 0) | float(0) %}
+          {% endif %}
+          {{ total | round(3) }}
+
+
+# The tracker re-renders every ~5 s; its history is useless (the energy is in
+# sensor.washer_energy). Takes effect at the next HA restart.
+recorder:
+  exclude:
+    entities:
+      - sensor.washer_tracker
