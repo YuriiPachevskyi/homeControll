@@ -144,9 +144,7 @@
           target:
             entity_id: input_text.last_script_trigger
           data:
-            value: 'Selling window NOT applied: start {{ states(''input_datetime.deye_morning_export_start_time'')[:5]
-              }} / stop {{ states(''input_datetime.deye_night_idle_start_time'')[:5]
-              }} (need 00:00 < start < stop <= 23:40)'
+            value: 'Selling window NOT applied: start {{ states(''input_datetime.deye_morning_export_start_time'')[:5] }} / stop {{ states(''input_datetime.deye_night_idle_start_time'')[:5] }} (need 00:00 < start < stop <= 23:40) ({{ now().strftime(''%H:%M:%S'') }})'
     - conditions:
       - condition: trigger
         id: battery_power_5kw
@@ -474,9 +472,7 @@
     target:
       entity_id: input_text.last_script_trigger
     data:
-      value: 'Deye 6kW Selling Auto: sunny {{ sunny_percent | round(0) }}%{{ ''''
-        if in_season else '' (off-season)'' }} -> {{ ''ON'' if is_sunny_tomorrow else
-        ''OFF'' }} ({{ now().strftime(''%H:%M:%S'') }})'
+      value: 'Deye 6kW Selling Auto: sunny {{ sunny_percent | round(0) }}%{{ '''' if in_season else '' (off-season)'' }} -> {{ ''ON'' if is_sunny_tomorrow else ''OFF'' }} ({{ now().strftime(''%H:%M:%S'') }})'
   - if:
     - condition: template
       value_template: '{{ is_sunny_tomorrow }}'
@@ -612,7 +608,7 @@
         entity_id: binary_sensor.any_device_high_power
         state: 'on'
       - condition: template
-        value_template: '{{ now() - states.input_text.last_script_trigger.last_changed
+        value_template: '{{ now() - states.input_text.last_script_trigger.last_reported
           >= timedelta(seconds=15) }}'
     - condition: and
       alias: 'Surplus: step at most every 10 s'
@@ -628,7 +624,7 @@
         entity_id: binary_sensor.battery_charge_and_export_power_limit
         state: 'on'
       - condition: template
-        value_template: '{{ now() - states.input_text.last_script_trigger.last_changed
+        value_template: '{{ now() - states.input_text.last_script_trigger.last_reported
           >= timedelta(seconds=15) }}'
   actions:
   - action: script.power_load_cascade_step
@@ -1247,8 +1243,7 @@
         target:
           entity_id: input_text.last_script_trigger
         data:
-          value: 'Self-consumption boost: import {{ grid_import }} < {{ min_import }}
-            kWh ({{ now().strftime(''%H:%M:%S'') }})'
+          value: 'Self-consumption boost: import {{ grid_import }} < {{ min_import }} kWh ({{ now().strftime(''%H:%M:%S'') }})'
     - conditions:
       - condition: trigger
         id: clear
