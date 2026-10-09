@@ -284,8 +284,9 @@ power_load_cascade_step:
                 seconds: 30
             - condition: state
               entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-              state:
-              - 'on'
+              state: 'on'
+              for:
+                seconds: 15
           sequence:
           - action: input_text.set_value
             target:
