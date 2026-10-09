@@ -138,13 +138,13 @@
           target:
             entity_id: input_text.last_script_trigger
           data:
-            value: 'Selling window: {{ label }} ({{ now().strftime(''%H:%M:%S'') }})'
+            value: '{% set m %}Selling window: {{ label }}{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
         else:
         - action: input_text.set_value
           target:
             entity_id: input_text.last_script_trigger
           data:
-            value: 'Selling window NOT applied: start {{ states(''input_datetime.deye_morning_export_start_time'')[:5] }} / stop {{ states(''input_datetime.deye_night_idle_start_time'')[:5] }} (need 00:00 < start < stop <= 23:40) ({{ now().strftime(''%H:%M:%S'') }})'
+            value: '{% set m %}Selling window NOT applied: start {{ states(''input_datetime.deye_morning_export_start_time'')[:5] }} / stop {{ states(''input_datetime.deye_night_idle_start_time'')[:5] }} (need 00:00 < start < stop <= 23:40){% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
     - conditions:
       - condition: trigger
         id: battery_power_5kw
@@ -472,7 +472,7 @@
     target:
       entity_id: input_text.last_script_trigger
     data:
-      value: 'Deye 6kW Selling Auto: sunny {{ sunny_percent | round(0) }}%{{ '''' if in_season else '' (off-season)'' }} -> {{ ''ON'' if is_sunny_tomorrow else ''OFF'' }} ({{ now().strftime(''%H:%M:%S'') }})'
+      value: '{% set m %}Deye 6kW Selling Auto: sunny {{ sunny_percent | round(0) }}%{{ '''' if in_season else '' (off-season)'' }} -> {{ ''ON'' if is_sunny_tomorrow else ''OFF'' }}{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
   - if:
     - condition: template
       value_template: '{{ is_sunny_tomorrow }}'
@@ -1243,7 +1243,7 @@
         target:
           entity_id: input_text.last_script_trigger
         data:
-          value: 'Self-consumption boost: import {{ grid_import }} < {{ min_import }} kWh ({{ now().strftime(''%H:%M:%S'') }})'
+          value: '{% set m %}Self-consumption boost: import {{ grid_import }} < {{ min_import }} kWh{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
     - conditions:
       - condition: trigger
         id: clear

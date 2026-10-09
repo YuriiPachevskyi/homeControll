@@ -19,7 +19,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Disable: Heating OFF ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Disable: Heating OFF{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: switch.turn_off
             metadata: {}
             target:
@@ -38,7 +38,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Disable: Export -> {{ states(''input_number.export_deye_5kw_power_base'') | int(0) }}W ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Disable: Export -> {{ states(''input_number.export_deye_5kw_power_base'') | int(0) }}W{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: input_number.set_value
             target:
               entity_id: input_number.export_deye_5kw_power
@@ -54,7 +54,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Disable: Boiler 1.2 -> 0.8 ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Disable: Boiler 1.2 -> 0.8{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: switch.turn_off
             target:
               entity_id: switch.1561_boiler_ten_1_2_kwh
@@ -71,7 +71,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Disable: Boiler 0.8 OFF ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Disable: Boiler 0.8 OFF{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: switch.turn_off
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
@@ -89,7 +89,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Disable: Reducing Charge to 0.75kW ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Disable: Reducing Charge to 0.75kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: input_number.set_value
             data:
               value: 0.75
@@ -108,7 +108,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Disable: Charge to 0kW ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Disable: Charge to 0kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: input_number.set_value
             data:
               value: 0
@@ -134,7 +134,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Disable: Big Bedroom AC OFF (Battery <= 70%) ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Disable: Big Bedroom AC OFF (Battery <= 70%){% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: climate.turn_off
             target:
               entity_id: climate.big_bedroom_ac
@@ -158,7 +158,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Disable: Bedroom AC OFF (Battery <= 50%) ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Disable: Bedroom AC OFF (Battery <= 50%){% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: climate.turn_off
             target:
               entity_id: climate.bedroom_ac
@@ -195,7 +195,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Enable: Charge 0.75kW ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Enable: Charge 0.75kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: input_number.set_value
             data:
               value: 0.75
@@ -229,7 +229,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Enable: Charge 1.5kW ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Enable: Charge 1.5kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: input_number.set_value
             data:
               value: 1.5
@@ -259,7 +259,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Enable: Boiler 0.8kW ON ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Enable: Boiler 0.8kW ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: switch.turn_on
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
@@ -292,7 +292,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Enable: Boiler 1.2kW ON ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Enable: Boiler 1.2kW ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: switch.turn_off
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
@@ -324,7 +324,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Enable: Export 5.5kW ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Enable: Export 5.5kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: input_number.set_value
             target:
               entity_id: input_number.export_deye_5kw_power
@@ -360,7 +360,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Enable: Bedroom AC ON ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Enable: Bedroom AC ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: climate.set_hvac_mode
             data:
               hvac_mode: '{{ ''heat'' if is_state(''input_select.bedroom_ac'', ''heating'')
@@ -397,7 +397,7 @@ power_load_cascade_step:
             target:
               entity_id: input_text.last_script_trigger
             data:
-              value: 'Enable: Big Bedroom AC ON ({{ now().strftime(''%H:%M:%S'') }})'
+              value: '{% set m %}Enable: Big Bedroom AC ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
           - action: climate.set_hvac_mode
             data:
               hvac_mode: '{{ ''heat'' if is_state(''input_select.big_bedroom_ac'',
