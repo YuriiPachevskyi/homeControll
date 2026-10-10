@@ -76,6 +76,25 @@ power_load_cascade_step:
             target:
               entity_id: switch.1560_boiler_ten_0_8_kwh
             data: {}
+        - alias: 'Disable: Reduce Charge to 1.5kW'
+          conditions:
+          - condition: numeric_state
+            entity_id: input_number.charge_power_deye_6kw
+            above: 1.5
+          - condition: numeric_state
+            entity_id: sensor.deye_6kw_battery
+            below: 95
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: '{% set m %}Disable: Reducing Charge to 1.5kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
+          - action: input_number.set_value
+            data:
+              value: 1.5
+            target:
+              entity_id: input_number.charge_power_deye_6kw
         - alias: 'Disable: Reduce Charge to 0.75kW'
           conditions:
           - condition: numeric_state
@@ -233,6 +252,40 @@ power_load_cascade_step:
           - action: input_number.set_value
             data:
               value: 1.5
+            target:
+              entity_id: input_number.charge_power_deye_6kw
+        - alias: 'Enable: Charge Power 2.25kW'
+          conditions:
+          - condition: numeric_state
+            entity_id: input_number.charge_power_deye_6kw
+            below: 2.25
+          - condition: state
+            entity_id: binary_sensor.battery_deye_6kw_charged
+            state:
+            - 'off'
+          - condition: numeric_state
+            entity_id: sensor.deye_6kw_battery
+            below: 95
+          - condition: or
+            conditions:
+            - condition: state
+              entity_id: binary_sensor.pv1_5kw_lower_than_6kw
+              state: 'on'
+              for:
+                seconds: 30
+            - condition: state
+              entity_id: binary_sensor.battery_charge_and_export_power_limit
+              state:
+              - 'on'
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: '{% set m %}Enable: Charge 2.25kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
+          - action: input_number.set_value
+            data:
+              value: 2.25
             target:
               entity_id: input_number.charge_power_deye_6kw
         - alias: 'Enable: Boiler 0.8kW ON'
