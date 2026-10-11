@@ -44,6 +44,23 @@ power_load_cascade_step:
               entity_id: input_number.export_deye_5kw_power
             data:
               value: '{{ states(''input_number.export_deye_5kw_power_base'') | float(0) }}'
+        - alias: 'Disable: Boiler 2.0 -> 1.2'
+          conditions:
+          - condition: state
+            entity_id: switch.1561_boiler_ten_1_2_kwh
+            state: 'on'
+          - condition: state
+            entity_id: switch.1560_boiler_ten_0_8_kwh
+            state: 'on'
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: '{% set m %}Disable: Boiler 2.0 -> 1.2{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
+          - action: switch.turn_off
+            target:
+              entity_id: switch.1560_boiler_ten_0_8_kwh
         - alias: 'Disable: Boiler 1.2 -> 0.8'
           conditions:
           - condition: state
@@ -293,6 +310,9 @@ power_load_cascade_step:
           - condition: state
             entity_id: switch.1560_boiler_ten_0_8_kwh
             state: 'off'
+          - condition: state
+            entity_id: switch.1561_boiler_ten_1_2_kwh
+            state: 'off'
           - condition: or
             conditions:
             - condition: state
@@ -352,6 +372,38 @@ power_load_cascade_step:
           - action: switch.turn_on
             target:
               entity_id: switch.1561_boiler_ten_1_2_kwh
+        - alias: 'Enable: Boiler 2.0kW ON (1.2 + 0.8)'
+          conditions:
+          - condition: state
+            entity_id: switch.1561_boiler_ten_1_2_kwh
+            state: 'on'
+          - condition: state
+            entity_id: switch.1560_boiler_ten_0_8_kwh
+            state: 'off'
+          - condition: or
+            conditions:
+            - condition: state
+              entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
+              state: 'on'
+            - condition: state
+              entity_id: binary_sensor.battery_charge_and_export_power_limit
+              state: 'on'
+              for:
+                seconds: 30
+            - condition: state
+              entity_id: binary_sensor.pv1_5kw_lower_than_6kw
+              state: 'on'
+              for:
+                seconds: 15
+          sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: '{% set m %}Enable: Boiler 2.0kW ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
+          - action: switch.turn_on
+            target:
+              entity_id: switch.1560_boiler_ten_0_8_kwh
         - alias: 'Enable: Export 5.5kW'
           conditions:
           - condition: numeric_state
