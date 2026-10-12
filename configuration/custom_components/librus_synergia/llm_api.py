@@ -30,11 +30,11 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import llm
 from homeassistant.util import dt as dt_util
 
-from librus_synergia import LibrusError
 from librus_synergia.models import LibrusData
 from librus_synergia.parsers import plan_differences
 
 from .ai_summary import _compact, _cut, _dated, _day
+from .catch_up import catch_up
 from .const import AVERAGE_MODE_ARITHMETIC, CONF_AVERAGE_MODE, DEFAULT_AVERAGE_MODE, DOMAIN
 from .coordinator import (
     LibrusDataUpdateCoordinator,
@@ -43,7 +43,7 @@ from .coordinator import (
     days_since_last_negative_note,
     grade_improvements,
     infer_subject_id,
-    merge_timetables,
+    lesson_change,
     teacher_subject_ids,
 )
 from .exam_prep import exam_prep, is_exam, missed_lessons
@@ -57,6 +57,8 @@ _DATA_UNREGISTER = f"{DOMAIN}_llm_api_unregister"
 
 MAX_DAYS = 60
 MAX_GRADES = 60
+# The grades tool's window without a subject or `days` (see GradesTool).
+_DEFAULT_GRADE_DAYS = 30
 
 
 # ---------------------------------------------------------------------------
@@ -187,6 +189,21 @@ def _teacher_name(data: LibrusData, teacher_id: Any) -> str | None:
     return data.teachers.get(teacher_id) if teacher_id is not None else None
 
 
+# coordinator.lesson_change kinds in the words the tools use.
+_CHANGE_WORDS = {
+    "canceled": "cancelled",
+    "substitution": "substitution",
+    "room_change": "room change",
+    "moved": "moved from another day or lesson",
+}
+
+
+def _change_kind(day: date, lesson: Any, data: LibrusData) -> str | None:
+    """What changed about a lesson (None for an ordinary one)."""
+    kind = lesson_change(day, lesson, data)["kind"]
+    return _CHANGE_WORDS.get(kind, kind) if kind else None
+
+
 def _matching_subject_ids(data: LibrusData, wanted: str | None) -> set[Any] | None:
     """Subject ids whose name contains `wanted` (case-insensitive); None
     when no filter was given."""
@@ -220,15 +237,16 @@ class TimetableTool(_LibrusTool):
     async def _async_for_student(self, coordinator, data, today, args):
         start = _day(str(args.get("date") or "")) or today
         days = _int_arg(args, "days", 1, 1, 7)
-        timetable = dict(data.timetable)
         wanted = [start + timedelta(days=i) for i in range(days)]
-        for week_start in sorted({d - timedelta(days=d.weekday()) for d in wanted}):
-            if any(week_start + timedelta(days=i) in timetable for i in range(7)):
-                continue
-            try:
-                timetable.update(merge_timetables(await coordinator.async_fetch_timetable_week(week_start)))
-            except LibrusError as err:
-                _LOGGER.debug("Timetable week %s not available for the LLM tool: %s", week_start, err)
+        # The polled weeks come from the data; others from the coordinator's
+        # on-demand week cache (shared with the timetable calendar), fetched
+        # when missing. Never raises - an unavailable week has no lessons.
+        timetable = dict(data.timetable)
+        timetable.update(
+            await coordinator.async_get_timetable_weeks(
+                sorted({d - timedelta(days=d.weekday()) for d in wanted})
+            )
+        )
         result_days = []
         for day in wanted:
             free = next(
@@ -251,7 +269,11 @@ class TimetableTool(_LibrusTool):
                         if lesson.classroom_id is not None
                         else None,
                         "cancelled": True if lesson.is_canceled else None,
-                        "substitution": True if lesson.is_substitution else None,
+                        # What a substituted lesson changes: Librus flags a
+                        # room change and a moved lesson as a substitution
+                        # too, so `is_substitution` alone told the model
+                        # "another teacher" for a lesson that only moved.
+                        "change": _change_kind(day, lesson, data),
                     }
                 )
                 for lesson in sorted(
@@ -285,7 +307,11 @@ class GradesTool(_LibrusTool):
     parameters = _schema(
         {
             "subject": (str, "Part of a subject name, e.g. 'matem' or 'angiel'."),
-            "days": (int, "Only grades from the last N days. Defaults to the whole school year."),
+            "days": (
+                int,
+                "Only grades from the last N days. Defaults to the last "
+                f"{_DEFAULT_GRADE_DAYS} days, or the whole school year when a subject is given.",
+            ),
             "student": _STUDENT_FIELD,
         }
     )
@@ -293,7 +319,16 @@ class GradesTool(_LibrusTool):
     async def _async_for_student(self, coordinator, data, today, args):
         subject_ids = _matching_subject_ids(data, args.get("subject"))
         days = args.get("days")
-        since = today - timedelta(days=_int_arg(args, "days", 0, 0, 400)) if days else None
+        if days:
+            since = today - timedelta(days=_int_arg(args, "days", 0, 0, 400))
+        elif subject_ids is None:
+            # Without a subject the whole year's grades (hundreds by June)
+            # filled the model's context for a "how is school going"
+            # question; the averages and the forecast below still cover the
+            # whole year.
+            since = today - timedelta(days=_DEFAULT_GRADE_DAYS)
+        else:
+            since = None
         weighted = _weighted(coordinator)
         improves, improved = grade_improvements(data.grades)
         picked = [
@@ -340,14 +375,16 @@ class GradesTool(_LibrusTool):
         )
         averages = {}
         for sid in sorted(subjects_for_avg, key=lambda s: str(_subject_name(data, s))):
-            avg = calculate_average(data.grades, data.grade_categories, subject_id=sid, weighted=weighted)
+            avg = calculate_average(data.grades, data.grade_categories, subject_id=sid, weighted=weighted,
+                grading=data.grading_system)
             if avg is not None:
                 averages[_subject_name(data, sid) or str(sid)] = avg
         return _compact(
             {
                 "average_mode": "weighted" if weighted else "arithmetic",
                 "overall_average": calculate_average(
-                    data.grades, data.grade_categories, weighted=weighted
+                    data.grades, data.grade_categories, weighted=weighted,
+                    grading=data.grading_system
                 )
                 if subject_ids is None
                 else None,
@@ -367,7 +404,11 @@ class GradesTool(_LibrusTool):
                         }
                     )
                     for f in subject_forecasts(
-                        data, today, coordinator.grade_thresholds, weighted=weighted
+                        data,
+                        today,
+                        coordinator.grade_thresholds,
+                        weighted=weighted,
+                        owner=coordinator.memo_owner,
                     )
                     if subject_ids is None or f.subject_id in subject_ids
                 ]
@@ -391,12 +432,19 @@ class GradesTool(_LibrusTool):
                 "descriptive_grades": [
                     _compact(
                         {
-                            "date": _dated(d.add_date),
+                            "date": _dated(d.date or d.add_date),
                             "subject": _subject_name(data, d.subject_id),
                             "value": _cut(d.value),
+                            "skill": d.skill,
+                            "teacher": _teacher_name(data, d.teacher_id if d.teacher_id is not None else d.teacher_lid),
+                            "comment": _cut(" / ".join(d.comments)) if d.comments else None,
                         }
                     )
-                    for d in sorted(data.descriptive_grades, key=lambda d: d.add_date or "", reverse=True)
+                    for d in sorted(
+                        data.descriptive_grades,
+                        key=lambda d: d.date or d.add_date or "",
+                        reverse=True,
+                    )
                     if subject_ids is None or d.subject_id in subject_ids
                 ][:10]
                 or None,
@@ -484,6 +532,8 @@ class UpcomingTool(_LibrusTool):
                         "teacher": _teacher_name(data, item.teacher_id),
                         "topic": _cut(item.topic, 120),
                         "text": _cut(item.text),
+                        "attached_files": [f.filename or "file" for f in item.attachments]
+                        or None,
                     }
                 )
             )
@@ -493,7 +543,7 @@ class UpcomingTool(_LibrusTool):
                     "date": _dated(day),
                     "no": lesson.lesson_no,
                     "subject": _subject_name(data, lesson.subject_id),
-                    "change": "cancelled" if lesson.is_canceled else "substitution",
+                    "change": _change_kind(day, lesson, data),
                     "teacher": _teacher_name(data, lesson.teacher_id)
                     if lesson.is_substitution
                     else None,
@@ -562,8 +612,10 @@ class AttendanceTool(_LibrusTool):
     description = (
         "Attendance: absences (excused and not yet excused), late arrivals, attendance "
         "percentage overall and per subject (below 50% in a subject risks not being "
-        "classified), the dates of absences that still need an excuse, and the "
-        "justifications the parent sent with the school's decision."
+        "classified), the dates of absences that still need an excuse, the "
+        "justifications the parent sent with the school's decision, and what to catch "
+        "up on after the latest absence (missed lessons with their topics, homework "
+        "given meanwhile)."
     )
     parameters = _schema(
         {
@@ -611,7 +663,7 @@ class AttendanceTool(_LibrusTool):
         total = sum(counts.values())
         per_subject = {
             name: s
-            for name, s in _subject_attendance(data).items()
+            for name, s in _subject_attendance(data, coordinator.memo_owner).items()
             if s["total"] >= _SUBJECT_ATTENDANCE_MIN_RECORDS
         }
         return _compact(
@@ -645,8 +697,39 @@ class AttendanceTool(_LibrusTool):
                     for j in data.justifications[:8]
                 ]
                 or None,
+                "catch_up_after_latest_absence": _catch_up_summary(data, today),
             }
         )
+
+
+def _catch_up_summary(data: LibrusData, today: date) -> dict[str, Any] | None:
+    period = catch_up(data, today)
+    if period is None:
+        return None
+    return _compact(
+        {
+            "absent_from": period["from"],
+            "absent_to": period["to"],
+            "school_days": period["days"],
+            "back_on": period["back_on"],
+            "missed_lessons": [
+                _compact({**lesson, "topic": _cut(lesson["topic"], 160)})
+                for lesson in period["lessons"][:25]
+            ],
+            "homework_given_meanwhile": [
+                _compact(
+                    {
+                        "given": item["date"],
+                        "due": item["due_date"],
+                        "subject": item["subject"],
+                        "topic": _cut(item["topic"], 120),
+                    }
+                )
+                for item in period["homework"]
+            ]
+            or None,
+        }
+    )
 
 
 class BehaviourTool(_LibrusTool):
@@ -761,8 +844,8 @@ class MessagesTool(_LibrusTool):
     name = "librus_get_messages"
     description = (
         "Recent private messages from teachers and the school (sender, subject line, the "
-        "start of the text, whether it is unread) and school announcements. Listing does "
-        "not mark anything as read."
+        "start of the text, whether it is unread), messages the parent sent (to whom) and "
+        "school announcements. Listing does not mark anything as read."
     )
     parameters = _schema(
         {
@@ -787,6 +870,18 @@ class MessagesTool(_LibrusTool):
             for m in sorted(data.messages, key=lambda m: m.send_date or "", reverse=True)
             if (_day(m.send_date) or date.min) >= since
         ][:15]
+        sent = [
+            _compact(
+                {
+                    "date": _dated(m.send_date),
+                    "to": m.receiver_name,
+                    "topic": _cut(m.topic, 120),
+                    "text": _cut(m.content, 200),
+                }
+            )
+            for m in sorted(data.sent_messages, key=lambda m: m.send_date or "", reverse=True)
+            if (_day(m.send_date) or date.min) >= since
+        ][:10]
         announcements = [
             _compact(
                 {
@@ -806,6 +901,7 @@ class MessagesTool(_LibrusTool):
                 "messages_available": True if data.messages_available else None,
                 "unread_messages": data.unread_message_count,
                 "messages": messages,
+                "sent_messages": sent,
                 "announcements": announcements,
             }
         )

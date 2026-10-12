@@ -27,7 +27,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Hashable
 from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -54,6 +54,7 @@ from .coordinator import (
     days_since_last_negative_note,
     good_grade_streak,
     infer_subject_id,
+    lesson_change,
     teacher_subject_ids,
 )
 from .exam_prep import exam_prep, missed_lessons
@@ -75,6 +76,13 @@ WINDOW_DAYS = 7
 # Free text from Librus is cut to this many characters in the snapshot.
 TEXT_LIMIT = 300
 STATUSES = ("good", "ok", "caution")
+# coordinator.lesson_change kinds as the snapshot words them.
+_CHANGE_WORDS = {
+    "canceled": "cancelled",
+    "substitution": "substitution",
+    "room_change": "room change",
+    "moved": "moved from another day or lesson",
+}
 
 _LANGUAGE_NAMES = {
     "en": "English",
@@ -94,7 +102,8 @@ _LANGUAGE_NAMES = {
 SECTIONS: dict[str, str] = {
     "grades": "Grades: every grade from this week (subject, value, category, weight,"
     " teacher comment), what went well and what did not, and how the averages moved"
-    " (averages[].now against averages[].week_ago).",
+    " (averages[].now against averages[].week_ago). A grade with kind 'descriptive' is"
+    " for a skill (in category) and doesn't count towards any average.",
     "attendance": "Attendance: this week's lessons, absences (excused or not), lates,"
     " which subjects were missed, and what is still waiting to be excused overall.",
     "behaviour": "Behaviour: notes (uwagi) from this week - positive, negative,"
@@ -303,8 +312,11 @@ def build_context(
     include_news: bool,
     student: str | None,
     thresholds: tuple[float, ...] | None = None,
+    owner: Hashable | None = None,
 ) -> dict[str, Any]:
-    """Compact, JSON-ready snapshot of the week before and after ``today``."""
+    """Compact, JSON-ready snapshot of the week before and after ``today``.
+    ``owner`` is the config entry id the forecasts are cached under (see
+    forecast.DataMemo) - without it every summary left a slot of its own."""
     week_from = today - timedelta(days=WINDOW_DAYS - 1)
     next_from, next_to = today + timedelta(days=1), today + timedelta(days=WINDOW_DAYS)
 
@@ -365,12 +377,29 @@ def build_context(
                 }
             )
         )
+    for descriptive in sorted(data.descriptive_grades, key=lambda d: d.date or d.add_date or ""):
+        if not _in(_day(descriptive.date or descriptive.add_date), week_from, today):
+            continue
+        grades.append(
+            _compact(
+                {
+                    "date": _dated(descriptive.date or descriptive.add_date),
+                    "subject": subject(descriptive.subject_id),
+                    "value": _cut(descriptive.value),
+                    "category": descriptive.skill,
+                    "teacher": teacher(descriptive.teacher_id if descriptive.teacher_id is not None else descriptive.teacher_lid),
+                    "comment": _cut("; ".join(descriptive.comments)) if descriptive.comments else None,
+                    "kind": "descriptive",
+                }
+            )
+        )
     averages = []
     for subject_id in sorted(
         {g.subject_id for g in new_grades if g.subject_id is not None}, key=str
     ):
         now = calculate_average(
-            data.grades, data.grade_categories, subject_id=subject_id, weighted=weighted
+            data.grades, data.grade_categories, subject_id=subject_id, weighted=weighted,
+            grading=data.grading_system
         )
         if now is None:
             continue
@@ -379,7 +408,8 @@ def build_context(
                 "subject": subject(subject_id) or str(subject_id),
                 "now": now,
                 "week_ago": calculate_average(
-                    older, data.grade_categories, subject_id=subject_id, weighted=weighted
+                    older, data.grade_categories, subject_id=subject_id, weighted=weighted,
+                    grading=data.grading_system
                 ),
             }
         )
@@ -468,6 +498,7 @@ def build_context(
                 "teacher": teacher(item.teacher_id),
                 "topic": _cut(item.topic, 120),
                 "text": _cut(item.text),
+                "attached_files": [f.filename or "file" for f in item.attachments] or None,
             }
         )
         for item in sorted(data.homework_assignments, key=lambda h: h.due_date or "")
@@ -485,13 +516,16 @@ def build_context(
             school_days_next_week += 1
         for lesson in lessons:
             if lesson.is_canceled or lesson.is_substitution:
+                # Librus flags a room change and a moved lesson as a
+                # substitution too - say which it is (coordinator.lesson_change).
+                kind = lesson_change(day, lesson, data)["kind"]
                 timetable_changes.append(
                     _compact(
                         {
                             "date": _dated(day),
                             "lesson_no": lesson.lesson_no,
                             "subject": subject(lesson.subject_id),
-                            "change": "cancelled" if lesson.is_canceled else "substitution",
+                            "change": _CHANGE_WORDS.get(kind, kind),
                             "teacher": teacher(lesson.teacher_id)
                             if lesson.is_substitution
                             else None,
@@ -499,7 +533,7 @@ def build_context(
                     )
                 )
     free_days = [
-        {"name": free.name, "from": free.date_from, "to": free.date_to}
+        {"name": free.name, "from": _dated(free.date_from), "to": _dated(free.date_to)}
         for free in data.free_days
         if (_day(free.date_from) or date.max) <= next_to
         and (_day(free.date_to) or date.min) >= week_from
@@ -574,7 +608,8 @@ def build_context(
         if school_class
         else None,
         "today": _dated(today),
-        "this_week": {"from": week_from.isoformat(), "to": today.isoformat()},
+        # Weekdays spelled out like every other date here (see _dated).
+        "this_week": {"from": _dated(week_from), "to": _dated(today)},
         "school_days_this_week": school_days_this_week,
         "average_mode": "weighted" if weighted else "arithmetic",
         "grades": grades,
@@ -592,15 +627,17 @@ def build_context(
                     "one_one_drops_it": True if f.ones_to_drop == 1 else None,
                 }
             )
-            for f in subject_forecasts(data, today, thresholds, weighted=weighted)
+            for f in subject_forecasts(data, today, thresholds, weighted=weighted, owner=owner)
             if f.at_risk or f.declining or f.sixes_to_next == 1 or f.ones_to_drop == 1
         ]
         if thresholds
         else [],
         "overall_average": _compact(
             {
-                "now": calculate_average(data.grades, data.grade_categories, weighted=weighted),
-                "week_ago": calculate_average(older, data.grade_categories, weighted=weighted),
+                "now": calculate_average(data.grades, data.grade_categories, weighted=weighted,
+                    grading=data.grading_system),
+                "week_ago": calculate_average(older, data.grade_categories, weighted=weighted,
+                    grading=data.grading_system),
             }
         ),
         "attendance": _compact(
@@ -618,7 +655,7 @@ def build_context(
         "behaviour_grade": behaviour_grade,
         "streaks": _compact(
             {
-                "good_grade_streak": good_grade_streak(data.grades),
+                "good_grade_streak": good_grade_streak(data.grades, data.grading_system),
                 "days_without_absence": days_since_last_absence(
                     data.attendances, data.attendance_types, school_class, today
                 ),
@@ -629,8 +666,8 @@ def build_context(
         ),
         "next_week": _compact(
             {
-                "from": next_from.isoformat(),
-                "to": next_to.isoformat(),
+                "from": _dated(next_from),
+                "to": _dated(next_to),
                 "agenda": agenda,
                 "homework_due": homework_due,
                 "timetable_changes": timetable_changes[:20],
@@ -962,6 +999,7 @@ class LibrusWeeklySummary:
             include_news=self.include_news,
             student=student,
             thresholds=self._coordinator.grade_thresholds,
+            owner=self._coordinator.memo_owner,
         )
         if skip_empty and is_empty_week(context):
             _LOGGER.debug("Weekly summary skipped: nothing happened this week or next")
@@ -996,8 +1034,10 @@ class LibrusWeeklySummary:
         return {
             **parsed,
             "student": student,
-            "week_from": context["this_week"]["from"],
-            "week_to": context["this_week"]["to"],
+            # Plain dates here (the sensor attributes and the event); the
+            # context spells out the weekday for the model.
+            "week_from": (today - timedelta(days=WINDOW_DAYS - 1)).isoformat(),
+            "week_to": today.isoformat(),
             "audience": self.audience,
             "generated_at": dt_util.utcnow().isoformat(),
             "ai_task_entity": self.ai_task_entity,

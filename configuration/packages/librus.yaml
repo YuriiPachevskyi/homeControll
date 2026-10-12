@@ -399,39 +399,6 @@ automation:
                 <blockquote expandable>{{ translation[:4000] | e }}</blockquote>
     mode: queued
 
-  - id: librus_update_available_notify
-    alias: "Librus - HACS update available (Telegram)"
-    description: A new version of the Librus integration or its cards showed up
-      in HACS. Installing it wipes our local patches (librus/apply_local_patches.py)
-      - remind Yurii what to do after the update.
-    triggers:
-      - trigger: state
-        entity_id:
-          - update.librus_synergia_unofficial_update
-          - update.librus_synergia_cards_update
-        from: "off"
-        to: "on"
-    actions:
-      - variables:
-          msg: |-
-            🆕 Оновлення {{ state_attr(trigger.entity_id, 'friendly_name') | regex_replace(' [Uu]pdate$', '') }}: {{ state_attr(trigger.entity_id, 'installed_version') }} → {{ state_attr(trigger.entity_id, 'latest_version') }}
-            Після встановлення: apply_local_patches.py + перезапуск HA
-      - action: telegram_bot.send_message
-        continue_on_error: true
-        target:
-          entity_id: notify.yurii_p
-        data:
-          title: Librus
-          parse_mode: plain_text
-          message: "{{ msg }}"
-        response_variable: sent
-      - action: script.notify_log_record
-        data:
-          title: Librus
-          message: "{{ msg }}"
-          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
-    mode: queued
-
   - id: librus_local_patches_missing_notify
     alias: "Librus - local patches missing (Telegram)"
     description: sensor.librus_local_patches lists the integration/cards files
@@ -547,8 +514,8 @@ command_line:
       icon: mdi:bandage
       command: >-
         m=""; for e in custom_components/librus_synergia/calendar.py:1
-        custom_components/librus_synergia/coordinator.py:9
-        custom_components/librus_synergia/sensor.py:3
+        custom_components/librus_synergia/coordinator.py:7
+        custom_components/librus_synergia/sensor.py:2
         custom_components/librus_synergia/services.py:1
         www/community/ha-librus-synergia-cards/librus-synergia-cards.js:1;
         do f=${e%:*}; n=$(grep -c "homeControll local patch" "/config/$f" 2>/dev/null);

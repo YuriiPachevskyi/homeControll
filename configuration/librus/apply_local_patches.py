@@ -18,21 +18,15 @@ step when a patch is added or dropped:
 2. Subject names: "<Polish> (<Ukrainian>)" from librus/subjects_uk.json,
    applied where the integration builds its subject id -> name map, so the
    translation shows up in every sensor, the calendars and the cards.
-3. Descriptive grades (the only grades an early-school class gets):
-   show the real grade from the API's `Map` field ("5p", "6p", "3p") plus
-   the skill's name ("5p · Sprawności motoryczne") instead of the raw
-   `Grade` field, which is only a category index (3 for both 5p and 6p) -
-   upstream never saw this endpoint populated. Skill names come from
-   `DescriptiveGrades/Skills`, fetched alongside. Since v0.8.0 the client
-   and parsers are the librus-synergia library (site-packages), so both
-   are wrapped from coordinator.py. The sensor's `recent`
-   list keeps up to 50 grades instead of 5, so the card shows them all.
-4. Minute tick: next lesson / current lesson / next exam work out "now"
-   only when their state is written, i.e. after a Librus refresh. Librus
-   is now polled just 3 times a day (see automation
-   librus_scheduled_refresh - an hourly-plus poll got the HA server's IP
-   blocked), so these three sensors re-write their state every minute from
-   the data already loaded - no Librus request involved.
+3. (Dropped in v0.12.9: upstream now shows descriptive grades' `Map`
+   value and skill name itself, and the cards read the full `grades` list.)
+4. Minute tick: next exam works out "today" (days_until) only when its
+   state is written, i.e. after a Librus refresh, and Librus is polled just
+   3 times a day (see automation librus_scheduled_refresh - an hourly-plus
+   poll got the HA server's IP blocked), so it re-writes its state every
+   minute from the data already loaded - no Librus request involved. Since
+   v0.12.9 upstream re-writes next/current lesson itself at each lesson
+   start/end, so those two are no longer ticked.
 5. Fallback route: on 2026-09-24 every librus.pl host started silently
    dropping traffic from Ukrainian IPs (the HA server's and two other
    hosts' on different ISPs). Before each refresh a plain TCP connect to
@@ -167,82 +161,6 @@ def _translate_subjects(names: dict) -> dict:
 '''
 
 
-# name -> (marker that says it's done, [(old, new), ...]). Since v0.8.0 the
-# client and parsers live in the librus-synergia library (site-packages,
-# reinstalled by HA) - patch 3 wraps them from coordinator.py instead.
-GRADE_MARKER = f"{MARKER}: real grade"
-GRADE_PATCHES = {
-    "coordinator.py": (GRADE_MARKER, [(
-        "            descriptive_grades=parse_descriptive_grades(descriptive_grades_payload),\n",
-        f"            descriptive_grades=_hc_descriptive_grades(descriptive_grades_payload),  # {GRADE_MARKER}\n",
-    )]),
-    "sensor.py": (f"{MARKER}: was 5", [(
-        "            (g for g in self.coordinator.data.descriptive_grades if g.add_date),\n"
-        "            key=lambda g: g.add_date,\n            reverse=True,\n        )[:5]\n",
-        "            (g for g in self.coordinator.data.descriptive_grades if g.add_date),\n"
-        f"            key=lambda g: g.add_date,\n            reverse=True,\n        )[:50]  # {MARKER}: was 5\n",
-    )]),
-}
-GRADE_FUNC = f'''
-
-# --- {GRADE_MARKER} (librus/apply_local_patches.py, patch 3) ---
-_hc_orig_descriptive = LibrusApiClient.async_get_descriptive_grades
-
-
-async def _hc_get_descriptive_grades(self):
-    # skill names from DescriptiveGrades/Skills on each grade
-    payload = await _hc_orig_descriptive(self)
-    try:
-        skills = await self._async_request("DescriptiveGrades/Skills")
-        names = {{k.get("Id"): k.get("Name") for k in skills.get("Skills", []) if isinstance(k, dict)}}
-        for grade in payload.get("Grades", []) if isinstance(payload, dict) else []:
-            skill = grade.get("Skill") if isinstance(grade, dict) else None
-            if isinstance(skill, dict) and names.get(skill.get("Id")):
-                skill["Name"] = names[skill["Id"]]
-    except Exception:  # noqa: BLE001 - optional extra; never break the grades fetch
-        pass  # grades still work, just without skill names
-    return payload
-
-
-LibrusApiClient.async_get_descriptive_grades = _hc_get_descriptive_grades
-
-
-def _hc_descriptive_grades(payload):
-    # real grade ("5p") + skill name, not the category index in `Grade`
-    grades = parse_descriptive_grades(payload)
-    items = {{}}
-    for item in (payload.get("Grades") if isinstance(payload, dict) else None) or []:
-        if isinstance(item, dict) and item.get("Id") is not None:
-            items[int(item["Id"])] = item
-    for grade in grades:
-        item = items.get(grade.id) or {{}}
-        skill = item.get("Skill") if isinstance(item.get("Skill"), dict) else {{}}
-        grade.value = " · ".join(str(x) for x in (
-            item.get("Map") or item.get("RealGradeValue") or item.get("Grade", ""),
-            skill.get("Name")) if x)
-    return grades
-'''
-
-
-def patch_grades() -> None:
-    """Patch 3, with per-file markers of its own - sensor.py and
-    coordinator.py already carry MARKER from patches 1-2."""
-    for name, (marker, edits) in GRADE_PATCHES.items():
-        path = INTEGRATION / name
-        text = path.read_text(encoding="utf-8")
-        if marker in text:
-            print(f"{name}: grades already patched")
-            continue
-        for old, new in edits:
-            if text.count(old) != 1:
-                sys.exit(f"{name}: expected exactly one {old!r} - upstream changed, patch not applied")
-            text = text.replace(old, new)
-        if name == "coordinator.py":
-            text += GRADE_FUNC
-        path.write_text(text, encoding="utf-8")
-        print(f"{name}: grades patched")
-
-
 TICK_MARKER = f"{MARKER}: minute tick"
 TICK_MIXIN = (
     "_SCHOOL_TZ = _ZoneInfo(\"Europe/Warsaw\")\n"
@@ -262,9 +180,6 @@ TICK_MIXIN = (
 )
 TICK_EDITS = [
     ("_SCHOOL_TZ = _ZoneInfo(\"Europe/Warsaw\")\n", TICK_MIXIN),
-    ("from homeassistant.core import HomeAssistant\n", "from homeassistant.core import HomeAssistant, callback\n"),
-    ("class LibrusNextLessonSensor(LibrusSensorBase):", "class LibrusNextLessonSensor(_MinuteTick, LibrusSensorBase):"),
-    ("class LibrusCurrentLessonSensor(LibrusSensorBase):", "class LibrusCurrentLessonSensor(_MinuteTick, LibrusSensorBase):"),
     ("class LibrusNextExamSensor(LibrusSensorBase):", "class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):"),
 ]
 
@@ -326,7 +241,7 @@ def patch_route() -> None:
 CACHE_MARKER = f"{MARKER}: data cache"
 CACHE_DEF = "    async def _async_update_data(self) -> LibrusData:\n"
 CACHE_RENAMED = f"    async def _async_update_data_upstream(self) -> LibrusData:  # {CACHE_MARKER}\n"
-CACHE_VERSION = "cache-v14"  # bump when CACHE_FUNC changes: re-applies the block in place
+CACHE_VERSION = "cache-v15"  # bump when CACHE_FUNC changes: re-applies the block in place
 CACHE_FUNC = f"""
 
 # --- {CACHE_MARKER} (librus/apply_local_patches.py, patch 6, {CACHE_VERSION}) ---
@@ -473,7 +388,9 @@ def _hc_news(old, new) -> dict:
     seen_g = {{g.id for g in old.grades}}
     seen_m = {{m.id for m in old.messages}}
     grades = [
-        {{"subject": subjects.get(g.subject_id, "?"), "value": g.value, "date": (g.add_date or "")[:16]}}
+        {{"subject": subjects.get(g.subject_id, "?"),
+          "value": " · ".join(x for x in (g.value, getattr(g, "skill", None)) if x),
+          "date": (g.add_date or "")[:16]}}
         for g in new.descriptive_grades if g.id not in seen_d
     ] + [
         {{"subject": subjects.get(g.subject_id, "?"), "value": g.value, "date": (g.add_date or "")[:16]}}
@@ -726,9 +643,10 @@ SCHOOL_DATE_NEW = 'dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()'
 
 def patch_school_date() -> None:
     """Patch 7 - see the module docstring."""
-    for name in ("sensor.py", "calendar.py", "coordinator.py", "binary_sensor.py", "todo.py"):
+    for name in ("sensor.py", "calendar.py", "coordinator.py", "binary_sensor.py", "todo.py",
+                 "school_day.py"):
         path = INTEGRATION / name
-        if not path.exists():  # binary_sensor.py / todo.py since v0.11.0
+        if not path.exists():  # binary_sensor.py / todo.py since v0.11.0, school_day.py v0.12
             continue
         text = path.read_text(encoding="utf-8")
         count = text.count(SCHOOL_DATE_OLD)
@@ -885,7 +803,6 @@ def main() -> None:
             sys.exit("coordinator.py: subject map line not found - upstream changed, patch not applied")
         coordinator.write_text(text.replace(SUBJECTS_LINE, SUBJECTS_PATCH) + SUBJECTS_FUNC, encoding="utf-8")
         print("coordinator.py: patched")
-    patch_grades()
     patch_tick()
     patch_route()
     patch_cache()

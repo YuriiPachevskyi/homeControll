@@ -13,12 +13,92 @@ semester grade is given for), in the second semester the whole school year
 from __future__ import annotations
 
 import math
+import weakref
+from collections import OrderedDict
+from collections.abc import Callable, Hashable
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, TypeVar
 
-from librus_synergia.models import GradeCategoryData, GradeData, LibrusData
+from librus_synergia.models import GradeCategoryData, GradeData, GradingSystemData, LibrusData
 from librus_synergia.parsers import parse_grade_value
+
+_T = TypeVar("_T")
+
+
+class DataMemo:
+    """Results of a calculation over one `LibrusData`, per owner.
+
+    Many entities read the same derived figures (forecasts, school days)
+    from the same coordinator data - every subject sensor, every minute
+    tick - and the data only changes when the coordinator builds a NEW
+    `LibrusData` object (it never edits one in place). So results are kept
+    per data object (compared with `is`; the object itself is held so a
+    recycled `id()` can't match), each under a small key for anything else
+    it depends on (today's date, the options).
+
+    `owner` is the config entry the data belongs to: each owner keeps the
+    results for its CURRENT data object only - new data replaces the old
+    one's results, so an old snapshot isn't kept alive, and students don't
+    evict each other (a list of the last few results shared by everyone
+    did both once there were more students than entries). A call without
+    an owner gets a slot of its own per data object. `size` caps the slots
+    overall, least recently used out first.
+
+    Callers share the returned object - they must not modify it."""
+
+    # Results per data object (one per date/options key) - several only
+    # when one data object outlives a day or the options differ per caller.
+    _KEYS_PER_DATA = 8
+
+    # Every memo, so an unloading entry can drop its slots from all of them
+    # at once (`discard_all`).
+    _ALL: weakref.WeakSet[DataMemo] = weakref.WeakSet()
+
+    def __init__(self, size: int = 16) -> None:
+        self._size = size
+        self._slots: OrderedDict[Hashable, tuple[object, dict[Hashable, Any]]] = OrderedDict()
+        DataMemo._ALL.add(self)
+
+    def discard(self, owner: Hashable) -> None:
+        """Drop `owner`'s slot - its data object and results - right away,
+        instead of keeping a removed or reloading entry's last snapshot alive
+        until other owners push it out."""
+        self._slots.pop(owner, None)
+
+    @classmethod
+    def discard_all(cls, owner: Hashable) -> None:
+        """`discard(owner)` on every memo (an entry unloading)."""
+        for memo in list(cls._ALL):
+            memo.discard(owner)
+
+    def get(
+        self,
+        data: object,
+        key: Hashable,
+        compute: Callable[[], _T],
+        *,
+        owner: Hashable | None = None,
+    ) -> _T:
+        slot = owner if owner is not None else ("data", id(data))
+        held = self._slots.get(slot)
+        if held is None or held[0] is not data:
+            held = (data, {})
+            self._slots[slot] = held
+        self._slots.move_to_end(slot)
+        values = held[1]
+        if key in values:
+            return values[key]  # type: ignore[no-any-return]
+        value = compute()
+        if len(values) >= self._KEYS_PER_DATA:
+            values.clear()
+        values[key] = value
+        while len(self._slots) > self._size:
+            self._slots.popitem(last=False)
+        return value
+
+    def clear(self) -> None:
+        self._slots.clear()
 
 # Minimum average for a 2, 3, 4, 5 and 6 - a common setup, but schools
 # differ (see the option's description).
@@ -68,6 +148,7 @@ def average_sums(
     grades: list[GradeData],
     categories: dict[int, GradeCategoryData],
     *,
+    grading: GradingSystemData | None = None,
     subject_id: int | None = None,
     semester: int | None = None,
     weighted: bool = True,
@@ -89,7 +170,7 @@ def average_sums(
         )
         if category is not None and not category.count_to_average:
             continue
-        numeric = parse_grade_value(grade.value)
+        numeric = parse_grade_value(grade.value, grading)
         if numeric is None:
             continue
         weight = (category.weight if category is not None else 1) if weighted else 1
@@ -171,15 +252,38 @@ def forecast_basis(data: LibrusData, today: date) -> tuple[str, int | None]:
     return BASIS_SEMESTER_1, 1
 
 
+# Every subject average sensor, the Grade forecast sensor, the grade-risk
+# binary sensor and the coordinator ask for the same forecasts each update
+# (~20 calls per cycle) - computed once per data object instead.
+_FORECASTS = DataMemo()
+
+
 def subject_forecasts(
     data: LibrusData,
     today: date,
     thresholds: tuple[float, ...],
     *,
     weighted: bool = True,
+    owner: Hashable | None = None,
 ) -> list[SubjectForecast]:
     """One forecast per subject with at least one counted grade, worst
-    first."""
+    first. The list is shared between callers - don't modify it. `owner`
+    is the config entry id (see DataMemo)."""
+    return _FORECASTS.get(
+        data,
+        (today, tuple(thresholds), weighted),
+        lambda: _subject_forecasts(data, today, tuple(thresholds), weighted=weighted),
+        owner=owner,
+    )
+
+
+def _subject_forecasts(
+    data: LibrusData,
+    today: date,
+    thresholds: tuple[float, ...],
+    *,
+    weighted: bool,
+) -> list[SubjectForecast]:
     basis, semester = forecast_basis(data, today)
     # A grade without a semester number counts in either basis.
     grades = [
@@ -196,14 +300,16 @@ def subject_forecasts(
     result: list[SubjectForecast] = []
     for subject_id in subject_ids:
         total, weight = average_sums(
-            grades, data.grade_categories, subject_id=subject_id, weighted=weighted
+            grades, data.grade_categories, subject_id=subject_id, weighted=weighted,
+            grading=data.grading_system
         )
         if weight <= 0:
             continue
         average = total / weight
         predicted = predicted_grade(average, thresholds)
         old_total, old_weight = average_sums(
-            older, data.grade_categories, subject_id=subject_id, weighted=weighted
+            older, data.grade_categories, subject_id=subject_id, weighted=weighted,
+            grading=data.grading_system
         )
         declining = old_weight > 0 and predicted < predicted_grade(
             old_total / old_weight, thresholds

@@ -2,8 +2,9 @@
 
 Built for automations - an alarm clock that only rings on school days,
 heating or a "do not disturb" mode during lessons. All from the cached
-timetable (see school_day.py), re-checked every minute so the state flips
-on time rather than at the next coordinator refresh.
+timetable (see school_day.py), re-checked at each school-day transition (a
+first lesson starting, a last lesson ending, midnight) so the state flips on
+time rather than at the next coordinator refresh.
 """
 
 from __future__ import annotations
@@ -23,7 +24,13 @@ from homeassistant.util import dt as dt_util
 from . import LibrusConfigEntry, librus_device_info
 from .coordinator import LibrusDataUpdateCoordinator
 from .forecast import SubjectForecast, subject_forecasts
-from .school_day import MinuteRefresh, SchoolDay, in_school, school_days
+from .school_day import (
+    SchoolDay,
+    SchoolDayRefresh,
+    SkipUnchangedUpdates,
+    in_school,
+    school_days,
+)
 
 
 def _day_attrs(school_day: SchoolDay | None) -> dict[str, Any]:
@@ -37,7 +44,10 @@ def _day_attrs(school_day: SchoolDay | None) -> dict[str, Any]:
 
 
 class LibrusSchoolBinarySensor(
-    MinuteRefresh, CoordinatorEntity[LibrusDataUpdateCoordinator], BinarySensorEntity
+    SchoolDayRefresh,
+    SkipUnchangedUpdates,
+    CoordinatorEntity[LibrusDataUpdateCoordinator],
+    BinarySensorEntity,
 ):
     _attr_has_entity_name = True
 
@@ -69,7 +79,8 @@ class LibrusSchoolDayTodaySensor(LibrusSchoolBinarySensor):
         super().__init__(coordinator, entry, "school_day_today")
 
     def _school_day(self) -> SchoolDay | None:
-        return school_days(self.coordinator.data).get(dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date())
+        days = school_days(self.coordinator.data, self.coordinator.memo_owner)
+        return days.get(dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date())
 
     @property
     def is_on(self) -> bool | None:
@@ -87,7 +98,7 @@ class LibrusSchoolDayTomorrowSensor(LibrusSchoolBinarySensor):
         super().__init__(coordinator, entry, "school_day_tomorrow")
 
     def _school_day(self) -> SchoolDay | None:
-        return school_days(self.coordinator.data).get(
+        return school_days(self.coordinator.data, self.coordinator.memo_owner).get(
             dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date() + timedelta(days=1)
         )
 
@@ -110,17 +121,19 @@ class LibrusInSchoolSensor(LibrusSchoolBinarySensor):
         super().__init__(coordinator, entry, "in_school")
 
     def _school_day(self) -> SchoolDay | None:
-        return school_days(self.coordinator.data).get(dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date())
+        days = school_days(self.coordinator.data, self.coordinator.memo_owner)
+        return days.get(dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date())
 
     @property
     def is_on(self) -> bool | None:
         if self.coordinator.data is None:
             return None
-        return in_school(school_days(self.coordinator.data), dt_util.now())
+        days = school_days(self.coordinator.data, self.coordinator.memo_owner)
+        return in_school(days, dt_util.now())
 
 
 class LibrusGradeRiskSensor(
-    CoordinatorEntity[LibrusDataUpdateCoordinator], BinarySensorEntity
+    SkipUnchangedUpdates, CoordinatorEntity[LibrusDataUpdateCoordinator], BinarySensorEntity
 ):
     """On while any subject's average points to a 1 (see forecast.py).
     Subjects whose forecast fell by a grade recently are listed too, but
@@ -143,6 +156,7 @@ class LibrusGradeRiskSensor(
             dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date(),
             self.coordinator.grade_thresholds,
             weighted=self.coordinator.weighted_average,
+            owner=self.coordinator.memo_owner,
         )
 
     @property

@@ -12,7 +12,7 @@ lesson / substitution.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -31,6 +31,7 @@ from .const import (
     EVENT_NEW_GRADE,
     EVENT_NEW_HOMEWORK,
     EVENT_NEW_HOMEWORK_ASSIGNMENT,
+    EVENT_MESSAGE_READ,
     EVENT_NEW_MESSAGE,
     EVENT_NEW_NOTE,
     EVENT_NEW_SCHOOL_DOCUMENT,
@@ -124,6 +125,13 @@ DESCRIPTIONS: tuple[LibrusEventDescription, ...] = (
         "message", EVENT_NEW_MESSAGE, ("new_message",), "mdi:email-outline", lambda d: "new_message"
     ),
     LibrusEventDescription(
+        "message_read",
+        EVENT_MESSAGE_READ,
+        ("read",),
+        "mdi:email-check-outline",
+        lambda d: "read",
+    ),
+    LibrusEventDescription(
         "forecast",
         EVENT_FORECAST_CHANGED,
         ("up", "down"),
@@ -146,6 +154,12 @@ _DROP = frozenset({"entry_id"})
 class LibrusEventEntity(EventEntity):
     _attr_has_entity_name = True
     _attr_should_poll = False
+    # Free text (a note, an Agenda entry, a message) rides along for
+    # automations and the logbook, but a copy in the recorder for every
+    # event only grows the database.
+    _unrecorded_attributes = frozenset(
+        {"text", "content", "message", "comments", "previous", "teachers", "requirements"}
+    )
 
     def __init__(self, entry: LibrusConfigEntry, description: LibrusEventDescription) -> None:
         self._entry_id = entry.entry_id
@@ -157,9 +171,18 @@ class LibrusEventEntity(EventEntity):
         self._attr_device_info = librus_device_info(entry)
 
     async def async_added_to_hass(self) -> None:
+        # Filtered by the bus itself: with several students every event
+        # entity used to be called (and scheduled) for every student's
+        # events, only to drop the other students' ones here.
         self.async_on_remove(
-            self.hass.bus.async_listen(self._description.bus_event, self._async_handle)
+            self.hass.bus.async_listen(
+                self._description.bus_event, self._async_handle, event_filter=self._own_event
+            )
         )
+
+    @callback
+    def _own_event(self, event_data: Mapping[str, Any]) -> bool:
+        return event_data.get("entry_id") == self._entry_id
 
     @callback
     def _async_handle(self, event: Event) -> None:

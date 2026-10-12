@@ -29,13 +29,16 @@ from . import LibrusConfigEntry, librus_device_info
 from .ai_summary import _cut, _day
 from .const import DOMAIN
 from .coordinator import LibrusDataUpdateCoordinator, infer_subject_id, teacher_subject_ids
+from .school_day import SkipUnchangedUpdates
 
 STORAGE_VERSION = 1
 # Ticked-off homework stays on the list this long after its due date.
 KEEP_DONE_DAYS = 14
 
 
-class LibrusHomeworkTodoList(CoordinatorEntity[LibrusDataUpdateCoordinator], TodoListEntity):
+class LibrusHomeworkTodoList(
+    SkipUnchangedUpdates, CoordinatorEntity[LibrusDataUpdateCoordinator], TodoListEntity
+):
     _attr_has_entity_name = True
     _attr_translation_key = "homework"
     _attr_icon = "mdi:notebook-check-outline"
@@ -49,11 +52,32 @@ class LibrusHomeworkTodoList(CoordinatorEntity[LibrusDataUpdateCoordinator], Tod
             coordinator.hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.homework_done"
         )
         self._done: set[str] = set()
+        # The last list built and what it was built from (data object,
+        # ticks, day): HA reads `todo_items` for the state and again for
+        # the item list, and most coordinator updates change none of it.
+        self._items_key: tuple[Any, ...] | None = None
+        self._items: list[TodoItem] | None = None
+        self._items_data: Any = None
+
+    def _side_state(self) -> Any:
+        return frozenset(self._done)
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         stored = await self._store.async_load() or {}
         self._done = {str(uid) for uid in stored.get("done", [])}
+        data = self.coordinator.data
+        if data is not None and self.coordinator.homework_assignments_complete:
+            # Ticks for homework Librus no longer lists are dropped here too,
+            # not only on the next tick: after a new school year cleared the
+            # homework badge's count, every restart put last year's ticks
+            # back into it.
+            known = {str(hw.id) for hw in data.homework_assignments}
+            if not self._done <= known:
+                self._done &= known
+                await self._store.async_save({"done": sorted(self._done)})
+        for uid in self._done:
+            self.coordinator.record_homework_done(uid)
 
     @property
     def todo_items(self) -> list[TodoItem] | None:
@@ -61,6 +85,14 @@ class LibrusHomeworkTodoList(CoordinatorEntity[LibrusDataUpdateCoordinator], Tod
         if data is None:
             return None
         today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
+        key = (id(data), frozenset(self._done), today)
+        if self._items is not None and self._items_key == key and self._items_data is data:
+            return self._items
+        self._items = self._build_items(data, today)
+        self._items_key, self._items_data = key, data
+        return self._items
+
+    def _build_items(self, data: Any, today: Any) -> list[TodoItem]:
         by_teacher = teacher_subject_ids(data.timetable)
         items: list[TodoItem] = []
         for hw in sorted(data.homework_assignments, key=lambda h: h.due_date or ""):
@@ -91,6 +123,7 @@ class LibrusHomeworkTodoList(CoordinatorEntity[LibrusDataUpdateCoordinator], Tod
             raise HomeAssistantError("This homework is no longer in Librus.")
         if item.status == TodoItemStatus.COMPLETED:
             self._done.add(item.uid)
+            self.coordinator.record_homework_done(item.uid)
         else:
             self._done.discard(item.uid)
         # Forget ticks for homework Librus no longer lists.

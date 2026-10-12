@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -23,7 +24,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr
 
 from librus_synergia import LibrusError
-from librus_synergia.parsers import point_grades_percentage
+from librus_synergia.parsers import parse_message_receivers, point_grades_percentage
 
 from .const import DOMAIN
 from .coordinator import (
@@ -63,10 +64,14 @@ def resolve_coordinator(hass: HomeAssistant, device_id: str) -> LibrusDataUpdate
     if device is None:
         raise ServiceValidationError(f"Unknown device: {device_id}")
 
+    # Newer Home Assistant: one config entry per device (`config_entry_id`);
+    # older: the `config_entries` set (deprecated, gone in 2027.10).
+    single = getattr(device, "config_entry_id", None)
+    entry_ids = [single] if single else device.config_entries
     entry = next(
         (
             e
-            for entry_id in device.config_entries
+            for entry_id in entry_ids
             if (e := hass.config_entries.async_get_entry(entry_id)) is not None
             and e.domain == DOMAIN
         ),
@@ -99,8 +104,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 for entry in hass.config_entries.async_entries(DOMAIN)
                 if entry.state is ConfigEntryState.LOADED
             ]
-        for coordinator in coordinators:
-            await coordinator.async_force_refresh()
+        # Together: each student's refresh waits on Librus for seconds, and
+        # one after another made the call last that times the students.
+        await asyncio.gather(*(c.async_force_refresh() for c in coordinators))
 
     hass.services.async_register(
         DOMAIN, SERVICE_REFRESH, _async_handle_refresh, schema=_REFRESH_SCHEMA
@@ -150,6 +156,11 @@ def async_setup_services(hass: HomeAssistant) -> None:
             "read_date": data.get("readDate"),
             "has_attachment": bool(attachments),
             "attachments": attachments,
+            # A sent message: who it went to and when each one read it.
+            "receivers": [
+                {"name": r.name, "group": r.group, "read_date": r.read_date}
+                for r in parse_message_receivers(data)
+            ],
         }
 
     hass.services.async_register(
@@ -215,6 +226,24 @@ def async_setup_services(hass: HomeAssistant) -> None:
                     "teacher": data.teachers.get(g.teacher_id) if g.teacher_id is not None else None,
                 }
                 for g in text_grades
+            ]
+        descriptive_grades = [
+            g for g in data.descriptive_grades if subject_id is None or g.subject_id == subject_id
+        ]
+        if descriptive_grades:
+            response["descriptive_grades"] = [
+                {
+                    "subject": data.subjects.get(g.subject_id) if g.subject_id is not None else None,
+                    "subject_id": g.subject_id,
+                    "value": g.value,
+                    "skill": g.skill,
+                    "comments": list(g.comments),
+                    "requirements": list(g.requirements),
+                    "date": g.date or g.add_date,
+                    "semester": g.semester,
+                    "teacher": data.teachers.get(g.teacher_id if g.teacher_id is not None else g.teacher_lid),
+                }
+                for g in descriptive_grades
             ]
         # Schools grading in points (0-100 etc.) - only when there are any.
         point_grades = [
