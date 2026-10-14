@@ -960,9 +960,11 @@
       - condition: state
         entity_id: binary_sensor.deye_5kw_grid
         state: 'off'
-      - condition: state
-        entity_id: switch.input_meater_switch
-        state: unavailable
+      - condition: not
+        conditions:
+        - condition: state
+          entity_id: switch.input_meater_switch
+          state: 'off'
       - condition: state
         entity_id: input_boolean.grid_outage_notified
         state: 'off'
@@ -980,11 +982,6 @@
       - condition: state
         entity_id: binary_sensor.deye_5kw_grid
         state: 'on'
-      - condition: not
-        conditions:
-        - condition: state
-          entity_id: switch.input_meater_switch
-          state: unavailable
       - condition: state
         entity_id: input_boolean.grid_outage_notified
         state: 'on'
