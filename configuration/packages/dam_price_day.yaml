@@ -20,7 +20,7 @@ command_line:
         - avg
         - energy
         - error
-      command_timeout: 30
+      command_timeout: 90
       # Also re-run right after the date changes (automation below). The poll
       # keeps today's energy current; for a past day it is a cheap cache + DB read.
       scan_interval: 600

@@ -51,7 +51,7 @@ def fetch(day: date) -> list:
     q = urllib.parse.urlencode({
         "securityToken": entsoe_key(), "documentType": "A44", "in_Domain": AREA, "out_Domain": AREA,
         "periodStart": start.strftime("%Y%m%d%H%M"), "periodEnd": end.strftime("%Y%m%d%H%M")})
-    root = ET.fromstring(urllib.request.urlopen("https://web-api.tp.entsoe.eu/api?" + q, timeout=20).read())
+    root = ET.fromstring(urllib.request.urlopen("https://web-api.tp.entsoe.eu/api?" + q, timeout=60).read())
     for el in root.iter():
         el.tag = el.tag.split("}", 1)[-1]
     slots: dict = {}

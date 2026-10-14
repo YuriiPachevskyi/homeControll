@@ -43,7 +43,7 @@ class EntsoeClient:
         }
         params.update(base_params)
 
-        timeout = aiohttp.ClientTimeout(total=10, connect=5)
+        timeout = aiohttp.ClientTimeout(total=60, connect=10)  # local patch: ENTSO-E often takes ~25 s (was total=10)
         last_error = None
         for url in API_URLS:
             _LOGGER.debug(f"Performing request to {url} with params {params}")
