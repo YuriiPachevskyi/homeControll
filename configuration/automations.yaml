@@ -305,7 +305,8 @@
     to charging, nothing is sold) and is never reset
     by any automation; from 23:10 to 06:30 it sets 5kW SOC 100 with grid charging
     on (all 6 programs Grid) and pauses the cascade, which would otherwise shed loads
-    because of the grid import.
+    because of the grid import. From 15 Nov to the end of February every run (except
+    battery_changed) resets input_number.charge_power_deye_6kw to 1.5 kW.
   triggers:
   - trigger: state
     entity_id: input_select.deye_system_state
@@ -403,6 +404,8 @@
       s: '{% set base = config.get(current_state, config[''Idle'']) %}{{ dict(base,
         **force_override) if force else base }}'
       grid_charging: '{{ ''Grid'' if night_charge else ''Disabled'' }}'
+      winter_charge_6kw: '{{ (now().month == 11 and now().day >= 15) or now().month
+        in [12, 1, 2] }}'
   - if:
     - condition: template
       value_template: '{{ current_state == ''Evening Export'' }}'
@@ -457,6 +460,15 @@
         entity_id: input_number.deye_6kw_discharge_power
       data:
         value: '{{ s[''6kw_power''] }}'
+    - if:
+      - condition: template
+        value_template: '{{ winter_charge_6kw }}'
+      then:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.charge_power_deye_6kw
+        data:
+          value: 1.5
     - action: input_number.set_value
       target:
         entity_id:
