@@ -296,10 +296,10 @@
     SOC for Morning Export, Max Solar and Evening Export comes from input_number.deye_5kw_export_soc,
     6kW discharge SOC for Evening Export (selling) from input_number.deye_6kw_export_soc
     (changing either re-applies the settings). input_select.selling_mode Save forces
-    5kW SOC 75 in those three states, and while the 5kW battery is below 75% export
-    is 100 W so PV charges it first (min SOC alone does not, in Export First the
-    Deye sells PV before charging); at 75% export goes back to the state value (the
-    two sensor.deye_5kw_battery triggers hard-code 75 = save_soc). Force overrides Morning Export and Max Solar with
+    5kW SOC 75 in those three states and export 100 W in all states, so PV charges
+    the 5kW battery and nothing is sold (min SOC alone does not charge, in Export
+    First the Deye sells PV before charging); once the 5kW battery reaches 85% (save_done_soc,
+    hard-coded in the soc_5kw_save_done trigger too) selling_mode goes back to Normal. Force overrides Morning Export and Max Solar with
     5kW SOC 40 / 0.35 kW, export 5080, 6kW SOC 55 / 1 kW (was the Max Solar Forced
     state). Night Charge (winter) uses 5kW SOC 40 and export 100 W in all states (all PV goes
     to charging, nothing is sold) and is never reset
@@ -331,12 +331,8 @@
     id: selling_mode_changed
   - trigger: numeric_state
     entity_id: sensor.deye_5kw_battery
-    below: 75
-    id: soc_5kw_save
-  - trigger: numeric_state
-    entity_id: sensor.deye_5kw_battery
-    above: 74
-    id: soc_5kw_save
+    above: 84
+    id: soc_5kw_save_done
   - trigger: time
     at: '23:10:00'
     id: night_charge_start
@@ -355,8 +351,7 @@
       is_selling_6kw: '{{ is_state(''input_boolean.deye_6kw_battery_selling'', ''on'')
         }}'
       save_soc: 75
-      save_charging: '{{ is_state(''input_select.selling_mode'', ''Save'') and states(''sensor.deye_5kw_battery'')
-        | float(0) < save_soc }}'
+      save_done_soc: 85
       export_soc_5kw: '{{ save_soc if is_state(''input_select.selling_mode'', ''Save'')
         else 40 if is_state(''input_select.selling_mode'', ''Night Charge'') else states(''input_number.deye_5kw_export_soc'') | int(70) }}'
       export_soc_6kw: '{{ states(''input_number.deye_6kw_export_soc'') | int(70) }}'
@@ -406,6 +401,19 @@
       grid_charging: '{{ ''Grid'' if night_charge else ''Disabled'' }}'
       winter_charge_6kw: '{{ (now().month == 11 and now().day >= 15) or now().month
         in [12, 1, 2] }}'
+  - if:
+    - condition: state
+      entity_id: input_select.selling_mode
+      state: Save
+    - condition: template
+      value_template: '{{ states(''sensor.deye_5kw_battery'') | float(0) >= save_done_soc }}'
+    then:
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.selling_mode
+      data:
+        option: Normal
+    - stop: Save done, selling_mode -> Normal re-runs the controller
   - if:
     - condition: template
       value_template: '{{ current_state == ''Evening Export'' }}'
@@ -475,8 +483,8 @@
         - input_number.export_deye_5kw_power
         - input_number.export_deye_5kw_power_base
       data:
-        value: '{{ 100 if is_state(''input_select.selling_mode'', ''Night Charge'') or
-          save_charging else s[''export_power''] }}'
+        value: '{{ 100 if states(''input_select.selling_mode'') in [''Save'', ''Night Charge'']
+          else s[''export_power''] }}'
     - if:
       - condition: template
         value_template: '{{ current_state != ''Evening Export'' and trigger.id in
