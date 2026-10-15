@@ -11,8 +11,8 @@ port). "Known" devices are the router's static DHCP hosts (the named ones).
    "home"/"not_home", attribute "since" = when that state really started
    (arrival time, or the last time the phone was seen before it left). A phone counts as gone only after AWAY_AFTER without
    being seen, so short Wi-Fi sleeps don't flap. The automation "Phone back
-   on the network" uses "since" for its 10 h rule (realme-6: 5 daytime
-   hours). If a router can't be reached, its phones keep their last state.
+   on the network" uses "since" for its 10 h rule (openwrtk phones: 5
+   daytime hours). If a router can't be reached, its phones keep their last state.
 
 2. New devices. An active MAC that is not a static host on any router, not
    an ignored vendor and has never been seen before triggers script.notify_new_device in HA (Telegram to Yurii and Kateryna) once, with its
@@ -42,6 +42,8 @@ PHONES = [
     ("openwrtn", "HUAWEIP30"),
     ("openwrtn", "POCO-M5s"),
     ("openwrtk", "realme-6"),
+    ("openwrtk", "Iryna-S25"),
+    ("openwrtk", "Iryna-V2025"),
 ]
 ROUTERS = ["openwrtn", "openwrtk"]
 # Vendors never reported as new, per router (substring of the IEEE OUI name).

@@ -2,7 +2,8 @@
 # every minute), which watches the openwrtn (home) and openwrtk routers.
 #
 # Phone back: a tracked phone shows up after being away for more than 10 hours
-# (realme-6 on openwrtk: 5 hours, see away_hours below).
+# (openwrtk phones realme-6, Iryna-S25, Iryna-V2025: 5 daytime hours, see
+# away_hours below).
 # The trackers come from lan_watch.py via MQTT discovery; their "since"
 # attribute is when the phone was last seen before it left, so the threshold
 # survives HA restarts. One message per return: it fires only on the
@@ -91,7 +92,7 @@ script:
 automation:
   - id: phone_back_on_network
     alias: Phone back on the network
-    description: Notifies Yurii and Kateryna when HUAWEIP30 or POCO-M5s joins the home LAN after 10+ hours away, or realme-6 joins openwrtk after 5+ hours.
+    description: Notifies Yurii and Kateryna when HUAWEIP30 or POCO-M5s joins the home LAN after 10+ hours away, or realme-6 / Iryna-S25 / Iryna-V2025 joins openwrtk after 5+ daytime hours.
     mode: queued
     triggers:
       - trigger: state
@@ -99,15 +100,18 @@ automation:
           - device_tracker.huaweip30
           - device_tracker.poco_m5s
           - device_tracker.realme_6
+          - device_tracker.iryna_s25
+          - device_tracker.iryna_v2025
         from: not_home
         to: home
     conditions:
       - condition: template
-        # realme-6 drops Wi-Fi while its owner sleeps, so for it 23:00-08:00
-        # does not count as away time (counted in 10-minute steps).
+        # openwrtk phones drop Wi-Fi while their owners sleep, so for them
+        # 23:00-08:00 does not count as away time (counted in 10-minute steps).
         value_template: >-
-          {% set away_hours = {'device_tracker.realme_6': 5}.get(trigger.entity_id, 10) %}
-          {% set skip_night = trigger.entity_id in ['device_tracker.realme_6'] %}
+          {% set openwrtk = ['device_tracker.realme_6', 'device_tracker.iryna_s25', 'device_tracker.iryna_v2025'] %}
+          {% set away_hours = 5 if trigger.entity_id in openwrtk else 10 %}
+          {% set skip_night = trigger.entity_id in openwrtk %}
           {% set since = trigger.from_state.attributes.since | default(none) %}
           {% if since is none %}
             false
