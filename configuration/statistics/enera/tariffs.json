@@ -135,5 +135,18 @@
     "avg_cost": 4.91,
     "gross": 10827.45,
     "payout": 8337.14
+  },
+  "2026-09": {
+    "generation": 1171.0,
+    "consumption": 16.0,
+    "saldo": 1155.0,
+    "green_tariff": 6.7991,
+    "green_kwh": 1153.202,
+    "green_cost": 7840.74,
+    "avg_kwh": 1.798,
+    "avg_tariff": 0.956618,
+    "avg_cost": 1.72,
+    "gross": 7842.46,
+    "payout": 6038.7
   }
 }

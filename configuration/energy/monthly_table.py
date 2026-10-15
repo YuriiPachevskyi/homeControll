@@ -9,6 +9,12 @@ blended tariff, as the ENERA act does (Jan 2026: saldo -292), any other month is
 (export - import) x the month's green tariff x 0.77 (tariffs from
 statistics/enera/tariffs.json, the latest known one for a month whose act
 has not arrived yet).
+The 5kW's CT does not agree with the utility meter: it sees ~0.15 % more
+export and ~2 % + ~4 kWh/month less import (all 12 acts Sep 2025 - Sep 2026).
+So a month whose act is in tariffs.json shows the meter's export / import and
+the act's payout ("metered": true), and any other month's export / import are
+corrected by a linear fit of meter vs inverter over all acts (the per-month
+offset scaled to the part of the month covered).
 
 Runs from cron every few hours; stdlib only. Rows are
 display-ready: per month, a "Сума <year>" row after each year and a "Всього"
@@ -33,7 +39,9 @@ statistics/enera/sync.py). The dashboard looks the link up by that key in
 sensor.document_links (custom_components/documents), which serves the PDF
 behind HA auth via a signed, expiring link - never from www/.
 """
+import calendar
 import json
+import statistics
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -55,6 +63,7 @@ IDS = {
     "imp": "sensor.deye_5kw_total_energy_import",
     "house": "sensor.home_load_energy",
     "boiler": "sensor.boiler_ten_energy_total",
+    "washer": "sensor.washer_energy",  # since 2026-10-07 (packages/washer.yaml)
 }
 TOKEN = (Path.home() / ".secrets" / "ha_token").read_text().strip()
 
@@ -85,15 +94,25 @@ def main() -> None:
     for key, sid in IDS.items():
         for r in stats.get(sid, []):
             t = datetime.fromisoformat(r["start"]).astimezone(TZ)
-            m = agg.setdefault((t.year, t.month), {k: 0.0 for k in IDS} | {"night_imp": 0.0, "boiler_rows": 0})
+            m = agg.setdefault((t.year, t.month), {k: 0.0 for k in IDS} | {"night_imp": 0.0, "boiler_rows": 0,
+                                                                                 "washer_rows": 0})
             v = r["change"] or 0
             m[key] += v
             if key == "imp" and (t.hour >= NIGHT_FROM or t.hour < NIGHT_TO):
                 m["night_imp"] += v
-            if key == "boiler":
-                m["boiler_rows"] += 1
+            if key in ("boiler", "washer"):
+                m[key + "_rows"] += 1
 
-    tariffs = {k: r["green_tariff"] for k, r in json.loads(TARIFFS.read_text()).items() if r.get("green_tariff")}
+    acts = json.loads(TARIFFS.read_text())
+    tariffs = {k: r["green_tariff"] for k, r in acts.items() if r.get("green_tariff")}
+    # meter = slope * inverter + offset per month, for months without an act yet
+    pairs = [(agg[(y, mo)], acts[f"{y}-{mo:02d}"]) for (y, mo) in agg if f"{y}-{mo:02d}" in acts]
+    fits = {}
+    for key, act_key_ in (("exp", "generation"), ("imp", "consumption")):
+        try:
+            fits[key] = statistics.linear_regression([a[key] for a, _ in pairs], [r[act_key_] for _, r in pairs])
+        except (statistics.StatisticsError, ValueError):  # fewer than 2 acts
+            fits[key] = None
     latest = tariffs[max(tariffs)] if tariffs else None
     fallback = latest * TAX if latest else FALLBACK
 
@@ -104,15 +123,27 @@ def main() -> None:
         if a:
             solar = a["pv5"] + a["pv6"]
             exp, imp, house = a["exp"], a["imp"], a["house"]
+            act = acts.get(f"{y}-{mo:02d}")
+            if act:
+                exp, imp = act["generation"], act["consumption"]
+            else:
+                days = calendar.monthrange(y, mo)[1]
+                part = min(1.0, (end - datetime(y, mo, 1, tzinfo=TZ)).total_seconds() / (days * 86400))
+                if fits["exp"]:
+                    exp = fits["exp"].slope * exp + fits["exp"].intercept * part
+                if fits["imp"]:
+                    imp = fits["imp"].slope * imp + fits["imp"].intercept * part
             g = tariffs.get(f"{y}-{mo:02d}")
             green = g * TAX if g else fallback
-            night = a["night_imp"]
+            night = a["night_imp"] / a["imp"] * imp if a["imp"] else 0.0  # the inverter's night share
             # the station's income at the green tariff: the export plus the solar
             # the house used; battery/inverter losses are charged to nobody
             potential = (exp - imp + house) * green
             if imp > exp:  # deficit month: the meter's saldo is billed at day/night tariffs, export is not paid
                 bl = ((imp - night) * DAY_T + night * NIGHT_T) / imp
                 net = -(imp - exp) * bl
+            elif act and act.get("payout") is not None:
+                net = act["payout"]  # to the kopeck, incl. the act's small "average market" part
             else:
                 net = (exp - imp) * green
             # what the house took from the station: potential - net, so the ₴ add up
@@ -126,12 +157,15 @@ def main() -> None:
             split = ({"cost_night": round(c_night), "cost_day": round(c_day), "cost_solar": round(c_solar)}
                      if imp > exp else None)
             boiler = a["boiler"] if a["boiler_rows"] else None
+            # month rows only (the note under the table)
+            washer = a["washer"] if a["washer_rows"] else None
             partial = (y, mo) == (now.year, now.month)
             rows.append({"kind": "month", "label": f"{NAMES[mo - 1]} {y}" + (" ⏳" if partial else ""),
                          "solar": round(solar, 1), "exp": round(exp, 1), "imp": round(imp, 1),
                          "house": round(house, 1), "boiler": None if boiler is None else round(boiler, 1),
+                         "washer": None if washer is None else round(washer, 1),
                          "net": round(net), "potential": round(potential), "house_cost": round(house_cost),
-                         "green": round(green, 4), "act": act_key(y, mo), **(split or {})})
+                         "green": round(green, 4), "act": act_key(y, mo), "metered": bool(act), **(split or {})})
             t = ytot.setdefault(y, {"solar": 0.0, "exp": 0.0, "imp": 0.0, "house": 0.0, "boiler": None, "net": 0.0,
                                     "potential": 0.0, "house_cost": 0.0})
             for k, v in (("solar", solar), ("exp", exp), ("imp", imp), ("house", house), ("net", net),

@@ -105,11 +105,16 @@ BOILER_NOTE = (
     "{% if bm.net is not none %} <small>({{ '%+d' % bm.net }} ₴)</small>{% endif %}<br>"
     "<span></span> <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: <b><span>{{ bm.house | round(0) | int }}</span> kWh</b>, "
     "<em>з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>:</em> <b><span>{{ bm.boiler | round(0) | int }}</span> kWh</b>"
+    # the washer's share (packages/washer.yaml), one decimal: ~0.4 kWh a wash
+    "{% if bm.washer is defined and bm.washer is not none %}, <ha-icon icon=\"mdi:washing-machine\"></ha-icon>: "
+    "<b><span>{{ bm.washer | round(1) }}</span> kWh</b>{% endif %}"
     # today's line; not on the 1st, when it would just repeat the month's numbers
     "{% if now().day != 1 %}<br><span>Сьогодні</span> <ha-icon icon=\"mdi:home-lightning-bolt\"></ha-icon>: "
     "<b><span>{{ states('sensor.home_load_energy_daily') | float(0) | round(0) | int }}</span> kWh</b>, "
     "<em>з них <ha-icon icon=\"mdi:water-boiler\"></ha-icon>:</em> "
     "<b><span>{{ states('sensor.boiler_ten_energy_estimate_daily') | float(0) | round(0) | int }}</span> kWh</b>"
+    ", <ha-icon icon=\"mdi:washing-machine\"></ha-icon>: "
+    "<b><span>{{ states('sensor.washer_energy_today') | float(0) | round(1) }}</span> kWh</b>"
     "{% endif %}"
     "</p>\n\n{% endif %}"
 )
@@ -186,6 +191,7 @@ def css(phone: bool) -> str:
         "details[open] > table tr:last-child td { border-top: 2px solid var(--divider-color) !important; }\n"
         "details[open] > table tr:last-child td:first-child { padding-left: 6px !important; }\n"
         + colours
+        + "ha-icon[icon=\"mdi:washing-machine\"] { color: #42a5f5; }\n"
         # styled like the Payments tables ("Квартира 197"): bold headers aligned
         # left with a small icon before the name, numbers right-aligned
         + "th, th:first-child { font-weight: bold; text-align: left !important; vertical-align: middle; }\n"
