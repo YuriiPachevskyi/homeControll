@@ -301,8 +301,12 @@
     First the Deye sells PV before charging); once the 5kW battery reaches 85% (save_done_soc,
     hard-coded in the soc_5kw_save_done trigger too) selling_mode goes back to Normal. Force overrides Morning Export and Max Solar with
     5kW SOC 40 / 0.35 kW, export 5080, 6kW SOC 55 / 1 kW (was the Max Solar Forced
-    state). Night Charge (winter) uses 5kW SOC 40 and export 100 W in all states (all PV goes
-    to charging, nothing is sold) and is never reset
+    state). Winter uses 5kW SOC 40 and export 100 W (all 5kW PV goes to charging, nothing
+    is sold); in Morning Export and Max Solar, once the 5kW battery is at 100% (winter_full_soc,
+    back to charging below winter_low_soc 95, both hard-coded in the soc_5kw_winter_*
+    triggers too) it switches to SOC 100 + the state's export limit, so the PV surplus
+    is sold but the battery is not (5kW grid peak shaving no longer does this since
+    the firmware update). Winter is never reset
     by any automation; from 23:10 to 06:30 it sets 5kW SOC 100 with grid charging
     on (all 6 programs Grid) and pauses the cascade, which would otherwise shed loads
     because of the grid import. From 15 Nov to the end of February every run (except
@@ -333,6 +337,14 @@
     entity_id: sensor.deye_5kw_battery
     above: 84
     id: soc_5kw_save_done
+  - trigger: numeric_state
+    entity_id: sensor.deye_5kw_battery
+    above: 99
+    id: soc_5kw_winter_full
+  - trigger: numeric_state
+    entity_id: sensor.deye_5kw_battery
+    below: 95
+    id: soc_5kw_winter_low
   - trigger: time
     at: '23:10:00'
     id: night_charge_start
@@ -342,7 +354,8 @@
   actions:
   - variables:
       current_state: '{{ states(''input_select.deye_system_state'') }}'
-      night_charge: '{{ is_state(''input_select.selling_mode'', ''Night Charge'') and
+      winter: '{{ is_state(''input_select.selling_mode'', ''Winter'') }}'
+      night_charge: '{{ winter and
         (now().strftime(''%H:%M'') >= ''23:10'' or now().strftime(''%H:%M'') < ''06:30'')
         }}'
       max_discharge_power_5kw: 2400
@@ -352,8 +365,14 @@
         }}'
       save_soc: 75
       save_done_soc: 85
+      winter_full_soc: 100
+      winter_low_soc: 95
+      winter_sell: '{% set soc = states(''sensor.deye_5kw_battery'') | float(0) %}{{
+        winter and current_state in [''Morning Export'', ''Max Solar''] and (soc >= winter_full_soc
+        or (soc >= winter_low_soc and states(''input_number.export_deye_5kw_power_base'')
+        | float(0) > 100)) }}'
       export_soc_5kw: '{{ save_soc if is_state(''input_select.selling_mode'', ''Save'')
-        else 40 if is_state(''input_select.selling_mode'', ''Night Charge'') else states(''input_number.deye_5kw_export_soc'') | int(70) }}'
+        else (100 if winter_sell else 40) if winter else states(''input_number.deye_5kw_export_soc'') | int(70) }}'
       export_soc_6kw: '{{ states(''input_number.deye_6kw_export_soc'') | int(70) }}'
       config:
         Morning Export:
@@ -483,8 +502,8 @@
         - input_number.export_deye_5kw_power
         - input_number.export_deye_5kw_power_base
       data:
-        value: '{{ 100 if states(''input_select.selling_mode'') in [''Save'', ''Night Charge'']
-          else s[''export_power''] }}'
+        value: '{{ 100 if is_state(''input_select.selling_mode'', ''Save'') or (winter and
+          not winter_sell) else s[''export_power''] }}'
     - if:
       - condition: template
         value_template: '{{ current_state != ''Evening Export'' and trigger.id in
