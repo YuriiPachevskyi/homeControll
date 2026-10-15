@@ -29,7 +29,8 @@ captions) must show them as two separate amounts, never summed.
    (aggregated per object, with a paid/partial/unpaid status per period)
 3. every receipt PDF (any PDF_SOURCES bill) not yet in sent.json is sent to Telegram (PDF +
    caption, two amounts if there's a secondary_due); a failed send is
-   retried on the next run
+   retried on the next run. A receipt with something still to pay is left
+   to remind.py, which sends it as ONE message with the "✅ Виконати" buttons
 4. any bill's *latest* period with an unpaid main and/or secondary amount
    gets its own to-do item(s); items the user has checked off (or deleted)
    are reconciled back into payments.json (bidirectional, never removed -
@@ -369,6 +370,9 @@ def rebuild_payments(objects_cfg: dict) -> dict:
 
 def notify_new_receipts(objects_cfg: dict, payments: dict, sent: set) -> int:
     failed = 0
+    # A receipt with something still to pay goes out from remind.py instead,
+    # as one message: the PDF + a "✅ Виконати" button per to-do item.
+    to_pay = {e["receipt"] for e in payments["outstanding"] if e.get("receipt")}
     for bill_full_key, _, _, _, bill_cfg in iter_bills(objects_cfg):
         if bill_cfg["source"] not in PDF_SOURCES:
             continue
@@ -378,6 +382,11 @@ def notify_new_receipts(objects_cfg: dict, payments: dict, sent: set) -> int:
             if not pdf.exists():
                 continue
             msg_key = f"receipt:{bill_full_key}:{row['period']}"
+            if f"{bill_full_key}_{row['period']}" in to_pay and msg_key not in sent:
+                sent.add(msg_key)
+                SENT.write_text(json.dumps(sorted(sent), indent=1))
+                print(f"{msg_key}: sent with its reminder")
+                continue
             caption = caption_for(bill["label"], row)
             # First line = category title, like HA's telegram_bot `title`.
             n = deliver(msg_key, lambda chat, p=pdf, c=caption: send_pdf_to(p, f"Платежі\n{c}", chat), sent,
