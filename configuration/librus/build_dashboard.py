@@ -20,6 +20,10 @@ import websocket
 
 TOKEN = (Path.home() / ".secrets" / "ha_token").read_text().strip()
 URL_PATH = "dashboard-librus"
+# HA logins that see the tabs. The dashboard itself is not admin-only (Mila is
+# a regular user); everyone else gets an empty dashboard and has the panel
+# hidden in their own sidebar.
+VIEWERS = ["yurii", "mila", "kateryna"]
 
 
 def card(kind: str, **opts) -> dict:
@@ -136,7 +140,19 @@ def main():
     # activities added by hand in HA (Local Calendar "Гуртки")
     calendars += sorted(e["entity_id"] for e in registry
                         if e["platform"] == "local_calendar" and e["entity_id"].startswith("calendar."))
-    views = VIEWS[:2] + [calendar_view(calendars)] + VIEWS[2:]
+    dashboard = next(d for d in ha.call({"type": "lovelace/dashboards/list"})["result"]
+                     if d["url_path"] == URL_PATH)
+    if dashboard.get("require_admin"):
+        msg = ha.call({"type": "lovelace/dashboards/update", "dashboard_id": dashboard["id"],
+                       "require_admin": False})
+        assert msg.get("success"), msg
+        print("require_admin -> false")
+    users = {u["username"]: u["id"] for u in ha.call({"type": "config/auth/list"})["result"]
+             if u.get("username")}
+    missing = [name for name in VIEWERS if name not in users]
+    assert not missing, f"unknown HA users: {missing}"
+    visible = [{"user": users[name]} for name in VIEWERS]
+    views = [{**v, "visible": visible} for v in VIEWS[:2] + [calendar_view(calendars)] + VIEWS[2:]]
     msg = ha.call({"type": "lovelace/config/save", "url_path": URL_PATH,
                    "config": {"title": "Librus", "views": views}})
     assert msg.get("success"), msg
