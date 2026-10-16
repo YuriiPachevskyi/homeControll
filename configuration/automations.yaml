@@ -227,7 +227,7 @@
     Force only works from the start of Morning Export to the end of Max Solar; outside
     that window it is reset to Normal (also on HA start, in case the Evening Export
     trigger was missed). Save is reset to Normal
-    at every Morning Export start in March-October (kept all winter, Nov-Feb); Night
+    at every Morning Export start in March-October (kept all winter, Nov-Feb); Save + Night
     Charge is never reset.
     Changing any of the four start times re-evaluates the state right away.
   triggers:
@@ -299,14 +299,14 @@
     5kW SOC 75 in those three states and export 100 W in all states, so PV charges
     the 5kW battery and nothing is sold (min SOC alone does not charge, in Export
     First the Deye sells PV before charging); in Morning Export and Max Solar it sells
-    only once the 5kW battery is full, same as Winter (full_sell). Force overrides Morning Export and Max Solar with
+    only once the 5kW battery is full, same as Save + Night Charge (full_sell). Force overrides Morning Export and Max Solar with
     5kW SOC 40 / 0.35 kW, export 5080, 6kW SOC 55 / 1 kW (was the Max Solar Forced
-    state). Winter uses 5kW SOC 40 and export 100 W (all 5kW PV goes to charging, nothing
+    state). Save + Night Charge uses 5kW SOC 40 and export 100 W (all 5kW PV goes to charging, nothing
     is sold); in Morning Export and Max Solar, once the 5kW battery is at 100% (full_soc,
     back to charging below full_low_soc 95, both hard-coded in the soc_5kw_full/low
-    triggers too) Save and Winter switch to SOC 100 + the state's export limit, so the PV surplus
+    triggers too) Save and Save + Night Charge switch to SOC 100 + the state's export limit, so the PV surplus
     is sold but the battery is not (5kW grid peak shaving no longer does this since
-    the firmware update). Winter is never reset
+    the firmware update). Save + Night Charge is never reset
     by any automation; from 23:10 to 06:30 it sets 5kW SOC 100 with grid charging
     on (all 6 programs Grid) and pauses the cascade, which would otherwise shed loads
     because of the grid import. From 15 Nov to the end of February every run (except
@@ -350,8 +350,8 @@
   actions:
   - variables:
       current_state: '{{ states(''input_select.deye_system_state'') }}'
-      winter: '{{ is_state(''input_select.selling_mode'', ''Winter'') }}'
-      night_charge: '{{ winter and
+      save_night: '{{ is_state(''input_select.selling_mode'', ''Save + Night Charge'') }}'
+      night_charge: '{{ save_night and
         (now().strftime(''%H:%M'') >= ''23:10'' or now().strftime(''%H:%M'') < ''06:30'')
         }}'
       max_discharge_power_5kw: 2400
@@ -364,11 +364,11 @@
       full_soc: 100
       full_low_soc: 95
       full_sell: '{% set soc = states(''sensor.deye_5kw_battery'') | float(0) %}{{
-        (save or winter) and current_state in [''Morning Export'', ''Max Solar''] and (soc >= full_soc
+        (save or save_night) and current_state in [''Morning Export'', ''Max Solar''] and (soc >= full_soc
         or (soc >= full_low_soc and states(''input_number.export_deye_5kw_power_base'')
         | float(0) > 100)) }}'
       export_soc_5kw: '{{ 100 if full_sell else save_soc if save
-        else 40 if winter else states(''input_number.deye_5kw_export_soc'') | int(70) }}'
+        else 40 if save_night else states(''input_number.deye_5kw_export_soc'') | int(70) }}'
       export_soc_6kw: '{{ states(''input_number.deye_6kw_export_soc'') | int(70) }}'
       config:
         Morning Export:
@@ -485,7 +485,7 @@
         - input_number.export_deye_5kw_power
         - input_number.export_deye_5kw_power_base
       data:
-        value: '{{ 100 if (save or winter) and not full_sell else s[''export_power''] }}'
+        value: '{{ 100 if (save or save_night) and not full_sell else s[''export_power''] }}'
     - if:
       - condition: template
         value_template: '{{ current_state != ''Evening Export'' and trigger.id in
