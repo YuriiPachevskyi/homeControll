@@ -114,10 +114,11 @@ power_load_cascade_step:
               entity_id: input_number.charge_power_deye_6kw
         - alias: 'Disable: Reduce Charge to 0.75kW'
           conditions:
-          - alias: Not winter (15 Nov - Feb), charge stays >= 1.5 kW
+          - alias: Not winter (binary_sensor.summer_season off) with Save / Save + Night Charge, charge
+              stays >= 1.5 kW
             condition: template
-            value_template: '{{ not ((now().month == 11 and now().day >= 15) or now().month
-              in [12, 1, 2]) }}'
+            value_template: '{{ not (is_state(''binary_sensor.summer_season'', ''off'') and states(''input_select.selling_mode'') in [''Save'',
+              ''Save + Night Charge'']) }}'
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
             above: 0.75
@@ -137,10 +138,11 @@ power_load_cascade_step:
               entity_id: input_number.charge_power_deye_6kw
         - alias: 'Disable: Charge to 0kW'
           conditions:
-          - alias: Not winter (15 Nov - Feb), charge stays >= 1.5 kW
+          - alias: Not winter (binary_sensor.summer_season off) with Save / Save + Night Charge, charge
+              stays >= 1.5 kW
             condition: template
-            value_template: '{{ not ((now().month == 11 and now().day >= 15) or now().month
-              in [12, 1, 2]) }}'
+            value_template: '{{ not (is_state(''binary_sensor.summer_season'', ''off'') and states(''input_select.selling_mode'') in [''Save'',
+              ''Save + Night Charge'']) }}'
           - condition: numeric_state
             entity_id: input_number.charge_power_deye_6kw
             above: 0

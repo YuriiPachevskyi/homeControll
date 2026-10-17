@@ -1,0 +1,38 @@
+# Summer season for all seasonal rules (Deye selling, 6kW winter charge, Save
+# reset). Only month and day of the two dates count, the year is ignored.
+# Summer = start <= today < stop, the rest of the year is winter.
+input_datetime:
+  summer_season_start:
+    name: "Summer season start"
+    has_date: true
+    has_time: false
+    icon: mdi:weather-sunny
+  summer_season_stop:
+    name: "Summer season stop"
+    has_date: true
+    has_time: false
+    icon: mdi:snowflake
+
+template:
+  - binary_sensor:
+      - name: "Summer season"
+        unique_id: summer_season
+        icon: "{{ 'mdi:weather-sunny' if this.state == 'on' else 'mdi:snowflake' }}"
+        # Falls back to 1 Mar / 15 Oct while a helper is unknown, so the
+        # dependent automations never see an unavailable sensor.
+        state: >
+          {% set s = states('input_datetime.summer_season_start') %}
+          {% set e = states('input_datetime.summer_season_stop') %}
+          {% set s = s[5:10] if s | regex_match('^\d{4}-\d\d-\d\d') else '03-01' %}
+          {% set e = e[5:10] if e | regex_match('^\d{4}-\d\d-\d\d') else '10-15' %}
+          {% set t = now().strftime('%m-%d') %}
+          {{ (s <= t < e) if s <= e else (t >= s or t < e) }}
+        # "1 Mar" without the year, for the Home dashboard row ("15.10" would be
+        # parsed as the number 15.1)
+        attributes:
+          start: >
+            {% set s = states('input_datetime.summer_season_start') %}
+            {{ as_datetime(s).strftime('%-d %b') if s | regex_match('^\d{4}-\d\d-\d\d') else '1 Mar' }}
+          stop: >
+            {% set e = states('input_datetime.summer_season_stop') %}
+            {{ as_datetime(e).strftime('%-d %b') if e | regex_match('^\d{4}-\d\d-\d\d') else '15 Oct' }}

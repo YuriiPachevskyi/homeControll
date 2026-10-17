@@ -51,6 +51,8 @@ Enable іде зверху вниз, Disable — у зворотному пор�
 | 8 | Кондиціонер Bedroom ² | Big Bedroom OFF (6kW ≤ 70 %) |
 | 9 | Кондиціонер Big Bedroom ² | Bedroom OFF (6kW ≤ 50 %) |
 
+🟩 заряд 6kW · 🟧 бойлер · 🟦 експорт 5kW · 🟪 кондиціонери
+
 - Кроки заряду 6kW працюють лише поки 6kW < 95 %.
 - ¹ Лише в станах продажу (коли межа експорту стану > 1000 W). В Idle не спрацьовує, у Save + Night Charge — поки 5kW не заряджена до 100 %.
 - ² Лише коли 6kW заряджена на 100 % і для кондиціонера на вкладці Climate вибрано режим (не *off*). Вимикаються останніми й тільки при низькому заряді 6kW: комфорт важливіший за продаж.
@@ -80,7 +82,7 @@ STATES = """\
 - **Експорт** — максимум, який 5kW віддає в мережу. 100 W означає «не продавати», і тоді PV іде в батарею.
 - **Слайдер** — *Deye 5kW export SOC* (зараз {{ states('input_number.deye_5kw_export_soc')|int(0) }} %). 100 = батарею не продаємо, але надлишок PV продається.
 - **smart limit** — потужність розряду з `Deye 5kW Smart Discharge Limit`, не більше 2.4 kW.
-- ³ 6kW продає батарею лише ввечері і лише коли ввімкнено *Deye 6kW battery selling*: тоді peak shaving вимикається, а 6kW розряджається до *Deye 6kW export SOC* (зараз {{ states('input_number.deye_6kw_export_soc')|int(0) }} %). Коли дійде до нього, продаж вимикається автоматично. Перемикач сам вмикається за хвилину до Evening Export, якщо завтра в березні–вересні очікується > 70 % сонця. Без продажу peak shaving лишається ввімкненим і 6kW тільки живить дім (той самий min SOC, 1.1 kW).
+- ³ 6kW продає батарею лише ввечері і лише коли ввімкнено *Deye 6kW battery selling*: тоді peak shaving вимикається, а 6kW розряджається до *Deye 6kW export SOC* (зараз {{ states('input_number.deye_6kw_export_soc')|int(0) }} %). Коли дійде до нього, продаж вимикається автоматично. Перемикач сам вмикається за хвилину до Evening Export, якщо зараз літній сезон ({{ state_attr('binary_sensor.summer_season', 'start') }} до {{ state_attr('binary_sensor.summer_season', 'stop') }} (*Summer season* на Home)) і завтра очікується > 70 % сонця. Без продажу peak shaving лишається ввімкненим і 6kW тільки живить дім (той самий min SOC, 1.1 kW).
 - Налаштування повторно застосовуються щогодини, тож ручна зміна цих значень протримається не більше години. Щоб змінити поведінку, міняй слайдери, час або Selling mode.
 
 **Зараз:** {{ states('input_select.deye_system_state') }} · експорт {{ states('input_number.export_deye_5kw_power')|int(0) }} W · 5kW min SOC {{ states('input_number.deye_5kw_min_soc')|int(0) }} % · 6kW min SOC {{ states('input_number.deye_6kw_min_soc')|int(0) }} %
@@ -93,18 +95,40 @@ MODES = """\
 
 **Force** — працює тільки в Morning Export і Max Solar. 5kW: SOC 40, розряд 0.35 kW, експорт 5080 W; 6kW: SOC 55, 1 kW. Каскад додатково скидає навантаження, коли 5kW заряджається повільніше за половину *surplus threshold*. Поза вікном {{ states('input_datetime.deye_morning_export_start_time')[:5] }}–{{ states('input_datetime.deye_evening_export_start_time')[:5] }} сам повертається в Normal.
 
-**Save** — спершу заряджає 5kW з PV до **100 %**: експорт 100 W, увесь PV 5kW іде в батарею, а нижче 75 % її не розряджаємо. У Morning Export і Max Solar, щойно 5kW досягне 100 %, продається лише лишок PV (SOC 100, експорт стану), як у Save + Night Charge; назад на заряд, коли 5kW < 95 %. Увечері експорт 100 W. Можна вибрати за будь-якого SOC. У березні–жовтні на початку Morning Export сам повертається в Normal, узимку лишається.
+**Save** — спершу заряджає 5kW з PV до **100 %**: експорт 100 W, увесь PV 5kW іде в батарею, а нижче 75 % її не розряджаємо. У Morning Export і Max Solar, щойно 5kW досягне 100 %, продається лише лишок PV (SOC 100, експорт стану), як у Save + Night Charge; назад на заряд, коли 5kW < 95 %. Увечері експорт 100 W. Можна вибрати за будь-якого SOC. Улітку (з {{ state_attr('binary_sensor.summer_season', 'start') }} до {{ state_attr('binary_sensor.summer_season', 'stop') }} (*Summer season* на Home)) на початку Morning Export сам повертається в Normal, узимку лишається. Узимку Save і Save + Night Charge щогодини ставлять заряд 6kW 1.5 kW, і каскад не опускає його нижче.
 
 **Save + Night Charge** (для зими) — удень спершу заряджає 5kW з PV: експорт 100 W, 5kW SOC 40. У Morning Export і Max Solar, щойно 5kW досягне **100 %**, експорт повертається до значення стану, а SOC стає 100: продається лише лишок PV, сама батарея ні (назад на заряд, коли 5kW < 95 %). Peak shaving на 5kW для цього не працює після оновлення прошивки. Увечері й у Idle експорт 100 W, батарея живить дім. Уночі з 23:10 до 06:30 5kW заряджається з мережі до 100 % (~2.4 kW), і каскад на цей час вимикається, бо імпорт з мережі він сприйняв би як перевантаження. Автоматично не скидається.
 
 **Зараз:** {{ states('input_select.selling_mode') }}{{ ' · 5kW заряджається з PV до 100 %, далі продаж лишку' if is_state('input_select.selling_mode','Save') else '' }}
 """
 
+# Step table cells tinted by device, so the reversed Disable order is visible:
+# (column, first row, last row, colour). Rows follow CASCADE_STEPS; keep in sync.
+GREEN, ORANGE, BLUE, PURPLE = "76, 175, 80", "255, 152, 0", "33, 150, 243", "156, 39, 176"
+STEP_GROUPS = [
+    (2, 1, 3, GREEN), (2, 4, 6, ORANGE), (2, 7, 7, BLUE), (2, 8, 9, PURPLE),
+    (3, 1, 1, BLUE), (3, 2, 4, ORANGE), (3, 5, 7, GREEN), (3, 8, 9, PURPLE),
+]
+STEPS_CSS = "table { border-collapse: collapse; }\n" + "\n".join(
+    f"tbody tr:nth-child(n+{first}):nth-child(-n+{last}) td:nth-child({col}) "
+    f"{{ background: rgba({rgb}, 0.2); }}"
+    for col, first, last, rgb in STEP_GROUPS)
 
-def section(heading, icon, md, span=1):
+# Both STATES tables list the states in the same order, so row N = the same
+# state in each; tint whole rows (Morning Export, Max Solar, Evening Export, Idle).
+STATE_COLOURS = ["255, 193, 7", "255, 87, 34", "233, 30, 99", "63, 81, 181"]
+STATES_CSS = "table { border-collapse: collapse; }\n" + "\n".join(
+    f"tbody tr:nth-child({n}) td {{ background: rgba({rgb}, 0.2); }}"
+    for n, rgb in enumerate(STATE_COLOURS, 1))
+
+
+def section(heading, icon, md, span=1, css=None):
+    card = {"type": "markdown", "content": md}
+    if css:
+        card["card_mod"] = {"style": {"ha-markdown $": css}}
     return {"type": "grid", "column_span": span, "cards": [
         {"type": "heading", "heading": heading, "heading_style": "title", "icon": icon},
-        {"type": "markdown", "content": md},
+        card,
     ]}
 
 
@@ -115,8 +139,8 @@ view = {
     "path": "guide",
     "sections": [
         section("Каскад навантаження", "mdi:stairs", CASCADE_HOW),
-        section("Порядок кроків", "mdi:format-list-numbered", CASCADE_STEPS),
-        section("Стани Deye", "mdi:clock-outline", STATES),
+        section("Порядок кроків", "mdi:format-list-numbered", CASCADE_STEPS, css=STEPS_CSS),
+        section("Стани Deye", "mdi:clock-outline", STATES, css=STATES_CSS),
         section("Selling mode", "mdi:cash-sync", MODES),
     ],
 }
