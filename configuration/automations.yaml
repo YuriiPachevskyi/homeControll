@@ -314,8 +314,8 @@
     surplus is sold but the battery is not (5kW grid peak shaving no longer does this
     since the firmware update). Save + Night Charge is never reset by any automation;
     from 23:10 to 06:30 it sets 5kW SOC 100 with grid charging on (all 6 programs
-    Grid) and pauses the cascade, which would otherwise shed loads because of the
-    grid import. In winter (binary_sensor.summer_season off) in Save and Save + Night Charge
+    Grid); the cascade keeps running (add conditions there if the grid import
+    makes it shed loads or start the boiler / battery charge steps). In winter (binary_sensor.summer_season off) in Save and Save + Night Charge
     every run (except battery_changed) resets input_number.charge_power_deye_6kw to
     1.5 kW. 6kW energy pattern is Battery
     First in Save and Save + Night Charge, Load First otherwise.
@@ -507,15 +507,6 @@
           entity_id: input_boolean.deye_6kw_battery_selling
     - if:
       - condition: template
-        value_template: '{{ night_charge }}'
-      then:
-      - action: automation.turn_off
-        target:
-          entity_id: automation.power_load_cascade
-        data:
-          stop_actions: true
-    - if:
-      - condition: template
         value_template: '{{ not is_state(''switch.deye_5kw_battery_grid_charging'',
           ''on'' if night_charge else ''off'') }}'
       then:
@@ -552,7 +543,7 @@
           option: '{{ energy_pattern_6kw }}'
     - if:
       - condition: template
-        value_template: '{{ s.general_automation and not night_charge }}'
+        value_template: '{{ s.general_automation }}'
       then:
       - action: automation.turn_on
         target:
