@@ -30,6 +30,12 @@
 #     fed through from the 5kW (~30 s blackout).
 #  Morning (05:00-12:00): 5kW PV >= 100 W, or 10:00 at the latest -> both
 #  Capacity. Grid lost while the 6kW is in Standby: Capacity at once.
+# Snow (input_boolean.deye_6kw_snow, set by hand when the 6kW panels are
+# covered - winter 2025/26 they gave 2-14 kWh a week for ~8 weeks while the
+# 5kW ones worked): the 6kW stays in Standby day and night (phase 4 at any
+# time and SOC, no morning wake). In Standby it shows no PV power, so the
+# panels are checked by eye: turn snow off, then the 6kW button (or the next
+# morning) wakes it. Grid loss still wakes it.
 # Bizon (wake on power): if it is asleep when the 6kW is written, it is put back
 # to sleep 1 min after it boots (input_boolean.bizon_resleep).
 # Every write goes to the logbook ("Deye night standby") for checking.
@@ -46,6 +52,10 @@ input_boolean:
   deye_6kw_night_standby:
     name: "Deye 6kW night standby"
     icon: mdi:power-sleep
+  # 6kW panels under snow (set by hand): keep the 6kW in Standby day and night
+  deye_6kw_snow:
+    name: "Deye 6kW snow"
+    icon: mdi:snowflake
   # Bizon was asleep when the 6kW blacked it out: suspend it again after boot
   bizon_resleep:
     name: "Bizon resleep"
@@ -99,13 +109,15 @@ automation:
       morning: >-
         {{ '05:00' <= t < '12:00'
            and (states('sensor.deye_5kw_pv_power') | float(0) >= 100 or t >= '10:00') }}
+      snow: "{{ is_state('input_boolean.deye_6kw_snow', 'on') }}"
     actions:
       - choose:
           # Morning, or grid lost while the 6kW is in Standby (the house then
           # hangs on the 5kW SMART port)
           - conditions:
               - condition: template
-                value_template: "{{ mode6 == 'No Battery' and (not grid or morning) }}"
+                value_template: >-
+                  {{ mode6 == 'No Battery' and (not grid or (morning and not snow)) }}
             sequence:
               - action: script.deye_night_standby_set
                 data:
@@ -163,17 +175,17 @@ automation:
                   inverter: 5kw
                   option: No Battery
                   reason: "6kW battery {{ soc6 | int }} %"
-          # Phase 4: 6kW standby, the 5kW carries the house through it
+          # Phase 4: 6kW standby, the 5kW carries the house through it.
+          # Snow: at any time and SOC.
           - conditions:
-              - condition: state
-                entity_id: input_boolean.deye_6kw_night_standby
-                state: "on"
               - condition: template
                 value_template: >-
-                  {{ winter and night and dark and grid and not high_load
+                  {{ ((winter and night and dark and soc6 <= 35.5
+                       and is_state('input_boolean.deye_6kw_night_standby', 'on'))
+                      or snow)
+                     and grid and not high_load
                      and mode5 == 'Capacity' and mode6 == 'Capacity'
                      and is_state('sensor.deye_6kw_device_state', 'Normal')
-                     and soc6 <= 35.5
                      and soc5 > states('input_number.deye_5kw_min_soc') | float(100)
                      and states('sensor.deye_6kw_grid_l1_voltage') | float(0) > 180 }}
               - condition: state
@@ -185,7 +197,9 @@ automation:
                 data:
                   inverter: 6kw
                   option: No Battery
-                  reason: "6kW battery {{ soc6 | int }} %, 5kW {{ soc5 | int }} %"
+                  reason: >-
+                    {{ 'snow, ' if snow else '' }}6kW battery {{ soc6 | int }} %,
+                    5kW {{ soc5 | int }} %
 
   # Bizon has wake on power: after a 6kW blackout it boots. If it was asleep
   # before, suspend it again a minute after it is up.
