@@ -982,6 +982,11 @@
       - condition: state
         entity_id: binary_sensor.deye_5kw_grid
         state: 'off'
+      - alias: Not the ~1 min relay blip of the 5kW entering night standby
+        condition: template
+        value_template: '{{ states(''sensor.deye_5kw_grid_l1_voltage'') | float(0)
+          < 150 or now().timestamp() - state_attr(''input_datetime.deye_5kw_standby_started'',
+          ''timestamp'') | float(0) > 660 }}'
       - condition: not
         conditions:
         - condition: state
