@@ -609,6 +609,13 @@ notify_log_record:
     chats:
       description: '[{chat_id, message_id}, ...] from the send response'
       example: '[{"chat_id": 612533502, "message_id": 123}]'
+    keep_single:
+      description: Log it even if it went to one chat only (default false)
+      example: true
+    replaces:
+      description: '[{chat_id, message_id}, ...] of a deleted predecessor whose
+        row is dropped'
+      example: '[]'
   mode: queued
   max: 50
   sequence:
@@ -619,7 +626,8 @@ notify_log_record:
     - action: shell_command.notify_log_append
       data:
         payload_b64: "{{ ({'ts': now().strftime('%Y-%m-%d %H:%M:%S'), 'title': title,
-          'message': message, 'chats': chats} | tojson) | base64_encode }}"
+          'message': message, 'chats': chats, 'keep_single': keep_single | default(false),
+          'replaces': replaces | default([])} | tojson) | base64_encode }}"
     - action: homeassistant.update_entity
       target:
         entity_id: sensor.telegram_notify_log

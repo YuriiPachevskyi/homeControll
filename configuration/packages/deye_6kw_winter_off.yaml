@@ -15,8 +15,9 @@
 # every 10 min until it is on (up to 15:00). Each one deletes the previous
 # reminder, so the chat keeps only the latest.
 # All reminders go to Nataliya only (she is at home with the inverter); a
-# single-chat message is not added to the notify log (see notify/notify_log.py),
-# so the previous morning reminder is deleted by its own saved message id.
+# single-chat message is kept in the notify log only with keep_single (marked
+# "→ Наталія" there); the previous morning reminder is deleted by its own saved
+# message id and its log row replaced.
 # Season = binary_sensor.summer_season off (packages/season.yaml).
 input_datetime:
   # Last day the evening reminder was sent (once a day, survives restarts)
@@ -94,6 +95,14 @@ automation:
                   message: |-
                     🔋 Батарея Deye 6kW розрядилась до {{ states('sensor.deye_6kw_battery') | int(0) }} %
                     Для зменшення споживання вимкни Deye 6kW
+                response_variable: sent
+              - action: script.notify_log_record
+                data:
+                  title: Інвертор
+                  message: >-
+                    🔋 Батарея Deye 6kW {{ states('sensor.deye_6kw_battery') | int(0) }} %: вимкни Deye 6kW → Наталія
+                  chats: "{{ sent.chats | default([]) }}"
+                  keep_single: true
 
   - id: deye_6kw_winter_on_reminder
     alias: Deye 6kW winter on reminder
@@ -158,6 +167,15 @@ automation:
             {{ '⏰ Доброго ранку' if trigger.id == 'morning' else '☀️ Зійшло сонце' }}
             Увімкни Deye 6kW
         response_variable: sent
+      - action: script.notify_log_record
+        data:
+          title: Інвертор
+          message: >-
+            {{ '⏰ Доброго ранку' if trigger.id == 'morning' else '☀️ Зійшло сонце' }}: увімкни Deye 6kW → Наталія
+          chats: "{{ sent.chats | default([]) }}"
+          keep_single: true
+          replaces: >-
+            {{ [{'chat_id': prev[0] | int, 'message_id': prev[1] | int}] if prev | count == 2 else [] }}
       - action: input_text.set_value
         target:
           entity_id: input_text.deye_6kw_on_reminder_msg

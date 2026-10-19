@@ -15,7 +15,11 @@ Host scripts that call the Bot API directly (statistics/enera, statistics/oselya
 import this file and call add(). Writes are serialised with a file lock.
 
 Only messages sent to two or more chats are logged: one sent to a single
-person (e.g. LAN watch alerts to Yurii) is left for them to delete in Telegram.
+person (e.g. LAN watch alerts to Yurii) is left for them to delete in Telegram,
+unless the payload has "keep_single": true (a message to someone else that
+Yurii wants to see, e.g. the Deye 6kW reminders to Nataliya). A payload's
+"replaces" (a chats list) drops the rows holding those messages first, for a
+reminder that deletes and re-sends its predecessor.
 
 Stdlib only, no dependencies. The newest entry is always index 0.
 """
@@ -54,12 +58,17 @@ def save(rows: list) -> None:
 
 def append(payload_b64: str) -> None:
     entry = json.loads(base64.b64decode(payload_b64))
+    replaces = {(str(c.get("chat_id")), str(c.get("message_id")))
+                for c in entry.pop("replaces", None) or []}
     # A message that reached only one person is theirs to delete in Telegram;
     # the log is for deleting a notification for everyone.
-    if len({c.get("chat_id") for c in entry.get("chats", [])}) < 2:
+    if (len({c.get("chat_id") for c in entry.get("chats", [])}) < 2
+            and not entry.pop("keep_single", False)):
         return
     with locked():
-        rows = load()
+        rows = [r for r in load()
+                if not {(str(c.get("chat_id")), str(c.get("message_id")))
+                        for c in r.get("chats", [])} & replaces]
         rows.insert(0, entry)
         save(rows[:MAX_ENTRIES])
 
