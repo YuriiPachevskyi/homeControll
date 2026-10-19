@@ -73,9 +73,9 @@ STATES = """\
 
 | Стан | 5kW min SOC | 5kW розряд | Експорт 5kW | 6kW min SOC / розряд |
 |---|---|---|---|---|
-| Morning Export | слайдер | smart limit | 5050 W | 40 % / 0.9 kW |
-| Max Solar | слайдер | 0.35 kW | 5080 W | 40 % / 1 kW |
-| Evening Export | слайдер | smart limit | 5000 W | ³ |
+| Morning Export | слайдер | smart limit | 5050 W | 40 % ⁴ / 0.9 kW |
+| Max Solar | слайдер | 0.35 kW | 5080 W | 40 % ⁴ / 1 kW |
+| Evening Export | слайдер | smart limit | 5000 W | ³ ⁴ |
 | Idle | 35 | 1 kW | 100 W | 35 % / 1.3 kW |
 
 - **min SOC** — до якого рівня батарея може *розряджатися*. Він не змушує батарею заряджатися: у режимі Export First Deye спершу продає PV і тільки залишок віддає в батарею.
@@ -83,6 +83,7 @@ STATES = """\
 - **Слайдер** — *Deye 5kW export SOC* (зараз {{ states('input_number.deye_5kw_export_soc')|int(0) }} %). 100 = батарею не продаємо, але надлишок PV продається.
 - **smart limit** — потужність розряду з `Deye 5kW Smart Discharge Limit`, не більше 2.4 kW.
 - ³ 6kW продає батарею лише ввечері і лише коли ввімкнено *Deye 6kW battery selling*: тоді peak shaving вимикається, а 6kW розряджається до *Deye 6kW export SOC* (зараз {{ states('input_number.deye_6kw_export_soc')|int(0) }} %). Коли дійде до нього, продаж вимикається автоматично. Перемикач сам вмикається за хвилину до Evening Export, якщо зараз літній сезон ({{ state_attr('binary_sensor.summer_season', 'start') }} до {{ state_attr('binary_sensor.summer_season', 'stop') }} (*Summer season* на Home)) і завтра очікується > 70 % сонця. Без продажу peak shaving лишається ввімкненим і 6kW тільки живить дім (той самий min SOC, 1.1 kW).
+- ⁴ Узимку (*Summer season* вимкнений) 6kW min SOC — 35 % у всіх станах, крім Force і продажу батареї 6kW. Коли 6kW розрядився до 35 % і його PV уже не працює, з 16:00 до 22:00 Наталії в Telegram приходить «вимкни Deye 6kW»; уранці о 07:20, потім від 70 W на PV 5kW і далі кожні 10 хв, поки 6kW вимкнений, — «увімкни Deye 6kW» (до 15:00). Вмикається й вимикається тільки кнопкою на інверторі.
 - Налаштування повторно застосовуються щогодини, тож ручна зміна цих значень протримається не більше години. Щоб змінити поведінку, міняй слайдери, час або Selling mode.
 
 **Зараз:** {{ states('input_select.deye_system_state') }} · експорт {{ states('input_number.export_deye_5kw_power')|int(0) }} W · 5kW min SOC {{ states('input_number.deye_5kw_min_soc')|int(0) }} % · 6kW min SOC {{ states('input_number.deye_6kw_min_soc')|int(0) }} %
