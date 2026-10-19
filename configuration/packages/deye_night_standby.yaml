@@ -24,7 +24,8 @@
 #  2/3. 6kW battery at 35 % (or 6kW load > 4 kW, Night Charge, boost, 5kW battery
 #     selling, 05:00, grid off for 2 min): 5kW -> Capacity. Off-grid the 6kW
 #     would go on below 35 %, so this is retried every minute.
-#  4. 5kW Normal for 3 min, SMART port back (6kW grid > 180 V), 5kW battery
+#  4. Only while input_boolean.deye_6kw_night_standby is on.
+#     5kW Normal for 3 min, SMART port back (6kW grid > 180 V), 5kW battery
 #     above its min SOC, 6kW battery at 35 %: 6kW -> No Battery; the house is
 #     fed through from the 5kW (~30 s blackout).
 #  Morning (05:00-12:00): 5kW PV >= 100 W, or 10:00 at the latest -> both
@@ -41,6 +42,10 @@ input_datetime:
     has_time: true
 
 input_boolean:
+  # Phase 4 (6kW standby = house blackout) on/off; phases 1-3 run regardless
+  deye_6kw_night_standby:
+    name: "Deye 6kW night standby"
+    icon: mdi:power-sleep
   # Bizon was asleep when the 6kW blacked it out: suspend it again after boot
   bizon_resleep:
     name: "Bizon resleep"
@@ -160,6 +165,9 @@ automation:
                   reason: "6kW battery {{ soc6 | int }} %"
           # Phase 4: 6kW standby, the 5kW carries the house through it
           - conditions:
+              - condition: state
+                entity_id: input_boolean.deye_6kw_night_standby
+                state: "on"
               - condition: template
                 value_template: >-
                   {{ winter and night and dark and grid and not high_load
@@ -216,6 +224,27 @@ automation:
           entity_id: input_boolean.bizon_resleep
 
 script:
+  # Dashboard buttons (Night standby row): Normal -> No Battery (Standby),
+  # anything else -> Capacity (back to Normal)
+  deye_night_standby_toggle:
+    alias: Deye night standby toggle
+    description: >-
+      Manual switch of one inverter: Normal -> No Battery, otherwise ->
+      Capacity. A 6kW write blacks out the house for ~30 s.
+    mode: single
+    max_exceeded: silent
+    fields:
+      inverter:
+        description: 5kw or 6kw
+    sequence:
+      - action: script.deye_night_standby_set
+        data:
+          inverter: "{{ inverter }}"
+          option: >-
+            {{ 'No Battery' if is_state('sensor.deye_' ~ inverter ~ '_device_state', 'Normal')
+               else 'Capacity' }}
+          reason: manual
+
   deye_night_standby_set:
     alias: Deye night standby set
     description: >-
