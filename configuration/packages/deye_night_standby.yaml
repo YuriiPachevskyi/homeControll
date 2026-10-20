@@ -18,24 +18,36 @@
 # port (= 6kW grid) returns ~65 s after that.
 # Decided every minute from the current modes (no stored phase, so an HA
 # restart mid-chain just continues):
-#  1. After sunset, not before 16:00, both PV < 10 W, 6kW battery >= 37 %,
+#  1. After sunset, not before 16:00, both PV < 10 W, 6kW battery >= floor + 2
+#     (floor = input_number.deye_6kw_export_soc, in winter the 6kW min SOC),
 #     6kW load < 3 kW (a smaller high load only drains it faster):
 #     5kW -> No Battery (retried up to 10 min if ignored). Once a night.
-#  2/3. 6kW battery at 35 % (or 6kW load > 4 kW, Night Charge, boost, 5kW battery
-#     selling, 05:00, grid off for 2 min): 5kW -> Capacity. Off-grid the 6kW
-#     would go on below 35 %, so this is retried every minute.
+#  2/3. 6kW battery at the floor (or 6kW load > 4 kW, Night Charge, monthly full
+#     charge, boost, 5kW battery selling, 05:00, grid off for 2 min): 5kW ->
+#     Capacity. Off-grid the 6kW would go on below the floor, so this is retried
+#     every minute.
 #  4. Only while input_boolean.deye_6kw_night_standby is on.
 #     5kW Normal for 3 min, SMART port back (6kW grid > 180 V), 5kW battery
-#     above its min SOC, 6kW battery at 35 %: 6kW -> No Battery; the house is
+#     above its min SOC, 6kW battery at the floor: 6kW -> No Battery; the house is
 #     fed through from the 5kW (~30 s blackout).
-#  Morning (05:00-12:00): 5kW PV >= 100 W, or 10:00 at the latest -> both
-#  Capacity. Grid lost while the 6kW is in Standby: Capacity at once.
+#  Morning (05:00-12:00): 5kW PV >= 100 W, or 10:00 at the latest -> 5kW
+#  Capacity.
+#  6kW wake: No Battery still converts PV - with sun the 6kW goes Standby ->
+#  Normal by itself (no write, no dip, seen 2026-10-20 08:36), feeds the house
+#  and pushes the surplus back into the 5kW SMART port; only its battery is
+#  idle. So it is woken (Capacity, ~30 s blackout) only when its PV is worth
+#  charging the battery: binary_sensor.deye_6kw_pv_strong (6kW PV, or 5kW PV
+#  in case the 6kW is curtailed because nothing takes its surplus, >=
+#  input_number.deye_6kw_wake_pv for 10 min). A dull winter day passes with no
+#  write at all. Grid lost while the 6kW is in No Battery: Capacity at once.
+#  Monthly full charge (binary_sensor.deye_6kw_full_charge, winter, the night
+#  to the 1st, 23:10-06:30): the 6kW is woken and deye_state_controller
+#  charges it from the grid to 100 % (BMS calibration after weeks at the floor).
 # Snow (input_boolean.deye_6kw_snow, set by hand when the 6kW panels are
 # covered - winter 2025/26 they gave 2-14 kWh a week for ~8 weeks while the
 # 5kW ones worked): the 6kW stays in Standby day and night (phase 4 at any
-# time and SOC, no morning wake). In Standby it shows no PV power, so the
-# panels are checked by eye: turn snow off, then the 6kW button (or the next
-# morning) wakes it. Grid loss still wakes it.
+# time and SOC, no PV wake). Turn snow off when the panels are clear, the PV
+# wake then works again. Grid loss and the monthly full charge still wake it.
 # Bizon (wake on power): if it is asleep when the 6kW is written, it is put back
 # to sleep 1 min after it boots (input_boolean.bizon_resleep).
 # Every write goes to the logbook ("Deye night standby") for checking.
@@ -46,6 +58,39 @@ input_datetime:
     name: "Deye 5kW standby started"
     has_date: true
     has_time: true
+
+input_number:
+  # 6kW (or 5kW) PV that wakes the 6kW from No Battery, held for 10 min
+  deye_6kw_wake_pv:
+    name: "Deye 6kW wake PV"
+    icon: mdi:solar-power
+    min: 0.5
+    max: 5
+    step: 0.1
+    unit_of_measurement: kW
+    mode: box
+
+template:
+  - binary_sensor:
+      - name: "Deye 6kW PV strong"
+        unique_id: deye_6kw_pv_strong
+        icon: mdi:solar-power
+        delay_on: "00:10:00"
+        # In Standby the 6kW PV power is stale, so only while Normal
+        state: >-
+          {% set thr = states('input_number.deye_6kw_wake_pv') | float(2) * 1000 %}
+          {{ (is_state('sensor.deye_6kw_device_state', 'Normal')
+              and states('sensor.deye_6kw_pv_power') | float(0) >= thr)
+             or states('sensor.deye_5kw_pv_power') | float(0) >= thr }}
+      # Winter, the night to the 1st of the month: charge the 6kW to 100 %
+      - name: "Deye 6kW full charge"
+        unique_id: deye_6kw_full_charge
+        icon: mdi:battery-charging-100
+        state: >-
+          {% set t = now().strftime('%H:%M') %}
+          {{ is_state('binary_sensor.summer_season', 'off')
+             and ((now().day == 1 and t < '06:30')
+                  or ((now() + timedelta(days=1)).day == 1 and t >= '23:10')) }}
 
 input_boolean:
   # Phase 4 (6kW standby = house blackout) on/off; phases 1-3 run regardless
@@ -65,8 +110,9 @@ automation:
     alias: Deye night standby
     description: >-
       Winter nights: 5kW to No Battery while the 6kW battery carries the house,
-      then 6kW to No Battery from 35 %; both back to Capacity in the morning
-      (5kW PV 100 W / 10:00) or on grid loss. See
+      then 6kW to No Battery at Deye 6kW export SOC; 5kW back to Capacity in
+      the morning (5kW PV 100 W / 10:00), 6kW only on strong PV (Deye 6kW wake
+      PV for 10 min), the monthly full charge or grid loss. See
       packages/deye_night_standby.yaml.
     mode: single
     max_exceeded: silent
@@ -81,6 +127,9 @@ automation:
       mode6: "{{ states('select.deye_6kw_battery_operation_mode') }}"
       soc5: "{{ states('sensor.deye_5kw_battery') | float(0) }}"
       soc6: "{{ states('sensor.deye_6kw_battery') | float(100) }}"
+      # 6kW standby SOC = its winter min SOC (deye_state_controller)
+      floor6: "{{ states('input_number.deye_6kw_export_soc') | float(55) }}"
+      full_charge: "{{ is_state('binary_sensor.deye_6kw_full_charge', 'on') }}"
       grid: "{{ is_state('binary_sensor.deye_5kw_grid', 'on') }}"
       high_load: "{{ is_state('binary_sensor.any_device_high_power', 'on') }}"
       # Off-grid (5kW in Standby) the 6kW has no grid to help: end phase 1
@@ -97,7 +146,8 @@ automation:
            > timedelta(minutes=2) }}
       # Things the 5kW battery is needed for at night
       busy5: >-
-        {{ is_state('input_boolean.self_consumption_boost_active', 'on')
+        {{ full_charge
+           or is_state('input_boolean.self_consumption_boost_active', 'on')
            or (is_state('input_select.selling_mode', 'Save + Night Charge')
                and (t >= '23:10' or t < '06:30'))
            or (is_state('input_select.deye_system_state', 'Evening Export')
@@ -112,24 +162,28 @@ automation:
       snow: "{{ is_state('input_boolean.deye_6kw_snow', 'on') }}"
     actions:
       - choose:
-          # Morning, or grid lost while the 6kW is in Standby (the house then
-          # hangs on the 5kW SMART port)
+          # Strong PV, monthly full charge, or grid lost while the 6kW is in
+          # No Battery (the house then hangs on the 5kW SMART port)
           - conditions:
               - condition: template
                 value_template: >-
-                  {{ mode6 == 'No Battery' and (not grid or (morning and not snow)) }}
+                  {{ mode6 == 'No Battery'
+                     and (not grid or full_charge
+                          or (is_state('binary_sensor.deye_6kw_pv_strong', 'on') and not snow)) }}
             sequence:
               - action: script.deye_night_standby_set
                 data:
                   inverter: 6kw
                   option: Capacity
-                  reason: "{{ 'grid lost' if not grid else 'morning' }}"
+                  reason: >-
+                    {{ 'grid lost' if not grid else 'monthly full charge' if full_charge
+                       else '6kW PV ' ~ (states('sensor.deye_6kw_pv_power') | int(0)) ~ ' W' }}
           # Phase 2/3: end of the 5kW standby (the 6kW is off-grid meanwhile)
           - conditions:
               - condition: template
                 value_template: >-
                   {{ mode5 == 'No Battery'
-                     and (soc6 <= 35.5 or overload6 or busy5 or not night or morning
+                     and (soc6 <= floor6 + 0.5 or overload6 or busy5 or not night or morning
                           or grid_gone
                           or not is_state('sensor.deye_6kw_device_state', 'Normal')) }}
             sequence:
@@ -138,7 +192,7 @@ automation:
                   inverter: 5kw
                   option: Capacity
                   reason: >-
-                    {{ '6kW battery ' ~ (soc6 | int) ~ ' %' if soc6 <= 35.5
+                    {{ '6kW battery ' ~ (soc6 | int) ~ ' %' if soc6 <= floor6 + 0.5
                        else '6kW load over 4 kW' if overload6
                        else '5kW battery needed' if busy5
                        else 'grid lost' if grid_gone
@@ -156,7 +210,7 @@ automation:
                      and mode5 == 'Capacity' and mode6 == 'Capacity'
                      and dev.state == 'Normal'
                      and is_state('sensor.deye_6kw_device_state', 'Normal')
-                     and soc6 >= 37
+                     and soc6 >= floor6 + 2
                      and (age > 14 * 3600
                           or (120 <= age < 600 and dev.last_changed.timestamp() < started
                               and (age | int) % 120 < 60)) }}
@@ -180,10 +234,10 @@ automation:
           - conditions:
               - condition: template
                 value_template: >-
-                  {{ ((winter and night and dark and soc6 <= 35.5
+                  {{ ((winter and night and dark and soc6 <= floor6 + 0.5
                        and is_state('input_boolean.deye_6kw_night_standby', 'on'))
                       or snow)
-                     and grid and not high_load
+                     and grid and not high_load and not full_charge
                      and mode5 == 'Capacity' and mode6 == 'Capacity'
                      and is_state('sensor.deye_6kw_device_state', 'Normal')
                      and soc5 > states('input_number.deye_5kw_min_soc') | float(100)
