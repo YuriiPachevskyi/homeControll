@@ -38,8 +38,12 @@
 #  idle. So it is woken (Capacity, ~30 s blackout) only when its PV is worth
 #  charging the battery: binary_sensor.deye_6kw_pv_strong (6kW PV, or 5kW PV
 #  in case the 6kW is curtailed because nothing takes its surplus, >=
-#  input_number.deye_6kw_wake_pv for 10 min). A dull winter day passes with no
-#  write at all. Grid lost while the 6kW is in No Battery: Capacity at once.
+#  input_number.deye_6kw_wake_pv for 10 min) and sensor.deye_6kw_sunny_today
+#  (met.no, rest of today) > input_number.deye_6kw_wake_sunny. A dull winter
+#  day passes with no write at all. Grid lost (binary_sensor.deye_5kw_grid off
+#  or 5kW grid voltage < 150 V): no wake by itself (the house stays on the 5kW
+#  SMART port), but strong PV then wakes it regardless of the forecast and a
+#  manual standby, so the PV goes into the 6kW battery.
 #  Monthly full charge (binary_sensor.deye_6kw_full_charge, winter, the night
 #  to the 1st, 23:10-06:30): the 6kW is woken and deye_state_controller
 #  charges it from the grid to 100 % (BMS calibration after weeks at the floor).
@@ -47,7 +51,10 @@
 # covered - winter 2025/26 they gave 2-14 kWh a week for ~8 weeks while the
 # 5kW ones worked): the 6kW stays in Standby day and night (phase 4 at any
 # time and SOC, no PV wake). Turn snow off when the panels are clear, the PV
-# wake then works again. Grid loss and the monthly full charge still wake it.
+# wake then works again. The monthly full charge still wakes it.
+# Manual standby (dashboard buttons, reason 'manual') is immune until the next
+# 05:00: only the 6kW floor, a 6kW overload, a grid loss or a 6kW that is
+# really down end it (no busy5 / daytime / PV wake / full charge).
 # Bizon (wake on power): if it is asleep when the 6kW is written, it is put back
 # to sleep 1 min after it boots (input_boolean.bizon_resleep).
 # Every write goes to the logbook ("Deye night standby") for checking.
@@ -56,6 +63,15 @@ input_datetime:
   # Last 5kW standby (phase 1) attempt: once a night, retries for 10 min
   deye_5kw_standby_started:
     name: "Deye 5kW standby started"
+    has_date: true
+    has_time: true
+  # Last manual No Battery from the dashboard: immune until the next 05:00
+  deye_5kw_manual_standby:
+    name: "Deye 5kW manual standby"
+    has_date: true
+    has_time: true
+  deye_6kw_manual_standby:
+    name: "Deye 6kW manual standby"
     has_date: true
     has_time: true
 
@@ -69,8 +85,53 @@ input_number:
     step: 0.1
     unit_of_measurement: kW
     mode: box
+  # ... and only if the rest of today is forecast at least this sunny
+  deye_6kw_wake_sunny:
+    name: "Deye 6kW wake sunny"
+    icon: mdi:weather-partly-cloudy
+    min: 0
+    max: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: box
 
 template:
+  # Rest of today (this hour or sunrise .. sunset): 100 - mean met.no cloud
+  # coverage, like deye_6kw_selling_weather_check. 0 after sunset.
+  - triggers:
+      - trigger: time_pattern
+        minutes: "/15"
+      - trigger: homeassistant
+        event: start
+      - trigger: event
+        event_type: event_template_reloaded
+    actions:
+      - action: weather.get_forecasts
+        target:
+          entity_id: weather.forecast_home
+        data:
+          type: hourly
+        response_variable: fc
+    sensor:
+      - name: "Deye 6kW sunny today"
+        unique_id: deye_6kw_sunny_today
+        icon: mdi:weather-partly-cloudy
+        unit_of_measurement: "%"
+        state: >-
+          {% set rise = state_attr('sun.sun', 'next_rising') | as_datetime | as_local %}
+          {% set sunset = state_attr('sun.sun', 'next_setting') | as_datetime | as_local %}
+          {# Sun down: next_rising comes first; after today's sunset both are tomorrow #}
+          {% set start = [now(), rise if rise < sunset else now()] | max %}
+          {% set start = start.replace(minute=0, second=0, microsecond=0) %}
+          {% set ns = namespace(total=0, count=0) %}
+          {% for f in fc['weather.forecast_home'].forecast %}
+            {% set t = as_local(as_datetime(f.datetime)) %}
+            {% if t >= start and t < sunset and sunset.date() == now().date() %}
+              {% set ns.total = ns.total + (f.cloud_coverage | float(100)) %}
+              {% set ns.count = ns.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ (100 - ns.total / ns.count) | round(0) if ns.count else 0 }}
   - binary_sensor:
       - name: "Deye 6kW PV strong"
         unique_id: deye_6kw_pv_strong
@@ -112,7 +173,8 @@ automation:
       Winter nights: 5kW to No Battery while the 6kW battery carries the house,
       then 6kW to No Battery at Deye 6kW export SOC; 5kW back to Capacity in
       the morning (5kW PV 100 W / 10:00), 6kW only on strong PV (Deye 6kW wake
-      PV for 10 min), the monthly full charge or grid loss. See
+      PV for 10 min + sunny forecast, or with no grid), the monthly full
+      charge. See
       packages/deye_night_standby.yaml.
     mode: single
     max_exceeded: silent
@@ -131,6 +193,11 @@ automation:
       floor6: "{{ states('input_number.deye_6kw_export_soc') | float(55) }}"
       full_charge: "{{ is_state('binary_sensor.deye_6kw_full_charge', 'on') }}"
       grid: "{{ is_state('binary_sensor.deye_5kw_grid', 'on') }}"
+      # 5 s poll, and unlike binary_sensor.deye_5kw_grid (30 s, reads off ~1 min
+      # while the 5kW enters Standby) it stays ~220 V on a healthy grid
+      grid_v_low: >-
+        {% set v = states('sensor.deye_5kw_grid_l1_voltage') %}
+        {{ v | is_number and v | float < 150 }}
       high_load: "{{ is_state('binary_sensor.any_device_high_power', 'on') }}"
       # Off-grid (5kW in Standby) the 6kW has no grid to help: end phase 1
       # before it overloads. A smaller high load only drains it faster.
@@ -160,32 +227,57 @@ automation:
         {{ '05:00' <= t < '12:00'
            and (states('sensor.deye_5kw_pv_power') | float(0) >= 100 or t >= '10:00') }}
       snow: "{{ is_state('input_boolean.deye_6kw_snow', 'on') }}"
+      # PV wake needs a sunny rest of the day: on 2026-10-21 a 2.5 kW peak
+      # woke the 6kW (= blackout) and then the sun was gone
+      sunny: "{{ states('sensor.deye_6kw_sunny_today') | float(0) }}"
+      sunny_min: "{{ states('input_number.deye_6kw_wake_sunny') | float(50) }}"
+      # 6kW really not running; a short unavailable (logger hiccup, e.g.
+      # 2026-10-21 18:14 for 30 s) must not end the 5kW standby
+      down6: >-
+        {% set d = states.sensor.deye_6kw_device_state %}
+        {{ d.state != 'Normal'
+           and (d.state not in ['unavailable', 'unknown']
+                or now() - d.last_changed > timedelta(minutes=3)) }}
+      # Manual standby from the dashboard: immune until the next 05:00
+      immune5: >-
+        {% set d = state_attr('input_datetime.deye_5kw_manual_standby', 'timestamp')
+                   | float(0) | as_datetime | as_local %}
+        {{ now() < d.replace(hour=5, minute=0, second=0, microsecond=0)
+                   + timedelta(days=1 if d.hour >= 5 else 0) }}
+      immune6: >-
+        {% set d = state_attr('input_datetime.deye_6kw_manual_standby', 'timestamp')
+                   | float(0) | as_datetime | as_local %}
+        {{ now() < d.replace(hour=5, minute=0, second=0, microsecond=0)
+                   + timedelta(days=1 if d.hour >= 5 else 0) }}
     actions:
       - choose:
-          # Strong PV, monthly full charge, or grid lost while the 6kW is in
-          # No Battery (the house then hangs on the 5kW SMART port)
+          # Strong PV (sunny forecast, or no grid: the PV goes into the 6kW
+          # battery then) or the monthly full charge
           - conditions:
               - condition: template
                 value_template: >-
+                  {% set pv = is_state('binary_sensor.deye_6kw_pv_strong', 'on') and not snow %}
                   {{ mode6 == 'No Battery'
-                     and (not grid or full_charge
-                          or (is_state('binary_sensor.deye_6kw_pv_strong', 'on') and not snow)) }}
+                     and ((pv and (not grid or grid_v_low))
+                          or (not immune6
+                              and (full_charge or (pv and sunny > sunny_min)))) }}
             sequence:
               - action: script.deye_night_standby_set
                 data:
                   inverter: 6kw
                   option: Capacity
                   reason: >-
-                    {{ 'grid lost' if not grid else 'monthly full charge' if full_charge
-                       else '6kW PV ' ~ (states('sensor.deye_6kw_pv_power') | int(0)) ~ ' W' }}
+                    {{ 'monthly full charge' if full_charge and grid and not grid_v_low
+                       else ('no grid, ' if not grid or grid_v_low else '') ~ 'PV ' ~ (states('sensor.deye_6kw_pv_power') | int(0)) ~ ' / '
+                            ~ (states('sensor.deye_5kw_pv_power') | int(0)) ~ ' W, sunny '
+                            ~ (sunny | int) ~ ' %' }}
           # Phase 2/3: end of the 5kW standby (the 6kW is off-grid meanwhile)
           - conditions:
               - condition: template
                 value_template: >-
                   {{ mode5 == 'No Battery'
-                     and (soc6 <= floor6 + 0.5 or overload6 or busy5 or not night or morning
-                          or grid_gone
-                          or not is_state('sensor.deye_6kw_device_state', 'Normal')) }}
+                     and (soc6 <= floor6 + 0.5 or overload6 or grid_gone or down6
+                          or (not immune5 and (busy5 or not night or morning))) }}
             sequence:
               - action: script.deye_night_standby_set
                 data:
@@ -194,9 +286,9 @@ automation:
                   reason: >-
                     {{ '6kW battery ' ~ (soc6 | int) ~ ' %' if soc6 <= floor6 + 0.5
                        else '6kW load over 4 kW' if overload6
-                       else '5kW battery needed' if busy5
                        else 'grid lost' if grid_gone
-                       else 'morning' if not night or morning else '6kW not Normal' }}
+                       else '6kW not Normal' if down6
+                       else '5kW battery needed' if busy5 else 'morning' }}
           # Phase 1: 5kW standby, the 6kW battery carries the house. Once a
           # night; a write the 5kW ignored (still Normal, unchanged since the
           # attempt) is retried every 2 min for 10 min.
@@ -293,12 +385,14 @@ automation:
 
 script:
   # Dashboard buttons (Night standby row): Normal -> No Battery (Standby),
-  # anything else -> Capacity (back to Normal)
+  # anything else -> Capacity (back to Normal). Normal in No Battery (woken by
+  # the sun, battery idle; green button) also goes to Capacity.
   deye_night_standby_toggle:
     alias: Deye night standby toggle
     description: >-
-      Manual switch of one inverter: Normal -> No Battery, otherwise ->
-      Capacity. A 6kW write blacks out the house for ~30 s.
+      Manual switch of one inverter: Normal -> No Battery, otherwise (also
+      Normal in No Battery) -> Capacity. A 6kW write blacks out the house for
+      ~30 s.
     mode: single
     max_exceeded: silent
     fields:
@@ -310,6 +404,7 @@ script:
           inverter: "{{ inverter }}"
           option: >-
             {{ 'No Battery' if is_state('sensor.deye_' ~ inverter ~ '_device_state', 'Normal')
+                                and not is_state('select.deye_' ~ inverter ~ '_battery_operation_mode', 'No Battery')
                else 'Capacity' }}
           reason: manual
 
@@ -327,6 +422,16 @@ script:
       reason:
         description: Logged reason
     sequence:
+      # Before the 6kW blackout wait, so it is saved with the restore states
+      - if:
+          - condition: template
+            value_template: "{{ reason == 'manual' and option == 'No Battery' }}"
+        then:
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: "input_datetime.deye_{{ inverter }}_manual_standby"
+            data:
+              datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
       - if:
           - condition: template
             value_template: >-
@@ -345,10 +450,9 @@ script:
       # ~3 min before it were lost (the resleep flag and this logbook row were
       # still only in the page cache). Save the restore states and wait for
       # the kernel writeback (dirty pages expire after 30 s, flushed every 5 s).
-      # Not on grid loss: the house is dark already, the 6kW must come back now.
       - if:
           - condition: template
-            value_template: "{{ inverter == '6kw' and reason != 'grid lost' }}"
+            value_template: "{{ inverter == '6kw' }}"
         then:
           - action: homeassistant.save_persistent_states
           - delay: "00:00:40"
