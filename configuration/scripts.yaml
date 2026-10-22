@@ -225,6 +225,12 @@ power_load_cascade_step:
           - condition: numeric_state
             entity_id: sensor.deye_6kw_battery
             below: 95
+          - alias: 6kW battery idle (No Battery) - charge power does nothing then
+            condition: not
+            conditions:
+            - condition: state
+              entity_id: select.deye_6kw_battery_operation_mode
+              state: No Battery
           - condition: or
             conditions:
             - condition: state
@@ -259,6 +265,12 @@ power_load_cascade_step:
           - condition: numeric_state
             entity_id: sensor.deye_6kw_battery
             below: 95
+          - alias: 6kW battery idle (No Battery) - charge power does nothing then
+            condition: not
+            conditions:
+            - condition: state
+              entity_id: select.deye_6kw_battery_operation_mode
+              state: No Battery
           - condition: or
             conditions:
             - condition: state
@@ -293,6 +305,12 @@ power_load_cascade_step:
           - condition: numeric_state
             entity_id: sensor.deye_6kw_battery
             below: 95
+          - alias: 6kW battery idle (No Battery) - charge power does nothing then
+            condition: not
+            conditions:
+            - condition: state
+              entity_id: select.deye_6kw_battery_operation_mode
+              state: No Battery
           - condition: or
             conditions:
             - condition: state
@@ -333,10 +351,19 @@ power_load_cascade_step:
               state: 'on'
               for:
                 seconds: 30
-            - condition: state
-              entity_id: binary_sensor.battery_charge_and_export_power_limit
-              state:
-              - 'on'
+            - alias: Surplus, unless the 6kW battery is idle (No Battery) - the 5kW
+                exports what its battery can't take, real curtailment is pv1
+              condition: and
+              conditions:
+              - condition: state
+                entity_id: binary_sensor.battery_charge_and_export_power_limit
+                state:
+                - 'on'
+              - condition: not
+                conditions:
+                - condition: state
+                  entity_id: select.deye_6kw_battery_operation_mode
+                  state: No Battery
           sequence:
           - action: input_text.set_value
             target:
@@ -360,11 +387,20 @@ power_load_cascade_step:
             - condition: state
               entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
               state: 'on'
-            - condition: state
-              entity_id: binary_sensor.battery_charge_and_export_power_limit
-              state: 'on'
-              for:
-                seconds: 30
+            - alias: Surplus, unless the 6kW battery is idle (No Battery) - the 5kW
+                exports what its battery can't take, real curtailment is pv1
+              condition: and
+              conditions:
+              - condition: state
+                entity_id: binary_sensor.battery_charge_and_export_power_limit
+                state: 'on'
+                for:
+                  seconds: 30
+              - condition: not
+                conditions:
+                - condition: state
+                  entity_id: select.deye_6kw_battery_operation_mode
+                  state: No Battery
             - condition: state
               entity_id: binary_sensor.pv1_5kw_lower_than_6kw
               state: 'on'
@@ -395,11 +431,20 @@ power_load_cascade_step:
             - condition: state
               entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
               state: 'on'
-            - condition: state
-              entity_id: binary_sensor.battery_charge_and_export_power_limit
-              state: 'on'
-              for:
-                seconds: 30
+            - alias: Surplus, unless the 6kW battery is idle (No Battery) - the 5kW
+                exports what its battery can't take, real curtailment is pv1
+              condition: and
+              conditions:
+              - condition: state
+                entity_id: binary_sensor.battery_charge_and_export_power_limit
+                state: 'on'
+                for:
+                  seconds: 30
+              - condition: not
+                conditions:
+                - condition: state
+                  entity_id: select.deye_6kw_battery_operation_mode
+                  state: No Battery
             - condition: state
               entity_id: binary_sensor.pv1_5kw_lower_than_6kw
               state: 'on'
