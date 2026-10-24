@@ -218,6 +218,7 @@ automation:
            or (is_state('input_select.selling_mode', 'Save + Night Charge')
                and (t >= '23:10' or t < '06:30'))
            or (is_state('input_select.deye_system_state', 'Evening Export')
+               and states('input_select.selling_mode') in ['Normal', 'Force']
                and states('input_number.deye_5kw_export_soc') | float(100) < 100
                and soc5 > states('input_number.deye_5kw_export_soc') | float(100)) }}
       started: >-
