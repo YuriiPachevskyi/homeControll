@@ -1,0 +1,98 @@
+# Shared conditions of the energy automations, defined once here.
+# The first five are the power load cascade inputs; until 2026-10-24 they
+# were template helpers created in the UI (not in git), moved here with the
+# same entity_ids (default_entity_id).
+# Automations triggered by input_select.selling_mode itself
+# (deye_state_controller) read the select directly instead of
+# binary_sensor.selling_mode_save, so they never see it a step behind.
+
+template:
+  - binary_sensor:
+      # Overload: grid import or battery discharge above Deye load-off power
+      # threshold; in Force also a 5kW battery that charges at less than half
+      # the surplus threshold (it should be charging hard then)
+      - name: "Any device high power"
+        unique_id: any_device_high_power
+        default_entity_id: binary_sensor.any_device_high_power
+        state: >-
+          {% set limit = states('input_number.deye_load_off_power_threshold')|float(0) * 1000 %}
+          {% set max_charge_watts = states('input_number.deye_5kw_surplus_power_threshold')|float(0) * 1000 %}
+          {% set is_enabled = is_state('input_select.selling_mode', 'Force') %}
+
+          {% set battery_power = states('sensor.deye_5kw_battery_power')|float(0) %}
+          {% set battery_soc = states('sensor.deye_5kw_battery')|float(0) %}
+          {% set battery_full = battery_soc >= 100 %}
+
+          {# Half the charge power in W, negative (e.g. -2250) #}
+          {% set charge_half_limit = -(max_charge_watts / 2) %}
+
+          {{
+            states('sensor.deye_5kw_grid_power')|float(0) > limit or
+            states('sensor.deye_5kw_battery_power')|float(0) > limit or
+            states('sensor.deye_6kw_battery_power')|float(0) > limit or
+            (is_enabled and not battery_full and battery_power > charge_half_limit)
+          }}
+
+      # Surplus: 5kW battery charging or 6kW exporting (into the 5kW SMART
+      # port) faster than Deye 5kW surplus power threshold
+      - name: "Battery charge and export power limit"
+        unique_id: battery_charge_and_export_power_limit
+        default_entity_id: binary_sensor.battery_charge_and_export_power_limit
+        state: >-
+          {% set limit = states('input_number.deye_5kw_surplus_power_threshold') | float(0) * 1000 %}
+          {{ states('sensor.deye_5kw_battery_power') | float(0) < -limit
+             or
+             states('sensor.deye_6kw_grid_power') | float(0) < -limit }}
+
+      # 5kW PV1 curtailed: 5% below the 6kW PV1 (same panels) above 1.5 kW
+      - name: "PV1 5kW Lower Than 6kW"
+        unique_id: pv1_5kw_lower_than_6kw
+        default_entity_id: binary_sensor.pv1_5kw_lower_than_6kw
+        state: >-
+          {% set pv5 = states('sensor.deye_5kw_pv1_power') | float(0) %}
+          {% set pv6 = states('sensor.deye_6kw_pv1_power') | float(0) %}
+          {{ pv5 < pv6 * 0.95 and pv6 > 1500 }}
+
+      - name: "Grid off and Deye 6KW charging fast"
+        unique_id: grid_off_and_deye_6kw_charging_fast
+        default_entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
+        state: >-
+          {% set soc = states('sensor.deye_6kw_battery')|float(0) %}
+          {% set threshold = -2000 if soc < 85 else -1000 %}
+          {{ states('sensor.deye_6kw_battery_power')|float(0) < threshold
+             and is_state('binary_sensor.deye_5kw_grid', 'off') }}
+
+      - name: "Battery Deye 6KW charged"
+        unique_id: battery_deye_6kw_charged
+        default_entity_id: binary_sensor.battery_deye_6kw_charged
+        state: "{{ states('sensor.deye_6kw_battery')|float(0) == 100 }}"
+
+      # Save or Save + Night Charge (selling_mode has 4 options, so off =
+      # Normal or Force)
+      - name: "Selling mode Save"
+        unique_id: selling_mode_save
+        default_entity_id: binary_sensor.selling_mode_save
+        icon: mdi:piggy-bank-outline
+        state: >-
+          {{ states('input_select.selling_mode') in ['Save', 'Save + Night Charge'] }}
+
+      # Night tariff grid charging window: Save + Night Charge charges the
+      # 5kW, the monthly full charge (binary_sensor.deye_6kw_full_charge) the
+      # 6kW. Change the times only here.
+      - name: "Night charge window"
+        unique_id: night_charge_window
+        default_entity_id: binary_sensor.night_charge_window
+        icon: mdi:weather-night
+        state: >-
+          {% set t = now().strftime('%H:%M') %}
+          {{ t >= '23:10' or t < '06:30' }}
+
+      # Winter with a Save mode: the 6kW charge power is held at >= 1.5 kW
+      # (deye_state_controller resets it, the cascade never cuts below it)
+      - name: "Deye 6kW winter charge"
+        unique_id: deye_6kw_winter_charge
+        default_entity_id: binary_sensor.deye_6kw_winter_charge
+        icon: mdi:battery-charging-medium
+        state: >-
+          {{ is_state('binary_sensor.summer_season', 'off')
+             and states('input_select.selling_mode') in ['Save', 'Save + Night Charge'] }}

@@ -1,0 +1,82 @@
+# met.no hourly forecast, fetched once for all energy automations:
+#  - sensor.deye_6kw_sunny_today: rest of today (this hour or sunrise ..
+#    sunset), 100 - mean cloud coverage, 0 after sunset (6kW night standby
+#    PV wake). Attribute cloud_tomorrow: mean cloud coverage tomorrow
+#    08:00-18:00, 100 without data (deye_6kw_selling_weather_check).
+#  - sensor.deye_5kw_morning_effective_dark_hours: sum of the cloud fraction
+#    from now to Max Solar start, computed only at Morning Export start and on
+#    HA start (sensor.deye_5kw_smart_discharge_limit uses it for that
+#    window); every other run keeps the value.
+template:
+  - triggers:
+      - trigger: time_pattern
+        minutes: "/15"
+      - trigger: homeassistant
+        event: start
+        id: start
+      - trigger: event
+        event_type: event_template_reloaded
+      - trigger: time
+        at: input_datetime.deye_morning_export_start_time
+        id: morning
+    actions:
+      - action: weather.get_forecasts
+        target:
+          entity_id: weather.forecast_home
+        data:
+          type: hourly
+        response_variable: fc
+      - variables:
+          hourly: "{{ fc['weather.forecast_home']['forecast'] }}"
+          morning_run: "{{ trigger.id in ['start', 'morning'] }}"
+          effective_hours: >
+            {% set t_now = now() %}
+            {% set t_end_m = today_at(states('input_datetime.deye_max_solar_start_time')) %}
+            {% set ns = namespace(total=0, count=0) %}
+            {% for f in hourly %}
+              {% set dt_local = as_local(as_datetime(f.datetime)) %}
+              {% if dt_local >= t_now and dt_local < t_end_m %}
+                {% set ns.total = ns.total + (f.cloud_coverage | float(100) / 100) %}
+                {% set ns.count = ns.count + 1 %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.total if ns.count > 0 else (t_end_m - t_now).total_seconds() / 3600 }}
+    sensor:
+      - name: "Deye 6kW sunny today"
+        unique_id: deye_6kw_sunny_today
+        icon: mdi:weather-partly-cloudy
+        unit_of_measurement: "%"
+        state: >-
+          {% set rise = state_attr('sun.sun', 'next_rising') | as_datetime | as_local %}
+          {% set sunset = state_attr('sun.sun', 'next_setting') | as_datetime | as_local %}
+          {# Sun down: next_rising comes first; after today's sunset both are tomorrow #}
+          {% set start = [now(), rise if rise < sunset else now()] | max %}
+          {% set start = start.replace(minute=0, second=0, microsecond=0) %}
+          {% set ns = namespace(total=0, count=0) %}
+          {% for f in hourly %}
+            {% set t = as_local(as_datetime(f.datetime)) %}
+            {% if t >= start and t < sunset and sunset.date() == now().date() %}
+              {% set ns.total = ns.total + (f.cloud_coverage | float(100)) %}
+              {% set ns.count = ns.count + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ (100 - ns.total / ns.count) | round(0) if ns.count else 0 }}
+        attributes:
+          cloud_tomorrow: >-
+            {% set tomorrow_date = (now() + timedelta(days=1)).date() %}
+            {% set ns = namespace(total=0, count=0) %}
+            {% for f in hourly %}
+              {% set dt_local = as_local(as_datetime(f.datetime)) %}
+              {% if dt_local.date() == tomorrow_date and 8 <= dt_local.hour <= 18 %}
+                {% set ns.total = ns.total + f.cloud_coverage %}
+                {% set ns.count = ns.count + 1 %}
+              {% endif %}
+            {% endfor %}
+            {{ (ns.total / ns.count) if ns.count > 0 else 100 }}
+      - name: "Deye 5kW Morning Effective Dark Hours"
+        unique_id: deye_5kw_morning_effective_dark_hours
+        unit_of_measurement: "h"
+        state: "{{ effective_hours | round(2) if morning_run else this.state }}"
+        attributes:
+          computed_date: >-
+            {{ now().date() if morning_run else this.attributes.get('computed_date') }}

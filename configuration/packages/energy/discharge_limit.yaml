@@ -1,37 +1,6 @@
+# Morning forecast input (sensor.deye_5kw_morning_effective_dark_hours) is
+# in packages/energy/forecast.yaml
 template:
-  - trigger:
-      - trigger: time
-        at: input_datetime.deye_morning_export_start_time
-      - trigger: homeassistant
-        event: start
-    action:
-      - action: weather.get_forecasts
-        target:
-          entity_id: weather.forecast_home
-        data:
-          type: hourly
-        response_variable: hourly_forecast
-      - variables:
-          hourly: "{{ hourly_forecast['weather.forecast_home']['forecast'] }}"
-          effective_hours: >
-            {% set t_now = now() %}
-            {% set t_end_m = today_at(states('input_datetime.deye_max_solar_start_time')) %}
-            {% set ns = namespace(total=0, count=0) %}
-            {% for f in hourly %}
-              {% set dt_local = as_local(as_datetime(f.datetime)) %}
-              {% if dt_local >= t_now and dt_local < t_end_m %}
-                {% set ns.total = ns.total + (f.cloud_coverage | float(100) / 100) %}
-                {% set ns.count = ns.count + 1 %}
-              {% endif %}
-            {% endfor %}
-            {{ ns.total if ns.count > 0 else (t_end_m - t_now).total_seconds() / 3600 }}
-    sensor:
-      - name: "Deye 5kW Morning Effective Dark Hours"
-        unique_id: deye_5kw_morning_effective_dark_hours
-        unit_of_measurement: "h"
-        state: "{{ effective_hours | round(2) }}"
-        attributes:
-          computed_date: "{{ now().date() }}"
   - sensor:
       - name: "Deye 5kW Smart Discharge Limit"
         unique_id: deye_5kw_smart_discharge_limit

@@ -95,43 +95,9 @@ input_number:
     unit_of_measurement: "%"
     mode: box
 
+# sensor.deye_6kw_sunny_today (rest-of-today forecast, PV wake) is in
+# packages/energy/forecast.yaml
 template:
-  # Rest of today (this hour or sunrise .. sunset): 100 - mean met.no cloud
-  # coverage, like deye_6kw_selling_weather_check. 0 after sunset.
-  - triggers:
-      - trigger: time_pattern
-        minutes: "/15"
-      - trigger: homeassistant
-        event: start
-      - trigger: event
-        event_type: event_template_reloaded
-    actions:
-      - action: weather.get_forecasts
-        target:
-          entity_id: weather.forecast_home
-        data:
-          type: hourly
-        response_variable: fc
-    sensor:
-      - name: "Deye 6kW sunny today"
-        unique_id: deye_6kw_sunny_today
-        icon: mdi:weather-partly-cloudy
-        unit_of_measurement: "%"
-        state: >-
-          {% set rise = state_attr('sun.sun', 'next_rising') | as_datetime | as_local %}
-          {% set sunset = state_attr('sun.sun', 'next_setting') | as_datetime | as_local %}
-          {# Sun down: next_rising comes first; after today's sunset both are tomorrow #}
-          {% set start = [now(), rise if rise < sunset else now()] | max %}
-          {% set start = start.replace(minute=0, second=0, microsecond=0) %}
-          {% set ns = namespace(total=0, count=0) %}
-          {% for f in fc['weather.forecast_home'].forecast %}
-            {% set t = as_local(as_datetime(f.datetime)) %}
-            {% if t >= start and t < sunset and sunset.date() == now().date() %}
-              {% set ns.total = ns.total + (f.cloud_coverage | float(100)) %}
-              {% set ns.count = ns.count + 1 %}
-            {% endif %}
-          {% endfor %}
-          {{ (100 - ns.total / ns.count) | round(0) if ns.count else 0 }}
   - binary_sensor:
       - name: "Deye 6kW PV strong"
         unique_id: deye_6kw_pv_strong
@@ -143,15 +109,16 @@ template:
           {{ (is_state('sensor.deye_6kw_device_state', 'Normal')
               and states('sensor.deye_6kw_pv_power') | float(0) >= thr)
              or states('sensor.deye_5kw_pv_power') | float(0) >= thr }}
-      # Winter, the night to the 1st of the month: charge the 6kW to 100 %
+      # Winter, the night to the 1st of the month (the night charge window
+      # in packages/energy/conditions.yaml): charge the 6kW to 100 %
       - name: "Deye 6kW full charge"
         unique_id: deye_6kw_full_charge
         icon: mdi:battery-charging-100
         state: >-
-          {% set t = now().strftime('%H:%M') %}
           {{ is_state('binary_sensor.summer_season', 'off')
-             and ((now().day == 1 and t < '06:30')
-                  or ((now() + timedelta(days=1)).day == 1 and t >= '23:10')) }}
+             and is_state('binary_sensor.night_charge_window', 'on')
+             and (now().day == 1 if now().hour < 12
+                  else (now() + timedelta(days=1)).day == 1) }}
 
 input_boolean:
   # Phase 4 (6kW standby = house blackout) on/off; phases 1-3 run regardless
@@ -216,9 +183,9 @@ automation:
         {{ full_charge
            or is_state('input_boolean.self_consumption_boost_active', 'on')
            or (is_state('input_select.selling_mode', 'Save + Night Charge')
-               and (t >= '23:10' or t < '06:30'))
+               and is_state('binary_sensor.night_charge_window', 'on'))
            or (is_state('input_select.deye_system_state', 'Evening Export')
-               and states('input_select.selling_mode') in ['Normal', 'Force']
+               and is_state('binary_sensor.selling_mode_save', 'off')
                and states('input_number.deye_5kw_export_soc') | float(100) < 100
                and soc5 > states('input_number.deye_5kw_export_soc') | float(100)) }}
       started: >-

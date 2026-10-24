@@ -209,11 +209,9 @@ script:
                 entity_id: input_number.charge_power_deye_6kw
           - alias: 'Disable: Reduce Charge to 0.75kW'
             conditions:
-            - alias: Not winter (binary_sensor.summer_season off) with Save / Save + Night Charge, charge
-                stays >= 1.5 kW
+            - alias: Not winter with Save / Save + Night Charge, charge stays >= 1.5 kW
               condition: template
-              value_template: '{{ not (is_state(''binary_sensor.summer_season'', ''off'') and states(''input_select.selling_mode'') in [''Save'',
-                ''Save + Night Charge'']) }}'
+              value_template: '{{ not is_state(''binary_sensor.deye_6kw_winter_charge'', ''on'') }}'
             - condition: numeric_state
               entity_id: input_number.charge_power_deye_6kw
               above: 0.75
@@ -233,11 +231,9 @@ script:
                 entity_id: input_number.charge_power_deye_6kw
           - alias: 'Disable: Charge to 0kW'
             conditions:
-            - alias: Not winter (binary_sensor.summer_season off) with Save / Save + Night Charge, charge
-                stays >= 1.5 kW
+            - alias: Not winter with Save / Save + Night Charge, charge stays >= 1.5 kW
               condition: template
-              value_template: '{{ not (is_state(''binary_sensor.summer_season'', ''off'') and states(''input_select.selling_mode'') in [''Save'',
-                ''Save + Night Charge'']) }}'
+              value_template: '{{ not is_state(''binary_sensor.deye_6kw_winter_charge'', ''on'') }}'
             - condition: numeric_state
               entity_id: input_number.charge_power_deye_6kw
               above: 0
