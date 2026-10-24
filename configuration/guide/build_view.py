@@ -5,8 +5,9 @@ values via Jinja in markdown cards). The view is found by its path and
 replaced in place, inserted before the "diagram" (Other) view the first time.
 
 Numbers hard-coded in the text mirror packages/energy/power_cascade.yaml
-(power_load_cascade_step) and packages/energy/deye_schedule.yaml
-(deye_state_controller): update them together.
+(power_load_cascade_step), packages/energy/deye_schedule.yaml
+(deye_state_controller), packages/boiler.yaml (boiler mode) and
+packages/energy/deye_protection.yaml (fans): update them together.
 
 Edits go through the HA WebSocket API, never .storage directly. Idempotent.
 Run: ../statistics/oselya/.venv/bin/python build_view.py
@@ -27,6 +28,8 @@ CASCADE_HOW = """\
 - імпорт 5kW з мережі
 - розряд батареї 5kW або 6kW
 - у режимі **Force**: також коли 5kW заряджається повільніше за половину *surplus threshold*
+
+Під час нічного нагріву бойлера (режим **Night**) імпорт з мережі перевантаженням не вважається, рахується лише розряд батарей.
 
 **Надлишок PV**, якщо будь-що з цього:
 - 5kW заряджається сильніше за *Deye 5kW surplus power threshold* (зараз **{{ states('input_number.deye_5kw_surplus_power_threshold') }} kW**) або 6kW віддає стільки ж у 5kW
@@ -54,7 +57,9 @@ Enable іде зверху вниз, Disable — у зворотному пор�
 
 🟩 заряд 6kW · 🟧 бойлер · 🟦 експорт 5kW · 🟪 кондиціонери
 
-- Кроки заряду 6kW працюють лише поки 6kW < 95 %.
+- Найперше при перевантаженні вимикається опалення (основний контур і обидва ТЕНи). Назад його вмикають тільки вручну.
+- Бойлер і заряд 6kW — «драбини»: за один крок лише на одну сходинку. Перша сходинка бойлера (0.8 kW) вмикається одразу при надлишку, наступні — коли надлишок тримається 30 с (обрізання PV1: 30 с, далі 15 с), щоб побачити, що зробив інвертор.
+- Кроки заряду 6kW працюють лише поки 6kW < 95 %. Заряд понад 1.5 kW (наприклад, 3 kW після зникнення мережі) при перевантаженні одразу падає до 1.5.
 - Поки 6kW у No Battery (нічний Standby, ще не прокинувся), кроки заряду 6kW пропускаються (вони тоді нічого не дають), а бойлер не вмикається через те, що 5kW заряджається на межі: цей лишок 5kW і так віддає в мережу. Бойлер тоді вмикається лише коли 5kW справді обрізає PV або немає мережі.
 - ¹ Лише в станах продажу (коли межа експорту стану > 1000 W). В Idle не спрацьовує, у Save + Night Charge — поки 5kW не заряджена до 100 %.
 - ² Лише коли 6kW заряджена на 100 % і для кондиціонера на вкладці Climate вибрано режим (не *off*). Вимикаються останніми й тільки при низькому заряді 6kW: комфорт важливіший за продаж.
@@ -78,14 +83,14 @@ STATES = """\
 | Morning Export | слайдер | smart limit | 5050 W | 40 % ⁴ / 0.9 kW |
 | Max Solar | слайдер | 0.35 kW | 5080 W | 40 % ⁴ / 1 kW |
 | Evening Export | слайдер | smart limit | 5000 W | ³ ⁴ |
-| Idle | 35 | 1 kW | 100 W | 35 % / 1.3 kW |
+| Idle | 35 (Save: слайдер) | 1 kW | 100 W | 35 % ⁴ / 1.3 kW |
 
 - **min SOC** — до якого рівня батарея може *розряджатися*. Він не змушує батарею заряджатися: у режимі Export First Deye спершу продає PV і тільки залишок віддає в батарею.
 - **Експорт** — максимум, який 5kW віддає в мережу. 100 W означає «не продавати», і тоді PV іде в батарею.
-- **Слайдер** — *Deye 5kW export SOC* (зараз {{ states('input_number.deye_5kw_export_soc')|int(0) }} %). 100 = батарею не продаємо, але надлишок PV продається.
+- **Слайдер** — *Deye 5kW export SOC* (зараз {{ states('input_number.deye_5kw_export_soc')|int(0) }} %). 100 = батарею не продаємо, але надлишок PV продається. У Save і Save + Night Charge це нижня межа розряду 5kW у всіх станах, і в Idle теж.
 - **smart limit** — потужність розряду з `Deye 5kW Smart Discharge Limit`, не більше 2.4 kW.
 - ³ 6kW продає батарею лише ввечері і лише коли ввімкнено *Deye 6kW battery selling*: тоді peak shaving вимикається, а 6kW розряджається до *Deye 6kW export SOC* (зараз {{ states('input_number.deye_6kw_export_soc')|int(0) }} %). Коли дійде до нього, продаж вимикається автоматично. Перемикач сам вмикається за хвилину до Evening Export, якщо зараз літній сезон ({{ state_attr('binary_sensor.summer_season', 'start') }} до {{ state_attr('binary_sensor.summer_season', 'stop') }} (*Summer season* на Home)) і завтра очікується > 70 % сонця. Без продажу peak shaving лишається ввімкненим і 6kW тільки живить дім (той самий min SOC, 1.1 kW).
-- ⁴ Узимку (*Summer season* вимкнений) 6kW min SOC — *Deye 6kW export SOC* (зараз {{ states('input_number.deye_6kw_export_soc')|int(0) }} %) у всіх станах, крім Force і продажу батареї 6kW. Уночі (після заходу сонця, не раніше 16:00) інвертори по черзі йдуть у Standby (*battery operation mode* = No Battery) і не витрачають ~40–60 W кожен на себе: спершу 5kW — тоді 6kW без мережі живить дім від своєї батареї, без мигання; коли 6kW дійде до цього SOC (або велике навантаження, нічний заряд, буст, продаж батареї 5kW, мережа зникла), 5kW повертається, а за кілька хвилин у Standby іде 6kW, і дім живиться від 5kW (тільки коли в рядку *Deye 6kW standby* ввімкнено At night; без нього 6kW усю ніч працює сам). Перехід 6kW на ~30 с знеструмлює будинок, разом із Raspberry з HA; якщо Bizon спав, після ввімкнення його знову приспить. Уранці 6kW у No Battery сам вмикається від сонця (без мигання): PV живить дім, а лишок іде в 5kW — не працює тільки батарея 6kW. У Capacity (знову ~30 с без світла) він повертається лише тоді, коли PV 6kW (або 5kW) тримається ≥ *Deye 6kW wake PV* ({{ states('input_number.deye_6kw_wake_pv') }} kW) 10 хв і прогноз на решту дня сонячніший за *Deye 6kW wake sunny* ({{ states('input_number.deye_6kw_wake_sunny')|int(0) }} %, зараз {{ states('sensor.deye_6kw_sunny_today') }} %), тож у похмурий день перемикань немає зовсім. Без мережі він сам не прокидається (дім живиться від 5kW), але якщо при цьому PV ≥ wake PV 10 хв — прокидається без огляду на прогноз, щоб сонце йшло в його батарею. У ніч на 1-ше число (23:10–06:30) 6kW прокидається і заряджається з мережі до 100 %, а батарея 5kW на цей час не розряджається. Коли панелі 6kW засипані снігом, вмикай Snow у рядку *Deye 6kW standby*: 6kW тоді в Standby і вдень, від сонця не прокидається; як панелі очистяться — вимкни Snow. Кнопки 5kW / 6kW (жовта — Normal, синя — Standby) перемикають інвертор вручну з підтвердженням; ручний Standby автоматика не скасовує до 05:00 (крім мінімального SOC 6kW, навантаження 6kW понад 4 kW, зникнення мережі чи 6kW, що не працює). Усі перемикання видно в logbook як *Deye night standby*.
+- ⁴ Узимку (*Summer season* вимкнений) 6kW min SOC — *Deye 6kW export SOC* (зараз {{ states('input_number.deye_6kw_export_soc')|int(0) }} %) у всіх станах, крім Force і продажу батареї 6kW. Уночі (після заходу сонця, не раніше 16:00) інвертори по черзі йдуть у Standby (*battery operation mode* = No Battery) і не витрачають ~40–60 W кожен на себе: спершу 5kW — тоді 6kW без мережі живить дім від своєї батареї, без мигання; коли 6kW дійде до цього SOC (або велике навантаження, нічний заряд, нічний нагрів бойлера, буст, продаж батареї 5kW, мережа зникла), 5kW повертається, а за кілька хвилин у Standby іде 6kW, і дім живиться від 5kW (тільки коли в рядку *Deye 6kW standby* ввімкнено At night; без нього 6kW усю ніч працює сам). Перехід 6kW на ~30 с знеструмлює будинок, разом із Raspberry з HA; якщо Bizon спав, після ввімкнення його знову приспить. Уранці 6kW у No Battery сам вмикається від сонця (без мигання): PV живить дім, а лишок іде в 5kW — не працює тільки батарея 6kW. У Capacity (знову ~30 с без світла) він повертається лише тоді, коли PV 6kW (або 5kW) тримається ≥ *Deye 6kW wake PV* ({{ states('input_number.deye_6kw_wake_pv') }} kW) 10 хв і прогноз на решту дня сонячніший за *Deye 6kW wake sunny* ({{ states('input_number.deye_6kw_wake_sunny')|int(0) }} %, зараз {{ states('sensor.deye_6kw_sunny_today') }} %), тож у похмурий день перемикань немає зовсім. Без мережі він сам не прокидається (дім живиться від 5kW), але якщо при цьому PV ≥ wake PV 10 хв — прокидається без огляду на прогноз, щоб сонце йшло в його батарею. У ніч на 1-ше число (23:10–06:30) 6kW прокидається і заряджається з мережі до 100 %, а батарея 5kW на цей час не розряджається. Коли панелі 6kW засипані снігом, вмикай Snow у рядку *Deye 6kW standby*: 6kW тоді в Standby і вдень, від сонця не прокидається; як панелі очистяться — вимкни Snow. Кнопки 5kW / 6kW (жовта — Normal, синя — Standby) перемикають інвертор вручну з підтвердженням; ручний Standby автоматика не скасовує до 05:00 (крім мінімального SOC 6kW, навантаження 6kW понад 4 kW, зникнення мережі чи 6kW, що не працює). Усі перемикання видно в logbook як *Deye night standby*.
 - Налаштування повторно застосовуються щогодини, тож ручна зміна цих значень протримається не більше години. Щоб змінити поведінку, міняй слайдери, час або Selling mode.
 
 **Зараз:** {{ states('input_select.deye_system_state') }} · експорт {{ states('input_number.export_deye_5kw_power')|int(0) }} W · 5kW min SOC {{ states('input_number.deye_5kw_min_soc')|int(0) }} % · 6kW min SOC {{ states('input_number.deye_6kw_min_soc')|int(0) }} %
@@ -98,11 +103,23 @@ MODES = """\
 
 **Force** — працює тільки в Morning Export і Max Solar. 5kW: SOC 40, розряд 0.35 kW, експорт 5080 W; 6kW: SOC 55, 1 kW. Каскад додатково скидає навантаження, коли 5kW заряджається повільніше за половину *surplus threshold*. Поза вікном {{ states('input_datetime.deye_morning_export_start_time')[:5] }}–{{ states('input_datetime.deye_evening_export_start_time')[:5] }} сам повертається в Normal.
 
-**Save** — спершу заряджає 5kW з PV до **100 %**: експорт 100 W, увесь PV 5kW іде в батарею, а нижче 75 % її не розряджаємо. У Morning Export і Max Solar, щойно 5kW досягне 100 %, продається лише лишок PV (SOC 100, експорт стану), як у Save + Night Charge; назад на заряд, коли 5kW < 95 %. Увечері експорт 100 W. Можна вибрати за будь-якого SOC. Улітку (з {{ state_attr('binary_sensor.summer_season', 'start') }} до {{ state_attr('binary_sensor.summer_season', 'stop') }} (*Summer season* на Home)) на початку Morning Export сам повертається в Normal, узимку лишається. Узимку Save і Save + Night Charge щогодини ставлять заряд 6kW 1.5 kW, і каскад не опускає його нижче.
+**Save** — спершу заряджає 5kW з PV до **100 %**: експорт 100 W, увесь PV 5kW іде в батарею, а нижче слайдера *Deye 5kW export SOC* її не розряджаємо (і в Idle теж). У Morning Export і Max Solar, щойно 5kW досягне 100 %, продається лише лишок PV (SOC 100, експорт стану), як у Save + Night Charge; назад на заряд, коли 5kW < 95 %. Увечері експорт 100 W. Можна вибрати за будь-якого SOC. Улітку (з {{ state_attr('binary_sensor.summer_season', 'start') }} до {{ state_attr('binary_sensor.summer_season', 'stop') }} (*Summer season* на Home)) на початку Morning Export сам повертається в Normal, узимку лишається. Узимку Save і Save + Night Charge щогодини ставлять заряд 6kW 1.5 kW, і каскад не опускає його нижче.
 
-**Save + Night Charge** (для зими) — удень спершу заряджає 5kW з PV: експорт 100 W, 5kW SOC 40. У Morning Export і Max Solar, щойно 5kW досягне **100 %**, експорт повертається до значення стану, а SOC стає 100: продається лише лишок PV, сама батарея ні (назад на заряд, коли 5kW < 95 %). Peak shaving на 5kW для цього не працює після оновлення прошивки. Увечері й у Idle експорт 100 W, батарея живить дім. Уночі з 23:10 до 06:30 5kW заряджається з мережі до 100 % (~2.4 kW), і каскад на цей час вимикається, бо імпорт з мережі він сприйняв би як перевантаження. Автоматично не скидається.
+**Save + Night Charge** (для зими) — удень спершу заряджає 5kW з PV: експорт 100 W, 5kW не розряджається нижче слайдера *Deye 5kW export SOC*. У Morning Export і Max Solar, щойно 5kW досягне **100 %**, експорт повертається до значення стану, а SOC стає 100: продається лише лишок PV, сама батарея ні (назад на заряд, коли 5kW < 95 %). Peak shaving на 5kW для цього не працює після оновлення прошивки. Увечері й у Idle експорт 100 W, батарея живить дім. Уночі з 23:10 до 06:30 5kW заряджається з мережі до 100 % (~2.4 kW). Каскад при цьому працює далі, і імпорт з мережі для нього — перевантаження: він може зняти бойлер чи заряд 6kW. Автоматично не скидається.
 
 **Зараз:** {{ states('input_select.selling_mode') }}{{ ' · 5kW заряджається з PV до 100 %, далі продаж лишку' if is_state('input_select.selling_mode','Save') else '' }}
+"""
+
+BOILER_FANS = """\
+**Режим бойлера** (поле *Mode* у рядку Boiler на Home, тап — з підтвердженням):
+- **Sun** — бойлер гріється тільки від надлишку сонця, через каскад.
+- **Night** — удень так само від сонця, а вночі ще й від мережі: з 23:10 ТЕН 0.8 kW, з 05:00, якщо бойлер ще не нагрівся, додається 1.2 kW (разом 2 kW), о 06:30 вимикається. Поки він гріє, мінімальний SOC обох батарей дорівнює поточному SOC — батареї не розряджаються. Зникла мережа — ТЕНи одразу вимикаються, а батареї знову живлять дім; повернулась — нагрів продовжується за хвилину. Сповіщення «Бойлер нагрівся» вночі не надходить.
+
+**Зараз:** {{ states('input_select.boiler_mode') }}{{ ' · гріє вночі від мережі' if is_state('binary_sensor.boiler_night_heating','on') else '' }}
+
+**Вентилятори інверторів** вмикаються, коли температура тримається ≥ *Deye fan on temperature* ({{ states('input_number.deye_fan_on_temperature')|int(0) }} °C) хвилину, і вимикаються, коли 5 хв ≤ *Deye fan off temperature* ({{ states('input_number.deye_fan_off_temperature')|int(0) }} °C). Покази понад 100 °C — збій датчика, ігноруються.
+
+**Зараз:** 5kW {{ states('sensor.deye_5kw_temperature') }} °C · 6kW {{ states('sensor.deye_6kw_temperature') }} °C
 """
 
 # Step table cells tinted by device, so the reversed Disable order is visible:
@@ -145,6 +162,7 @@ view = {
         section("Порядок кроків", "mdi:format-list-numbered", CASCADE_STEPS, css=STEPS_CSS),
         section("Стани Deye", "mdi:clock-outline", STATES, css=STATES_CSS),
         section("Selling mode", "mdi:cash-sync", MODES),
+        section("Бойлер і вентилятори", "mdi:water-boiler", BOILER_FANS),
     ],
 }
 def main():
