@@ -1,0 +1,211 @@
+# Mirrors the inverter-control helpers into the Deye registers (all 6
+# programs). The only automation that writes those registers.
+automation:
+  - id: '1772123844222'
+    alias: Deye Param Sync
+    description: 'Mirrors HA helpers into both Deyes. Selling window: 5kW program 2
+      is the only period with Sell ticked (bit 0x40 of 0x0113, set in DeyeCloud); any
+      change of selling_start/stop_time rewrites all 6 program times in circular order:
+      P1 00:00, P2 = start, P3 = stop, P4-P6 spread evenly between stop and midnight
+      (5 min steps).'
+    triggers:
+    - trigger: state
+      entity_id: input_number.deye_5kw_min_soc
+      for: 00:00:01
+      id: discharge_5kw
+    - trigger: state
+      entity_id: input_number.deye_6kw_min_soc
+      for: 00:00:01
+      id: discharge_6kw
+    - trigger: state
+      entity_id: input_number.export_deye_5kw_power
+      for: 00:00:01
+      id: export_5kw
+    - trigger: state
+      entity_id: input_datetime.deye_morning_export_start_time
+      for: 00:00:01
+      id: selling_start
+    - trigger: state
+      entity_id: input_datetime.deye_night_idle_start_time
+      for: 00:00:01
+      id: selling_stop
+    - trigger: state
+      entity_id: input_number.deye_5kw_discharge_power
+      for: 00:00:01
+      id: battery_power_5kw
+    - trigger: state
+      entity_id: input_number.deye_6kw_discharge_power
+      for: 00:00:01
+      id: battery_power_6kw
+    - trigger: state
+      entity_id: input_number.charge_power_deye_5kw
+      for: 00:00:01
+      id: charge_power_5kw
+    - trigger: state
+      entity_id: input_number.charge_power_deye_6kw
+      for: 00:00:01
+      id: charge_power_6kw
+    actions:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id: discharge_5kw
+        sequence:
+        - action: number.set_value
+          target:
+            entity_id:
+            - number.deye_5kw_program_1_soc
+            - number.deye_5kw_program_2_soc
+            - number.deye_5kw_program_3_soc
+            - number.deye_5kw_program_4_soc
+            - number.deye_5kw_program_5_soc
+            - number.deye_5kw_program_6_soc
+          data:
+            value: '{{ trigger.to_state.state | float(0) | round(0) }}'
+      - conditions:
+        - condition: trigger
+          id: discharge_6kw
+        sequence:
+        - action: number.set_value
+          target:
+            entity_id:
+            - number.deye_6kw_program_1_soc
+            - number.deye_6kw_program_2_soc
+            - number.deye_6kw_program_3_soc
+            - number.deye_6kw_program_4_soc
+            - number.deye_6kw_program_5_soc
+            - number.deye_6kw_program_6_soc
+          data:
+            value: '{{ trigger.to_state.state | float(0) | round(0) }}'
+      - conditions:
+        - condition: trigger
+          id: export_5kw
+        sequence:
+        - action: number.set_value
+          target:
+            entity_id:
+            - number.deye_5kw_export_surplus_power
+          data:
+            value: '{{ trigger.to_state.state | float(0) | round(0) }}'
+        - alias: Re-write once if a stale poll overwrote the value
+          delay: 00:00:10
+        - if:
+          - condition: template
+            value_template: '{{ states(''number.deye_5kw_export_surplus_power'') | float(0)
+              | round(0) != states(''input_number.export_deye_5kw_power'') | float(0)
+              | round(0) }}'
+          then:
+          - action: number.set_value
+            target:
+              entity_id:
+              - number.deye_5kw_export_surplus_power
+            data:
+              value: '{{ states(''input_number.export_deye_5kw_power'') | float(0) |
+                round(0) }}'
+      - alias: 'Selling window: rebuild all 6 5kW program times'
+        conditions:
+        - condition: trigger
+          id:
+          - selling_start
+          - selling_stop
+        sequence:
+        - variables:
+            start_m: '{% set t = states(''input_datetime.deye_morning_export_start_time'').split('':'')
+              %}{{ t[0] | int(0) * 60 + t[1] | int(0) }}'
+            stop_m: '{% set t = states(''input_datetime.deye_night_idle_start_time'').split('':'')
+              %}{{ t[0] | int(0) * 60 + t[1] | int(0) }}'
+            step_m: '{{ ((1440 - stop_m) / 4 / 5) | int * 5 }}'
+            minutes: '{{ [0, start_m, stop_m, stop_m + step_m, stop_m + 2 * step_m,
+              stop_m + 3 * step_m] }}'
+            label: '{% set ns = namespace(out=[]) %}{% for m in minutes %}{% set ns.out
+              = ns.out + [''%02d:%02d'' | format(m // 60, m % 60)] %}{% endfor %}{{
+              ns.out | join('' / '') }}'
+        - if:
+          - condition: template
+            value_template: '{{ 0 < start_m < stop_m and step_m >= 5 }}'
+          then:
+          - repeat:
+              for_each: '{{ range(1, 7) | list }}'
+              sequence:
+              - action: time.set_value
+                target:
+                  entity_id: time.deye_5kw_program_{{ repeat.item }}_time
+                data:
+                  time: '{% set m = minutes[repeat.item - 1] %}{{ ''%02d:%02d:00'' |
+                    format(m // 60, m % 60) }}'
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: '{% set m %}Selling window: {{ label }}{% endset %}{{ m if m !=
+                states(''input_text.last_script_trigger'') else m ~ now().strftime(''
+                (%H:%M:%S)'') }}'
+          else:
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.last_script_trigger
+            data:
+              value: '{% set m %}Selling window NOT applied: start {{ states(''input_datetime.deye_morning_export_start_time'')[:5]
+                }} / stop {{ states(''input_datetime.deye_night_idle_start_time'')[:5]
+                }} (need 00:00 < start < stop <= 23:40){% endset %}{{ m if m != states(''input_text.last_script_trigger'')
+                else m ~ now().strftime('' (%H:%M:%S)'') }}'
+      - conditions:
+        - condition: trigger
+          id: battery_power_5kw
+        sequence:
+        - action: number.set_value
+          target:
+            entity_id:
+            - number.deye_5kw_program_1_power
+            - number.deye_5kw_program_2_power
+            - number.deye_5kw_program_3_power
+            - number.deye_5kw_program_4_power
+            - number.deye_5kw_program_5_power
+            - number.deye_5kw_program_6_power
+          data:
+            value: '{{ (trigger.to_state.state | float(0) * 1000) | round(0) }}'
+      - conditions:
+        - condition: trigger
+          id: battery_power_6kw
+        sequence:
+        - action: number.set_value
+          target:
+            entity_id:
+            - number.deye_6kw_program_1_power
+            - number.deye_6kw_program_2_power
+            - number.deye_6kw_program_3_power
+            - number.deye_6kw_program_4_power
+            - number.deye_6kw_program_5_power
+            - number.deye_6kw_program_6_power
+          data:
+            value: '{{ (trigger.to_state.state | float(0) * 1000) | round(0) }}'
+      - conditions:
+        - condition: trigger
+          id: charge_power_5kw
+        sequence:
+        - variables:
+            voltage: 54.4
+            power_kw: '{{ trigger.to_state.state | float(0) }}'
+            current: '{{ (power_kw * 1000 / voltage) | round(0) }}'
+        - action: number.set_value
+          target:
+            entity_id:
+            - number.deye_5kw_battery_max_charging_current
+          data:
+            value: '{{ current }}'
+      - conditions:
+        - condition: trigger
+          id: charge_power_6kw
+        sequence:
+        - variables:
+            voltage: 51
+            power_kw: '{{ trigger.to_state.state | float(0) }}'
+            current: '{{ (power_kw * 1000 / voltage) | round(0) }}'
+        - action: number.set_value
+          target:
+            entity_id:
+            - number.deye_6kw_battery_max_charging_current
+          data:
+            value: '{{ current }}'
+    mode: queued
+    max: 9

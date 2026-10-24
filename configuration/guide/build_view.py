@@ -4,8 +4,9 @@ cascade, the Deye states and the Selling mode work (Ukrainian text, live
 values via Jinja in markdown cards). The view is found by its path and
 replaced in place, inserted before the "diagram" (Other) view the first time.
 
-Numbers hard-coded in the text mirror scripts.yaml (power_load_cascade_step)
-and automations.yaml (deye_state_controller): update them together.
+Numbers hard-coded in the text mirror packages/energy/power_cascade.yaml
+(power_load_cascade_step) and packages/energy/deye_schedule.yaml
+(deye_state_controller): update them together.
 
 Edits go through the HA WebSocket API, never .storage directly. Idempotent.
 Run: ../statistics/oselya/.venv/bin/python build_view.py

@@ -1,0 +1,158 @@
+# Inverter protection: grid loss (io mode, dump PV into the boiler / 6kW
+# battery) and the cooling fans of both inverters.
+automation:
+  - id: deye_grid_lost_emergency
+    alias: Deye Grid Lost Emergency
+    description: High priority protection when grid is down
+    triggers:
+    - trigger: state
+      entity_id: binary_sensor.deye_5kw_grid
+      from: 'on'
+      to: 'off'
+      id: grid_lost
+    - trigger: state
+      entity_id: binary_sensor.deye_5kw_grid
+      from: 'off'
+      to: 'on'
+      id: grid_restored
+    actions:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id: grid_restored
+        sequence:
+        - action: select.select_option
+          target:
+            entity_id: select.deye_5kw_io_mode
+          data:
+            option: SmartLoad
+      default:
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ (states(''sensor.deye_5kw_pv_power'') | float(0)) +
+              (states(''sensor.deye_6kw_pv_power'') | float(0)) > 5000 }}'
+          sequence:
+          - action: select.select_option
+            target:
+              entity_id: select.deye_5kw_io_mode
+            data:
+              option: Microinverter
+          - action: switch.turn_on
+            target:
+              entity_id:
+              - switch.1560_boiler_ten_0_8_kwh
+              - switch.1561_boiler_ten_1_2_kwh
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.charge_power_deye_6kw
+            data:
+              value: 3
+        default:
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.charge_power_deye_6kw
+          data:
+            value: 2
+      - action: switch.turn_on
+        target:
+          entity_id: switch.deye_6kw_grid_peak_shaving
+    mode: queued
+    max: 3
+  - id: '1777532101180'
+    alias: 'Fan controllers: Deye 5kW & 6kW'
+    triggers:
+    - trigger: numeric_state
+      entity_id: sensor.deye_5kw_temperature
+      above: 55
+      id: deye5_on
+    - trigger: numeric_state
+      entity_id: sensor.deye_5kw_temperature
+      below: 45
+      id: deye5_off
+    - trigger: numeric_state
+      entity_id: sensor.deye_6kw_temperature
+      above: 55
+      id: deye6_on
+    - trigger: numeric_state
+      entity_id: sensor.deye_6kw_temperature
+      below: 45
+      id: deye6_off
+    - trigger: homeassistant
+      event: start
+      id: recovery
+    - trigger: event
+      event_type: automation_reloaded
+      id: recovery
+    - trigger: time_pattern
+      minutes: /15
+      id: recovery
+    actions:
+    - choose:
+      - conditions:
+        - condition: or
+          conditions:
+          - condition: trigger
+            id: deye5_on
+          - condition: and
+            conditions:
+            - condition: trigger
+              id: recovery
+            - condition: numeric_state
+              entity_id: sensor.deye_5kw_temperature
+              above: 55
+        sequence:
+        - action: switch.turn_on
+          target:
+            entity_id: switch.fan1_sonoff_10004d5447
+      - conditions:
+        - condition: or
+          conditions:
+          - condition: trigger
+            id: deye5_off
+          - condition: and
+            conditions:
+            - condition: trigger
+              id: recovery
+            - condition: numeric_state
+              entity_id: sensor.deye_5kw_temperature
+              below: 45
+        sequence:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.fan1_sonoff_10004d5447
+    - choose:
+      - conditions:
+        - condition: or
+          conditions:
+          - condition: trigger
+            id: deye6_on
+          - condition: and
+            conditions:
+            - condition: trigger
+              id: recovery
+            - condition: numeric_state
+              entity_id: sensor.deye_6kw_temperature
+              above: 55
+        sequence:
+        - action: switch.turn_on
+          target:
+            entity_id: switch.fan2_sonoff_1002672f1f_1
+      - conditions:
+        - condition: or
+          conditions:
+          - condition: trigger
+            id: deye6_off
+          - condition: and
+            conditions:
+            - condition: trigger
+              id: recovery
+            - condition: numeric_state
+              entity_id: sensor.deye_6kw_temperature
+              below: 45
+        sequence:
+        - action: switch.turn_off
+          target:
+            entity_id: switch.fan2_sonoff_1002672f1f_1
+    mode: parallel
+    max: 10

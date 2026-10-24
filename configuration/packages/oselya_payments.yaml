@@ -157,6 +157,15 @@ shell_command:
     ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o BatchMode=yes
     yurii@127.0.0.1 "cd /home/yurii/docker/homeControll/configuration/statistics/oselya && .venv/bin/python meters.py submit '{{ point }}' {{ values }}"
   oselya_remind_weekly: 'PYTHONPATH=/config/statistics/oselya/vendor python3 /config/statistics/oselya/remind.py --weekly >> /config/statistics/oselya/sync.log 2>&1'
+  # Runs in the HA container's own Python (3.14), not the pipeline's host-side
+  # venv (3.13) - the venv's python3 symlink points at /usr/bin/python3, which
+  # only exists on the host, not inside the container. requests/PyYAML already
+  # ship with HA core; pypdf (pure-Python, zero deps) is vendored separately
+  # for the container via PYTHONPATH so it doesn't need reinstalling on every
+  # HA container update (see statistics/oselya/vendor/). --reconcile-only skips
+  # fetch_all() (needs ~/.secrets/oselya_cabinet, which only exists on the host, not
+  # in the container) - this trigger only needs to react to to-do checkboxes.
+  oselya_sync: 'PYTHONPATH=/config/statistics/oselya/vendor python3 /config/statistics/oselya/sync.py --reconcile-only >> /config/statistics/oselya/sync.log 2>&1'
 
 script:
   oselya_rate_save:
@@ -356,3 +365,57 @@ automation:
           message_id: "{{ trigger.event.data.message.message_id }}"
           inline_keyboard: []
     mode: queued
+  - id: oselya_payments_todo_sync
+    alias: Oselya Payments - sync on to-do change
+    description: When an item in the "Payments" to-do list is added, removed, or checked
+      off, wait 10s (so a burst of clicks coalesces into one run) then run statistics/oselya/sync.py
+      to reconcile the payments table.
+    triggers:
+    - trigger: state
+      entity_id: todo.payments
+      for:
+        seconds: 10
+    conditions: []
+    actions:
+    - action: shell_command.oselya_sync
+      data: {}
+    mode: single
+  - id: oselya_receipt_links_refresh
+    alias: Oselya Payments - refresh receipt links
+    description: 'sensor.document_links re-signs its links daily and on every HA restart
+      (the old ones stop working then), so re-run statistics/oselya/sync.py --reconcile-only
+      to put the fresh receipt links into the "Payments" to-do item descriptions. The
+      1-minute wait lets startup settle. Also runs on HA start: a restart re-signs every
+      link but usually leaves the sensor''s state (the file count) unchanged, so the
+      state trigger alone misses it.'
+    triggers:
+    - trigger: state
+      entity_id: sensor.document_links
+      for:
+        minutes: 1
+    - trigger: homeassistant
+      event: start
+    conditions: []
+    actions:
+    - delay:
+        minutes: 1
+    - action: shell_command.oselya_sync
+      data: {}
+    mode: single
+  - id: oselya_payments_collapse_tables
+    alias: Oselya Payments - collapse tables
+    description: The Payments dashboard tables should open collapsed (month rows only).
+      HA cannot tell when the page is left, so after the bill rows have been expanded
+      for 5 minutes, switch input_boolean.oselya_payments_expanded back off.
+    triggers:
+    - trigger: state
+      entity_id: input_boolean.oselya_payments_expanded
+      to: 'on'
+      for:
+        minutes: 5
+    conditions: []
+    actions:
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.oselya_payments_expanded
+    mode: single

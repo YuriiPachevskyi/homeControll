@@ -175,7 +175,7 @@ automation:
       the morning (5kW PV 100 W / 10:00), 6kW only on strong PV (Deye 6kW wake
       PV for 10 min + sunny forecast, or with no grid), the monthly full
       charge. See
-      packages/deye_night_standby.yaml.
+      packages/energy/deye_night_standby.yaml.
     mode: single
     max_exceeded: silent
     triggers:

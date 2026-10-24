@@ -1,0 +1,65 @@
+# Other hosts: Bizon PC and raspberrypi5 power commands (script.host_power),
+# Bizon suspended at 01:00. Bizon resleep after a 6kW blackout is in
+# packages/energy/deye_night_standby.yaml.
+shell_command:
+  bizon_suspend: 'ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no yurii@192.168.1.4 "sudo systemctl suspend -i </dev/null >/dev/null 2>&1 &"'
+  bizon_reboot: 'ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no yurii@192.168.1.4 "sudo reboot </dev/null >/dev/null 2>&1 &"'
+  bizon_poweroff: 'ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no yurii@192.168.1.4 "sudo systemctl poweroff </dev/null >/dev/null 2>&1 &"'
+  bizon_wakeup: 'wakeonlan 2c:f0:5d:7b:3e:89'
+  # raspberrypi5 (Poland) over Tailscale
+  rpi5_reboot: 'ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no yurii@100.102.244.45 "sudo reboot </dev/null >/dev/null 2>&1 &"'
+
+automation:
+  - id: '1786951566785'
+    alias: Bizon suspend automation at 01:00:00
+    triggers:
+    - at: 01:00:00
+      trigger: time
+    conditions: []
+    actions:
+    - action: script.host_power
+      data:
+        host: bizon
+        command: suspend
+    mode: single
+
+script:
+  host_power:
+    alias: Host power
+    description: Wake up / suspend / reboot / power off a host via its shell_command
+      (<host>_<command>). Only combinations that have a shell_command are allowed.
+    icon: mdi:power
+    mode: parallel
+    fields:
+      host:
+        name: Host
+        required: true
+        selector:
+          select:
+            options:
+            - bizon
+            - rpi5
+      command:
+        name: Command
+        required: true
+        selector:
+          select:
+            options:
+            - wakeup
+            - suspend
+            - reboot
+            - poweroff
+    variables:
+      allowed:
+        bizon:
+        - wakeup
+        - suspend
+        - reboot
+        - poweroff
+        rpi5:
+        - reboot
+    sequence:
+    - condition: template
+      value_template: '{{ command in allowed.get(host, []) }}'
+    - action: shell_command.{{ host }}_{{ command }}
+      data: {}

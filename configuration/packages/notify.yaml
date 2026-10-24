@@ -1,0 +1,402 @@
+# Backs the "Сповіщення" dashboard tab: last 10 Telegram notifications sent via
+# script.notify_all, each with a per-row delete button (script.delete_notification_slot)
+# that removes the message for everyone. Data written by notify/notify_log.py via the
+# notify_log_append/notify_log_remove shell_commands (below).
+command_line:
+  - sensor:
+      name: "Telegram Notify Log"
+      unique_id: telegram_notify_log
+      command: "cat /config/notify/notify_log.json"
+      value_template: "{{ value_json.rows | count }}"
+      json_attributes:
+        - rows
+      scan_interval: 3600
+
+template:
+  # Row name = message text as sent (newlines flattened), state = send date
+  # (the message itself already starts with the time), title in attribute.
+  - sensor:
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[0].message | replace('\n', ' · '))[:120] if rows | count >= 1 else '—' }}
+        unique_id: telegram_notify_1
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 1 %}{% set ts = rows[0].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[0].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 1 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[0].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 1 else '' }}"
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[1].message | replace('\n', ' · '))[:120] if rows | count >= 2 else '—' }}
+        unique_id: telegram_notify_2
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 2 %}{% set ts = rows[1].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[1].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 2 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[1].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 2 else '' }}"
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[2].message | replace('\n', ' · '))[:120] if rows | count >= 3 else '—' }}
+        unique_id: telegram_notify_3
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 3 %}{% set ts = rows[2].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[2].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 3 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[2].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 3 else '' }}"
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[3].message | replace('\n', ' · '))[:120] if rows | count >= 4 else '—' }}
+        unique_id: telegram_notify_4
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 4 %}{% set ts = rows[3].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[3].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 4 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[3].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 4 else '' }}"
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[4].message | replace('\n', ' · '))[:120] if rows | count >= 5 else '—' }}
+        unique_id: telegram_notify_5
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 5 %}{% set ts = rows[4].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[4].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 5 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[4].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 5 else '' }}"
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[5].message | replace('\n', ' · '))[:120] if rows | count >= 6 else '—' }}
+        unique_id: telegram_notify_6
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 6 %}{% set ts = rows[5].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[5].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 6 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[5].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 6 else '' }}"
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[6].message | replace('\n', ' · '))[:120] if rows | count >= 7 else '—' }}
+        unique_id: telegram_notify_7
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 7 %}{% set ts = rows[6].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[6].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 7 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[6].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 7 else '' }}"
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[7].message | replace('\n', ' · '))[:120] if rows | count >= 8 else '—' }}
+        unique_id: telegram_notify_8
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 8 %}{% set ts = rows[7].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[7].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 8 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[7].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 8 else '' }}"
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[8].message | replace('\n', ' · '))[:120] if rows | count >= 9 else '—' }}
+        unique_id: telegram_notify_9
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 9 %}{% set ts = rows[8].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[8].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 9 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[8].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 9 else '' }}"
+      - name: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {{ (rows[9].message | replace('\n', ' · '))[:120] if rows | count >= 10 else '—' }}
+        unique_id: telegram_notify_10
+        icon: mdi:message-text-outline
+        state: >-
+          {% set rows = state_attr('sensor.telegram_notify_log', 'rows') or [] %}
+          {% if rows | count >= 10 %}{% set ts = rows[9].ts %}{{ ts[8:10] ~ '.' ~ ts[5:7] }}{% else %}—{% endif %}
+        attributes:
+          title: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[9].title if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 10 else '' }}"
+          message: "{{ (state_attr('sensor.telegram_notify_log', 'rows') or [])[9].message if (state_attr('sensor.telegram_notify_log', 'rows') or []) | count >= 10 else '' }}"
+
+shell_command:
+  notify_log_append: 'python3 /config/notify/notify_log.py append "{{ payload_b64 }}"'
+  notify_log_remove: 'python3 /config/notify/notify_log.py remove {{ slot }}'
+
+script:
+  notify_all:
+    alias: Notify all (Telegram)
+    description: Sends the same notification to all Telegram recipients and logs
+      the sent chat/message IDs into notify/notify_log.json (last 10, newest
+      first) so any of them can be deleted for everyone from the "Сповіщення"
+      dashboard tab or script.delete_notification_slot / script.delete_last_notification.
+    fields:
+      title:
+        description: Notification title
+        example: Boiler
+      message:
+        description: Notification text
+        example: Boiler is heated
+    mode: parallel
+    sequence:
+    - action: telegram_bot.send_message
+      continue_on_error: true
+      target:
+        entity_id:
+        - notify.yurii_p
+        - notify.kateryna
+        - notify.nataliya
+      data:
+        title: '{{ title }}'
+        message: '{{ message }}'
+      response_variable: send_result
+    - action: script.notify_log_record
+      data:
+        title: '{{ title }}'
+        message: '{{ message }}'
+        chats: '{{ send_result.chats | default([]) if send_result is defined else [] }}'
+  notify_log_record:
+    alias: Log a sent Telegram notification
+    description: Adds a sent notification to notify/notify_log.json so it shows on
+      the "Сповіщення" dashboard tab and can be deleted for everyone. Call it right
+      after any telegram_bot.send_* that bypasses script.notify_all, passing the
+      `chats` list from its response_variable (for several messages that belong
+      together, e.g. a letter and its attachments, pass all of their chats in one
+      list - one row, one delete). Does nothing for an empty list.
+    fields:
+      title:
+        description: Notification title
+        example: Librus
+      message:
+        description: Notification text, as shown in the log
+        example: New grade
+      chats:
+        description: '[{chat_id, message_id}, ...] from the send response'
+        example: '[{"chat_id": 612533502, "message_id": 123}]'
+      keep_single:
+        description: Log it even if it went to one chat only (default false)
+        example: true
+      replaces:
+        description: '[{chat_id, message_id}, ...] of a deleted predecessor whose
+          row is dropped'
+        example: '[]'
+    mode: queued
+    max: 50
+    sequence:
+    - if:
+      - condition: template
+        value_template: '{{ chats is defined and chats | count > 0 }}'
+      then:
+      - action: shell_command.notify_log_append
+        data:
+          payload_b64: "{{ ({'ts': now().strftime('%Y-%m-%d %H:%M:%S'), 'title': title,
+            'message': message, 'chats': chats, 'keep_single': keep_single | default(false),
+            'replaces': replaces | default([])} | tojson) | base64_encode }}"
+      - action: homeassistant.update_entity
+        target:
+          entity_id: sensor.telegram_notify_log
+        data: {}
+  delete_notification_slot:
+    alias: Delete Telegram notification (all recipients)
+    description: Deletes, for everyone, the notification at the given row of
+      notify/notify_log.json (slot 1 = most recent), then removes that row from
+      the log. Used by the per-row delete button on the "Сповіщення" dashboard
+      tab. Only works while the message is less than ~48h old (Telegram Bot API
+      limit) and hasn't been deleted already.
+    fields:
+      slot:
+        description: Row number, 1 = most recent notification
+        example: 1
+    mode: queued
+    sequence:
+    - variables:
+        rows: "{{ state_attr('sensor.telegram_notify_log', 'rows') or [] }}"
+        entry: "{{ rows[slot | int - 1] if (slot | int - 1) < (rows | count) else none }}"
+    - if:
+      - condition: template
+        value_template: '{{ entry is not none }}'
+      then:
+      - repeat:
+          for_each: '{{ entry.chats }}'
+          sequence:
+          - action: telegram_bot.delete_message
+            continue_on_error: true
+            data:
+              chat_id: '{{ repeat.item.chat_id }}'
+              message_id: '{{ repeat.item.message_id }}'
+      - action: shell_command.notify_log_remove
+        data:
+          slot: '{{ slot }}'
+      - action: homeassistant.update_entity
+        target:
+          entity_id: sensor.telegram_notify_log
+        data: {}
+  delete_last_notification:
+    alias: Delete last Telegram notification (all recipients)
+    description: Convenience alias for script.delete_notification_slot with slot 1
+      - deletes the most recently sent notification for everyone.
+    mode: single
+    sequence:
+    - action: script.delete_notification_slot
+      data:
+        slot: 1
+
+# Boiler heated / boost reminder and grid lost / restored alerts
+automation:
+  - id: '1788451374111'
+    alias: All notifications
+    triggers:
+    - entity_id: sensor.boiler_ten_power_estimate
+      below: 1
+      for:
+        minutes: 3
+      trigger: numeric_state
+      id: boiler
+    - entity_id: binary_sensor.deye_5kw_grid
+      from: 'on'
+      to: 'off'
+      for:
+        minutes: 1
+      trigger: state
+      id: lost
+    - entity_id: switch.input_meater_switch
+      to: unavailable
+      for:
+        minutes: 1
+      trigger: state
+      id: lost
+    - entity_id: binary_sensor.deye_5kw_grid
+      from: 'off'
+      to: 'on'
+      for:
+        minutes: 1
+      trigger: state
+      id: restored
+    - entity_id: switch.input_meater_switch
+      from: unavailable
+      for:
+        minutes: 1
+      trigger: state
+      id: restored
+    - trigger: time
+      at: '17:00:00'
+      id: eco_reminder
+    actions:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id: boiler
+        - condition: or
+          conditions:
+          - condition: state
+            entity_id: switch.1560_boiler_ten_0_8_kwh
+            state: 'on'
+            for:
+              minutes: 3
+          - condition: state
+            entity_id: switch.1561_boiler_ten_1_2_kwh
+            state: 'on'
+            for:
+              minutes: 3
+        - alias: Muted while the night self-consumption boost heats the boiler
+          condition: state
+          entity_id: input_boolean.self_consumption_boost_active
+          state: 'off'
+        - condition: template
+          value_template: "{{ states('input_datetime.boiler_last_notified') in ['unknown',
+            'unavailable']\n   or (as_timestamp(now()) - as_timestamp(states('input_datetime.boiler_last_notified')))
+            > 1 * 3600 }}\n"
+        sequence:
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.boiler_last_notified
+          data:
+            timestamp: '{{ now().timestamp() }}'
+        - variables:
+            surplus_power_available: "{{ now().strftime('%H:%M:%S') < '14:00:00'\n   and
+              states('sensor.deye_6kw_battery') | float(0) > 90\n   and states('sensor.deye_5kw_battery')
+              | float(0) > 90 }}"
+        - if:
+          - condition: template
+            value_template: '{{ surplus_power_available }}'
+          then:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.boiler_boost_suggested
+        - action: homeassistant.update_entity
+          target:
+            entity_id: sensor.boiler_ten_power_estimate
+          data: {}
+        - delay: 00:00:02
+        - action: script.notify_all
+          data:
+            title: Бойлер
+            message: "\U0001F525 Бойлер нагрівся{% if surplus_power_available %} Збільште
+              потужність на макс{% endif %}\nСпожив сьогодні: {{ states('sensor.boiler_ten_energy_estimate_daily')
+              | float(0) | round(1) }} кВт⋅год"
+      - conditions:
+        - condition: trigger
+          id: eco_reminder
+        - condition: state
+          entity_id: input_boolean.boiler_boost_suggested
+          state: 'on'
+        sequence:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.boiler_boost_suggested
+        - action: script.notify_all
+          data:
+            title: Бойлер
+            message: "\U0001F514 Бойлер на Еко"
+      - conditions:
+        - condition: trigger
+          id: lost
+        - condition: state
+          entity_id: binary_sensor.deye_5kw_grid
+          state: 'off'
+        - alias: Not the ~1 min relay blip of the 5kW entering night standby
+          condition: template
+          value_template: '{{ states(''sensor.deye_5kw_grid_l1_voltage'') | float(0)
+            < 150 or now().timestamp() - state_attr(''input_datetime.deye_5kw_standby_started'',
+            ''timestamp'') | float(0) > 660 }}'
+        - condition: not
+          conditions:
+          - condition: state
+            entity_id: switch.input_meater_switch
+            state: 'off'
+        - condition: state
+          entity_id: input_boolean.grid_outage_notified
+          state: 'off'
+        sequence:
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.grid_outage_notified
+        - action: script.notify_all
+          data:
+            title: Мережа
+            message: ⚡ Електроживлення зникло
+      - conditions:
+        - condition: trigger
+          id: restored
+        - condition: state
+          entity_id: binary_sensor.deye_5kw_grid
+          state: 'on'
+        - condition: state
+          entity_id: input_boolean.grid_outage_notified
+          state: 'on'
+        sequence:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.grid_outage_notified
+        - action: script.notify_all
+          data:
+            title: Мережа
+            message: "\U0001F4A1 Електроживлення відновлено"

@@ -1,0 +1,120 @@
+# Boiler and heating TENs (switch.156x_*, i2c_relay): all off on HA start,
+# relay-time x power energy estimate for the Energy dashboard.
+# The "Бойлер нагрівся" notification is in packages/notify.yaml.
+automation:
+  - id: '1731862602452'
+    alias: Update switches state on startup
+    description: ''
+    triggers:
+    - trigger: homeassistant
+      event: start
+    conditions: []
+    actions:
+    - action: switch.turn_off
+      metadata: {}
+      data: {}
+      target:
+        entity_id:
+        - switch.1562_heating_main
+        - switch.1561_boiler_ten_1_2_kwh
+        - switch.1563_heating_ten_1_5_kwh
+        - switch.1564_heating_ten_3_kwh
+        - switch.1560_boiler_ten_0_8_kwh
+    mode: single
+  - id: '1788815476602'
+    alias: Boiler Energy Sensor Refresh
+    description: 'Keeps the boiler energy tracking from stalling. sensor.boiler_ten_power_estimate
+      only re-renders when the boiler switches change state, so the integration (Riemann
+      sum) sensor gets no new sample - and no accumulated energy - during a long continuous
+      on/off stretch: it is refreshed every 30 minutes so long stretches accumulate
+      smoothly. After a HA restart the template/integration chain can also get stuck
+      on "unknown" until something forces a re-render, so on startup it waits 30 seconds,
+      reloads the templates and then refreshes.'
+    triggers:
+    - trigger: homeassistant
+      event: start
+      id: startup
+    - trigger: time_pattern
+      minutes: /30
+      id: periodic
+    conditions: []
+    actions:
+    - if:
+      - condition: trigger
+        id: startup
+      then:
+      - delay: 00:00:30
+      - action: template.reload
+        data: {}
+      - delay: 00:00:03
+    - action: homeassistant.update_entity
+      target:
+        entity_id: sensor.boiler_ten_power_estimate
+      data: {}
+    mode: queued
+
+template:
+  - sensor:
+      - name: "Boiler TEN Power Estimate"
+        unique_id: boiler_ten_power_estimate
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {# Relay on = rated TEN power, but only while the 6kW load (the
+             boiler hangs on its LOAD port) actually shows it. When the
+             boiler's own thermostat opens the circuit the relay stays on
+             and the load drops to the house baseline - count 0 then.
+             Threshold 0.6 * P + 250 W: the baseline can be ~500-700 W in the
+             day (oven, etc.), a plain P / 2 then never saw the 0.8 kW TEN
+             as off. Heating is at least P + ~100 W of night baseline. #}
+          {% set ns = namespace(p=0) %}
+          {% if is_state('switch.1560_boiler_ten_0_8_kwh', 'on') %}
+            {% set ns.p = ns.p + 800 %}
+          {% endif %}
+          {% if is_state('switch.1561_boiler_ten_1_2_kwh', 'on') %}
+            {% set ns.p = ns.p + 1200 %}
+          {% endif %}
+          {% set load = states('sensor.deye_6kw_load_power') | float(ns.p) %}
+          {{ 0 if load < ns.p * 0.6 + 250 else [ns.p, load] | min | round(0) }}
+        availability: >
+          {{ states('switch.1560_boiler_ten_0_8_kwh') not in ['unknown', 'unavailable'] and
+             states('switch.1561_boiler_ten_1_2_kwh') not in ['unknown', 'unavailable'] }}
+
+      - name: "Boiler TEN Energy Total"
+        unique_id: boiler_ten_energy_total
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: >
+          {# Adds the manually-backfilled Sep 1-7 baseline (16.70755 kWh) to the
+             live Riemann-integrated value, so the running total stays continuous
+             across HA restarts instead of the raw integration sensor's own value
+             (which restarts from 0 and would overwrite recorder statistics).
+             Clamped against its own last reported value so a post-restart
+             blip (the estimate sensor briefly reporting stale/zeroed data
+             while the template/integration chain re-renders) can never make
+             this total_increasing sensor go backwards - a real decrease here
+             gets read by the recorder as a meter reset and zeroes the
+             recorded statistics sum (happened 2026-09-07/08). Holding the
+             last value steady during a blip is self-healing: once the
+             estimate is valid again, tracking just resumes from there. #}
+          {% set computed = (16.70755 + (states('sensor.boiler_ten_energy_estimate') | float(0))) | round(4) %}
+          {% set last = states('sensor.boiler_ten_energy_total') | float(computed) %}
+          {{ [computed, last] | max }}
+        availability: "{{ is_number(states('sensor.boiler_ten_energy_estimate')) }}"
+
+sensor:
+  - platform: integration
+    source: sensor.boiler_ten_power_estimate
+    name: boiler_ten_energy_estimate
+    unit_prefix: k
+    # Step-shaped source (0 <-> rated W): trapezoidal would count half the
+    # rated power over the whole idle gap before every switch-on.
+    method: left
+
+
+utility_meter:
+  boiler_ten_energy_estimate_daily:
+    source: sensor.boiler_ten_energy_estimate
+    cycle: daily
