@@ -72,8 +72,7 @@ automation:
       # the previous data). A successful one moves
       # input_datetime.librus_last_refresh (librus_refreshed_mark below); if
       # it did not move, neither route (direct from rpi4, fallback via rpi5)
-      # got the data - tell Yurii and Kateryna (not notify_all - that one
-      # also goes to Nataliya).
+      # got the data - tell Yurii and Kateryna (notify_all to: parents).
       - wait_template: >-
           {{ (state_attr('input_datetime.librus_last_refresh', 'timestamp') or 0) >= started }}
         timeout:
@@ -84,21 +83,11 @@ automation:
           msg: |-
             ⚠️ Librus: дані не отримано
             Маршрут: {{ 'через rpi5 (Польща)' if is_state('input_select.librus_route', 'rpi5') else 'напряму з rpi4' }}
-      - action: telegram_bot.send_message
-        continue_on_error: true
-        target:
-          entity_id:
-            - notify.yurii_p
-            - notify.kateryna
+      - action: script.notify_all
         data:
           title: Librus
           message: "{{ msg }}"
-        response_variable: sent
-      - action: script.notify_log_record
-        data:
-          title: Librus
-          message: "{{ msg }}"
-          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
+          to: parents
     mode: single
 
   - id: librus_route_changed_notify
@@ -158,21 +147,11 @@ automation:
             ⚠️ Librus не оновлюється
             Останнє оновлення: {{ as_datetime(state_attr('input_datetime.librus_last_refresh', 'timestamp')) | as_local
             | as_timestamp | timestamp_custom('%d.%m %H:%M') if state_attr('input_datetime.librus_last_refresh', 'timestamp') else 'невідомо' }}
-      - action: telegram_bot.send_message
-        continue_on_error: true
-        target:
-          entity_id:
-            - notify.yurii_p
-            - notify.kateryna
+      - action: script.notify_all
         data:
           title: Librus
           message: "{{ msg }}"
-        response_variable: sent
-      - action: script.notify_log_record
-        data:
-          title: Librus
-          message: "{{ msg }}"
-          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
+          to: parents
     mode: single
 
   - id: librus_news_notify
@@ -186,8 +165,8 @@ automation:
       (saved under /config/librus/attachments by the patch); letters from
       the substitutions/alerts/justifications mailboxes too, marked as such.
       School notices (ogłoszenia) - one message each with the full text. To Yurii and
-      Kateryna; grades also to the daughter, letters not (not notify_all - that one
-      also goes to Nataliya).
+      Kateryna; grades also to the daughter (notify_all to: parents_and_daughter),
+      letters not (own send: HTML, translate button, attachments).
     triggers:
       - trigger: event
         event_type: librus_news
@@ -205,23 +184,12 @@ automation:
                 {%- for g in grades %}
                 {{ g.subject }}: {{ g.value }}
                 {%- endfor %}
-          - action: telegram_bot.send_message
-            continue_on_error: true
-            target:
-              entity_id:
-                - notify.yurii_p
-                - notify.kateryna
-                - notify.daughter
+          - action: script.notify_all
             data:
               title: Librus
+              message: "{{ msg }}"
               parse_mode: plain_text
-              message: "{{ msg }}"
-            response_variable: sent
-          - action: script.notify_log_record
-            data:
-              title: Librus
-              message: "{{ msg }}"
-              chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
+              to: parents_and_daughter
       # one Telegram message per letter (full text), then its attachments;
       # the letter and its attachments share one "Сповіщення" log row, so one
       # delete removes them all (letter_chats is updated from the inner repeat)
@@ -420,20 +388,12 @@ automation:
           msg: |-
             ⚠️ Librus без наших правок: {{ trigger.to_state.state }}
             Запусти apply_local_patches.py і перезапусти HA
-      - action: telegram_bot.send_message
-        continue_on_error: true
-        target:
-          entity_id: notify.yurii_p
+      - action: script.notify_all
         data:
           title: Librus
+          message: "{{ msg }}"
           parse_mode: plain_text
-          message: "{{ msg }}"
-        response_variable: sent
-      - action: script.notify_log_record
-        data:
-          title: Librus
-          message: "{{ msg }}"
-          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
+          to: yurii_only
     mode: single
 
   - id: gurtki_reminder_notify
@@ -454,24 +414,13 @@ automation:
       - variables:
           msg: |-
             🎵 Через 30 хвилин: {{ trigger.calendar_event.summary }}
-            Початок о {{ (as_timestamp(trigger.calendar_event.start) - 3600) | timestamp_custom('%H:%M') }}{{ (' · ' ~ trigger.calendar_event.location) if trigger.calendar_event.location else '' }}
-      - action: telegram_bot.send_message
-        continue_on_error: true
-        target:
-          entity_id:
-            - notify.yurii_p
-            - notify.kateryna
-            - notify.daughter
+            Початок о {{ (as_timestamp(trigger.calendar_event.start) - 3600) | timestamp_custom('%H:%M') }}{{ (' · ' ~ trigger.calendar_event.location) if trigger.calendar_event.get('location') else '' }}
+      - action: script.notify_all
         data:
           title: Гуртки
+          message: "{{ msg }}"
           parse_mode: plain_text
-          message: "{{ msg }}"
-        response_variable: sent
-      - action: script.notify_log_record
-        data:
-          title: Гуртки
-          message: "{{ msg }}"
-          chats: "{{ sent.chats | default([]) if sent is defined else [] }}"
+          to: parents_and_daughter
     mode: queued
 
 # Polish -> Ukrainian for the "Переклад" button (librus_translate_button).

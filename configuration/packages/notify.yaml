@@ -133,11 +133,13 @@ shell_command:
 
 script:
   notify_all:
-    alias: Notify all (Telegram)
-    description: Sends the same notification to all Telegram recipients and logs
-      the sent chat/message IDs into notify/notify_log.json (last 10, newest
-      first) so any of them can be deleted for everyone from the "Сповіщення"
-      dashboard tab or script.delete_notification_slot / script.delete_last_notification.
+    alias: Notify (Telegram)
+    description: Sends the same notification to Telegram recipients (default
+      the family - Yurii, Kateryna, Nataliya) and logs the sent chat/message IDs
+      into notify/notify_log.json (last 10, newest first) so any of them can be
+      deleted for everyone from the "Сповіщення" dashboard tab or
+      script.delete_notification_slot / script.delete_last_notification.
+      Recipients and groups are defined only here.
     fields:
       title:
         description: Notification title
@@ -145,24 +147,50 @@ script:
       message:
         description: Notification text
         example: Boiler is heated
+      to:
+        description: >-
+          A group (family, parents, parents_and_daughter, yurii_only) or a
+          list of people (yurii, kateryna, nataliya, daughter); default family
+        example: parents
+      parse_mode:
+        description: Telegram parse mode (default the bot's, Markdown)
+        example: plain_text
     mode: parallel
+    variables:
+      people:
+        yurii: notify.yurii_p
+        kateryna: notify.kateryna
+        nataliya: notify.nataliya
+        daughter: notify.daughter
+      groups:
+        family: [yurii, kateryna, nataliya]
+        parents: [yurii, kateryna]
+        # Librus grades, Гуртки
+        parents_and_daughter: [yurii, kateryna, daughter]
+        yurii_only: [yurii]
     sequence:
+    - variables:
+        names: >-
+          {% set t = to | default('family') %}
+          {{ groups[t] if t is string and t in groups else [t] if t is string else t }}
+        targets: >-
+          {% set ns = namespace(l=[]) %}
+          {% for n in names if n in people %}{% set ns.l = ns.l + [people[n]] %}{% endfor %}
+          {{ ns.l }}
     - action: telegram_bot.send_message
       continue_on_error: true
       target:
-        entity_id:
-        - notify.yurii_p
-        - notify.kateryna
-        - notify.nataliya
-      data:
-        title: '{{ title }}'
-        message: '{{ message }}'
+        entity_id: '{{ targets }}'
+      data: >-
+        {{ dict(title=title, message=message,
+                **({'parse_mode': parse_mode} if parse_mode is defined else {})) }}
       response_variable: send_result
     - action: script.notify_log_record
       data:
         title: '{{ title }}'
         message: '{{ message }}'
         chats: '{{ send_result.chats | default([]) if send_result is defined else [] }}'
+
   notify_log_record:
     alias: Log a sent Telegram notification
     description: Adds a sent notification to notify/notify_log.json so it shows on
@@ -248,159 +276,3 @@ script:
     - action: script.delete_notification_slot
       data:
         slot: 1
-
-# Boiler heated / boost reminder and grid lost / restored alerts
-automation:
-  - id: '1788451374111'
-    alias: All notifications
-    triggers:
-    - entity_id: sensor.boiler_ten_power_estimate
-      below: 1
-      for:
-        minutes: 3
-      trigger: numeric_state
-      id: boiler
-    - entity_id: binary_sensor.deye_5kw_grid
-      from: 'on'
-      to: 'off'
-      for:
-        minutes: 1
-      trigger: state
-      id: lost
-    - entity_id: switch.input_meater_switch
-      to: unavailable
-      for:
-        minutes: 1
-      trigger: state
-      id: lost
-    - entity_id: binary_sensor.deye_5kw_grid
-      from: 'off'
-      to: 'on'
-      for:
-        minutes: 1
-      trigger: state
-      id: restored
-    - entity_id: switch.input_meater_switch
-      from: unavailable
-      for:
-        minutes: 1
-      trigger: state
-      id: restored
-    - trigger: time
-      at: '17:00:00'
-      id: eco_reminder
-    actions:
-    - choose:
-      - conditions:
-        - condition: trigger
-          id: boiler
-        - condition: or
-          conditions:
-          - condition: state
-            entity_id: switch.1560_boiler_ten_0_8_kwh
-            state: 'on'
-            for:
-              minutes: 3
-          - condition: state
-            entity_id: switch.1561_boiler_ten_1_2_kwh
-            state: 'on'
-            for:
-              minutes: 3
-        - alias: Muted while the night self-consumption boost heats the boiler
-          condition: state
-          entity_id: input_boolean.self_consumption_boost_active
-          state: 'off'
-        - alias: Muted during boiler night heating (Boiler mode Night)
-          condition: state
-          entity_id: binary_sensor.boiler_night_heating
-          state: 'off'
-        - condition: template
-          value_template: "{{ states('input_datetime.boiler_last_notified') in ['unknown',
-            'unavailable']\n   or (as_timestamp(now()) - as_timestamp(states('input_datetime.boiler_last_notified')))
-            > 1 * 3600 }}\n"
-        sequence:
-        - action: input_datetime.set_datetime
-          target:
-            entity_id: input_datetime.boiler_last_notified
-          data:
-            timestamp: '{{ now().timestamp() }}'
-        - variables:
-            surplus_power_available: "{{ now().strftime('%H:%M:%S') < '14:00:00'\n   and
-              states('sensor.deye_6kw_battery') | float(0) > 90\n   and states('sensor.deye_5kw_battery')
-              | float(0) > 90 }}"
-        - if:
-          - condition: template
-            value_template: '{{ surplus_power_available }}'
-          then:
-          - action: input_boolean.turn_on
-            target:
-              entity_id: input_boolean.boiler_boost_suggested
-        - action: homeassistant.update_entity
-          target:
-            entity_id: sensor.boiler_ten_power_estimate
-          data: {}
-        - delay: 00:00:02
-        - action: script.notify_all
-          data:
-            title: Бойлер
-            message: "\U0001F525 Бойлер нагрівся{% if surplus_power_available %} Збільште
-              потужність на макс{% endif %}\nСпожив сьогодні: {{ states('sensor.boiler_ten_energy_estimate_daily')
-              | float(0) | round(1) }} кВт⋅год"
-      - conditions:
-        - condition: trigger
-          id: eco_reminder
-        - condition: state
-          entity_id: input_boolean.boiler_boost_suggested
-          state: 'on'
-        sequence:
-        - action: input_boolean.turn_off
-          target:
-            entity_id: input_boolean.boiler_boost_suggested
-        - action: script.notify_all
-          data:
-            title: Бойлер
-            message: "\U0001F514 Бойлер на Еко"
-      - conditions:
-        - condition: trigger
-          id: lost
-        - condition: state
-          entity_id: binary_sensor.deye_5kw_grid
-          state: 'off'
-        - alias: Not the ~1 min relay blip of the 5kW entering night standby
-          condition: template
-          value_template: '{{ states(''sensor.deye_5kw_grid_l1_voltage'') | float(0)
-            < 150 or now().timestamp() - state_attr(''input_datetime.deye_5kw_standby_started'',
-            ''timestamp'') | float(0) > 660 }}'
-        - condition: not
-          conditions:
-          - condition: state
-            entity_id: switch.input_meater_switch
-            state: 'off'
-        - condition: state
-          entity_id: input_boolean.grid_outage_notified
-          state: 'off'
-        sequence:
-        - action: input_boolean.turn_on
-          target:
-            entity_id: input_boolean.grid_outage_notified
-        - action: script.notify_all
-          data:
-            title: Мережа
-            message: ⚡ Електроживлення зникло
-      - conditions:
-        - condition: trigger
-          id: restored
-        - condition: state
-          entity_id: binary_sensor.deye_5kw_grid
-          state: 'on'
-        - condition: state
-          entity_id: input_boolean.grid_outage_notified
-          state: 'on'
-        sequence:
-        - action: input_boolean.turn_off
-          target:
-            entity_id: input_boolean.grid_outage_notified
-        - action: script.notify_all
-          data:
-            title: Мережа
-            message: "\U0001F4A1 Електроживлення відновлено"

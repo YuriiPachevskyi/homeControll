@@ -29,21 +29,11 @@ script:
       - variables:
           title: Пристрій
           message: "📍 {{ name }} з'явився в мережі {{ router }}"
-      - action: telegram_bot.send_message
-        continue_on_error: true
-        target:
-          entity_id:
-            - notify.yurii_p
-            - notify.kateryna
+      - action: script.notify_all
         data:
           title: "{{ title }}"
           message: "{{ message }}"
-        response_variable: send_result
-      - action: script.notify_log_record
-        data:
-          title: "{{ title }}"
-          message: "{{ message }}"
-          chats: "{{ send_result.chats | default([]) if send_result is defined else [] }}"
+          to: parents
 
   notify_new_device:
     alias: Notify new LAN device
@@ -73,21 +63,11 @@ script:
             Виробник: {{ vendor }}
             Підключення: {{ link }}
             Роутер: {{ router | default('—') }}
-      - action: telegram_bot.send_message
-        continue_on_error: true
-        target:
-          entity_id:
-            - notify.yurii_p
-            - notify.kateryna
+      - action: script.notify_all
         data:
           title: "{{ title }}"
           message: "{{ message }}"
-        response_variable: send_result
-      - action: script.notify_log_record
-        data:
-          title: "{{ title }}"
-          message: "{{ message }}"
-          chats: "{{ send_result.chats | default([]) if send_result is defined else [] }}"
+          to: parents
 
 automation:
   - id: phone_back_on_network
@@ -130,18 +110,8 @@ automation:
       - variables:
           title: Телефон
           message: "📱 {{ trigger.to_state.name }} з'явився в мережі"
-      - action: telegram_bot.send_message
-        continue_on_error: true
-        target:
-          entity_id:
-            - notify.yurii_p
-            - notify.kateryna
+      - action: script.notify_all
         data:
           title: "{{ title }}"
           message: "{{ message }}"
-        response_variable: send_result
-      - action: script.notify_log_record
-        data:
-          title: "{{ title }}"
-          message: "{{ message }}"
-          chats: "{{ send_result.chats | default([]) if send_result is defined else [] }}"
+          to: parents

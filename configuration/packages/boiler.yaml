@@ -13,7 +13,7 @@
 #    does not count the grid import as an overload. No grid (5kW grid voltage
 #    < 150 V) ends it at once: TENs off, min SOC back to normal; it resumes
 #    1 min after the grid is back.
-# The "Бойлер нагрівся" notification is in packages/notify.yaml.
+# Notifications: "Бойлер нагрівся" + 17:00 Eco reminder (boiler_notifications).
 automation:
   - id: '1731862602452'
     alias: Update switches state on startup
@@ -36,30 +36,19 @@ automation:
     mode: single
   - id: '1788815476602'
     alias: Boiler Energy Sensor Refresh
-    description: 'Keeps the boiler energy tracking from stalling. sensor.boiler_ten_power_estimate
-      only re-renders when the boiler switches change state, so the integration (Riemann
-      sum) sensor gets no new sample - and no accumulated energy - during a long continuous
-      on/off stretch: it is refreshed every 30 minutes so long stretches accumulate
-      smoothly. After a HA restart the template/integration chain can also get stuck
+    description: 'After a HA restart the boiler template/integration chain can get stuck
       on "unknown" until something forces a re-render, so on startup it waits 30 seconds,
-      reloads the templates and then refreshes.'
+      reloads the templates and then refreshes. (Long constant stretches are sampled
+      by the integration sensor itself: max_sub_interval.)'
     triggers:
     - trigger: homeassistant
       event: start
-      id: startup
-    - trigger: time_pattern
-      minutes: /30
-      id: periodic
     conditions: []
     actions:
-    - if:
-      - condition: trigger
-        id: startup
-      then:
-      - delay: 00:00:30
-      - action: template.reload
-        data: {}
-      - delay: 00:00:03
+    - delay: 00:00:30
+    - action: template.reload
+      data: {}
+    - delay: 00:00:03
     - action: homeassistant.update_entity
       target:
         entity_id: sensor.boiler_ten_power_estimate
@@ -125,12 +114,9 @@ automation:
               - action: switch.turn_{{ 'on' if boost else 'off' }}
                 target:
                   entity_id: switch.1561_boiler_ten_1_2_kwh
-              - action: input_text.set_value
-                target:
-                  entity_id: input_text.last_script_trigger
+              - action: script.energy_log
                 data:
-                  value: >-
-                    {% set m %}Boiler night: {{ '2.0kW (still heating at 05:00)' if boost else '0.8kW' }} ON (grid){% endset %}{{ m if m != states('input_text.last_script_trigger') else m ~ now().strftime(' (%H:%M:%S)') }}
+                  message: 'Boiler night: {{ ''2.0kW (still heating at 05:00)'' if boost else ''0.8kW'' }} ON (grid)'
           - conditions:
               - condition: trigger
                 id: stop
@@ -140,12 +126,98 @@ automation:
                   entity_id:
                     - switch.1560_boiler_ten_0_8_kwh
                     - switch.1561_boiler_ten_1_2_kwh
-              - action: input_text.set_value
-                target:
-                  entity_id: input_text.last_script_trigger
+              - action: script.energy_log
                 data:
-                  value: >-
-                    {% set m %}Boiler night: OFF ({{ 'no grid' if is_state('binary_sensor.night_charge_window', 'on') and is_state('input_select.boiler_mode', 'Night') else 'window end' if is_state('input_select.boiler_mode', 'Night') else 'mode Sun' }}){% endset %}{{ m if m != states('input_text.last_script_trigger') else m ~ now().strftime(' (%H:%M:%S)') }}
+                  message: 'Boiler night: OFF ({{ ''no grid'' if is_state(''binary_sensor.night_charge_window'', ''on'') and is_state(''input_select.boiler_mode'', ''Night'') else ''window end'' if is_state(''input_select.boiler_mode'', ''Night'') else ''mode Sun'' }})'
+
+  - id: boiler_notifications
+    alias: Boiler notifications
+    description: '"Бойлер нагрівся" (with a max power hint and the 17:00 Eco reminder when it
+      heated before 14:00 with both batteries > 90 %). Split from "All notifications" 2026-10-24.'
+    mode: queued
+    max: 5
+    triggers:
+    - entity_id: sensor.boiler_ten_power_estimate
+      below: 1
+      for:
+        minutes: 3
+      trigger: numeric_state
+      id: boiler
+    - trigger: time
+      at: '17:00:00'
+      id: eco_reminder
+    actions:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id: boiler
+        - condition: or
+          conditions:
+          - condition: state
+            entity_id: switch.1560_boiler_ten_0_8_kwh
+            state: 'on'
+            for:
+              minutes: 3
+          - condition: state
+            entity_id: switch.1561_boiler_ten_1_2_kwh
+            state: 'on'
+            for:
+              minutes: 3
+        - alias: Muted while the night self-consumption boost heats the boiler
+          condition: state
+          entity_id: input_boolean.self_consumption_boost_active
+          state: 'off'
+        - alias: Muted during boiler night heating (Boiler mode Night)
+          condition: state
+          entity_id: binary_sensor.boiler_night_heating
+          state: 'off'
+        - condition: template
+          value_template: "{{ states('input_datetime.boiler_last_notified') in ['unknown', 'unavailable']\n\
+            \   or (as_timestamp(now()) - as_timestamp(states('input_datetime.boiler_last_notified')))\
+            \ > 1 * 3600 }}\n"
+        sequence:
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.boiler_last_notified
+          data:
+            timestamp: '{{ now().timestamp() }}'
+        - variables:
+            surplus_power_available: "{{ now().strftime('%H:%M:%S') < '14:00:00'\n   and states('sensor.deye_6kw_battery')\
+              \ | float(0) > 90\n   and states('sensor.deye_5kw_battery') | float(0) > 90 }}"
+        - if:
+          - condition: template
+            value_template: '{{ surplus_power_available }}'
+          then:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.boiler_boost_suggested
+        - action: homeassistant.update_entity
+          target:
+            entity_id: sensor.boiler_ten_power_estimate
+          data: {}
+        - delay: 00:00:02
+        - action: script.notify_all
+          data:
+            title: Бойлер
+            message: '🔥 Бойлер нагрівся{% if surplus_power_available %} Збільште потужність
+              на макс{% endif %}
+
+              Спожив сьогодні: {{ states(''sensor.boiler_ten_energy_estimate_daily'') | float(0)
+              | round(1) }} кВт⋅год'
+      - conditions:
+        - condition: trigger
+          id: eco_reminder
+        - condition: state
+          entity_id: input_boolean.boiler_boost_suggested
+          state: 'on'
+        sequence:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.boiler_boost_suggested
+        - action: script.notify_all
+          data:
+            title: Бойлер
+            message: 🔔 Бойлер на Еко
 
 template:
   - sensor:
@@ -222,6 +294,10 @@ sensor:
     # Step-shaped source (0 <-> rated W): trapezoidal would count half the
     # rated power over the whole idle gap before every switch-on.
     method: left
+    # The estimate stays constant for long stretches (no new sample, no
+    # energy until it changes): integrate at least every 5 min anyway
+    max_sub_interval:
+      minutes: 5
 
 
 utility_meter:
@@ -236,3 +312,40 @@ input_select:
     options:
       - Sun
       - Night
+
+script:
+  # Boiler rung [0.8 kW TEN, 1.2 kW TEN]: switches off first, then on (the
+  # 1.2 -> 0.8 step never runs both TENs at once)
+  boiler_set:
+    alias: Boiler set TENs
+    description: Sets the two boiler TEN relays to rung [0.8 on, 1.2 on].
+    mode: queued
+    fields:
+      rung:
+        description: "[0.8 kW TEN on, 1.2 kW TEN on]"
+        example: "[true, false]"
+    sequence:
+      - variables:
+          tens:
+            - switch.1560_boiler_ten_0_8_kwh
+            - switch.1561_boiler_ten_1_2_kwh
+      - repeat:
+          for_each: [0, 1]
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ not rung[repeat.item] and is_state(tens[repeat.item], 'on') }}"
+              then:
+                - action: switch.turn_off
+                  target:
+                    entity_id: "{{ tens[repeat.item] }}"
+      - repeat:
+          for_each: [0, 1]
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ rung[repeat.item] and not is_state(tens[repeat.item], 'on') }}"
+              then:
+                - action: switch.turn_on
+                  target:
+                    entity_id: "{{ tens[repeat.item] }}"

@@ -1,0 +1,83 @@
+# Grid outage alerts to the family (script.notify_all): lost after 1 min
+# (5kW grid off, or the Grid meter switch unavailable), restored after 1 min.
+automation:
+  - id: grid_outage_notifications
+    alias: Grid outage notifications
+    description: '"Електроживлення зникло / відновлено", paired by input_boolean.grid_outage_notified;
+      ignores the ~1 min 5kW standby relay blip. queued, so a lost and a restored alert never
+      drop each other. Split from "All notifications" 2026-10-24.'
+    mode: queued
+    max: 5
+    triggers:
+    - entity_id: binary_sensor.deye_5kw_grid
+      from: 'on'
+      to: 'off'
+      for:
+        minutes: 1
+      trigger: state
+      id: lost
+    - entity_id: switch.input_meater_switch
+      to: unavailable
+      for:
+        minutes: 1
+      trigger: state
+      id: lost
+    - entity_id: binary_sensor.deye_5kw_grid
+      from: 'off'
+      to: 'on'
+      for:
+        minutes: 1
+      trigger: state
+      id: restored
+    - entity_id: switch.input_meater_switch
+      from: unavailable
+      for:
+        minutes: 1
+      trigger: state
+      id: restored
+    actions:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id: lost
+        - condition: state
+          entity_id: binary_sensor.deye_5kw_grid
+          state: 'off'
+        - alias: Not the ~1 min relay blip of the 5kW entering night standby
+          condition: template
+          value_template: '{{ states(''sensor.deye_5kw_grid_l1_voltage'') | float(0) < 150 or
+            now().timestamp() - state_attr(''input_datetime.deye_5kw_standby_started'', ''timestamp'')
+            | float(0) > 660 }}'
+        - condition: not
+          conditions:
+          - condition: state
+            entity_id: switch.input_meater_switch
+            state: 'off'
+        - condition: state
+          entity_id: input_boolean.grid_outage_notified
+          state: 'off'
+        sequence:
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.grid_outage_notified
+        - action: script.notify_all
+          data:
+            title: Мережа
+            message: ⚡ Електроживлення зникло
+      - conditions:
+        - condition: trigger
+          id: restored
+        - condition: state
+          entity_id: binary_sensor.deye_5kw_grid
+          state: 'on'
+        - condition: state
+          entity_id: input_boolean.grid_outage_notified
+          state: 'on'
+        sequence:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.grid_outage_notified
+        - action: script.notify_all
+          data:
+            title: Мережа
+            message: 💡 Електроживлення відновлено
