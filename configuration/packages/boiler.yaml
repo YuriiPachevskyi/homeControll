@@ -3,8 +3,12 @@
 # Boiler mode (input_select.boiler_mode, Home boiler row, tap to switch):
 #  - Sun: the power load cascade heats it from PV surplus only.
 #  - Night: the same in the day, and in the night charge window
-#    (binary_sensor.night_charge_window, 23:10-06:30) both TENs (2.0 kW) heat
-#    from the grid. Meanwhile deye_state_controller holds both batteries at
+#    (binary_sensor.night_charge_window, 23:10-06:30) the 0.8 kW TEN heats
+#    from the grid; from 05:00, if the boiler still draws power (its
+#    thermostat has not opened), the 1.2 kW TEN joins (2.0 kW). It starts at
+#    23:10 on purpose, not just before the morning: the tank loses only
+#    ~0.05 kWh/h, and a morning grid outage would leave the water cold.
+#    Meanwhile deye_state_controller holds both batteries at
 #    their current SOC (min SOC = SOC, nothing is discharged) and the cascade
 #    does not count the grid import as an overload. No grid (5kW grid voltage
 #    < 150 V) ends it at once: TENs off, min SOC back to normal; it resumes
@@ -65,16 +69,17 @@ automation:
   - id: boiler_night_heating
     alias: Boiler night heating
     description: >-
-      Boiler mode Night: both TENs on from the grid while
-      binary_sensor.boiler_night_heating is on (night charge window, grid
-      present), off when it ends. Re-asserted every 10 min unless overloaded.
+      Boiler mode Night: while binary_sensor.boiler_night_heating is on (night
+      charge window, grid present) the 0.8 kW TEN heats from the grid; from
+      05:00 the 1.2 kW TEN joins if the boiler still draws power. Both off when
+      it ends. Re-checked every 10 min (not while overloaded) and after HA start.
     mode: queued
     max: 3
     triggers:
       - trigger: state
         entity_id: binary_sensor.boiler_night_heating
         to: "on"
-        id: start
+        id: keep
       - trigger: state
         entity_id: binary_sensor.boiler_night_heating
         from: "on"
@@ -82,6 +87,9 @@ automation:
         id: stop
       - trigger: time_pattern
         minutes: "/10"
+        id: keep
+      - trigger: time
+        at: "05:00:00"
         id: keep
       # After "Update switches state on startup" has turned them off
       - trigger: homeassistant
@@ -91,30 +99,38 @@ automation:
       - choose:
           - conditions:
               - condition: trigger
-                id: [start, keep]
+                id: keep
               - condition: state
                 entity_id: binary_sensor.boiler_night_heating
                 state: "on"
               - condition: state
                 entity_id: binary_sensor.any_device_high_power
                 state: "off"
-              - condition: template
-                value_template: >-
-                  {{ not (is_state('switch.1560_boiler_ten_0_8_kwh', 'on')
-                          and is_state('switch.1561_boiler_ten_1_2_kwh', 'on')) }}
             sequence:
               - delay: "00:00:{{ '15' if trigger.platform == 'homeassistant' else '00' }}"
+              - variables:
+                  # Stays on once on; before 05:00 only the 0.8 kW TEN
+                  boost: >-
+                    {{ '05:00' <= now().strftime('%H:%M') < '12:00'
+                       and (is_state('switch.1561_boiler_ten_1_2_kwh', 'on')
+                            or states('sensor.boiler_ten_power_estimate') | float(0) > 0) }}
+                  changed: >-
+                    {{ is_state('switch.1560_boiler_ten_0_8_kwh', 'off')
+                       or is_state('switch.1561_boiler_ten_1_2_kwh', 'on' if not boost else 'off') }}
+              - condition: template
+                value_template: "{{ changed }}"
               - action: switch.turn_on
                 target:
-                  entity_id:
-                    - switch.1560_boiler_ten_0_8_kwh
-                    - switch.1561_boiler_ten_1_2_kwh
+                  entity_id: switch.1560_boiler_ten_0_8_kwh
+              - action: switch.turn_{{ 'on' if boost else 'off' }}
+                target:
+                  entity_id: switch.1561_boiler_ten_1_2_kwh
               - action: input_text.set_value
                 target:
                   entity_id: input_text.last_script_trigger
                 data:
                   value: >-
-                    {% set m %}Boiler night: 2.0kW ON (grid){% endset %}{{ m if m != states('input_text.last_script_trigger') else m ~ now().strftime(' (%H:%M:%S)') }}
+                    {% set m %}Boiler night: {{ '2.0kW (still heating at 05:00)' if boost else '0.8kW' }} ON (grid){% endset %}{{ m if m != states('input_text.last_script_trigger') else m ~ now().strftime(' (%H:%M:%S)') }}
           - conditions:
               - condition: trigger
                 id: stop
