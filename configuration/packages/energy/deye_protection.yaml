@@ -59,100 +59,89 @@ automation:
           entity_id: switch.deye_6kw_grid_peak_shaving
     mode: queued
     max: 3
+  # Fans of both inverters: on at Deye fan on temperature (held 1 min),
+  # off at Deye fan off temperature (held 5 min), in between left alone.
+  # Summer 2025/26 peaks were 64-72 C with the old 55 C start, so they start
+  # at 50 C now; a fan costs only a few W. Readings over 100 C (241 C on
+  # 2026-08) are sensor glitches and ignored. Rechecked every 15 min, on
+  # start/reload and when a fan comes back from unavailable.
   - id: '1777532101180'
     alias: 'Fan controllers: Deye 5kW & 6kW'
+    description: >-
+      Inverter cooling fans: on at input_number.deye_fan_on_temperature,
+      off at input_number.deye_fan_off_temperature (hysteresis), glitches
+      over 100 C ignored.
+    mode: queued
+    max: 5
     triggers:
-    - trigger: numeric_state
-      entity_id: sensor.deye_5kw_temperature
-      above: 55
-      id: deye5_on
-    - trigger: numeric_state
-      entity_id: sensor.deye_5kw_temperature
-      below: 45
-      id: deye5_off
-    - trigger: numeric_state
-      entity_id: sensor.deye_6kw_temperature
-      above: 55
-      id: deye6_on
-    - trigger: numeric_state
-      entity_id: sensor.deye_6kw_temperature
-      below: 45
-      id: deye6_off
-    - trigger: homeassistant
-      event: start
-      id: recovery
-    - trigger: event
-      event_type: automation_reloaded
-      id: recovery
-    - trigger: time_pattern
-      minutes: /15
-      id: recovery
+      - trigger: numeric_state
+        entity_id:
+          - sensor.deye_5kw_temperature
+          - sensor.deye_6kw_temperature
+        above: input_number.deye_fan_on_temperature
+        below: 100
+        for: "00:01:00"
+      - trigger: numeric_state
+        entity_id:
+          - sensor.deye_5kw_temperature
+          - sensor.deye_6kw_temperature
+        below: input_number.deye_fan_off_temperature
+        for: "00:05:00"
+      - trigger: state
+        entity_id:
+          - switch.fan1_sonoff_10004d5447
+          - switch.fan2_sonoff_1002672f1f_1
+        from: unavailable
+      - trigger: state
+        entity_id:
+          - input_number.deye_fan_on_temperature
+          - input_number.deye_fan_off_temperature
+      - trigger: homeassistant
+        event: start
+      - trigger: event
+        event_type: automation_reloaded
+      - trigger: time_pattern
+        minutes: /15
+    variables:
+      fans:
+        - temp: sensor.deye_5kw_temperature
+          fan: switch.fan1_sonoff_10004d5447
+        - temp: sensor.deye_6kw_temperature
+          fan: switch.fan2_sonoff_1002672f1f_1
+      on_temp: "{{ states('input_number.deye_fan_on_temperature') | float(50) }}"
+      off_temp: "{{ states('input_number.deye_fan_off_temperature') | float(45) }}"
     actions:
-    - choose:
-      - conditions:
-        - condition: or
-          conditions:
-          - condition: trigger
-            id: deye5_on
-          - condition: and
-            conditions:
-            - condition: trigger
-              id: recovery
-            - condition: numeric_state
-              entity_id: sensor.deye_5kw_temperature
-              above: 55
-        sequence:
-        - action: switch.turn_on
-          target:
-            entity_id: switch.fan1_sonoff_10004d5447
-      - conditions:
-        - condition: or
-          conditions:
-          - condition: trigger
-            id: deye5_off
-          - condition: and
-            conditions:
-            - condition: trigger
-              id: recovery
-            - condition: numeric_state
-              entity_id: sensor.deye_5kw_temperature
-              below: 45
-        sequence:
-        - action: switch.turn_off
-          target:
-            entity_id: switch.fan1_sonoff_10004d5447
-    - choose:
-      - conditions:
-        - condition: or
-          conditions:
-          - condition: trigger
-            id: deye6_on
-          - condition: and
-            conditions:
-            - condition: trigger
-              id: recovery
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_temperature
-              above: 55
-        sequence:
-        - action: switch.turn_on
-          target:
-            entity_id: switch.fan2_sonoff_1002672f1f_1
-      - conditions:
-        - condition: or
-          conditions:
-          - condition: trigger
-            id: deye6_off
-          - condition: and
-            conditions:
-            - condition: trigger
-              id: recovery
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_temperature
-              below: 45
-        sequence:
-        - action: switch.turn_off
-          target:
-            entity_id: switch.fan2_sonoff_1002672f1f_1
-    mode: parallel
-    max: 10
+      - repeat:
+          for_each: "{{ fans }}"
+          sequence:
+            - variables:
+                t: "{{ states(repeat.item.temp) | float(-1) }}"
+                want: >-
+                  {{ 'on' if on_temp <= t < 100 else 'off' if 0 <= t <= off_temp else none }}
+            - if:
+                - condition: template
+                  value_template: >-
+                    {{ want is not none
+                       and states(repeat.item.fan) not in [want, 'unavailable', 'unknown'] }}
+              then:
+                - action: switch.turn_{{ want }}
+                  target:
+                    entity_id: "{{ repeat.item.fan }}"
+
+input_number:
+  deye_fan_on_temperature:
+    name: "Deye fan on temperature"
+    icon: mdi:fan
+    min: 40
+    max: 70
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box
+  deye_fan_off_temperature:
+    name: "Deye fan off temperature"
+    icon: mdi:fan-off
+    min: 30
+    max: 65
+    step: 1
+    unit_of_measurement: "°C"
+    mode: box

@@ -428,14 +428,9 @@ automation:
         entity_id: input_number.deye_6kw_selling_forecast_cloud
       data:
         value: '{{ avg_cloud_coverage | round(1) }}'
-    - action: input_text.set_value
-      target:
-        entity_id: input_text.last_script_trigger
+    - action: script.energy_log
       data:
-        value: '{% set m %}Deye 6kW Selling Auto: sunny {{ sunny_percent | round(0)
-          }}%{{ '''' if in_season else '' (off-season)'' }} -> {{ ''ON'' if is_sunny_tomorrow
-          else ''OFF'' }}{% endset %}{{ m if m != states(''input_text.last_script_trigger'')
-          else m ~ now().strftime('' (%H:%M:%S)'') }}'
+        message: 'Deye 6kW Selling Auto: sunny {{ sunny_percent | round(0) }}%{{ '''' if in_season else '' (off-season)'' }} -> {{ ''ON'' if is_sunny_tomorrow else ''OFF'' }}'
     - if:
       - condition: template
         value_template: '{{ is_sunny_tomorrow }}'

@@ -76,13 +76,9 @@ automation:
             entity_id:
             - switch.1560_boiler_ten_0_8_kwh
             - switch.1561_boiler_ten_1_2_kwh
-        - action: input_text.set_value
-          target:
-            entity_id: input_text.last_script_trigger
+        - action: script.energy_log
           data:
-            value: '{% set m %}Self-consumption boost: import {{ grid_import }} < {{
-              min_import }} kWh{% endset %}{{ m if m != states(''input_text.last_script_trigger'')
-              else m ~ now().strftime('' (%H:%M:%S)'') }}'
+            message: 'Self-consumption boost: import {{ grid_import }} < {{ min_import }} kWh'
       - conditions:
         - condition: trigger
           id: clear

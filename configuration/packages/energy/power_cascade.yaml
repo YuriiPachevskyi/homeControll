@@ -2,7 +2,10 @@
 # (heating, export, boiler, 6kW charge, ACs), surplus adds them (6kW charge,
 # boiler, export, ACs). Inputs: binary_sensor.any_device_high_power,
 # binary_sensor.battery_charge_and_export_power_limit,
-# binary_sensor.pv1_5kw_lower_than_6kw and friends (template helpers, UI).
+# binary_sensor.pv1_5kw_lower_than_6kw and friends
+# (packages/energy/conditions.yaml). Every step is logged with
+# script.energy_log; the automation spaces steps by that entity's
+# last_reported.
 automation:
   - id: '1773316386421'
     alias: Power load cascade
@@ -95,565 +98,234 @@ automation:
 script:
   power_load_cascade_step:
     alias: Power load cascade step
-    sequence:
-    - choose:
-      - conditions:
-        - condition: state
-          entity_id: binary_sensor.any_device_high_power
-          state: 'on'
-        sequence:
-        - choose:
-          - alias: 'Disable: Turn off Heating'
-            conditions:
-            - condition: state
-              entity_id: switch.1562_heating_main
-              state:
-              - 'on'
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Heating OFF{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: switch.turn_off
-              metadata: {}
-              target:
-                entity_id:
-                - switch.1562_heating_main
-                - switch.1563_heating_ten_1_5_kwh
-                - switch.1564_heating_ten_3_kwh
-              data: {}
-          - alias: 'Disable: Export back to state value'
-            conditions:
-            - condition: template
-              value_template: '{{ states(''input_number.export_deye_5kw_power'') | float(0)
-                > states(''input_number.export_deye_5kw_power_base'') | float(0) }}'
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Export -> {{ states(''input_number.export_deye_5kw_power_base'') | int(0) }}W{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: input_number.set_value
-              target:
-                entity_id: input_number.export_deye_5kw_power
-              data:
-                value: '{{ states(''input_number.export_deye_5kw_power_base'') | float(0) }}'
-          - alias: 'Disable: Boiler 2.0 -> 1.2'
-            conditions:
-            - condition: state
-              entity_id: switch.1561_boiler_ten_1_2_kwh
-              state: 'on'
-            - condition: state
-              entity_id: switch.1560_boiler_ten_0_8_kwh
-              state: 'on'
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Boiler 2.0 -> 1.2{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: switch.turn_off
-              target:
-                entity_id: switch.1560_boiler_ten_0_8_kwh
-          - alias: 'Disable: Boiler 1.2 -> 0.8'
-            conditions:
-            - condition: state
-              entity_id: switch.1561_boiler_ten_1_2_kwh
-              state: 'on'
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Boiler 1.2 -> 0.8{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: switch.turn_off
-              target:
-                entity_id: switch.1561_boiler_ten_1_2_kwh
-            - action: switch.turn_on
-              target:
-                entity_id: switch.1560_boiler_ten_0_8_kwh
-          - alias: 'Disable: Boiler 0.8 OFF'
-            conditions:
-            - condition: state
-              entity_id: switch.1560_boiler_ten_0_8_kwh
-              state: 'on'
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Boiler 0.8 OFF{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: switch.turn_off
-              target:
-                entity_id: switch.1560_boiler_ten_0_8_kwh
-              data: {}
-          - alias: 'Disable: Reduce Charge to 1.5kW'
-            conditions:
-            - condition: numeric_state
-              entity_id: input_number.charge_power_deye_6kw
-              above: 1.5
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_battery
-              below: 95
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Reducing Charge to 1.5kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: input_number.set_value
-              data:
-                value: 1.5
-              target:
-                entity_id: input_number.charge_power_deye_6kw
-          - alias: 'Disable: Reduce Charge to 0.75kW'
-            conditions:
-            - alias: Not winter with Save / Save + Night Charge, charge stays >= 1.5 kW
-              condition: template
-              value_template: '{{ not is_state(''binary_sensor.deye_6kw_winter_charge'', ''on'') }}'
-            - condition: numeric_state
-              entity_id: input_number.charge_power_deye_6kw
-              above: 0.75
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_battery
-              below: 95
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Reducing Charge to 0.75kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: input_number.set_value
-              data:
-                value: 0.75
-              target:
-                entity_id: input_number.charge_power_deye_6kw
-          - alias: 'Disable: Charge to 0kW'
-            conditions:
-            - alias: Not winter with Save / Save + Night Charge, charge stays >= 1.5 kW
-              condition: template
-              value_template: '{{ not is_state(''binary_sensor.deye_6kw_winter_charge'', ''on'') }}'
-            - condition: numeric_state
-              entity_id: input_number.charge_power_deye_6kw
-              above: 0
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_battery
-              below: 95
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Charge to 0kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: input_number.set_value
-              data:
-                value: 0
-              target:
-                entity_id: input_number.charge_power_deye_6kw
-          - alias: 'Disable: Big Bedroom AC OFF'
-            conditions:
-            - condition: not
-              conditions:
-              - condition: state
-                entity_id: climate.big_bedroom_ac
-                state: 'off'
-            - condition: not
-              conditions:
-              - condition: state
-                entity_id: input_select.big_bedroom_ac
-                state: 'off'
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_battery
-              below: 71
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Big Bedroom AC OFF (Battery <= 70%){% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: climate.turn_off
-              target:
-                entity_id: climate.big_bedroom_ac
-          - alias: 'Disable: Bedroom AC OFF'
-            conditions:
-            - condition: not
-              conditions:
-              - condition: state
-                entity_id: climate.bedroom_ac
-                state: 'off'
-            - condition: not
-              conditions:
-              - condition: state
-                entity_id: input_select.bedroom_ac
-                state: 'off'
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_battery
-              below: 51
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Disable: Bedroom AC OFF (Battery <= 50%){% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: climate.turn_off
-              target:
-                entity_id: climate.bedroom_ac
-      - conditions:
-        - condition: state
-          entity_id: binary_sensor.any_device_high_power
-          state: 'off'
-        sequence:
-        - choose:
-          - alias: 'Enable: Charge Power 0.75kW'
-            conditions:
-            - condition: numeric_state
-              entity_id: input_number.charge_power_deye_6kw
-              below: 0.75
-            - condition: state
-              entity_id: binary_sensor.battery_deye_6kw_charged
-              state: 'off'
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_battery
-              below: 95
-            - alias: 6kW battery idle (No Battery) - charge power does nothing then
-              condition: not
-              conditions:
-              - condition: state
-                entity_id: select.deye_6kw_battery_operation_mode
-                state: No Battery
-            - condition: or
-              conditions:
-              - condition: state
-                entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-                state: 'on'
-                for:
-                  seconds: 30
-              - condition: state
-                entity_id: binary_sensor.battery_charge_and_export_power_limit
-                state:
-                - 'on'
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Enable: Charge 0.75kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: input_number.set_value
-              data:
-                value: 0.75
-              target:
-                entity_id: input_number.charge_power_deye_6kw
-          - alias: 'Enable: Charge Power 1.5kW'
-            conditions:
-            - condition: numeric_state
-              entity_id: input_number.charge_power_deye_6kw
-              below: 1.5
-            - condition: state
-              entity_id: binary_sensor.battery_deye_6kw_charged
-              state:
-              - 'off'
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_battery
-              below: 95
-            - alias: 6kW battery idle (No Battery) - charge power does nothing then
-              condition: not
-              conditions:
-              - condition: state
-                entity_id: select.deye_6kw_battery_operation_mode
-                state: No Battery
-            - condition: or
-              conditions:
-              - condition: state
-                entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-                state: 'on'
-                for:
-                  seconds: 30
-              - condition: state
-                entity_id: binary_sensor.battery_charge_and_export_power_limit
-                state:
-                - 'on'
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Enable: Charge 1.5kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: input_number.set_value
-              data:
-                value: 1.5
-              target:
-                entity_id: input_number.charge_power_deye_6kw
-          - alias: 'Enable: Charge Power 2.25kW'
-            conditions:
-            - condition: numeric_state
-              entity_id: input_number.charge_power_deye_6kw
-              below: 2.25
-            - condition: state
-              entity_id: binary_sensor.battery_deye_6kw_charged
-              state:
-              - 'off'
-            - condition: numeric_state
-              entity_id: sensor.deye_6kw_battery
-              below: 95
-            - alias: 6kW battery idle (No Battery) - charge power does nothing then
-              condition: not
-              conditions:
-              - condition: state
-                entity_id: select.deye_6kw_battery_operation_mode
-                state: No Battery
-            - condition: or
-              conditions:
-              - condition: state
-                entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-                state: 'on'
-                for:
-                  seconds: 30
-              - condition: state
-                entity_id: binary_sensor.battery_charge_and_export_power_limit
-                state:
-                - 'on'
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Enable: Charge 2.25kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: input_number.set_value
-              data:
-                value: 2.25
-              target:
-                entity_id: input_number.charge_power_deye_6kw
-          - alias: 'Enable: Boiler 0.8kW ON'
-            conditions:
-            - condition: state
-              entity_id: switch.1560_boiler_ten_0_8_kwh
-              state: 'off'
-            - condition: state
-              entity_id: switch.1561_boiler_ten_1_2_kwh
-              state: 'off'
-            - condition: or
-              conditions:
-              - condition: state
-                entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
-                state: 'on'
-              - condition: state
-                entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-                state: 'on'
-                for:
-                  seconds: 30
-              - alias: Surplus, unless the 6kW battery is idle (No Battery) - the 5kW
-                  exports what its battery can't take, real curtailment is pv1
-                condition: and
-                conditions:
-                - condition: state
-                  entity_id: binary_sensor.battery_charge_and_export_power_limit
-                  state:
-                  - 'on'
-                - condition: not
-                  conditions:
-                  - condition: state
-                    entity_id: select.deye_6kw_battery_operation_mode
-                    state: No Battery
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Enable: Boiler 0.8kW ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: switch.turn_on
-              target:
-                entity_id: switch.1560_boiler_ten_0_8_kwh
-              data: {}
-          - alias: 'Enable: Boiler 1.2kW ON (Switch from 0.8)'
-            conditions:
-            - condition: state
-              entity_id: switch.1560_boiler_ten_0_8_kwh
-              state: 'on'
-            - condition: state
-              entity_id: switch.1561_boiler_ten_1_2_kwh
-              state: 'off'
-            - condition: or
-              conditions:
-              - condition: state
-                entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
-                state: 'on'
-              - alias: Surplus, unless the 6kW battery is idle (No Battery) - the 5kW
-                  exports what its battery can't take, real curtailment is pv1
-                condition: and
-                conditions:
-                - condition: state
-                  entity_id: binary_sensor.battery_charge_and_export_power_limit
-                  state: 'on'
-                  for:
-                    seconds: 30
-                - condition: not
-                  conditions:
-                  - condition: state
-                    entity_id: select.deye_6kw_battery_operation_mode
-                    state: No Battery
-              - condition: state
-                entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-                state: 'on'
-                for:
-                  seconds: 15
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Enable: Boiler 1.2kW ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: switch.turn_off
-              target:
-                entity_id: switch.1560_boiler_ten_0_8_kwh
-            - action: switch.turn_on
-              target:
-                entity_id: switch.1561_boiler_ten_1_2_kwh
-          - alias: 'Enable: Boiler 2.0kW ON (1.2 + 0.8)'
-            conditions:
-            - condition: state
-              entity_id: switch.1561_boiler_ten_1_2_kwh
-              state: 'on'
-            - condition: state
-              entity_id: switch.1560_boiler_ten_0_8_kwh
-              state: 'off'
-            - condition: or
-              conditions:
-              - condition: state
-                entity_id: binary_sensor.grid_off_and_deye_6kw_charging_fast
-                state: 'on'
-              - alias: Surplus, unless the 6kW battery is idle (No Battery) - the 5kW
-                  exports what its battery can't take, real curtailment is pv1
-                condition: and
-                conditions:
-                - condition: state
-                  entity_id: binary_sensor.battery_charge_and_export_power_limit
-                  state: 'on'
-                  for:
-                    seconds: 30
-                - condition: not
-                  conditions:
-                  - condition: state
-                    entity_id: select.deye_6kw_battery_operation_mode
-                    state: No Battery
-              - condition: state
-                entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-                state: 'on'
-                for:
-                  seconds: 15
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Enable: Boiler 2.0kW ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: switch.turn_on
-              target:
-                entity_id: switch.1560_boiler_ten_0_8_kwh
-          - alias: 'Enable: Export 5.5kW'
-            conditions:
-            - condition: numeric_state
-              entity_id: input_number.export_deye_5kw_power
-              below: 5500
-            - condition: numeric_state
-              entity_id: input_number.export_deye_5kw_power_base
-              above: 1000
-            - condition: or
-              conditions:
-              - condition: state
-                entity_id: binary_sensor.battery_charge_and_export_power_limit
-                state: 'on'
-                for:
-                  seconds: 30
-              - condition: state
-                entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-                state: 'on'
-                for:
-                  seconds: 30
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Enable: Export 5.5kW{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: input_number.set_value
-              target:
-                entity_id: input_number.export_deye_5kw_power
-              data:
-                value: 5500
-          - alias: 'Enable: Bedroom AC ON'
-            conditions:
-            - condition: not
-              conditions:
-              - condition: state
-                entity_id: input_select.bedroom_ac
-                state: 'off'
-            - condition: state
-              entity_id: climate.bedroom_ac
-              state: 'off'
-            - condition: state
-              entity_id: binary_sensor.battery_deye_6kw_charged
-              state: 'on'
-            - condition: or
-              conditions:
-              - condition: state
-                entity_id: binary_sensor.battery_charge_and_export_power_limit
-                state: 'on'
-                for:
-                  seconds: 30
-              - condition: state
-                entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-                state: 'on'
-                for:
-                  seconds: 30
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Enable: Bedroom AC ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: climate.set_hvac_mode
-              data:
-                hvac_mode: '{{ ''heat'' if is_state(''input_select.bedroom_ac'', ''heating'')
-                  else ''cool'' }}'
-              target:
-                entity_id: climate.bedroom_ac
-          - alias: 'Enable: Big Bedroom AC ON'
-            conditions:
-            - condition: not
-              conditions:
-              - condition: state
-                entity_id: input_select.big_bedroom_ac
-                state: 'off'
-            - condition: state
-              entity_id: climate.big_bedroom_ac
-              state: 'off'
-            - condition: state
-              entity_id: binary_sensor.battery_deye_6kw_charged
-              state: 'on'
-            - condition: or
-              conditions:
-              - condition: state
-                entity_id: binary_sensor.battery_charge_and_export_power_limit
-                state: 'on'
-                for:
-                  seconds: 30
-              - condition: state
-                entity_id: binary_sensor.pv1_5kw_lower_than_6kw
-                state: 'on'
-                for:
-                  seconds: 30
-            sequence:
-            - action: input_text.set_value
-              target:
-                entity_id: input_text.last_script_trigger
-              data:
-                value: '{% set m %}Enable: Big Bedroom AC ON{% endset %}{{ m if m != states(''input_text.last_script_trigger'') else m ~ now().strftime('' (%H:%M:%S)'') }}'
-            - action: climate.set_hvac_mode
-              data:
-                hvac_mode: '{{ ''heat'' if is_state(''input_select.big_bedroom_ac'',
-                  ''heating'') else ''cool'' }}'
-              target:
-                entity_id: climate.big_bedroom_ac
     icon: mdi:solar-power-variant-outline
-    description: ''
+    description: >-
+      One step of the power load cascade. Overload sheds the first load that
+      can go (heating, export, boiler one step down, 6kW charge one step down,
+      ACs), otherwise surplus adds the first one that can come (6kW charge one
+      step up, boiler one step up, export, ACs). The boiler and the 6kW charge
+      are ladders: one rung per run.
+    sequence:
+      - variables:
+          charge: "{{ states('input_number.charge_power_deye_6kw') | float(0) }}"
+          # Unknown SOC blocks the steps that need it below a level
+          soc6: "{{ states('sensor.deye_6kw_battery') | float(100) }}"
+          # Up to 2.25 kW; down never to 2.25 (more than 1.5, e.g. the 3 kW
+          # of a grid loss, goes straight to 1.5)
+          charge_steps_up: [0.75, 1.5, 2.25]
+          charge_steps_down: [0, 0.75, 1.5]
+          # Winter with a Save mode: the 6kW charge stays >= 1.5 kW
+          charge_floor: "{{ 1.5 if is_state('binary_sensor.deye_6kw_winter_charge', 'on') else 0 }}"
+          charge_down: "{{ charge_steps_down | select('<', charge) | max | default(none) }}"
+          charge_up: "{{ charge_steps_up | select('>', charge) | min | default(none) }}"
+          b08: "{{ is_state('switch.1560_boiler_ten_0_8_kwh', 'on') }}"
+          b12: "{{ is_state('switch.1561_boiler_ten_1_2_kwh', 'on') }}"
+          # Boiler ladder: 0 -> 0.8 -> 1.2 -> 2.0 kW, as (0.8 TEN, 1.2 TEN)
+          boiler: "{{ ((0.8 if b08 else 0) + (1.2 if b12 else 0)) | round(1) }}"
+          boiler_rungs:
+            "0.0": [false, false]
+            "0.8": [true, false]
+            "1.2": [false, true]
+            "2.0": [true, true]
+          boiler_down: "{{ {2.0: 1.2, 1.2: 0.8, 0.8: 0.0}.get(boiler) }}"
+          boiler_up: "{{ {0.8: 1.2, 1.2: 2.0}.get(boiler) }}"
+          no_battery_6kw: "{{ is_state('select.deye_6kw_battery_operation_mode', 'No Battery') }}"
+          charged_6kw: "{{ states('binary_sensor.battery_deye_6kw_charged') }}"
+          grid_off_fast: "{{ is_state('binary_sensor.grid_off_and_deye_6kw_charging_fast', 'on') }}"
+          surplus: "{{ is_state('binary_sensor.battery_charge_and_export_power_limit', 'on') }}"
+          surplus_30: >-
+            {{ surplus and now() - states.binary_sensor.battery_charge_and_export_power_limit.last_changed
+               >= timedelta(seconds=30) }}
+          pv1: "{{ is_state('binary_sensor.pv1_5kw_lower_than_6kw', 'on') }}"
+          pv1_15: >-
+            {{ pv1 and now() - states.binary_sensor.pv1_5kw_lower_than_6kw.last_changed
+               >= timedelta(seconds=15) }}
+          pv1_30: >-
+            {{ pv1 and now() - states.binary_sensor.pv1_5kw_lower_than_6kw.last_changed
+               >= timedelta(seconds=30) }}
+          # Shed in this order on overload (off_below: 6kW SOC), added in the
+          # reverse order on surplus
+          acs:
+            - climate: climate.big_bedroom_ac
+              select: input_select.big_bedroom_ac
+              label: Big Bedroom
+              off_below: 71
+            - climate: climate.bedroom_ac
+              select: input_select.bedroom_ac
+              label: Bedroom
+              off_below: 51
+          ac_off: >-
+            {% set ns = namespace(r=none) %}
+            {% for a in acs if ns.r is none and not is_state(a.climate, 'off')
+                              and not is_state(a.select, 'off') and soc6 < a.off_below %}
+              {% set ns.r = a %}
+            {% endfor %}
+            {{ ns.r }}
+          ac_on: >-
+            {% set ns = namespace(r=none) %}
+            {% for a in acs | reverse if ns.r is none and is_state(a.climate, 'off')
+                                        and not is_state(a.select, 'off') %}
+              {% set ns.r = a %}
+            {% endfor %}
+            {{ ns.r }}
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.any_device_high_power
+                state: "on"
+            sequence:
+              - choose:
+                  - alias: "Disable: Turn off Heating"
+                    conditions:
+                      - condition: state
+                        entity_id: switch.1562_heating_main
+                        state: "on"
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: "Disable: Heating OFF"
+                      - action: switch.turn_off
+                        target:
+                          entity_id:
+                            - switch.1562_heating_main
+                            - switch.1563_heating_ten_1_5_kwh
+                            - switch.1564_heating_ten_3_kwh
+                  - alias: "Disable: Export back to state value"
+                    conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ states('input_number.export_deye_5kw_power') | float(0)
+                             > states('input_number.export_deye_5kw_power_base') | float(0) }}
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: >-
+                            Disable: Export -> {{ states('input_number.export_deye_5kw_power_base') | int(0) }}W
+                      - action: input_number.set_value
+                        target:
+                          entity_id: input_number.export_deye_5kw_power
+                        data:
+                          value: "{{ states('input_number.export_deye_5kw_power_base') | float(0) }}"
+                  - alias: "Disable: Boiler one step down"
+                    conditions:
+                      - condition: template
+                        value_template: "{{ boiler_down is not none }}"
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: >-
+                            Disable: Boiler {{ boiler }}{{ ' OFF' if boiler_down == 0 else ' -> ' ~ boiler_down }}
+                      - action: script.boiler_set
+                        data:
+                          rung: "{{ boiler_rungs[boiler_down | string] }}"
+                  - alias: "Disable: 6kW charge one step down"
+                    conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ soc6 < 95 and charge_down is not none and charge_down >= charge_floor }}
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: >-
+                            {{ 'Disable: Charge to 0kW' if charge_down == 0
+                               else 'Disable: Reducing Charge to ' ~ charge_down ~ 'kW' }}
+                      - action: input_number.set_value
+                        target:
+                          entity_id: input_number.charge_power_deye_6kw
+                        data:
+                          value: "{{ charge_down }}"
+                  - alias: "Disable: AC OFF (6kW battery low)"
+                    conditions:
+                      - condition: template
+                        value_template: "{{ ac_off is not none }}"
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: >-
+                            Disable: {{ ac_off.label }} AC OFF (Battery <= {{ ac_off.off_below - 1 }}%)
+                      - action: climate.turn_off
+                        target:
+                          entity_id: "{{ ac_off.climate }}"
+          - conditions:
+              - condition: state
+                entity_id: binary_sensor.any_device_high_power
+                state: "off"
+            sequence:
+              - choose:
+                  - alias: "Enable: 6kW charge one step up"
+                    conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ charge_up is not none and charged_6kw == 'off' and soc6 < 95
+                             and not no_battery_6kw and (pv1_30 or surplus) }}
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: "Enable: Charge {{ charge_up }}kW"
+                      - action: input_number.set_value
+                        target:
+                          entity_id: input_number.charge_power_deye_6kw
+                        data:
+                          value: "{{ charge_up }}"
+                  # First rung reacts at once to a sudden surplus, the next
+                  # ones wait 30 s to see what the inverter did; pv1 curtailment
+                  # is the other way round (30 s, then 15 s)
+                  - alias: "Enable: Boiler 0.8kW ON"
+                    conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ boiler == 0
+                             and (grid_off_fast or pv1_30 or (surplus and not no_battery_6kw)) }}
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: "Enable: Boiler 0.8kW ON"
+                      - action: script.boiler_set
+                        data:
+                          rung: "{{ boiler_rungs['0.8'] }}"
+                  - alias: "Enable: Boiler one step up (1.2 / 2.0 kW)"
+                    conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ boiler_up is not none
+                             and (grid_off_fast or (surplus_30 and not no_battery_6kw) or pv1_15) }}
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: "Enable: Boiler {{ boiler_up }}kW ON"
+                      - action: script.boiler_set
+                        data:
+                          rung: "{{ boiler_rungs[boiler_up | string] }}"
+                  - alias: "Enable: Export 5.5kW"
+                    conditions:
+                      - condition: numeric_state
+                        entity_id: input_number.export_deye_5kw_power
+                        below: 5500
+                      - condition: numeric_state
+                        entity_id: input_number.export_deye_5kw_power_base
+                        above: 1000
+                      - condition: template
+                        value_template: "{{ surplus_30 or pv1_30 }}"
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: "Enable: Export 5.5kW"
+                      - action: input_number.set_value
+                        target:
+                          entity_id: input_number.export_deye_5kw_power
+                        data:
+                          value: 5500
+                  - alias: "Enable: AC ON (6kW battery full)"
+                    conditions:
+                      - condition: template
+                        value_template: >-
+                          {{ ac_on is not none and charged_6kw == 'on' and (surplus_30 or pv1_30) }}
+                    sequence:
+                      - action: script.energy_log
+                        data:
+                          message: "Enable: {{ ac_on.label }} AC ON"
+                      - action: climate.set_hvac_mode
+                        target:
+                          entity_id: "{{ ac_on.climate }}"
+                        data:
+                          hvac_mode: "{{ 'heat' if is_state(ac_on.select, 'heating') else 'cool' }}"

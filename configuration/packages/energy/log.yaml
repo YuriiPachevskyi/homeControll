@@ -1,0 +1,24 @@
+# One line of what the energy automations last did, shown as "Last Script
+# Event" on Home. The power load cascade spaces its steps by the
+# last_reported of this input_text, so every real load change goes here.
+script:
+  energy_log:
+    alias: Energy log
+    description: >-
+      Writes message to input_text.last_script_trigger (max 100 chars). The
+      same text again gets the time appended, so the state still changes.
+    mode: queued
+    max: 20
+    fields:
+      message:
+        description: Text to log
+        example: "Enable: Boiler 0.8kW ON"
+    sequence:
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.last_script_trigger
+        data:
+          value: >-
+            {% set m = message | string %}
+            {{ m[:100] if m[:100] != states('input_text.last_script_trigger')
+               else m[:89] ~ now().strftime(' (%H:%M:%S)') }}
