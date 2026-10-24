@@ -1,5 +1,14 @@
 # Boiler and heating TENs (switch.156x_*, i2c_relay): all off on HA start,
 # relay-time x power energy estimate for the Energy dashboard.
+# Boiler mode (input_select.boiler_mode, Home boiler row, tap to switch):
+#  - Sun: the power load cascade heats it from PV surplus only.
+#  - Night: the same in the day, and in the night charge window
+#    (binary_sensor.night_charge_window, 23:10-06:30) both TENs (2.0 kW) heat
+#    from the grid. Meanwhile deye_state_controller holds both batteries at
+#    their current SOC (min SOC = SOC, nothing is discharged) and the cascade
+#    does not count the grid import as an overload. No grid (5kW grid voltage
+#    < 150 V) ends it at once: TENs off, min SOC back to normal; it resumes
+#    1 min after the grid is back.
 # The "Бойлер нагрівся" notification is in packages/notify.yaml.
 automation:
   - id: '1731862602452'
@@ -53,6 +62,75 @@ automation:
       data: {}
     mode: queued
 
+  - id: boiler_night_heating
+    alias: Boiler night heating
+    description: >-
+      Boiler mode Night: both TENs on from the grid while
+      binary_sensor.boiler_night_heating is on (night charge window, grid
+      present), off when it ends. Re-asserted every 10 min unless overloaded.
+    mode: queued
+    max: 3
+    triggers:
+      - trigger: state
+        entity_id: binary_sensor.boiler_night_heating
+        to: "on"
+        id: start
+      - trigger: state
+        entity_id: binary_sensor.boiler_night_heating
+        from: "on"
+        to: "off"
+        id: stop
+      - trigger: time_pattern
+        minutes: "/10"
+        id: keep
+      # After "Update switches state on startup" has turned them off
+      - trigger: homeassistant
+        event: start
+        id: keep
+    actions:
+      - choose:
+          - conditions:
+              - condition: trigger
+                id: [start, keep]
+              - condition: state
+                entity_id: binary_sensor.boiler_night_heating
+                state: "on"
+              - condition: state
+                entity_id: binary_sensor.any_device_high_power
+                state: "off"
+              - condition: template
+                value_template: >-
+                  {{ not (is_state('switch.1560_boiler_ten_0_8_kwh', 'on')
+                          and is_state('switch.1561_boiler_ten_1_2_kwh', 'on')) }}
+            sequence:
+              - delay: "00:00:{{ '15' if trigger.platform == 'homeassistant' else '00' }}"
+              - action: switch.turn_on
+                target:
+                  entity_id:
+                    - switch.1560_boiler_ten_0_8_kwh
+                    - switch.1561_boiler_ten_1_2_kwh
+              - action: input_text.set_value
+                target:
+                  entity_id: input_text.last_script_trigger
+                data:
+                  value: >-
+                    {% set m %}Boiler night: 2.0kW ON (grid){% endset %}{{ m if m != states('input_text.last_script_trigger') else m ~ now().strftime(' (%H:%M:%S)') }}
+          - conditions:
+              - condition: trigger
+                id: stop
+            sequence:
+              - action: switch.turn_off
+                target:
+                  entity_id:
+                    - switch.1560_boiler_ten_0_8_kwh
+                    - switch.1561_boiler_ten_1_2_kwh
+              - action: input_text.set_value
+                target:
+                  entity_id: input_text.last_script_trigger
+                data:
+                  value: >-
+                    {% set m %}Boiler night: OFF ({{ 'no grid' if is_state('binary_sensor.night_charge_window', 'on') and is_state('input_select.boiler_mode', 'Night') else 'window end' if is_state('input_select.boiler_mode', 'Night') else 'mode Sun' }}){% endset %}{{ m if m != states('input_text.last_script_trigger') else m ~ now().strftime(' (%H:%M:%S)') }}
+
 template:
   - sensor:
       - name: "Boiler TEN Power Estimate"
@@ -104,6 +182,22 @@ template:
           {{ [computed, last] | max }}
         availability: "{{ is_number(states('sensor.boiler_ten_energy_estimate')) }}"
 
+  - binary_sensor:
+      # Boiler mode Night, night charge window and the grid is there (5 s
+      # 5kW grid voltage; while it is unavailable the 30 s grid sensor)
+      - name: "Boiler night heating"
+        unique_id: boiler_night_heating
+        default_entity_id: binary_sensor.boiler_night_heating
+        icon: mdi:water-boiler
+        delay_on: "00:01:00"
+        state: >-
+          {% set v = states('sensor.deye_5kw_grid_l1_voltage') %}
+          {% set grid = v | float(0) >= 150 if v | is_number
+                        else is_state('binary_sensor.deye_5kw_grid', 'on') %}
+          {{ is_state('input_select.boiler_mode', 'Night')
+             and is_state('binary_sensor.night_charge_window', 'on')
+             and grid }}
+
 sensor:
   - platform: integration
     source: sensor.boiler_ten_power_estimate
@@ -118,3 +212,11 @@ utility_meter:
   boiler_ten_energy_estimate_daily:
     source: sensor.boiler_ten_energy_estimate
     cycle: daily
+
+input_select:
+  boiler_mode:
+    name: "Boiler mode"
+    icon: mdi:water-boiler
+    options:
+      - Sun
+      - Night

@@ -10,7 +10,8 @@ template:
   - binary_sensor:
       # Overload: grid import or battery discharge above Deye load-off power
       # threshold; in Force also a 5kW battery that charges at less than half
-      # the surplus threshold (it should be charging hard then)
+      # the surplus threshold (it should be charging hard then). Grid import
+      # does not count during boiler night heating (packages/boiler.yaml).
       - name: "Any device high power"
         unique_id: any_device_high_power
         default_entity_id: binary_sensor.any_device_high_power
@@ -27,7 +28,8 @@ template:
           {% set charge_half_limit = -(max_charge_watts / 2) %}
 
           {{
-            states('sensor.deye_5kw_grid_power')|float(0) > limit or
+            (states('sensor.deye_5kw_grid_power')|float(0) > limit
+             and not is_state('binary_sensor.boiler_night_heating', 'on')) or
             states('sensor.deye_5kw_battery_power')|float(0) > limit or
             states('sensor.deye_6kw_battery_power')|float(0) > limit or
             (is_enabled and not battery_full and battery_power > charge_half_limit)

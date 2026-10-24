@@ -310,6 +310,10 @@ automation:
           condition: state
           entity_id: input_boolean.self_consumption_boost_active
           state: 'off'
+        - alias: Muted during boiler night heating (Boiler mode Night)
+          condition: state
+          entity_id: binary_sensor.boiler_night_heating
+          state: 'off'
         - condition: template
           value_template: "{{ states('input_datetime.boiler_last_notified') in ['unknown',
             'unavailable']\n   or (as_timestamp(now()) - as_timestamp(states('input_datetime.boiler_last_notified')))

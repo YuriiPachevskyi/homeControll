@@ -107,6 +107,9 @@ automation:
       the 6kW charges from the grid to 100 % (min SOC 100, all 6 programs Grid) and the
       5kW min SOC is held at its current SOC so the 5kW battery does not feed it. 6kW
       energy pattern is Battery First in Save and Save + Night Charge, Load First otherwise.
+      While binary_sensor.boiler_night_heating is on (Boiler mode Night, night charge window,
+      grid present; packages/boiler.yaml) both min SOCs are held at the current SOC, so the
+      boiler heats from the grid and no battery is discharged.
     triggers:
     - trigger: state
       entity_id: input_select.deye_system_state
@@ -153,6 +156,12 @@ automation:
       - 'on'
       - 'off'
       id: full_charge_changed
+    - trigger: state
+      entity_id: binary_sensor.boiler_night_heating
+      to:
+      - 'on'
+      - 'off'
+      id: boiler_night_changed
     actions:
     - variables:
         current_state: '{{ states(''input_select.deye_system_state'') }}'
@@ -219,11 +228,14 @@ automation:
           6kw_power: 1
         winter_soc_6kw: '{{ export_soc_6kw }}'
         full_charge_6kw: '{{ is_state(''binary_sensor.deye_6kw_full_charge'', ''on'') }}'
+        boiler_night: '{{ is_state(''binary_sensor.boiler_night_heating'', ''on'') }}'
         s: '{% set base = config.get(current_state, config[''Idle'']) %}{% set base
           = dict(base, **force_override) if force else base %}{% set base = dict(base,
           **{''6kw_soc'': winter_soc_6kw}) if is_state(''binary_sensor.summer_season'',
           ''off'') and not force and not is_selling_6kw else base %}{{ dict(base, **{''6kw_soc'':
-          100}) if full_charge_6kw else base }}'
+          100}) if full_charge_6kw else dict(base, **{''6kw_soc'': [base[''6kw_soc''] |
+          float(0), states(''sensor.deye_6kw_battery'') | float(0) | round(0)] | max})
+          if boiler_night else base }}'
         grid_charging_6kw: '{{ ''Grid'' if full_charge_6kw else ''Disabled'' }}'
         grid_charging: '{{ ''Grid'' if night_charge else ''Disabled'' }}'
         energy_pattern_6kw: '{{ ''Battery First'' if save or save_night else ''Load
@@ -264,7 +276,8 @@ automation:
           entity_id: input_number.deye_5kw_min_soc
         data:
           value: '{{ [s[''5kw_soc''] | float(0), states(''sensor.deye_5kw_battery'') |
-            float(0) | round(0)] | max if full_charge_6kw else s[''5kw_soc''] }}'
+            float(0) | round(0)] | max if full_charge_6kw or boiler_night else s[''5kw_soc'']
+            }}'
       - action: input_number.set_value
         target:
           entity_id: input_number.deye_5kw_discharge_power
@@ -272,7 +285,8 @@ automation:
           value: '{{ s[''5kw_power''] }}'
       - if:
         - condition: template
-          value_template: '{{ full_charge_6kw or trigger.id == ''full_charge_changed''
+          value_template: '{{ full_charge_6kw or boiler_night or trigger.id in [''full_charge_changed'',
+            ''boiler_night_changed'']
             or not (current_state == ''Evening Export'' and not is_selling_6kw and trigger.id
             != ''state_changed'') }}'
         then:
