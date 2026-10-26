@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Rolling log of the last 10 Telegram notifications, from any sender.
+"""Log of all Telegram notifications, from any sender (full history, no cap).
 
-Backs the "Сповіщення" dashboard tab: each entry keeps the chat_id/message_id
+Backs the notifications list on the Overview "Other" tab (custom:notify-log-card): each entry keeps the chat_id/message_id
 pairs Telegram returned, so a row's delete button
 (script.delete_notification_slot) can call telegram_bot.delete_message for
 every recipient. Every new notification should end up here: HA sends via
@@ -33,7 +33,6 @@ from pathlib import Path
 
 LOG_FILE = Path(__file__).parent / "notify_log.json"
 LOCK_FILE = Path(__file__).parent / ".notify_log.lock"
-MAX_ENTRIES = 10
 
 
 @contextmanager
@@ -70,7 +69,7 @@ def append(payload_b64: str) -> None:
                 if not {(str(c.get("chat_id")), str(c.get("message_id")))
                         for c in r.get("chats", [])} & replaces]
         rows.insert(0, entry)
-        save(rows[:MAX_ENTRIES])
+        save(rows)
 
 
 def add(title: str, message: str, chats: list) -> None:
