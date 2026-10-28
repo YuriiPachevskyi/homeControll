@@ -181,7 +181,6 @@ automation:
       # Things the 5kW battery is needed for at night
       busy5: >-
         {{ full_charge
-           or is_state('input_boolean.self_consumption_boost_active', 'on')
            or is_state('binary_sensor.boiler_night_heating', 'on')
            or (is_state('input_select.selling_mode', 'Save + Night Charge')
                and is_state('binary_sensor.night_charge_window', 'on'))

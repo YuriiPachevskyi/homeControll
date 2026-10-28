@@ -163,10 +163,6 @@ automation:
             state: 'on'
             for:
               minutes: 3
-        - alias: Muted while the night self-consumption boost heats the boiler
-          condition: state
-          entity_id: input_boolean.self_consumption_boost_active
-          state: 'off'
         - alias: Muted during boiler night heating (Boiler mode Night)
           condition: state
           entity_id: binary_sensor.boiler_night_heating
