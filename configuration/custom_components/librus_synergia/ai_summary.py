@@ -40,6 +40,7 @@ from homeassistant.util import dt as dt_util
 
 from librus_synergia.models import LibrusData
 
+from .absence_budget import MIN_HELD, absence_budget
 from .const import (
     AI_AUDIENCE_STUDENT,
     AVERAGE_MODE_ARITHMETIC,
@@ -52,13 +53,14 @@ from .coordinator import (
     calculate_average,
     days_since_last_absence,
     days_since_last_negative_note,
+    free_day_lessons,
     good_grade_streak,
     infer_subject_id,
     lesson_change,
     teacher_subject_ids,
 )
 from .exam_prep import exam_prep, missed_lessons
-from .forecast import subject_forecasts
+from .forecast import PointThresholdsArg, subject_forecasts
 
 if TYPE_CHECKING:
     from .coordinator import LibrusDataUpdateCoordinator
@@ -105,7 +107,8 @@ SECTIONS: dict[str, str] = {
     " (averages[].now against averages[].week_ago). A grade with kind 'descriptive' is"
     " for a skill (in category) and doesn't count towards any average.",
     "attendance": "Attendance: this week's lessons, absences (excused or not), lates,"
-    " which subjects were missed, and what is still waiting to be excused overall.",
+    " which subjects were missed, what is still waiting to be excused overall, and"
+    " lessons the school cancelled or covered with a substitute this week.",
     "behaviour": "Behaviour: notes (uwagi) from this week - positive, negative,"
     " neutral - the behaviour grade if there is one, and the streaks.",
     "next_week": "Next week: tests and other agenda entries, homework due, cancelled"
@@ -218,6 +221,10 @@ are calendar days. attendance.absences lists this week's absences and lates;
 attendance.missed_lessons_topics is what was taught in the lessons the student
 missed this week (worth catching up on); attendance.justifications counts
 justifications still waiting for the school's decision and recent rejected ones.
+attendance.cancelled_or_substituted_this_week lists lessons the school cancelled or
+covered with a substitute teacher this week (the school's decision, not the
+student's absence); school_year_cancelled / school_year_substituted are the totals
+since the school year started.
 A grade with kind "text" is a teacher's written grade, not a number.
 next_week.agenda holds tests, trips and other entries from the class calendar;
 next_week.tests_to_revise lists the topics taught since the previous test in that
@@ -264,6 +271,22 @@ def _is_schema_error(err: BaseException) -> bool:
     return isinstance(err, ServiceValidationError) or any(
         cls.__name__ == "Invalid" for cls in type(err).__mro__
     )
+
+
+# A subject with at most this many absences left this semester is mentioned.
+_FEW_ABSENCES_LEFT = 3
+
+
+def _few_absences_left(data: LibrusData, today: date) -> dict[str, int] | None:
+    budget = absence_budget(data, today)
+    if budget is None:
+        return None
+    tight = {
+        b.subject: b.left
+        for b in budget.subjects
+        if b.held >= MIN_HELD and b.left <= _FEW_ABSENCES_LEFT
+    }
+    return tight or None
 
 
 def _compact(values: dict[str, Any]) -> dict[str, Any]:
@@ -313,6 +336,7 @@ def build_context(
     student: str | None,
     thresholds: tuple[float, ...] | None = None,
     owner: Hashable | None = None,
+    point_thresholds: PointThresholdsArg = None,
 ) -> dict[str, Any]:
     """Compact, JSON-ready snapshot of the week before and after ``today``.
     ``owner`` is the config entry id the forecasts are cached under (see
@@ -532,8 +556,34 @@ def build_context(
                         }
                     )
                 )
+    # The school's own changes this week (Calendars/Substitutions, the whole
+    # year): lessons cancelled or covered by a substitute, and the year so far.
+    school_changes = [
+        _compact(
+            {
+                "date": _dated(_day(change.original_date)),
+                "lesson_no": change.original_lesson_no,
+                "subject": subject(change.original_subject_id),
+                "change": "cancelled" if change.kind == "cancelled" else "substitute",
+                "substitute_teacher": teacher(change.teacher_id)
+                if change.kind != "cancelled"
+                else None,
+            }
+        )
+        for change in data.plan_changes
+        if _in(_day(change.original_date), week_from, today)
+    ]
+    year_cancelled = sum(1 for change in data.plan_changes if change.kind == "cancelled")
     free_days = [
-        {"name": free.name, "from": _dated(free.date_from), "to": _dated(free.date_to)}
+        _compact(
+            {
+                "name": free.name,
+                "from": _dated(free.date_from),
+                "to": _dated(free.date_to),
+                # Only these lessons are off, not the whole day.
+                "only_lessons": free_day_lessons(free),
+            }
+        )
         for free in data.free_days
         if (_day(free.date_from) or date.max) <= next_to
         and (_day(free.date_to) or date.min) >= week_from
@@ -627,7 +677,14 @@ def build_context(
                     "one_one_drops_it": True if f.ones_to_drop == 1 else None,
                 }
             )
-            for f in subject_forecasts(data, today, thresholds, weighted=weighted, owner=owner)
+            for f in subject_forecasts(
+                data,
+                today,
+                thresholds,
+                weighted=weighted,
+                owner=owner,
+                point_thresholds=point_thresholds,
+            )
             if f.at_risk or f.declining or f.sixes_to_next == 1 or f.ones_to_drop == 1
         ]
         if thresholds
@@ -648,6 +705,14 @@ def build_context(
                 "open_unexcused_dates": sorted(set(open_unexcused))[-10:],
                 "missed_lessons_topics": missed_topics[:20],
                 "justifications": justifications,
+                "cancelled_or_substituted_this_week": school_changes[:20],
+                "school_year_cancelled": year_cancelled if data.plan_changes else None,
+                "school_year_substituted": len(data.plan_changes) - year_cancelled
+                if data.plan_changes
+                else None,
+                # Subjects close to missing more than half of the semester's
+                # lessons (an estimate - absence_budget.py).
+                "few_absences_left_this_semester": _few_absences_left(data, today),
             }
         ),
         "new_school_documents": documents,
@@ -655,7 +720,9 @@ def build_context(
         "behaviour_grade": behaviour_grade,
         "streaks": _compact(
             {
-                "good_grade_streak": good_grade_streak(data.grades, data.grading_system),
+                "good_grade_streak": good_grade_streak(
+                    data.grades, data.grading_system, data.point_grades, point_thresholds
+                ),
                 "days_without_absence": days_since_last_absence(
                     data.attendances, data.attendance_types, school_class, today
                 ),
@@ -1000,6 +1067,7 @@ class LibrusWeeklySummary:
             student=student,
             thresholds=self._coordinator.grade_thresholds,
             owner=self._coordinator.memo_owner,
+            point_thresholds=self._coordinator.point_grade_thresholds,
         )
         if skip_empty and is_empty_week(context):
             _LOGGER.debug("Weekly summary skipped: nothing happened this week or next")

@@ -17,7 +17,7 @@ import copy
 import dataclasses
 import logging
 import re
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 from datetime import date, datetime, time, timedelta
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -35,9 +35,12 @@ from librus_synergia import (
     LibrusApiClient,
     LibrusAuthError,
     LibrusError,
+    LibrusMessageSendError,
     LibrusSessionData,
     LibrusSessionExpiredError,
 )
+from librus_synergia.const import MESSAGE_RECIPIENT_GROUPS
+from librus_synergia.parsers import mark_class_tutor, message_recipient_groups
 from librus_synergia.changes import Changes, ChangeTracker, SeenIds
 from librus_synergia.exceptions import LibrusUnexpectedResponseError
 from librus_synergia.changes import absences as tracked_absences
@@ -45,6 +48,7 @@ from librus_synergia.changes import timetable_changes as tracked_timetable_chang
 from librus_synergia.models import (
     AttendanceData,
     AttendanceTypeData,
+    BehaviourGradeData,
     ClassData,
     FreeDayData,
     GradeCategoryData,
@@ -54,9 +58,11 @@ from librus_synergia.models import (
     LibrusData,
     LuckyNumberData,
     MessageData,
+    MessageRecipientData,
     JustificationData,
     NoteData,
     PointGradeData,
+    SentMessageData,
     SchoolData,
 )
 
@@ -79,6 +85,7 @@ from librus_synergia.parsers import (  # noqa: F401
     parse_descriptive_skills,
     parse_grading_system,
     parse_partial_grades,
+    parse_free_day_types,
     parse_free_days,
     parse_grade_categories,
     parse_grade_value,
@@ -100,6 +107,10 @@ from librus_synergia.parsers import (  # noqa: F401
     parse_parent_teacher_conferences,
     parse_justifications,
     parse_realizations,
+    parse_library_lendings,
+    parse_message_recipients,
+    validate_message,
+    parse_plan_changes,
     parse_school_files,
     parse_school_trips,
     parse_text_grade_categories,
@@ -117,6 +128,7 @@ from librus_synergia.parsers import (  # noqa: F401
 )
 
 from .const import (
+    MESSAGE_SEND_LIMIT_PER_HOUR,
     AVERAGE_MODE_ARITHMETIC,
     CONF_ANNOUNCEMENTS_ENABLED,
     CONF_AVERAGE_MODE,
@@ -125,7 +137,10 @@ from .const import (
     CONF_DESCRIPTIVE_GRADES_ENABLED,
     CONF_FREE_DAYS_ENABLED,
     CONF_GRADE_THRESHOLDS,
+    CONF_MESSAGES_COUNT,
     CONF_MESSAGES_ENABLED,
+    CONF_POINT_GRADE_THRESHOLDS,
+    CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT,
     CONF_QUIET_HOURS_ENABLED,
     CONF_QUIET_HOURS_END,
     CONF_QUIET_HOURS_START,
@@ -138,16 +153,20 @@ from .const import (
     DEFAULT_BEHAVIOUR_GRADES_ENABLED,
     DEFAULT_DESCRIPTIVE_GRADES_ENABLED,
     DEFAULT_FREE_DAYS_ENABLED,
+    DEFAULT_MESSAGES_COUNT,
     DEFAULT_MESSAGES_ENABLED,
     DEFAULT_QUIET_HOURS_ENABLED,
     DEFAULT_QUIET_HOURS_END,
     DEFAULT_QUIET_HOURS_START,
     DEFAULT_SMART_POLLING,
     DOMAIN,
+    MAX_MESSAGES_COUNT,
+    MIN_MESSAGES_COUNT,
     EVENT_ACHIEVEMENT_UNLOCKED,
     EVENT_AGENDA_CHANGED,
     EVENT_FORECAST_CHANGED,
     EVENT_JUSTIFICATION_STATUS,
+    EVENT_LIBRARY_CHANGED,
     EVENT_NEW_SCHOOL_DOCUMENT,
     EVENT_NEW_SCHOOL_TRIP,
     EVENT_NEW_ABSENCE,
@@ -179,7 +198,17 @@ from .const import (
     STATUS_STALE,
 )
 from .achievements import Badge, compute_badges, key_title
-from .forecast import average_sums, forecast_basis, parse_thresholds, subject_forecasts
+from .forecast import (
+    PointThresholds,
+    PointThresholdsArg,
+    average_sums,
+    forecast_basis,
+    parse_point_thresholds,
+    parse_point_thresholds_by_subject,
+    parse_thresholds,
+    point_grade_value,
+    subject_forecasts,
+)
 
 if TYPE_CHECKING:
     from .ai_summary import LibrusWeeklySummary
@@ -208,6 +237,8 @@ _EXTRA_LABELS = (
     "Realizations",
     "SchoolTrips",
     "SchoolFiles",
+    "EbiblioLendings",
+    "Calendars/Substitutions",
     "TimetableEntries",
     "DescriptiveGrades/Comments",
     "DescriptiveGrades/Skills",
@@ -216,12 +247,37 @@ _EXTRA_LABELS = (
 )
 # Read receipts: the newest sent messages from the last this-many days.
 _READ_RECEIPT_DAYS = 30
+def _redact_message_error(err: Exception) -> str:
+    """An error for the recipient summary: its type and HTTP status only
+    (a message could echo names)."""
+    status = getattr(err, "status_code", None)
+    return f"{type(err).__name__}" + (f" (HTTP {status})" if status else "")
+
+
+# How long the message recipient list is kept (see async_message_recipients).
+_MESSAGE_RECIPIENTS_TTL = timedelta(hours=1)
 _READ_RECEIPT_MESSAGES = 5
 # Lesson topics, trips and school documents change a few times a day.
 _MESSAGES_QUICK_RECHECKS = 3
 # Reference endpoints for a school setting that may be closed to an account
 # (403/404): the default is used instead of a degraded-endpoint issue.
-_SCHOOL_SETTING_LABELS = frozenset({"GradingSystem"})
+# Lookups a school or account may not be allowed to read: a 401/403/404 is
+# an empty answer (the default grade scale, unnamed class free days), not a
+# degraded endpoint.
+_SCHOOL_SETTING_LABELS = frozenset({"GradingSystem", "ClassFreeDays/Types"})
+# Optional modules a school may not have at all (no e-library, no access
+# to the year's plan changes): a refusal (401/403/404) is an empty answer,
+# asked again on the endpoint's own schedule - not a degraded endpoint.
+_OPTIONAL_MODULE_LABELS = frozenset({"EbiblioLendings", "Calendars/Substitutions"})
+
+
+def _is_module_refusal(err: BaseException) -> bool:
+    """A 403/404, or a 401 "Insufficient scopes" - the account can't read
+    the module. A plain 401 is a dead session, not a refusal."""
+    status = getattr(err, "status_code", None)
+    if status == 401:
+        return not isinstance(err, LibrusSessionExpiredError)
+    return status in (403, 404)
 # A badge earned longer ago than this is recorded without an event - a week,
 # so HA being off for a few days doesn't swallow one.
 _ACHIEVEMENT_NEWS_DAYS = timedelta(days=7)
@@ -490,6 +546,29 @@ _POINT_GRADE_LABELS = ("PointGrades", "PointGrades/Categories")
 # `_async_get_messages`' result when nothing was fetched.
 _NO_MESSAGES: tuple[Any, ...] = (0, {}, [], [], [], [], [], [])
 
+# Mailboxes `mark_message_read` takes -> the LibrusData list holding them,
+# and their place in the messages tuple above (count, counts, inbox,
+# substitutions, alerts, justifications, outbox, archive). Sent messages
+# are left out: there's nothing of ours to mark read there.
+_MARKABLE_MAILBOXES: dict[str, str] = {
+    "inbox": "messages",
+    "substitutions": "substitution_messages",
+    "alerts": "alert_messages",
+    "justifications": "justification_messages",
+    ARCHIVE_MAILBOX: "archived_messages",
+}
+# Mailboxes besides the inbox whose new messages fire EVENT_NEW_MESSAGE (the
+# inbox goes through the library's ChangeTracker). Not the outbox (our own
+# messages) or the archive (already read).
+_EVENT_MAILBOXES = ("substitutions", "alerts", "justifications")
+_MESSAGE_TUPLE_POSITIONS: dict[str, int] = {
+    "inbox": 2,
+    "substitutions": 3,
+    "alerts": 4,
+    "justifications": 5,
+    ARCHIVE_MAILBOX: 7,
+}
+
 
 # Agenda fields whose change fires EVENT_AGENDA_CHANGED (names resolved
 # alongside, but compared by id so a renamed category isn't a change).
@@ -548,6 +627,23 @@ def lesson_change(day: date, lesson: LessonData, data: LibrusData) -> dict[str, 
             elif same_lesson and lesson.room_changed:
                 result["kind"] = "room_change"
     return result
+
+
+def free_day_lesson_range(item: FreeDayData) -> tuple[int | None, int | None]:
+    """The first and last freed lesson of a free day that frees only some
+    lessons (one end alone stands for both); (None, None) for a whole day."""
+    first = item.lesson_no_from if item.lesson_no_from is not None else item.lesson_no_to
+    last = item.lesson_no_to if item.lesson_no_to is not None else item.lesson_no_from
+    return first, last
+
+
+def free_day_lessons(item: FreeDayData) -> str | None:
+    """ "3-5" (or "3") for a free day that frees only some lessons
+    (`LessonNoFrom` / `LessonNoTo`), None for a whole day off."""
+    if item.whole_day:
+        return None
+    first, last = free_day_lesson_range(item)
+    return str(first) if first == last else f"{first}-{last}"
 
 
 def state_store_key(entry_id: str) -> str:
@@ -628,7 +724,10 @@ _GOOD_GRADE_STREAK_THRESHOLD = 4.0
 
 
 def good_grade_streak(
-    grades: list[GradeData], grading: GradingSystemData | None = None
+    grades: list[GradeData],
+    grading: GradingSystemData | None = None,
+    point_grades: list[PointGradeData] | None = None,
+    point_thresholds: PointThresholdsArg = None,
 ) -> int:
     """Consecutive most-recent NUMERIC grades >= _GOOD_GRADE_STREAK_THRESHOLD,
     counting back from the newest until the first one below it. Semester/
@@ -639,23 +738,28 @@ def good_grade_streak(
     unfair for what this is meant to be: a small, motivating "passa" a
     student can watch grow. `grading` is the school's grade scale (what
     "+"/"-" add) - the same one every average here uses; without it the
-    streak used the default +0.5/-0.25 whatever the school's scale says."""
-    dated = sorted(
-        (
-            g
-            for g in grades
-            if g.add_date
-            and not g.is_semester_proposition
-            and not g.is_final_proposition
-            and not g.is_semester
-            and not g.is_final
-        ),
-        key=lambda g: g.add_date,
-        reverse=True,
-    )
+    streak used the default +0.5/-0.25 whatever the school's scale says.
+    Point grades count too when `point_thresholds` gives their subject a
+    scale: each one as the grade its percentage makes on it (the forecast's
+    thresholds); without one they're skipped like a non-numeric mark."""
+    dated: list[tuple[str, float | None]] = [
+        (grade.add_date, parse_grade_value(grade.value, grading))
+        for grade in grades
+        if grade.add_date
+        and not grade.is_semester_proposition
+        and not grade.is_final_proposition
+        and not grade.is_semester
+        and not grade.is_final
+    ]
+    if point_thresholds:
+        dated += [
+            (grade.add_date, point_grade_value(grade, point_thresholds))
+            for grade in point_grades or []
+            if grade.add_date
+        ]
+    dated.sort(key=lambda item: item[0], reverse=True)
     streak = 0
-    for grade in dated:
-        value = parse_grade_value(grade.value, grading)
+    for _added, value in dated:
         if value is None:
             continue
         if value < _GOOD_GRADE_STREAK_THRESHOLD:
@@ -813,6 +917,30 @@ def calculate_average(
 
 def _teacher_name(data: LibrusData, teacher_id: Any) -> str | None:
     return data.teachers.get(teacher_id) if teacher_id is not None else None
+
+
+# "Ocena zachowania miesiąc za IX/26." - the month a monthly behaviour grade
+# is for (seen live 2026-10-05: a September grade added on 5 October).
+_BEHAVIOUR_MONTH_RE = re.compile(r"\bza\s+([IVX]{1,4})\s*/\s*(\d{2}|\d{4})\b", re.IGNORECASE)
+_ROMAN_MONTHS = {
+    "I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6,
+    "VII": 7, "VIII": 8, "IX": 9, "X": 10, "XI": 11, "XII": 12,
+}
+
+
+def behaviour_month(grade: BehaviourGradeData) -> str | None:
+    """"YYYY-MM" the grade is for: from a "za IX/26" comment or text, else
+    the month it was added in."""
+    for text in (*grade.comments, grade.text):
+        match = _BEHAVIOUR_MONTH_RE.search(text or "")
+        if match and match.group(1).upper() in _ROMAN_MONTHS:
+            year = int(match.group(2))
+            if year < 100:
+                year += 2000
+            return f"{year:04d}-{_ROMAN_MONTHS[match.group(1).upper()]:02d}"
+    if grade.add_date and len(grade.add_date) >= 7:
+        return grade.add_date[:7]
+    return None
 
 
 class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
@@ -992,14 +1120,27 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._known_agenda: dict[str, dict[str, Any]] | None = None
         # Justification id -> its last seen status (None until first sync).
         self._known_justifications: dict[str, str] | None = None
-        # Ids already announced per kind (text grades, descriptive grades,
-        # school trips, school documents); None until the first sync, which
+        # Library lending id -> {title, author, lent_on} (None until the first
+        # sync, which only seeds it) - see _fire_library_events.
+        self._known_library: dict[str, dict[str, Any]] | None = None
+        # Message recipients (fetched at, list) and when messages were sent
+        # (the hourly sending limit) - memory only.
+        self._message_recipients: tuple[datetime, list[MessageRecipientData]] | None = None
+        # What the last recipient-list fetch saw (diagnostics only, no names).
+        self.message_recipients_summary: dict[str, Any] | None = None
+        self._sent_at: list[datetime] = []
+        # Ids already announced per kind (text, descriptive, point and
+        # behaviour grades, school trips, school documents, messages in the
+        # mailboxes other than the inbox); None until the first sync, which
         # only seeds them.
         self._known_items: dict[str, set[Any] | None] = {
             "text_grades": None,
             "descriptive_grades": None,
+            "point_grades": None,
+            "behaviour_grades": None,
             "school_trips": None,
             "school_files": None,
+            **{f"{box}_messages": None for box in _EVENT_MAILBOXES},
         }
         # When each throttled optional endpoint last answered (see
         # _async_optional).
@@ -1126,6 +1267,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             self._known_agenda = agenda
         if isinstance(statuses := stored.get("justifications"), dict):
             self._known_justifications = statuses
+        if isinstance(library := stored.get("library"), dict):
+            self._known_library = library
         if isinstance(items := stored.get("known_items"), dict):
             for kind in self._known_items:
                 if isinstance(ids := items.get(kind), list):
@@ -1349,10 +1492,14 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         if isinstance(missing := saved.get("missing_mailboxes"), list):
             self.missing_mailboxes = {str(box) for box in missing}
             self._mailbox_probed_at = times(saved.get("mailbox_probed_at"))
-        if isinstance(archive := saved.get("archive"), list):
+        # Lists saved with another "Messages to fetch per mailbox" (state from
+        # before the option: always 10) are dropped, so a changed option shows
+        # on the first refresh instead of up to a day later.
+        same_limit = saved.get("mailbox_limit", DEFAULT_MESSAGES_COUNT) == self.messages_limit
+        if same_limit and isinstance(archive := saved.get("archive"), list):
             self._archived_messages = _messages_from_saved(archive)
             self._archive_fetched_at = when(saved.get("archive_fetched_at"))
-        if isinstance(lists := saved.get("mailbox_lists"), dict):
+        if same_limit and isinstance(lists := saved.get("mailbox_lists"), dict):
             counts = saved.get("mailbox_counts") or {}
             fetched = times(saved.get("mailbox_fetched_at"))
             for box, items in lists.items():
@@ -1491,6 +1638,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             self._unseeded_kinds,
             self._known_agenda,
             self._known_justifications,
+            self._known_library,
             self._known_items,
             self._known_homework_assignment_ids,
             self._achievement_dates,
@@ -1578,6 +1726,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             },
             "mailbox_counts": dict(self._mailbox_counts),
             "mailbox_fetched_at": isos(self._mailbox_fetched_at),
+            "mailbox_limit": self.messages_limit,
             "receipts_fetched_at": isos(self._receipts_fetched_at),
         }
 
@@ -1590,6 +1739,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             "unseeded_kinds": sorted(self._unseeded_kinds),
             "agenda": self._known_agenda,
             "justifications": self._known_justifications,
+            "library": self._known_library,
             "known_items": {
                 kind: sorted(ids, key=str) if ids is not None else None
                 for kind, ids in self._known_items.items()
@@ -2339,6 +2489,311 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._forget_mailbox_list(mailbox)
         return payload
 
+    async def _async_messages_read(self, request: Callable[[], Awaitable[_T]]) -> _T:
+        """One side-effect-free Wiadomości read, with the same recovery as
+        `async_fetch_message`: on a rejected session, one relogin + a fresh
+        Wiadomości bootstrap, then one more try. Raises
+        `LibrusMessageSendError` (`sent=False`) when the school has no
+        messages module."""
+        if not self._messages_bootstrapped:
+            self._messages_available = await self._client.async_bootstrap_messages()
+            self._messages_bootstrapped = True
+        if self._messages_available is False:
+            raise LibrusMessageSendError(
+                "This account has no Wiadomości (messages module).", sent=False
+            )
+        seen = self._login_count
+        try:
+            return await request()
+        except LibrusSessionExpiredError:
+            await self._async_relogin(seen)
+            self._messages_bootstrapped = False
+            self._messages_available = await self._client.async_bootstrap_messages()
+            self._messages_bootstrapped = True
+            return await request()
+
+    async def async_message_recipients(self, *, force: bool = False) -> list[MessageRecipientData]:
+        """Who a message can go to (see `librus_synergia.parsers.
+        parse_message_recipients`), kept for an hour - the staff list
+        barely changes and a send shouldn't cost a dozen extra reads."""
+        cached = self._message_recipients
+        if (
+            not force
+            and cached is not None
+            and dt_util.utcnow() - cached[0] < _MESSAGE_RECIPIENTS_TTL
+        ):
+            return cached[1]
+        types = await self._async_messages_read(self._client.async_get_message_recipient_types)
+        offered_types = [
+            item
+            for item in ((types.get("data") or {}).get("list") or [])
+            if isinstance(item, dict) and item.get("id")
+        ]
+        errors: dict[str, str] = {}
+
+        # The types read above just checked the session, so a group (or the
+        # subject list) Librus refuses is left out - read directly, without
+        # the relogin recovery: a kindergarten account gets a 403 on
+        # `receivers/student-subjects` every time (seen live 2026-10-12).
+        async def group(name: str) -> tuple[str, dict[str, Any] | None]:
+            try:
+                return name, await self._client.async_get_message_recipients(name)
+            except LibrusError as err:
+                errors[name] = _redact_message_error(err)
+                return name, None
+
+        fetched = await asyncio.gather(
+            *(group(name) for name in message_recipient_groups(types))
+        )
+        groups = {name: payload for name, payload in fetched if payload is not None}
+        try:
+            subjects: dict[str, Any] | None = (
+                await self._client.async_get_student_subject_teachers()
+            )
+        except LibrusError as err:
+            errors["student-subjects"] = _redact_message_error(err)
+            subjects = None
+        recipients = parse_message_recipients(types, groups, subjects)
+        # A kindergarten account has no tutors group: the class tutor (by
+        # name, from the class / kindergarten group) is moved there.
+        had_tutors = any(r.group == "tutors" for r in recipients)
+        recipients = mark_class_tutor(recipients, self._class_tutor_name())
+        tutor_from_class = not had_tutors and any(r.group == "tutors" for r in recipients)
+        now = dt_util.utcnow()
+        self._message_recipients = (now, recipients)
+        # For diagnostics: what Librus offers this account, without names.
+        self.message_recipients_summary = {
+            "checked_at": now.isoformat(),
+            "offered_types": [
+                {
+                    "id": str(item.get("id")),
+                    "name": item.get("name"),
+                    "fetched": str(item.get("id")) in groups,
+                    "known": str(item.get("id")) in MESSAGE_RECIPIENT_GROUPS,
+                }
+                for item in offered_types
+            ],
+            "people_by_group": {
+                name: len((payload or {}).get("receivers") or [])
+                for name, payload in groups.items()
+            },
+            "subject_teachers": len((subjects or {}).get("data") or []),
+            "recipients": len(recipients),
+            "tutor_from_class": tutor_from_class,
+            "errors": errors,
+        }
+        return recipients
+
+    def _class_tutor_name(self) -> str | None:
+        """The class tutor's name (the class's `tutor_id` in the teachers
+        list), for a school that offers no tutors recipient group."""
+        data = self.data
+        if data is None or data.school_class is None or data.school_class.tutor_id is None:
+            return None
+        return data.teachers.get(data.school_class.tutor_id)
+
+    def _check_send_limit(self) -> None:
+        """At most MESSAGE_SEND_LIMIT_PER_HOUR sends per hour."""
+        hour_ago = dt_util.utcnow() - timedelta(hours=1)
+        self._sent_at = [at for at in self._sent_at if at > hour_ago]
+        if len(self._sent_at) >= MESSAGE_SEND_LIMIT_PER_HOUR:
+            raise LibrusMessageSendError(
+                f"Sending limit reached ({MESSAGE_SEND_LIMIT_PER_HOUR} messages an hour) - not sent.",
+                sent=False,
+            )
+
+    async def async_send_message(
+        self,
+        account_ids: list[str],
+        topic: str,
+        text: str,
+        *,
+        reply_to: str | None = None,
+    ) -> SentMessageData:
+        """**Sends a message** for the `send_message` service. The
+        Wiadomości session is checked with a read first (with the usual
+        recovery), then the message goes out ONCE - never retried, not even
+        after a rejected session (`LibrusApiClient.async_send_message_checked`
+        raises `LibrusMessageSendError` and says whether it went out)."""
+        validate_message(account_ids, topic, text)
+        self._check_send_limit()
+        await self._async_messages_read(self._client.async_get_messages_me)
+        # Counted before the attempt: an unconfirmed send may still have
+        # gone out.
+        self._sent_at.append(dt_util.utcnow())
+        try:
+            sent = await self._client.async_send_message_checked(
+                account_ids, topic, text, reply_to=reply_to
+            )
+        except LibrusMessageSendError as err:
+            if err.sent is None:
+                # May have gone out: show the sent messages now, so the
+                # user can check before trying again.
+                await self._async_refresh_outbox()
+            raise
+        except BaseException:
+            self._forget_mailbox_list("outbox")
+            raise
+        await self._async_refresh_outbox()
+        return sent
+
+    async def async_withdraw_message(self, message_id: str) -> None:
+        """Withdraws a message you sent (`withdraw_message` service)."""
+        await self._async_messages_read(lambda: self._client.async_withdraw_message(message_id))
+        await self._async_refresh_outbox()
+
+    async def async_mark_announcements_read(self, notice_ids: list[str] | None) -> list[str]:
+        """Marks school notices read in Librus (`mark_announcement_read`
+        service) - the given ids, or every unread one when None. Each is one
+        `SchoolNotices/MarkAsRead` request on the main session, with one
+        relogin if the session was rejected. The notices show read straight
+        away; the next poll brings Librus's own `WasRead` anyway. Returns the
+        ids marked; a refusal raises after the ones before it are shown read."""
+        data = self.data
+        if notice_ids is None:
+            notice_ids = [n.id for n in data.school_notices if not n.was_read] if data else []
+        done: list[str] = []
+        try:
+            for notice_id in notice_ids:
+                seen = self._login_count
+                try:
+                    await self._client.async_mark_school_notice_read(notice_id)
+                except LibrusSessionExpiredError as err:
+                    if err.status_code == 403:
+                        raise
+                    await self._async_relogin(seen)
+                    await self._client.async_mark_school_notice_read(notice_id)
+                done.append(notice_id)
+        finally:
+            if done:
+                self._show_notices_read(set(done))
+        return done
+
+    def _show_notices_read(self, notice_ids: set[str]) -> None:
+        """Shows the given notices read without waiting for the next poll -
+        in the data and in the saved response (a fallback cycle shouldn't
+        bring them back as unread)."""
+        saved = self._last_good.get("SchoolNotices")
+        if isinstance(saved, dict) and isinstance(saved.get("SchoolNotices"), list):
+            # A copy, not in place: the saved payload can be shared.
+            self._last_good["SchoolNotices"] = {
+                **saved,
+                "SchoolNotices": [
+                    {**item, "WasRead": True}
+                    if isinstance(item, dict) and str(item.get("Id")) in notice_ids
+                    else item
+                    for item in saved["SchoolNotices"]
+                ],
+            }
+        if self.data is None:
+            return
+        notices = [
+            dataclasses.replace(n, was_read=True) if str(n.id) in notice_ids else n
+            for n in self.data.school_notices
+        ]
+        self.data = dataclasses.replace(self.data, school_notices=notices)
+        self.async_update_listeners()
+
+    async def async_mark_messages_read(
+        self, mailbox: str, message_ids: list[str] | None
+    ) -> list[str]:
+        """Marks Wiadomości messages read (`mark_message_read` service) -
+        the given ids, or every unread one on the mailbox's list when None.
+        Wiadomości has no "mark read" call of its own: opening a message is
+        what marks it read (CONFIRMED live), so each one is opened through
+        `async_fetch_message` and its body dropped. They show read straight
+        away; the next poll brings Librus's own counts anyway. Returns the
+        ids marked; a refusal raises after the ones before it are shown
+        read."""
+        if mailbox not in _MARKABLE_MAILBOXES:
+            raise ValueError(f"Unknown mailbox: {mailbox}")
+        if message_ids is None:
+            listed = self._mailbox_messages(mailbox)
+            message_ids = [m.id for m in listed if m.read_date is None]
+        done: list[str] = []
+        try:
+            for message_id in message_ids:
+                await self.async_fetch_message(mailbox, message_id)
+                done.append(message_id)
+        finally:
+            if done:
+                self._show_messages_read(mailbox, set(done))
+        return done
+
+    def _mailbox_messages(self, mailbox: str) -> list[MessageData]:
+        if self.data is None:
+            return []
+        return list(getattr(self.data, _MARKABLE_MAILBOXES[mailbox]))
+
+    def _show_messages_read(self, mailbox: str, message_ids: set[str]) -> None:
+        """Shows the given messages read without waiting for the next poll:
+        `read_date` set on the listed copies and the mailbox's unread count
+        lowered by the ones that were unread - in the data and in the last
+        messages kept for a failed cycle."""
+        read_at = dt_util.utcnow().isoformat()
+
+        def mark(messages: list[MessageData]) -> tuple[list[MessageData], int]:
+            newly = 0
+            marked: list[MessageData] = []
+            for m in messages:
+                if m.id in message_ids and m.read_date is None:
+                    newly += 1
+                    marked.append(dataclasses.replace(m, read_date=read_at))
+                else:
+                    marked.append(m)
+            return marked, newly
+
+        def lower(counts: dict[str, int], newly: int) -> dict[str, int]:
+            counts = dict(counts)
+            if mailbox in counts:
+                counts[mailbox] = max(0, counts[mailbox] - newly)
+            return counts
+
+        position = _MESSAGE_TUPLE_POSITIONS[mailbox]
+        if self._last_messages is not None:
+            last = list(self._last_messages)
+            last[position], newly = mark(last[position])
+            last[1] = lower(last[1], newly)
+            if mailbox == "inbox":
+                last[0] = max(0, last[0] - newly)
+            self._last_messages = tuple(last)
+        if self.data is None:
+            return
+        field_name = _MARKABLE_MAILBOXES[mailbox]
+        messages, newly = mark(getattr(self.data, field_name))
+        changes: dict[str, Any] = {
+            field_name: messages,
+            "unread_messages_by_mailbox": lower(self.data.unread_messages_by_mailbox, newly),
+        }
+        if mailbox == "inbox":
+            changes["unread_message_count"] = max(0, self.data.unread_message_count - newly)
+        self.data = dataclasses.replace(self.data, **changes)
+        self.async_update_listeners()
+
+    async def _async_refresh_outbox(self) -> None:
+        """Right after a send or a withdrawal: fetch the sent messages
+        (one request) and show them now instead of at the next poll. A
+        failure only leaves the list to the next poll (its cached copy is
+        dropped, so that poll asks again)."""
+        try:
+            payload = await self._async_messages_read(
+                lambda: self._client.async_get_messages(mailbox="outbox", limit=self.messages_limit)
+            )
+        except LibrusError as err:
+            _LOGGER.debug("Sent messages not refreshed after writing: %s", err)
+            self._forget_mailbox_list("outbox")
+            return
+        sent = parse_message_list(payload, "outbox")
+        self._remember_mailbox_list("outbox", None, sent)
+        if self._last_messages is not None:
+            # Same tuple layout as _async_get_messages returns (outbox: 6).
+            last = list(self._last_messages)
+            last[6] = sent
+            self._last_messages = tuple(last)
+        if self.data is not None:
+            self.data = dataclasses.replace(self.data, sent_messages=sent)
+            self.async_update_listeners()
+
     async def _async_update_data_upstream(self) -> LibrusData:  # homeControll local patch: data cache
         assert self.config_entry is not None
         # `self.data is not None` guard: the FIRST refresh always runs for
@@ -2575,6 +3030,14 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 "SchoolFiles", self._client.async_get_school_files, every=_HOURLY
             ),
             self._async_optional(
+                "EbiblioLendings", self._client.async_get_library_lendings, every=_HOURLY
+            ),
+            # The whole year's cancelled lessons and substitutions - the two
+            # timetable weeks fetched every cycle carry the fresh ones.
+            self._async_optional(
+                "Calendars/Substitutions", self._client.async_get_plan_changes, every=_HOURLY
+            ),
+            self._async_optional(
                 "TimetableEntries", self._client.async_get_timetable_entries, every=_DAILY
             ),
             self._async_get_descriptive_grade_lookups(core_payloads),
@@ -2585,6 +3048,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             realizations,
             school_trips,
             school_files,
+            library_lendings,
+            plan_changes,
             timetable_entries,
             descriptive_lookups,
             partial_grades,
@@ -2594,6 +3059,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             "Realizations": realizations,
             "SchoolTrips": school_trips,
             "SchoolFiles": school_files,
+            "EbiblioLendings": library_lendings,
+            "Calendars/Substitutions": plan_changes,
             "TimetableEntries": timetable_entries,
             **descriptive_lookups,
             **partial_grades,
@@ -2629,6 +3096,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._fire_new_homework_assignment_events(data)
         self._fire_agenda_change_events(data, today)
         self._fire_justification_events(data)
+        self._fire_library_events(data)
         self._fire_extra_item_events(data)
         self._check_achievements(data, today)
         self._fire_forecast_events(data, today)
@@ -2786,6 +3254,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             ),
             school_trips=parse_school_trips((extras or {}).get("SchoolTrips") or {}),
             school_files=parse_school_files((extras or {}).get("SchoolFiles") or {}),
+            library_lendings=parse_library_lendings((extras or {}).get("EbiblioLendings") or {}),
+            plan_changes=parse_plan_changes((extras or {}).get("Calendars/Substitutions") or {}),
             standing_timetable=parse_timetable_entries(
                 (extras or {}).get("TimetableEntries") or {}, self._cached_lesson_subjects
             ),
@@ -2838,6 +3308,56 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         text = self.config_entry.options.get(CONF_GRADE_THRESHOLDS) if self.config_entry else None
         return parse_thresholds(text)
 
+    @property
+    def messages_limit(self) -> int:
+        """How many of the newest messages each mailbox list fetches
+        ("Messages to fetch" under Configure, 10-50)."""
+        raw = (
+            self.config_entry.options.get(CONF_MESSAGES_COUNT, DEFAULT_MESSAGES_COUNT)
+            if self.config_entry
+            else DEFAULT_MESSAGES_COUNT
+        )
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            return DEFAULT_MESSAGES_COUNT
+        return max(MIN_MESSAGES_COUNT, min(MAX_MESSAGES_COUNT, value))
+
+    @property
+    def point_grade_thresholds(self) -> PointThresholds | None:
+        """Minimum percentages for a 2..6 in point-graded subjects (options
+        flow): the general scale plus per-subject ones - None when neither
+        is set, keeping those subjects out of the forecast."""
+        return self.point_grade_thresholds_for(self.data)
+
+    def point_grade_thresholds_for(self, data: LibrusData | None) -> PointThresholds | None:
+        """`point_grade_thresholds` with the subject names of `data` - the
+        refresh in progress uses its own data (`self.data` is still the
+        previous one, or None on the first refresh)."""
+        options = self.config_entry.options if self.config_entry else {}
+        default = parse_point_thresholds(options.get(CONF_POINT_GRADE_THRESHOLDS))
+        by_subject, _unmatched = self._point_thresholds_by_subject(data)
+        if not default and not by_subject:
+            return None
+        return PointThresholds(default, tuple(sorted(by_subject.items(), key=lambda kv: str(kv[0]))))
+
+    @property
+    def point_grade_thresholds_unmatched(self) -> list[str]:
+        """Per-subject threshold entries that don't work - an unknown
+        subject name or unusable numbers - to show the user."""
+        return self._point_thresholds_by_subject(self.data)[1]
+
+    def _point_thresholds_by_subject(
+        self, data: LibrusData | None
+    ) -> tuple[dict[int | str, tuple[float, ...]], list[str]]:
+        text = (
+            self.config_entry.options.get(CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT)
+            if self.config_entry
+            else None
+        )
+        subjects = data.subjects if data is not None else {}
+        return parse_point_thresholds_by_subject(text, subjects)
+
     def _fire_forecast_events(self, data: LibrusData, today: date) -> None:
         """EVENT_FORECAST_CHANGED when a subject's forecast grade moves.
         Silent on the first poll and when the basis changes (the second
@@ -2856,6 +3376,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             self.grade_thresholds,
             weighted=self.weighted_average,
             owner=self.memo_owner,
+            point_thresholds=self.point_grade_thresholds_for(data),
         )
         current = {f.subject_id: f.predicted for f in forecasts}
         known = self._known_forecast
@@ -2875,7 +3396,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                         "old": old,
                         "new": forecast.predicted,
                         "direction": "up" if forecast.predicted > old else "down",
+                        # A percentage for a point-graded subject (then
+                        # `percentage` is set too); a 1-6 average otherwise.
                         "average": forecast.average,
+                        "percentage": forecast.percentage,
                         "sixes_to_next": forecast.sixes_to_next,
                         "ones_to_drop": forecast.ones_to_drop,
                     },
@@ -3159,6 +3683,11 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         clears any previously-raised issue for it - turning a feature off
         isn't a failure worth flagging)."""
         if isinstance(result, BaseException):
+            if label in _OPTIONAL_MODULE_LABELS and _is_module_refusal(result):
+                self._note_optional_endpoint_recovery(label)
+                self._remember_payload(label, {})
+                self._fetched_at[label] = dt_util.utcnow()
+                return {}
             if isinstance(result, LibrusError):
                 _LOGGER.debug(
                     "Optional endpoint '%s' fetch failed (non-fatal): %s",
@@ -3411,7 +3940,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         behaviour_grades_enabled = self._feature_enabled(
             CONF_BEHAVIOUR_GRADES_ENABLED, DEFAULT_BEHAVIOUR_GRADES_ENABLED
         )
-        # Seventeen requests on one session, next to the rest of the cycle's
+        # Eighteen requests on one session, next to the rest of the cycle's
         # (which now run alongside): a few at a time through the shared
         # limit is gentler on Librus and on the session.
         requests = (
@@ -3434,6 +3963,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             self._client.async_get_grading_system(),
             self._client.async_get_grade_categories(),
             self._client.async_get_attendance_types(),
+            self._maybe(free_days_enabled, self._client.async_get_class_free_day_types),
         )
         results = await asyncio.gather(
             *(self._limited(request) for request in requests), return_exceptions=True
@@ -3545,9 +4075,18 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._cached_homework_categories = parse_id_name_map(
             payload("HomeworkCategories"), ("Categories",)
         )
+        # ClassFreeDays lists every class in the school - the library keeps
+        # the student's class only (unknown class, e.g. a kindergarten
+        # group: everything).
+        # A class entry has no name of its own - it's named after its type.
         self._cached_free_days = parse_free_days(
             payload("SchoolFreeDays"), "SchoolFreeDays"
-        ) + parse_free_days(payload("ClassFreeDays"), "ClassFreeDays")
+        ) + parse_free_days(
+            payload("ClassFreeDays"),
+            "ClassFreeDays",
+            class_id=self._cached_class.id if self._cached_class else None,
+            type_names=parse_free_day_types(payload("ClassFreeDays/Types")),
+        )
         self._cached_note_categories = parse_id_name_map(
             payload("NoteCategories"), ("Categories",)
         )
@@ -3958,7 +4497,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         )
         inbox = self._reusable_mailbox_list("inbox", unread_count)
         if inbox is None:
-            inbox = parse_message_list(await self._client.async_get_messages(limit=10), "inbox")
+            inbox = parse_message_list(await self._client.async_get_messages(limit=self.messages_limit), "inbox")
             self._remember_mailbox_list("inbox", unread_count, inbox)
         return unread_count, unread_by_mailbox, inbox
 
@@ -4160,7 +4699,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 continue
             to_fetch.append(box)
         results = await asyncio.gather(
-            *(self._client.async_get_messages(mailbox=box, limit=10) for box in to_fetch),
+            *(self._client.async_get_messages(mailbox=box, limit=self.messages_limit) for box in to_fetch),
             return_exceptions=True,
         )
         failed = False
@@ -4280,7 +4819,9 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         ):
             return
         try:
-            payload = await self._client.async_get_messages(mailbox=ARCHIVE_MAILBOX, limit=10)
+            payload = await self._client.async_get_messages(
+                mailbox=ARCHIVE_MAILBOX, limit=self.messages_limit
+            )
         except LibrusUnexpectedResponseError as err:
             if err.status_code != 404:
                 _LOGGER.debug("Archived messages fetch failed (non-fatal)", exc_info=True)
@@ -4319,6 +4860,24 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             return data.subjects.get(subject_id, str(subject_id))
 
         improves, _ = grade_improvements(data.grades)
+        # The subject's average before this cycle's new grades and with them,
+        # computed like the subject average sensor (whole year, the selected
+        # average mode, the school's grading scale). Several new grades in one
+        # subject share the same pair.
+        new_ids = {grade.id for grade in changes.grades}
+        earlier = [grade for grade in data.grades if grade.id not in new_ids]
+
+        def subject_average(grades: list[GradeData], subject_id: Any) -> float | None:
+            if subject_id is None:
+                return None
+            return calculate_average(
+                grades,
+                data.grade_categories,
+                subject_id=subject_id,
+                weighted=self.weighted_average,
+                grading=data.grading_system,
+            )
+
         for grade in changes.grades:
             fire(
                 EVENT_NEW_GRADE,
@@ -4328,11 +4887,17 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                     "subject": subject_name(grade.subject_id),
                     "value": grade.value,
                     "teacher": _teacher_name(data, grade.teacher_id),
+                    "average_before": subject_average(earlier, grade.subject_id),
+                    "average_after": subject_average(data.grades, grade.subject_id),
                     **_grade_event_details(grade, data.grade_categories, improves),
                 },
             )
         for notice in changes.announcements:
-            fire(EVENT_NEW_ANNOUNCEMENT, notice.id, {"subject": notice.subject})
+            fire(
+                EVENT_NEW_ANNOUNCEMENT,
+                notice.id,
+                {"subject": notice.subject, "content": (notice.content or "").strip()[:500]},
+            )
         for note in changes.notes:
             fire(
                 EVENT_NEW_NOTE,
@@ -4350,7 +4915,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             fire(
                 EVENT_NEW_MESSAGE,
                 message.id,
-                {"sender": message.sender_name, "topic": message.topic},
+                {"sender": message.sender_name, "topic": message.topic, "mailbox": "inbox"},
             )
         for homework in changes.agenda:
             fire(
@@ -4408,9 +4973,12 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             )
 
     def _fire_extra_item_events(self, data: LibrusData) -> None:
-        """New text grades and descriptive grades (as EVENT_NEW_GRADE with
-        `kind: text` / `kind: descriptive`), school trips and school
-        documents - seeded silently on the first sync."""
+        """New text, descriptive, point and behaviour grades (as
+        EVENT_NEW_GRADE with `kind: text` / `descriptive` / `point` /
+        `behaviour`), school trips, school documents and messages in the
+        substitutions / alerts / justifications mailboxes (as
+        EVENT_NEW_MESSAGE with their `mailbox`) - seeded silently on the
+        first sync."""
         entry_id = self.config_entry.entry_id if self.config_entry else None
         student = data.me.display_name
         text_grades = {
@@ -4449,6 +5017,29 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             }
             for grade in data.descriptive_grades
         }
+        # Point grades keep `value` as Librus shows it (the points) and add
+        # `points` / `max_points` / `percentage`, so a notification can say
+        # "26/30 pkt (86,7%)" without its own category lookup.
+        point_grades = {
+            grade.id: {
+                "subject_id": grade.subject_id,
+                "subject": data.subjects.get(grade.subject_id) if grade.subject_id is not None else None,
+                "value": grade.value,
+                "points": grade.points,
+                "max_points": grade.max_points,
+                "percentage": grade.percentage,
+                "teacher": _teacher_name(data, grade.teacher_id),
+                "category": grade.category,
+                "weight": grade.weight,
+                "counts_to_average": grade.counts_to_average,
+                "comments": [],
+                "date": grade.add_date,
+                "semester": grade.semester,
+                "kind": "point",
+                "improves": None,
+            }
+            for grade in data.point_grades
+        }
         descriptive_on = self._feature_enabled(
             CONF_DESCRIPTIVE_GRADES_ENABLED, DEFAULT_DESCRIPTIVE_GRADES_ENABLED
         )
@@ -4467,15 +5058,83 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             item.id: {"name": item.name, "added": item.added, "url": school_file_url(item.download_path)}
             for item in data.school_files
         }
+        # Behaviour grades ("ocena zachowania"): `value` is the short form
+        # ("bdb", or the points "+5"), `name` the full one ("bardzo dobre"),
+        # `month` the month it is for. A grade with nothing set yet is left
+        # out, so it is announced once it gets a value.
+        behaviour_grades = {
+            grade.id: {
+                "subject_id": None,
+                "subject": None,
+                "value": grade.display,
+                "name": grade.name,
+                "points": grade.value if grade.grade_id is None else None,
+                "month": behaviour_month(grade),
+                "teacher": _teacher_name(data, grade.teacher_id),
+                "category": data.behaviour_grade_categories.get(grade.category_id)
+                if grade.category_id is not None
+                else None,
+                "weight": None,
+                "counts_to_average": None,
+                "comments": list(grade.comments),
+                "date": grade.add_date,
+                "semester": grade.semester,
+                "kind": "behaviour",
+                "improves": None,
+            }
+            for grade in data.behaviour_grades
+            if grade.display
+        }
+        behaviour_on = self._feature_enabled(
+            CONF_BEHAVIOUR_GRADES_ENABLED, DEFAULT_BEHAVIOUR_GRADES_ENABLED
+        )
+        # The other mailboxes (substitutions, alerts, justifications) - same
+        # event and fields as the inbox, plus which mailbox it came from.
+        mailbox_items = {
+            box: {
+                message.id: {"sender": message.sender_name, "topic": message.topic, "mailbox": box}
+                for message in getattr(data, _MARKABLE_MAILBOXES[box])
+            }
+            for box in _EVENT_MAILBOXES
+        }
+        messages_ok = (
+            data.messages_available
+            and "Messages" not in self._failed_this_cycle
+            and "Messages" not in self.fallback_sections
+        )
         for kind, event, items in (
             ("text_grades", EVENT_NEW_GRADE, text_grades),
             ("descriptive_grades", EVENT_NEW_GRADE, descriptive_grades),
+            ("point_grades", EVENT_NEW_GRADE, point_grades),
+            ("behaviour_grades", EVENT_NEW_GRADE, behaviour_grades),
             ("school_trips", EVENT_NEW_SCHOOL_TRIP, trips),
             ("school_files", EVENT_NEW_SCHOOL_DOCUMENT, files),
+            *((f"{box}_messages", EVENT_NEW_MESSAGE, mailbox_items[box]) for box in _EVENT_MAILBOXES),
         ):
+            if kind.endswith("_messages"):
+                box = kind.removesuffix("_messages")
+                # Not when the fetch failed, nor while the account doesn't
+                # have the mailbox (404): seeding that empty list would
+                # announce everything in it once it shows up.
+                available = (
+                    messages_ok
+                    and box not in self._failed_mailboxes
+                    and box not in self.missing_mailboxes
+                )
+                self._known_items[kind] = self._fire_for_new_ids(
+                    event,
+                    entry_id,
+                    self._known_items[kind],
+                    items,
+                    student=student,
+                    available=available,
+                )
+                continue
             label = {
                 "text_grades": "BaseTextGrades",
                 "descriptive_grades": "DescriptiveGrades",
+                "point_grades": "PointGrades",
+                "behaviour_grades": "BehaviourGrades/Points",
                 "school_trips": "SchoolTrips",
                 "school_files": "SchoolFiles",
             }[kind]
@@ -4488,6 +5147,14 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 available = (
                     available and descriptive_on and "PartialGrades" not in self._failed_this_cycle
                 )
+            elif kind == "point_grades":
+                # Not asked when Units says the school doesn't grade in points:
+                # seeding that empty list would announce every point grade the
+                # day the school turns them on.
+                available = available and self.point_grades_enabled is not False
+            elif kind == "behaviour_grades":
+                # Turned off in the options: nothing fetched, nothing to seed.
+                available = available and behaviour_on
             self._known_items[kind] = self._fire_for_new_ids(
                 event,
                 entry_id,
@@ -4528,6 +5195,53 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                     "teachers": item.teachers,
                 },
             )
+
+    def _fire_library_events(self, data: LibrusData) -> None:
+        """EVENT_LIBRARY_CHANGED for each book the school library lent
+        (`action: lent`) or got back (`action: returned`) since the last
+        sync. The first sync only seeds; a failed fetch (the last good copy
+        is shown) fires nothing."""
+        current = {
+            item.id: {"title": item.title, "author": item.author, "lent_on": item.lent_on}
+            for item in data.library_lendings
+        }
+        if (
+            "EbiblioLendings" in self._failed_this_cycle
+            or "EbiblioLendings" in self.fallback_sections
+        ):
+            # Not seeded from a failed fetch either: an empty first list
+            # would announce every book as new once Librus answers.
+            return
+        known = self._known_library
+        if known and not current:
+            # Every book gone at once is more likely a refused or emptied
+            # fetch than the whole stack handed back - keep the list and
+            # announce nothing.
+            return
+        self._known_library = current
+        if known is None:
+            return
+        base = {
+            "entry_id": self.config_entry.entry_id if self.config_entry else None,
+            "student": data.me.display_name,
+        }
+        for action, ids, source in (
+            ("lent", current.keys() - known.keys(), current),
+            ("returned", known.keys() - current.keys(), known),
+        ):
+            for item_id in sorted(ids):
+                fields = source[item_id]
+                self.hass.bus.async_fire(
+                    EVENT_LIBRARY_CHANGED,
+                    {
+                        **base,
+                        "action": action,
+                        "id": item_id,
+                        "title": fields.get("title"),
+                        "author": fields.get("author"),
+                        "lent_on": fields.get("lent_on"),
+                    },
+                )
 
     def _fire_agenda_change_events(self, data: LibrusData, today: date) -> None:
         """EVENT_AGENDA_CHANGED for an upcoming Agenda entry whose date,
@@ -4653,6 +5367,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 data,
                 today,
                 thresholds=self.grade_thresholds,
+                point_thresholds=self.point_grade_thresholds_for(data),
                 weighted=self.weighted_average,
                 student_number=student_number,
                 homework_done=len(self.homework_done_ever),

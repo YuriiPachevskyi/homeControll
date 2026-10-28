@@ -68,13 +68,18 @@ from .const import (
     CONF_ANNOUNCEMENTS_ENABLED,
     CONF_AVERAGE_MODE,
     CONF_BEHAVIOUR_GRADES_ENABLED,
+    CONF_CALENDAR_EMOJI,
     CONF_COOKIES,
     CONF_DESCRIPTIVE_GRADES_ENABLED,
     CONF_FREE_DAYS_ENABLED,
     CONF_GRADE_THRESHOLDS,
     CONF_HIDE_EMPTY_SUBJECTS,
     CONF_MERGE_PARALLEL_LESSONS,
+    CONF_MESSAGES_COUNT,
     CONF_MESSAGES_ENABLED,
+    CONF_MESSAGE_SENDING_ENABLED,
+    CONF_POINT_GRADE_THRESHOLDS,
+    CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT,
     CONF_QUIET_HOURS_ENABLED,
     CONF_QUIET_HOURS_END,
     CONF_QUIET_HOURS_START,
@@ -88,18 +93,23 @@ from .const import (
     DEFAULT_ANNOUNCEMENTS_ENABLED,
     DEFAULT_AVERAGE_MODE,
     DEFAULT_BEHAVIOUR_GRADES_ENABLED,
+    DEFAULT_CALENDAR_EMOJI,
     DEFAULT_DESCRIPTIVE_GRADES_ENABLED,
     DEFAULT_FREE_DAYS_ENABLED,
     DEFAULT_HIDE_EMPTY_SUBJECTS,
     DEFAULT_MERGE_PARALLEL_LESSONS,
+    DEFAULT_MESSAGES_COUNT,
     DEFAULT_MESSAGES_ENABLED,
+    DEFAULT_MESSAGE_SENDING_ENABLED,
     DEFAULT_QUIET_HOURS_ENABLED,
     DEFAULT_QUIET_HOURS_END,
     DEFAULT_QUIET_HOURS_START,
     DEFAULT_SCAN_INTERVAL_MINUTES,
     DEFAULT_SMART_POLLING,
     DOMAIN,
+    MAX_MESSAGES_COUNT,
     MAX_SCAN_INTERVAL_MINUTES,
+    MIN_MESSAGES_COUNT,
     MIN_SCAN_INTERVAL_MINUTES,
 )
 from .forecast import DEFAULT_GRADE_THRESHOLDS
@@ -378,6 +388,23 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
                     default=options.get(CONF_MESSAGES_ENABLED, DEFAULT_MESSAGES_ENABLED),
                 ): BooleanSelector(),
                 vol.Required(
+                    CONF_MESSAGES_COUNT,
+                    default=options.get(CONF_MESSAGES_COUNT, DEFAULT_MESSAGES_COUNT),
+                ): NumberSelector(
+                    NumberSelectorConfig(
+                        min=MIN_MESSAGES_COUNT,
+                        max=MAX_MESSAGES_COUNT,
+                        step=5,
+                        mode=NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Required(
+                    CONF_MESSAGE_SENDING_ENABLED,
+                    default=options.get(
+                        CONF_MESSAGE_SENDING_ENABLED, DEFAULT_MESSAGE_SENDING_ENABLED
+                    ),
+                ): BooleanSelector(),
+                vol.Required(
                     CONF_ANNOUNCEMENTS_ENABLED,
                     default=options.get(CONF_ANNOUNCEMENTS_ENABLED, DEFAULT_ANNOUNCEMENTS_ENABLED),
                 ): BooleanSelector(),
@@ -411,6 +438,20 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
                     CONF_GRADE_THRESHOLDS,
                     default=options.get(CONF_GRADE_THRESHOLDS, DEFAULT_GRADE_THRESHOLDS),
                 ): TextSelector(TextSelectorConfig()),
+                # Optional: no common scale to default to (see
+                # const.CONF_POINT_GRADE_THRESHOLDS); empty keeps point-graded
+                # subjects out of the forecast.
+                vol.Optional(
+                    CONF_POINT_GRADE_THRESHOLDS,
+                    description={"suggested_value": options.get(CONF_POINT_GRADE_THRESHOLDS)},
+                ): TextSelector(TextSelectorConfig()),
+                # Per-subject scales, one "subject: thresholds" a line.
+                vol.Optional(
+                    CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT,
+                    description={
+                        "suggested_value": options.get(CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT)
+                    },
+                ): TextSelector(TextSelectorConfig(multiline=True)),
                 # Optional override: the number is read from Librus
                 # (coordinator.student_number_from_librus);
                 # a value here wins over it.
@@ -429,6 +470,10 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
                     default=options.get(
                         CONF_MERGE_PARALLEL_LESSONS, DEFAULT_MERGE_PARALLEL_LESSONS
                     ),
+                ): BooleanSelector(),
+                vol.Required(
+                    CONF_CALENDAR_EMOJI,
+                    default=options.get(CONF_CALENDAR_EMOJI, DEFAULT_CALENDAR_EMOJI),
                 ): BooleanSelector(),
                 vol.Required(
                     CONF_SMART_POLLING,

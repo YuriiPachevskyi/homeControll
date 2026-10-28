@@ -20,11 +20,15 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Add the switch only while the weekly summary is configured."""
+    registry = er.async_get(hass)
+    # 0.12.12-beta.1 had a "Message sending" switch; the setting lives only
+    # under Configure now.
+    if old := registry.async_get_entity_id("switch", DOMAIN, f"{entry.entry_id}_message_sending"):
+        registry.async_remove(old)
     summary = entry.runtime_data.weekly_summary
     if summary is not None:
         async_add_entities([LibrusWeeklySummarySwitch(summary, entry)])
         return
-    registry = er.async_get(hass)
     if entity_id := registry.async_get_entity_id(
         "switch", DOMAIN, f"{entry.entry_id}_weekly_summary_enabled"
     ):
@@ -51,13 +55,9 @@ class LibrusWeeklySummarySwitch(SwitchEntity):
     def is_on(self) -> bool:
         return self._summary.enabled
 
-    @property
-    def icon(self) -> str:
-        """Filled sparkles while on, outlined while paused."""
-        return "mdi:creation" if self._summary.enabled else "mdi:creation-outline"
-
     async def async_turn_on(self, **kwargs: Any) -> None:
         await self._summary.async_set_enabled(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._summary.async_set_enabled(False)
+

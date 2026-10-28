@@ -71,7 +71,6 @@ class LibrusSchoolBinarySensor(
 
 
 class LibrusSchoolDayTodaySensor(LibrusSchoolBinarySensor):
-    _attr_icon = "mdi:school-outline"
 
     def __init__(
         self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry
@@ -90,7 +89,6 @@ class LibrusSchoolDayTodaySensor(LibrusSchoolBinarySensor):
 
 
 class LibrusSchoolDayTomorrowSensor(LibrusSchoolBinarySensor):
-    _attr_icon = "mdi:calendar-arrow-right"
 
     def __init__(
         self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry
@@ -113,7 +111,6 @@ class LibrusInSchoolSensor(LibrusSchoolBinarySensor):
     """On from the first lesson's start to the last lesson's end today,
     breaks included - by the timetable, not by where the child really is."""
 
-    _attr_icon = "mdi:bag-personal-outline"
 
     def __init__(
         self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry
@@ -157,6 +154,7 @@ class LibrusGradeRiskSensor(
             self.coordinator.grade_thresholds,
             weighted=self.coordinator.weighted_average,
             owner=self.coordinator.memo_owner,
+            point_thresholds=self.coordinator.point_grade_thresholds,
         )
 
     @property

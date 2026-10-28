@@ -90,6 +90,12 @@ DEFAULT_HIDE_EMPTY_SUBJECTS = False
 CONF_MERGE_PARALLEL_LESSONS = "merge_parallel_lessons"
 DEFAULT_MERGE_PARALLEL_LESSONS = True
 
+# An emoji in front of timetable and Agenda calendar titles ("📐 Matematyka",
+# "📝 [Sprawdzian] ...") - see subject_emoji.py. Off by default: it changes
+# what every calendar consumer sees (the companion cards strip it).
+CONF_CALENDAR_EMOJI = "calendar_emoji"
+DEFAULT_CALENDAR_EMOJI = False
+
 # When False (set via the options flow), the coordinator skips the whole
 # Wiadomości (private messages) subsystem - its separate wiadomosci.librus.pl
 # session bootstrap plus the per-cycle unread-count/list calls. The Unread
@@ -97,6 +103,24 @@ DEFAULT_MERGE_PARALLEL_LESSONS = True
 # a school that hasn't enabled the module.
 CONF_MESSAGES_ENABLED = "messages_enabled"
 DEFAULT_MESSAGES_ENABLED = True
+# How many of the newest messages each mailbox list fetches (inbox, sent,
+# archive, substitutions...) - and so how many the Unread messages sensor's
+# lists hold. Librus's own web app pages by 10.
+CONF_MESSAGES_COUNT = "messages_count"
+DEFAULT_MESSAGES_COUNT = 10
+MIN_MESSAGES_COUNT = 10
+MAX_MESSAGES_COUNT = 50
+# Writing messages (the send_message / withdraw_message services) - off by
+# default: a sent message goes to a real teacher and can't be unsent once
+# read, so it has to be switched on deliberately under Configure.
+CONF_MESSAGE_SENDING_ENABLED = "message_sending_enabled"
+DEFAULT_MESSAGE_SENDING_ENABLED = False
+# At most this many messages per student per hour - a runaway automation
+# can't flood a teacher's inbox.
+MESSAGE_SEND_LIMIT_PER_HOUR = 10
+# Options read live wherever they're used - changing one doesn't reload
+# the integration.
+LIVE_OPTIONS = frozenset({CONF_MESSAGE_SENDING_ENABLED})
 
 # Same "skip the fetch, sensor goes unavailable" shape as CONF_MESSAGES_
 # ENABLED above, extended to the other optional (non-core) data groups.
@@ -127,6 +151,15 @@ DEFAULT_AVERAGE_MODE = AVERAGE_MODE_WEIGHTED
 # (forecast.py). Free text so any school's statute fits; an unusable value
 # falls back to forecast.DEFAULT_GRADE_THRESHOLDS.
 CONF_GRADE_THRESHOLDS = "grade_thresholds"
+# Minimum percentages for a 2..6 in point-graded subjects (PointGrades).
+# Empty by default: there is no common scale (schools - often single
+# subjects - set their own), so without it point-graded subjects stay out
+# of the forecast. See forecast.parse_point_thresholds.
+CONF_POINT_GRADE_THRESHOLDS = "point_grade_thresholds"
+# Per-subject overrides of those percentages, one subject a line:
+# "fizyka: 30, 50, 70, 85, 96" (teachers often set their own scale). See
+# forecast.parse_point_thresholds_by_subject.
+CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT = "point_grade_thresholds_by_subject"
 
 # The student's own number in the class register ("numer w dzienniku") -
 # an optional manual override. The number is normally read from Librus
@@ -273,6 +306,9 @@ REFERENCE_DATA_ENDPOINT_LABELS = (
     # wait for the next day.
     "Grades/Categories",
     "Attendances/Types",
+    # Names of the class free-day types ("Wycieczka", ...) - a ClassFreeDays
+    # entry has no name of its own.
+    "ClassFreeDays/Types",
 )
 
 # The handful of degradable fetches that don't belong to any of the three
@@ -304,6 +340,9 @@ MISC_DEGRADABLE_ENDPOINT_LABELS = (
     "Realizations",
     "SchoolTrips",
     "SchoolFiles",
+    # School library lendings and the school year's plan changes.
+    "EbiblioLendings",
+    "Calendars/Substitutions",
     # Descriptive grades' comments and skill names - only fetched when the
     # student has descriptive grades.
     "DescriptiveGrades/Comments",
@@ -354,6 +393,9 @@ EVENT_JUSTIFICATION_STATUS = f"{DOMAIN}_justification_status"
 # Seeded silently on the first sync.
 EVENT_NEW_SCHOOL_TRIP = f"{DOMAIN}_new_school_trip"
 EVENT_NEW_SCHOOL_DOCUMENT = f"{DOMAIN}_new_school_document"
+# A book the school library lent to the student (`action: lent`) or got
+# back (`action: returned`). Seeded silently on the first sync.
+EVENT_LIBRARY_CHANGED = f"{DOMAIN}_library_changed"
 # Fires for a new real homework assignment ("zadanie domowe", the
 # `HomeWorkAssignments` endpoint) - distinct from EVENT_NEW_HOMEWORK, which
 # despite its name covers the Agenda feed. Carries topic/text/due date, the

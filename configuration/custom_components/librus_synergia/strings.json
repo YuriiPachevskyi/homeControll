@@ -74,6 +74,8 @@
         "data": {
           "scan_interval": "Poll interval (minutes)",
           "messages_enabled": "Fetch private messages (Wiadomości)",
+          "messages_count": "Messages to fetch per mailbox",
+          "message_sending_enabled": "Allow sending messages (beta)",
           "announcements_enabled": "Fetch announcements (ogłoszenia)",
           "behaviour_grades_enabled": "Fetch behaviour grade (ocena zachowania)",
           "descriptive_grades_enabled": "Fetch descriptive grades",
@@ -81,8 +83,11 @@
           "average_mode": "Grade average shown as the sensor state",
           "student_number": "Student's number in the class register",
           "grade_thresholds": "Grade forecast thresholds",
+          "point_grade_thresholds": "Point grade forecast thresholds (%)",
+          "point_grade_thresholds_by_subject": "Point grade thresholds per subject",
           "hide_empty_subjects": "Hide subjects without grades",
           "merge_parallel_lessons": "Merge lessons held at the same time",
+          "calendar_emoji": "Emoji in calendar titles",
           "smart_polling": "Smart polling",
           "quiet_hours_enabled": "Enable quiet hours (skip polling overnight)",
           "quiet_hours_start": "Quiet hours start",
@@ -91,6 +96,8 @@
         "data_description": {
           "scan_interval": "How often to refresh grades, attendance, timetable and announcements. Keep this modest - it is an unofficial API.",
           "messages_enabled": "When off, the Unread messages sensor goes unavailable and no messages calls are made - fewer requests to Librus.",
+          "messages_count": "How many of the newest messages each mailbox list holds (received, sent, archive and the others), 10-50. More means longer lists in the Messages card, a bit more data per refresh and larger sensor attributes.",
+          "message_sending_enabled": "Lets the send_message and withdraw_message services - and the Messages card's Reply / Write - write to teachers and the school in Wiadomości. Off by default: a sent message goes to a real person. Not available to Assist or the AI summary.",
           "announcements_enabled": "When off, the Unread announcements sensor goes unavailable and no SchoolNotices calls are made.",
           "behaviour_grades_enabled": "When off, the Behaviour grade sensor goes unavailable and no BehaviourGrades calls are made.",
           "descriptive_grades_enabled": "When off, the Descriptive grades sensor goes unavailable and no DescriptiveGrades calls are made.",
@@ -98,7 +105,10 @@
           "average_mode": "Weighted uses each grade category's weight (what Librus itself shows). Arithmetic is a plain mean of the same grades. Both stay available as attributes either way.",
           "student_number": "Optional - the number is read from Librus automatically. Fill this in only to override it. The Lucky number sensor uses it to show whether it's your number.",
           "grade_thresholds": "Minimum average for a 2, 3, 4, 5 and 6, comma separated (e.g. 1.75, 2.75, 3.75, 4.75, 5.50). Check your school's statute (WSO) - schools use different ones. Used by the Grade forecast sensor and the Grade at risk binary sensor.",
+          "point_grade_thresholds": "Only for schools grading some subjects in points. Minimum percentage of points for a 2, 3, 4, 5 and 6, comma separated (e.g. 40, 55, 75, 90, 98) - check your school's statute or the subject's grading rules. Empty: point-graded subjects are left out of the grade forecast.",
+          "point_grade_thresholds_by_subject": "Only if a teacher uses a different scale. One subject a line: the subject's name, a colon and the minimum percentage for a 2, 3, 4, 5 and 6, e.g. \"fizyka: 30, 50, 70, 85, 96\". Case and Polish letters don't matter. These subjects use their own scale; the others use the general one above (or stay out of the forecast if it's empty). Entries that match no subject are listed in the Grade forecast sensor's point_thresholds_unmatched attribute.",
           "hide_empty_subjects": "No average sensor for a subject until it gets its first grade (e.g. Religia early in the year). Existing sensors of such subjects are removed; they come back with the first grade.",
+          "calendar_emoji": "An emoji in front of timetable and Agenda calendar entries, e.g. \"📐 Matematyka\" or \"📝 [Sprawdzian] Chemia: ...\" - easier to read on a phone or a watch. Also used by the Copy to calendar action. The companion cards show the title without it.",
           "merge_parallel_lessons": "Lessons with the same start and end (e.g. a subject plus Wspomaganie, or split groups) show as one timetable calendar entry, e.g. \"Edukacja wczesnoszkolna + Wspomaganie\". A cancelled lesson and its substitution always stay separate.",
           "smart_polling": "Saves requests when nothing is happening. On school days between 06:00 and 22:00 data is refreshed at the poll interval above. On a day without lessons (weekend, holidays) at most once an hour, and at night (22:00-06:00) at most every 3 hours. The Refresh action (librus_synergia.refresh) always fetches straight away. Quiet hours below, if on, still apply.",
           "quiet_hours_enabled": "When on, no data is fetched from Librus during the window below - entities just keep their last known state overnight.",
@@ -164,6 +174,7 @@
       "agenda_change_event": { "name": "Agenda entry changed", "state_attributes": { "event_type": { "state": { "changed": "Changed", "removed": "Removed" } } } },
       "justification_event": { "name": "Absence justification decided", "state_attributes": { "event_type": { "state": { "accepted": "Accepted", "rejected": "Rejected", "changed": "Status changed" } } } },
       "school_trip_event": { "name": "New school trip", "state_attributes": { "event_type": { "state": { "new_trip": "New trip" } } } },
+      "library_event": { "name": "School library", "state_attributes": { "event_type": { "state": { "lent": "Book lent", "returned": "Book returned" } } } },
       "school_document_event": { "name": "New school document", "state_attributes": { "event_type": { "state": { "new_document": "New document" } } } },
       "announcement_event": { "name": "New announcement", "state_attributes": { "event_type": { "state": { "new_announcement": "New announcement" } } } },
       "message_event": { "name": "New message", "state_attributes": { "event_type": { "state": { "new_message": "New message" } } } },
@@ -185,6 +196,8 @@
       "plan_changes": { "name": "Changes to the usual timetable" },
       "school_trips": { "name": "Next school trip" },
       "school_documents": { "name": "School documents" },
+      "library_books": { "name": "Library books" },
+      "cancelled_lessons": { "name": "Cancelled lessons this year" },
       "justifications": { "name": "Absence justifications" },
       "point_grades": { "name": "Point grades" },
       "status": { "name": "Connection status", "state": { "ok": "OK", "degraded": "Partly from saved data", "stale": "Librus not responding", "error": "Error" } },
@@ -232,7 +245,8 @@
     "calendar": {
       "timetable": { "name": "Timetable" },
       "agenda": { "name": "Agenda" },
-      "free_days": { "name": "Free days" }
+      "free_days": { "name": "Free days" },
+      "absences": { "name": "Absences" }
     }
   },
   "services": {
@@ -277,6 +291,152 @@
           "description": "Limit to one subject's grades, using the subject average sensor's \"subject_id\" attribute. Leave empty for every subject."
         }
       }
+    },
+    "get_message_recipients": {
+      "name": "Get message recipients",
+      "description": "Lists who a message can be sent to in Wiadomości: the class tutor, the teachers (with the subjects they teach the student), head teachers, the secretary's office and other staff. Read-only.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Librus Synergia device (student)."
+        }
+      }
+    },
+    "send_message": {
+      "name": "Send message",
+      "description": "Sends a Wiadomości message to a teacher or the school, or replies to a received message in its thread. Needs \"Allow sending messages (beta)\" on under Configure (except a dry run). Sent once, never retried; at most 10 messages an hour.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Librus Synergia device (student) whose parent account sends it."
+        },
+        "recipient": {
+          "name": "Recipient",
+          "description": "Who gets it: \"wychowawca\" (the class tutor), \"sekretariat\", a subject (its teacher, e.g. \"Matematyka\"), part of a name, or an account id from Get message recipients. Several allowed. Not used with Reply to."
+        },
+        "topic": {
+          "name": "Topic",
+          "description": "The subject line. With Reply to, defaults to \"Re:\" and the original topic."
+        },
+        "message": {
+          "name": "Message",
+          "description": "The text. Plain text; new lines are kept."
+        },
+        "reply_to": {
+          "name": "Reply to",
+          "description": "A received message's id (\"id\" in the Unread messages sensor's \"recent\"): the message goes to its sender, in its thread. Opening it to find the sender marks it read."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Only show who it would go to and what - nothing is sent."
+        }
+      }
+    },
+    "mark_announcement_read": {
+      "name": "Mark announcement read",
+      "description": "Marks school notices read in Librus, as opening them there does. Leave the ID empty to mark every unread notice.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Librus Synergia device (student)."
+        },
+        "announcement_id": {
+          "name": "Announcement ID",
+          "description": "The notice's \"id\" from the Unread announcements sensor's \"notices\" attribute. One or more; empty marks every unread notice."
+        }
+      }
+    },
+    "mark_message_read": {
+      "name": "Mark message read",
+      "description": "Marks Wiadomości messages read by opening them, as reading them in Librus does. Leave the ID empty to mark every unread message on the mailbox's list.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Librus Synergia device (student)."
+        },
+        "message_id": {
+          "name": "Message ID",
+          "description": "The message's \"id\" from the Unread messages sensor's \"recent\" (or a mailbox's own \"..._recent\") attribute. One or more; empty marks every unread message on the list."
+        },
+        "mailbox": {
+          "name": "Mailbox",
+          "description": "Where the messages are: inbox (default), substitutions, alerts, justifications or archive/inbox."
+        }
+      }
+    },
+    "sync_calendar": {
+      "name": "Copy to calendar",
+      "description": "Copies tests, trips, meetings and days off into another calendar (e.g. a family Google Calendar) and keeps the copies up to date: a moved test is moved, a cancelled one removed. Only events this action added (tagged in their description) are ever changed.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Librus Synergia device (student)."
+        },
+        "target_calendar": {
+          "name": "Target calendar",
+          "description": "Where the events go. It must allow adding events from Home Assistant (Google Calendar, Local Calendar); moving and removing also need the calendar to allow editing and deleting."
+        },
+        "days": {
+          "name": "Days ahead",
+          "description": "How far ahead to copy, from today. Past events are never changed."
+        },
+        "categories": {
+          "name": "Agenda categories",
+          "description": "Comma-separated words matched against the Agenda category (case and Polish letters don't matter, part of the word is enough), e.g. \"sprawdzian, kartkówka, wycieczka, zebranie\". Empty copies every entry."
+        },
+        "free_days": {
+          "name": "Days off",
+          "description": "Also copy days off that fall on a weekday."
+        },
+        "prefix": {
+          "name": "Title prefix",
+          "description": "Put in front of every title, e.g. the student's first name (\"Ola:\") when several children share one calendar."
+        },
+        "dry_run": {
+          "name": "Dry run",
+          "description": "Only list what would change, without changing the calendar."
+        }
+      }
+    },
+    "withdraw_message": {
+      "name": "Withdraw message",
+      "description": "Withdraws a message you sent, while Librus still allows it. Needs \"Allow sending messages (beta)\" on under Configure.",
+      "fields": {
+        "device_id": {
+          "name": "Device",
+          "description": "The Librus Synergia device (student)."
+        },
+        "message_id": {
+          "name": "Message ID",
+          "description": "The sent message's id - \"message_id\" from Send message, or \"id\" in \"outbox_recent\"."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "message_sending_disabled": {
+      "message": "Sending messages is off. Turn on \"Allow sending messages (beta)\" under the integration's Configure, or use a dry run."
+    },
+    "message_no_recipient": {
+      "message": "Give a recipient, or Reply to with a received message's id."
+    },
+    "message_no_topic": {
+      "message": "Give the message a topic."
+    },
+    "message_duplicate_recipient": {
+      "message": "The same person is given more than once."
+    },
+    "message_recipient_unknown": {
+      "message": "No recipient matches \"{recipient}\". Get message recipients lists who a message can go to."
+    },
+    "message_recipient_ambiguous": {
+      "message": "\"{recipient}\" matches more than one recipient: {candidates}. Be more specific or use an account id."
+    },
+    "message_not_sent": {
+      "message": "The message was not sent: {error}"
+    },
+    "message_maybe_sent": {
+      "message": "Not sure the message went out - check Sent before trying again."
     }
   }
 }

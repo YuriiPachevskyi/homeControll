@@ -74,6 +74,8 @@
         "data": {
           "scan_interval": "Częstotliwość odpytywania (minuty)",
           "messages_enabled": "Pobieraj wiadomości prywatne (Wiadomości)",
+          "messages_count": "Liczba pobieranych wiadomości w skrzynce",
+          "message_sending_enabled": "Pozwól wysyłać wiadomości (beta)",
           "announcements_enabled": "Pobieraj ogłoszenia",
           "behaviour_grades_enabled": "Pobieraj ocenę zachowania",
           "descriptive_grades_enabled": "Pobieraj oceny opisowe",
@@ -81,8 +83,11 @@
           "average_mode": "Średnia pokazywana jako stan sensora",
           "student_number": "Numer ucznia w dzienniku",
           "grade_thresholds": "Progi prognozy ocen",
+          "point_grade_thresholds": "Progi prognozy dla ocen punktowych (%)",
+          "point_grade_thresholds_by_subject": "Progi ocen punktowych dla przedmiotów",
           "hide_empty_subjects": "Ukryj przedmioty bez ocen",
           "merge_parallel_lessons": "Łącz lekcje odbywające się w tym samym czasie",
+          "calendar_emoji": "Emoji w tytułach kalendarza",
           "smart_polling": "Sprytne odświeżanie",
           "quiet_hours_enabled": "Włącz ciszę nocną (bez odpytywania w nocy)",
           "quiet_hours_start": "Początek ciszy nocnej",
@@ -91,6 +96,8 @@
         "data_description": {
           "scan_interval": "Jak często odświeżać oceny, frekwencję, plan lekcji i ogłoszenia. Zachowaj umiar - to nieoficjalne API.",
           "messages_enabled": "Gdy wyłączone, sensor Nieprzeczytane wiadomości staje się niedostępny i nie są wykonywane żadne zapytania o wiadomości - mniej ruchu do Librusa.",
+          "messages_count": "Ile najnowszych wiadomości trzyma lista każdej skrzynki (odebrane, wysłane, archiwum i pozostałe), 10-50. Więcej to dłuższe listy w karcie Wiadomości, trochę więcej danych przy odświeżaniu i większe atrybuty sensora.",
+          "message_sending_enabled": "Pozwala usługom send_message i withdraw_message oraz przyciskom Odpowiedz / Napisz w karcie Wiadomości pisać do nauczycieli i szkoły w Wiadomościach. Domyślnie wyłączone: wysłana wiadomość trafia do prawdziwej osoby. Niedostępne dla Assist ani podsumowania AI.",
           "announcements_enabled": "Gdy wyłączone, sensor Nieprzeczytane ogłoszenia staje się niedostępny i nie są wykonywane żadne zapytania o ogłoszenia.",
           "behaviour_grades_enabled": "Gdy wyłączone, sensor Ocena zachowania staje się niedostępny i nie są wykonywane żadne zapytania o ocenę zachowania.",
           "descriptive_grades_enabled": "Gdy wyłączone, sensor Oceny opisowe staje się niedostępny i nie są wykonywane żadne zapytania o oceny opisowe.",
@@ -98,7 +105,10 @@
           "average_mode": "Ważona uwzględnia wagi kategorii ocen (tak liczy sam Librus). Arytmetyczna to zwykła średnia tych samych ocen. Obie są zawsze dostępne w atrybutach.",
           "student_number": "Opcjonalne - numer jest pobierany z Librusa automatycznie. Wpisz go tylko, jeśli chcesz go nadpisać. Sensor Szczęśliwy numerek pokazuje na jego podstawie, czy to Twój numerek.",
           "grade_thresholds": "Minimalna średnia na 2, 3, 4, 5 i 6, po przecinku (np. 1.75, 2.75, 3.75, 4.75, 5.50). Sprawdź statut szkoły (WSO) - szkoły mają różne progi. Używane przez sensor Prognoza ocen i czujnik Zagrożenie oceną.",
+          "point_grade_thresholds": "Tylko dla szkół oceniających część przedmiotów punktami. Minimalny procent punktów na 2, 3, 4, 5 i 6, po przecinku (np. 40, 55, 75, 90, 98) - sprawdź statut szkoły lub przedmiotowe zasady oceniania. Puste: przedmioty oceniane punktami nie wchodzą do prognozy ocen.",
+          "point_grade_thresholds_by_subject": "Tylko jeśli nauczyciel ma inną skalę. Jeden przedmiot w linii: nazwa przedmiotu, dwukropek i minimalny procent na 2, 3, 4, 5 i 6, np. „fizyka: 30, 50, 70, 85, 96”. Wielkość liter i polskie znaki nie mają znaczenia. Te przedmioty używają swojej skali, pozostałe ogólnej z pola wyżej (a gdy jest puste, nie wchodzą do prognozy). Wpisy, które nie pasują do żadnego przedmiotu, są w atrybucie point_thresholds_unmatched sensora Prognoza ocen.",
           "hide_empty_subjects": "Średnia z przedmiotu pojawia się dopiero po jego pierwszej ocenie (np. Religia na początku roku). Istniejące sensory takich przedmiotów zostaną usunięte i wrócą z pierwszą oceną.",
+          "calendar_emoji": "Emoji przed wpisami w kalendarzach planu lekcji i terminarza, np. „📐 Matematyka” albo „📝 [Sprawdzian] Chemia: ...” - łatwiej czytać na telefonie i zegarku. Używa go też akcja Kopiuj do kalendarza. Karty pokazują tytuł bez emoji.",
           "merge_parallel_lessons": "Lekcje o tej samej godzinie rozpoczęcia i zakończenia (np. przedmiot i Wspomaganie albo grupy) są jednym wpisem w kalendarzu planu lekcji, np. „Edukacja wczesnoszkolna + Wspomaganie”. Odwołana lekcja i jej zastępstwo zawsze zostają osobno.",
           "smart_polling": "Oszczędza zapytania, kiedy nic się nie dzieje. W dni szkolne od 6:00 do 22:00 dane odświeżają się co interwał ustawiony wyżej. W dzień bez lekcji (weekend, ferie) najwyżej raz na godzinę, a w nocy (22:00-6:00) najwyżej co 3 godziny. Akcja Odśwież (librus_synergia.refresh) zawsze pobiera od razu. Godziny ciszy poniżej, jeśli włączone, nadal działają.",
           "quiet_hours_enabled": "Gdy włączone, w oknie poniżej nie są pobierane żadne dane z Librusa - encje po prostu zachowują ostatni znany stan przez noc.",
@@ -164,6 +174,7 @@
       "agenda_change_event": { "name": "Zmiana w terminarzu", "state_attributes": { "event_type": { "state": { "changed": "Zmieniony", "removed": "Usunięty" } } } },
       "justification_event": { "name": "Decyzja w usprawiedliwieniu", "state_attributes": { "event_type": { "state": { "accepted": "Przyjęte", "rejected": "Odrzucone", "changed": "Zmiana statusu" } } } },
       "school_trip_event": { "name": "Nowa wycieczka", "state_attributes": { "event_type": { "state": { "new_trip": "Nowa wycieczka" } } } },
+      "library_event": { "name": "Biblioteka szkolna", "state_attributes": { "event_type": { "state": { "lent": "Wypożyczona książka", "returned": "Oddana książka" } } } },
       "school_document_event": { "name": "Nowy dokument szkoły", "state_attributes": { "event_type": { "state": { "new_document": "Nowy dokument" } } } },
       "announcement_event": { "name": "Nowe ogłoszenie", "state_attributes": { "event_type": { "state": { "new_announcement": "Nowe ogłoszenie" } } } },
       "message_event": { "name": "Nowa wiadomość", "state_attributes": { "event_type": { "state": { "new_message": "Nowa wiadomość" } } } },
@@ -185,6 +196,8 @@
       "plan_changes": { "name": "Zmiany względem stałego planu" },
       "school_trips": { "name": "Najbliższa wycieczka" },
       "school_documents": { "name": "Dokumenty szkoły" },
+      "library_books": { "name": "Wypożyczone książki" },
+      "cancelled_lessons": { "name": "Odwołane lekcje w tym roku" },
       "justifications": { "name": "Usprawiedliwienia" },
       "point_grades": { "name": "Oceny punktowe" },
       "status": { "name": "Status połączenia", "state": { "ok": "OK", "degraded": "Częściowo z zapisanych danych", "stale": "Librus nie odpowiada", "error": "Błąd" } },
@@ -232,7 +245,8 @@
     "calendar": {
       "timetable": { "name": "Plan lekcji" },
       "agenda": { "name": "Terminarz" },
-      "free_days": { "name": "Dni wolne" }
+      "free_days": { "name": "Dni wolne" },
+      "absences": { "name": "Nieobecności" }
     }
   },
   "services": {
@@ -277,6 +291,152 @@
           "description": "Ogranicz do ocen z jednego przedmiotu, używając atrybutu \"subject_id\" sensora średniej przedmiotowej. Zostaw puste dla wszystkich przedmiotów."
         }
       }
+    },
+    "get_message_recipients": {
+      "name": "Pobierz odbiorców wiadomości",
+      "description": "Pokazuje, do kogo można wysłać wiadomość w Wiadomościach: wychowawcę, nauczycieli (z przedmiotami, których uczą ucznia), dyrekcję, sekretariat i innych pracowników. Tylko odczyt.",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Urządzenie Librus Synergia (uczeń)."
+        }
+      }
+    },
+    "send_message": {
+      "name": "Wyślij wiadomość",
+      "description": "Wysyła wiadomość w Wiadomościach do nauczyciela lub szkoły albo odpowiada na otrzymaną wiadomość w jej wątku. Wymaga włączonej opcji \"Pozwól wysyłać wiadomości (beta)\" w Konfiguracji (poza trybem na sucho). Wysyłana raz, bez ponawiania; najwyżej 10 wiadomości na godzinę.",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Urządzenie Librus Synergia (uczeń), z którego konta rodzica wiadomość wychodzi."
+        },
+        "recipient": {
+          "name": "Odbiorca",
+          "description": "Do kogo: \"wychowawca\", \"sekretariat\", przedmiot (jego nauczyciel, np. \"Matematyka\"), część nazwiska albo numer konta z usługi Pobierz odbiorców wiadomości. Można podać kilku. Nie używane z Odpowiedz na."
+        },
+        "topic": {
+          "name": "Temat",
+          "description": "Temat wiadomości. Przy Odpowiedz na domyślnie \"Re:\" i temat oryginału."
+        },
+        "message": {
+          "name": "Treść",
+          "description": "Tekst wiadomości. Zwykły tekst; nowe linie zostają."
+        },
+        "reply_to": {
+          "name": "Odpowiedz na",
+          "description": "Numer otrzymanej wiadomości (\"id\" w atrybucie \"recent\" sensora Nieprzeczytane wiadomości): odpowiedź trafia do nadawcy, w jej wątku. Otwarcie jej, żeby znaleźć nadawcę, oznacza ją jako przeczytaną."
+        },
+        "dry_run": {
+          "name": "Na sucho",
+          "description": "Tylko pokaż, do kogo i co by poszło - nic nie jest wysyłane."
+        }
+      }
+    },
+    "mark_announcement_read": {
+      "name": "Oznacz ogłoszenie jako przeczytane",
+      "description": "Oznacza ogłoszenia jako przeczytane w Librusie, tak jak ich otwarcie w Librusie. Puste ID oznacza wszystkie nieprzeczytane.",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Urządzenie Librus Synergia (uczeń)."
+        },
+        "announcement_id": {
+          "name": "ID ogłoszenia",
+          "description": "\"id\" ogłoszenia z atrybutu \"notices\" sensora Nieprzeczytane ogłoszenia. Jedno lub więcej; puste oznacza wszystkie nieprzeczytane."
+        }
+      }
+    },
+    "mark_message_read": {
+      "name": "Oznacz wiadomość jako przeczytaną",
+      "description": "Oznacza wiadomości z Wiadomości jako przeczytane, otwierając je - tak jak ich przeczytanie w Librusie. Puste ID oznacza wszystkie nieprzeczytane z listy skrzynki.",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Urządzenie Librus Synergia (uczeń)."
+        },
+        "message_id": {
+          "name": "ID wiadomości",
+          "description": "\"id\" wiadomości z atrybutu \"recent\" (lub \"..._recent\" innej skrzynki) sensora Nieprzeczytane wiadomości. Jedno lub więcej; puste oznacza wszystkie nieprzeczytane z listy."
+        },
+        "mailbox": {
+          "name": "Skrzynka",
+          "description": "Gdzie są wiadomości: inbox (domyślnie), substitutions, alerts, justifications albo archive/inbox."
+        }
+      }
+    },
+    "sync_calendar": {
+      "name": "Kopiuj do kalendarza",
+      "description": "Kopiuje sprawdziany, wycieczki, zebrania i dni wolne do innego kalendarza (np. rodzinnego Google) i pilnuje, żeby kopie były aktualne: przełożony sprawdzian zostaje przeniesiony, odwołany usunięty. Zmienia tylko wpisy dodane przez tę akcję (oznaczone w opisie).",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Urządzenie Librus Synergia (uczeń)."
+        },
+        "target_calendar": {
+          "name": "Kalendarz docelowy",
+          "description": "Dokąd trafiają wpisy. Musi pozwalać na dodawanie wydarzeń z Home Assistanta (Kalendarz Google, Kalendarz lokalny); przenoszenie i usuwanie wymaga też edycji i usuwania wydarzeń."
+        },
+        "days": {
+          "name": "Dni do przodu",
+          "description": "Jak daleko kopiować, licząc od dziś. Minionych wpisów akcja nie zmienia."
+        },
+        "categories": {
+          "name": "Kategorie terminarza",
+          "description": "Słowa oddzielone przecinkami, porównywane z kategorią wpisu w terminarzu (wielkość liter i polskie znaki bez znaczenia, wystarczy część słowa), np. „sprawdzian, kartkówka, wycieczka, zebranie”. Puste kopiuje wszystko."
+        },
+        "free_days": {
+          "name": "Dni wolne",
+          "description": "Kopiuj też dni wolne przypadające w dzień roboczy."
+        },
+        "prefix": {
+          "name": "Przedrostek tytułu",
+          "description": "Dodawany przed każdym tytułem, np. imię ucznia („Ola:”), gdy kilkoro dzieci dzieli jeden kalendarz."
+        },
+        "dry_run": {
+          "name": "Próba",
+          "description": "Tylko pokaż, co by się zmieniło, bez zmieniania kalendarza."
+        }
+      }
+    },
+    "withdraw_message": {
+      "name": "Wycofaj wiadomość",
+      "description": "Wycofuje wysłaną wiadomość, dopóki Librus na to pozwala. Wymaga włączonej opcji \"Pozwól wysyłać wiadomości (beta)\" w Konfiguracji.",
+      "fields": {
+        "device_id": {
+          "name": "Urządzenie",
+          "description": "Urządzenie Librus Synergia (uczeń)."
+        },
+        "message_id": {
+          "name": "Numer wiadomości",
+          "description": "Numer wysłanej wiadomości - \"message_id\" z Wyślij wiadomość albo \"id\" w \"outbox_recent\"."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "message_sending_disabled": {
+      "message": "Wysyłanie wiadomości jest wyłączone. Włącz \"Pozwól wysyłać wiadomości (beta)\" w Konfiguracji integracji albo użyj trybu na sucho."
+    },
+    "message_no_recipient": {
+      "message": "Podaj odbiorcę albo Odpowiedz na z numerem otrzymanej wiadomości."
+    },
+    "message_no_topic": {
+      "message": "Podaj temat wiadomości."
+    },
+    "message_duplicate_recipient": {
+      "message": "Ta sama osoba jest podana więcej niż raz."
+    },
+    "message_recipient_unknown": {
+      "message": "Żaden odbiorca nie pasuje do \"{recipient}\". Usługa Pobierz odbiorców wiadomości pokazuje, do kogo można pisać."
+    },
+    "message_recipient_ambiguous": {
+      "message": "\"{recipient}\" pasuje do kilku odbiorców: {candidates}. Doprecyzuj albo podaj numer konta."
+    },
+    "message_not_sent": {
+      "message": "Wiadomość nie została wysłana: {error}"
+    },
+    "message_maybe_sent": {
+      "message": "Nie wiadomo, czy wiadomość wyszła - sprawdź Wysłane, zanim spróbujesz ponownie."
     }
   }
 }

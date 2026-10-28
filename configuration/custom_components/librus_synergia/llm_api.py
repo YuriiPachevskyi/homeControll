@@ -31,8 +31,9 @@ from homeassistant.helpers import llm
 from homeassistant.util import dt as dt_util
 
 from librus_synergia.models import LibrusData
-from librus_synergia.parsers import plan_differences
+from librus_synergia.parsers import plan_differences, point_grades_percentage
 
+from .absence_budget import absence_budget
 from .ai_summary import _compact, _cut, _dated, _day
 from .catch_up import catch_up
 from .const import AVERAGE_MODE_ARITHMETIC, CONF_AVERAGE_MODE, DEFAULT_AVERAGE_MODE, DOMAIN
@@ -41,6 +42,7 @@ from .coordinator import (
     calculate_average,
     days_since_last_absence,
     days_since_last_negative_note,
+    free_day_lessons,
     grade_improvements,
     infer_subject_id,
     lesson_change,
@@ -252,6 +254,8 @@ class TimetableTool(_LibrusTool):
             free = next(
                 (
                     f.name
+                    if f.whole_day
+                    else f"{f.name} (only lessons {free_day_lessons(f)} off)"
                     for f in data.free_days
                     if (_day(f.date_from) or date.max) <= day <= (_day(f.date_to) or date.min)
                 ),
@@ -293,6 +297,49 @@ class TimetableTool(_LibrusTool):
         return {"days": result_days}
 
 
+def _point_grade_summary(data: Any, subject_ids: set[Any] | None, since: date | None) -> dict[str, Any]:
+    """Point grades (schools grading in points out of a maximum): the picked
+    ones newest first and the percentage per subject over the whole year.
+    Empty at a school without them."""
+    every = [g for g in data.point_grades if subject_ids is None or g.subject_id in subject_ids]
+    if not every:
+        return {}
+    by_subject: dict[str, list[Any]] = {}
+    for grade in every:
+        by_subject.setdefault(_subject_name(data, grade.subject_id) or "?", []).append(grade)
+    picked = sorted(
+        (g for g in every if since is None or (_day(g.add_date) or date.min) >= since),
+        key=lambda g: g.add_date or "",
+        reverse=True,
+    )
+    return {
+        "point_grades": [
+            _compact(
+                {
+                    "date": _dated(g.add_date),
+                    "subject": _subject_name(data, g.subject_id),
+                    "points": g.points,
+                    "max_points": g.max_points,
+                    "percent": g.percentage,
+                    "value": g.value if g.points is None else None,
+                    "category": g.category,
+                    "weight": g.weight,
+                    "counts_to_average": False if not g.counts_to_average else None,
+                    "teacher": _teacher_name(data, g.teacher_id),
+                }
+            )
+            for g in picked[:MAX_GRADES]
+        ]
+        or None,
+        "points_percent_by_subject": {
+            name: point_grades_percentage(grades)
+            for name, grades in sorted(by_subject.items())
+            if point_grades_percentage(grades) is not None
+        }
+        or None,
+    }
+
+
 class GradesTool(_LibrusTool):
     name = "librus_get_grades"
     description = (
@@ -302,7 +349,9 @@ class GradesTool(_LibrusTool):
         "towards the average. Also a forecast of the report-card grade per subject (from the "
         "average and the school's thresholds - the teacher decides the real grade) with how "
         "many 6s lift it and how many 1s drop it. Also grades a teacher gave as text "
-        "(text_grades) and descriptive grades. Filter by subject and by how many days back."
+        "(text_grades), descriptive grades, and point grades (points out of a maximum, "
+        "with the percentage per subject) at schools that use them. Filter by subject and "
+        "by how many days back."
     )
     parameters = _schema(
         {
@@ -409,6 +458,7 @@ class GradesTool(_LibrusTool):
                         coordinator.grade_thresholds,
                         weighted=weighted,
                         owner=coordinator.memo_owner,
+                        point_thresholds=coordinator.point_grade_thresholds,
                     )
                     if subject_ids is None or f.subject_id in subject_ids
                 ]
@@ -448,6 +498,7 @@ class GradesTool(_LibrusTool):
                     if subject_ids is None or d.subject_id in subject_ids
                 ][:10]
                 or None,
+                **_point_grade_summary(data, subject_ids, since),
                 "more_grades_not_shown": len(picked) - MAX_GRADES if len(picked) > MAX_GRADES else None,
                 "no_grades": True if not picked else None,
             }
@@ -587,7 +638,15 @@ class UpcomingTool(_LibrusTool):
             if (_day(trip.date_from) or date.max) <= until and (_day(trip.date_to) or date.min) >= today
         ]
         free_days = [
-            {"name": f.name, "from": _dated(f.date_from), "to": _dated(f.date_to)}
+            _compact(
+                {
+                    "name": f.name,
+                    "from": _dated(f.date_from),
+                    "to": _dated(f.date_to),
+                    # Only these lessons are off, not the whole day.
+                    "only_lessons": free_day_lessons(f),
+                }
+            )
             for f in data.free_days
             if (_day(f.date_from) or date.max) <= until and (_day(f.date_to) or date.min) >= today
         ]
@@ -607,6 +666,22 @@ class UpcomingTool(_LibrusTool):
         )
 
 
+def _absences_left(data: LibrusData, today: date) -> dict[str, Any] | None:
+    """The six tightest subjects of the absence allowance (absence_budget.py)."""
+    budget = absence_budget(data, today)
+    if budget is None or not budget.subjects:
+        return None
+    return {
+        "semester": budget.semester,
+        "semester_ends": budget.end.isoformat(),
+        "note": "An estimate from the timetable; a negative number means already over half.",
+        "subjects_fewest_first": {
+            b.subject: {"absences_left": b.left, "absences_so_far": b.absent, "lessons_in_semester": b.expected}
+            for b in budget.subjects[:6]
+        },
+    }
+
+
 class AttendanceTool(_LibrusTool):
     name = "librus_get_attendance"
     description = (
@@ -615,7 +690,8 @@ class AttendanceTool(_LibrusTool):
         "classified), the dates of absences that still need an excuse, the "
         "justifications the parent sent with the school's decision, and what to catch "
         "up on after the latest absence (missed lessons with their topics, homework "
-        "given meanwhile)."
+        "given meanwhile), and an estimate of how many more lessons can be missed in "
+        "each subject this semester before more than half of them are missed."
     )
     parameters = _schema(
         {
@@ -698,6 +774,7 @@ class AttendanceTool(_LibrusTool):
                 ]
                 or None,
                 "catch_up_after_latest_absence": _catch_up_summary(data, today),
+                "absences_left_this_semester": _absences_left(data, today),
             }
         )
 
@@ -786,14 +863,30 @@ class BehaviourTool(_LibrusTool):
         )
 
 
+def _plan_change_summary(data: Any) -> dict[str, Any]:
+    """Cancelled lessons and substitutions this school year, per subject."""
+    per_subject: dict[str, dict[str, int]] = {}
+    for change in data.plan_changes:
+        name = data.subjects.get(change.original_subject_id, "?")
+        counts = per_subject.setdefault(name, {"cancelled": 0, "substitutions": 0})
+        counts["cancelled" if change.kind == "cancelled" else "substitutions"] += 1
+    return {
+        "cancelled": sum(c["cancelled"] for c in per_subject.values()),
+        "substitutions": sum(c["substitutions"] for c in per_subject.values()),
+        "per_subject": per_subject,
+    }
+
+
 class SchoolInfoTool(_LibrusTool):
     name = "librus_get_school_info"
     description = (
         "The student's school and class: class name, homeroom teacher, school name and "
         "address, the student's number in the class register, today's lucky number "
         "(szczęśliwy numerek: the student with that number is not asked to answer that "
-        "day) and whether it is theirs, the semester and school-year end dates, and the "
-        "documents the school shares with parents (forms, regulations)."
+        "day) and whether it is theirs, the semester and school-year end dates, the "
+        "documents the school shares with parents (forms, regulations), the books lent "
+        "by the school library, and how many lessons were cancelled or covered by a "
+        "substitute this school year (per subject)."
     )
     parameters = _schema({"student": _STUDENT_FIELD})
 
@@ -836,6 +929,14 @@ class SchoolInfoTool(_LibrusTool):
                     for f in data.school_files[:15]
                 ]
                 or None,
+                "library_books": [
+                    _compact(
+                        {"title": _cut(b.title, 160), "author": b.author, "lent_on": _dated(b.lent_on)}
+                    )
+                    for b in data.library_lendings[:30]
+                ]
+                or None,
+                "plan_changes_this_year": _plan_change_summary(data) if data.plan_changes else None,
             }
         )
 
