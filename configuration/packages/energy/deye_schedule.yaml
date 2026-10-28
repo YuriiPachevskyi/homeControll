@@ -162,6 +162,12 @@ automation:
       - 'on'
       - 'off'
       id: boiler_night_changed
+    conditions:
+    # In Save / Save + Night Charge the periodic re-apply runs every 3 hours only
+    - condition: template
+      value_template: '{{ trigger.id != ''periodic_update''
+        or states(''input_select.selling_mode'') not in [''Save'', ''Save + Night Charge'']
+        or now().hour % 3 == 0 }}'
     actions:
     - variables:
         current_state: '{{ states(''input_select.deye_system_state'') }}'
