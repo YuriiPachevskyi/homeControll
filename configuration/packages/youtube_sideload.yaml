@@ -1,0 +1,90 @@
+# YouTube sideload: "Перепідписати" buttons on the YouTube dashboard.
+# A press SSHes into the MacBook (over Tailscale) with a key that may only run
+# ~/work/revanced/iphone/ha-trigger.sh, which queues the re-sign; the Mac reports
+# the outcome back as a persistent notification.
+shell_command:
+  youtube_resign: >-
+    ssh -i /config/.ssh/mac_resign -o UserKnownHostsFile=/config/.ssh/known_hosts
+    -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 -o BatchMode=yes
+    yurii@100.106.241.62 {{ slug }}
+
+automation:
+  - id: youtube_resign_on_button
+    alias: "YouTube: перепідписати телефон по кнопці"
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id:
+          - input_button.youtube_resign_yurii
+          - input_button.youtube_resign_ekaterina
+          - input_button.youtube_resign_mila
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.from_state.state not in ['unavailable'] }}"
+    actions:
+      - variables:
+          slug: "{{ trigger.entity_id | replace('input_button.youtube_resign_', '') }}"
+      - action: persistent_notification.create
+        data:
+          notification_id: "youtube_resign_{{ slug }}"
+          title: "📱 YouTube"
+          message: "⏳ Запит надіслано на MacBook…"
+      - action: shell_command.youtube_resign
+        data:
+          slug: "{{ slug }}"
+        response_variable: result
+        continue_on_error: true
+      - if:
+          - condition: template
+            value_template: "{{ result is not defined or result.returncode != 0 }}"
+        then:
+          - action: persistent_notification.create
+            data:
+              notification_id: "youtube_resign_{{ slug }}"
+              title: "📱 YouTube"
+              message: >-
+                MacBook не відповідає (спить або не в мережі). Відкрий його і натисни ще раз.
+
+# Every phone-signing notification (id youtube…, or "YouTube" in the title;
+# from the Mac or the automation above) is moved off the notification bell
+# into this sensor's `notes` attribute ({notification_id: {title, message,
+# at}}). The YouTube dashboard lists them under the table and hides a ✅
+# result 2 min after it arrived, anything else after a day. Event
+# youtube_resign_clear {notification_id} drops an entry.
+template:
+  - triggers:
+      - trigger: persistent_notification
+        update_type:
+          - added
+          - updated
+          - current
+      - trigger: event
+        event_type: youtube_resign_clear
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.platform == 'event'
+             or trigger.notification.notification_id.startswith('youtube')
+             or 'YouTube' in (trigger.notification.title or '') }}
+    actions:
+      - if:
+          - condition: template
+            value_template: "{{ trigger.platform != 'event' }}"
+        then:
+          - action: persistent_notification.dismiss
+            data:
+              notification_id: "{{ trigger.notification.notification_id }}"
+    sensor:
+      - name: YouTube resign progress
+        unique_id: youtube_resign_progress
+        device_class: timestamp
+        state: "{{ now().isoformat() }}"
+        attributes:
+          notes: >-
+            {% set old = this.attributes.notes or {} if this is defined and this.attributes is defined else {} %}
+            {% if trigger.platform == 'event' %}
+              {{ dict(old.items() | rejectattr('0', 'eq', trigger.event.data.notification_id) | list) }}
+            {% else %}
+              {% set n = trigger.notification %}
+              {{ dict(old.items() | list + [(n.notification_id, {'title': n.title or '', 'message': n.message, 'at': now().isoformat()})]) }}
+            {% endif %}
