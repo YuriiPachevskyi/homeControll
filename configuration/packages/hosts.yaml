@@ -1,6 +1,7 @@
 # Other hosts: Bizon PC and raspberrypi5 power commands (script.host_power),
 # Bizon suspended at 01:00. Bizon resleep after a 6kW blackout is in
-# packages/energy/deye_night_standby.yaml.
+# packages/energy/deye_night_standby.yaml. sensor.bizon_history is today's log
+# of who pressed the Bizon buttons, for the Bizon card on Home.
 shell_command:
   bizon_suspend: 'ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no yurii@192.168.1.4 "sudo systemctl suspend -i </dev/null >/dev/null 2>&1 &"'
   bizon_reboot: 'ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no yurii@192.168.1.4 "sudo reboot </dev/null >/dev/null 2>&1 &"'
@@ -58,8 +59,57 @@ script:
         - poweroff
         rpi5:
         - reboot
+      users:
+        c752ac86fa49439cb55697fc03086f22: Yurii
+        8c053a011ebf477a9076052054f01b22: Kateryna
+        47ed1b74f73c4a08b653b1c979b9c035: Mila
+        fa02b08f9943484ca35baa5b72cd5146: Oleksandr
+        457b2ab40e4f4aac80c3da204bec68a8: Nataliya
     sequence:
     - condition: template
       value_template: '{{ command in allowed.get(host, []) }}'
+    # Only presses by these users are logged; automations run without a user.
+    - if:
+        - condition: template
+          value_template: '{{ context.user_id in users }}'
+      then:
+        - event: host_power_command
+          event_data:
+            host: '{{ host }}'
+            command: '{{ command }}'
+            who: '{{ users[context.user_id] }}'
     - action: shell_command.{{ host }}_{{ command }}
       data: {}
+
+# The whole history sits in its attributes; nothing to graph.
+recorder:
+  exclude:
+    entities:
+      - sensor.bizon_history
+
+# Today's button presses, newest last.
+template:
+  - triggers:
+      - trigger: event
+        event_type: host_power_command
+        event_data:
+          host: bizon
+        id: press
+      - trigger: time
+        at: "00:00:00"
+    actions:
+      - variables:
+          events: >-
+            {% set today = now().date() | string %}
+            {% set kept = (state_attr('sensor.bizon_history', 'events') or []) | selectattr('day', 'eq', today) | list %}
+            {% if trigger.id == 'press' %}
+              {% set kept = kept + [{'day': today, 'time': now().strftime('%H:%M'), 'command': trigger.event.data.command, 'who': trigger.event.data.who}] %}
+            {% endif %}
+            {{ kept[-30:] }}
+    sensor:
+      - name: "Bizon History"
+        unique_id: bizon_history
+        icon: mdi:history
+        state: "{{ events | count }}"
+        attributes:
+          events: "{{ events }}"
