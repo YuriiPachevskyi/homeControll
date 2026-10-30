@@ -64,7 +64,8 @@ automation:
   # Summer 2025/26 peaks were 64-72 C with the old 55 C start, so they start
   # at 50 C now; a fan costs only a few W. Readings over 100 C (241 C on
   # 2026-08) are sensor glitches and ignored. Rechecked every 15 min, on
-  # start/reload and when a fan comes back from unavailable.
+  # start/reload, when a fan comes back from unavailable and 30 s after a
+  # fan turns on.
   - id: '1777532101180'
     alias: 'Fan controllers: Deye 5kW & 6kW'
     description: >-
@@ -92,6 +93,14 @@ automation:
           - switch.fan1_sonoff_10004d5447
           - switch.fan2_sonoff_1002672f1f_1
         from: unavailable
+      # Fan2's Sonoff turns itself on (no HA context) when the 6kW drops
+      # the grid for a moment; recheck instead of waiting for /15.
+      - trigger: state
+        entity_id:
+          - switch.fan1_sonoff_10004d5447
+          - switch.fan2_sonoff_1002672f1f_1
+        to: "on"
+        for: "00:00:30"
       - trigger: state
         entity_id:
           - input_number.deye_fan_on_temperature
