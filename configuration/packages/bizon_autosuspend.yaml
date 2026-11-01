@@ -1,0 +1,91 @@
+# Bizon autosuspend: while input_boolean.bizon_autosuspend (checkbox on the Bizon
+# card on Home) is on, Bizon is suspended once it has been awake for 5 min with
+# no SSH session and no progress in Jellyfin for those 5 min. A paused player
+# does not count as progress (sensor.jellyfin_position stays the same).
+# If a sensor is unavailable the state is unknown, so nothing is suspended.
+#
+# Wake on demand: https://jf.yuriip4.duckdns.org is the Jellyfin address that
+# wakes Bizon (Nginx Proxy Manager host, its advanced config is kept in
+# bizon_jellyfin_nginx.conf). When Bizon does not answer, nginx calls the webhook
+# below and holds the request until Jellyfin is back. local_only: the webhook
+# cannot be reached from outside, so its id does not have to be secret.
+input_boolean:
+  bizon_autosuspend:
+    name: "Bizon autosuspend"
+    icon: mdi:power-sleep
+
+command_line:
+  - sensor:
+      name: "Bizon SSH sessions"
+      unique_id: bizon_ssh_sessions
+      # ~/.local/bin/bizon-ssh-sessions on Bizon; unavailable while it sleeps
+      command: >-
+        ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=3
+        yurii@192.168.1.4 "~/.local/bin/bizon-ssh-sessions"
+      icon: mdi:ssh
+      scan_interval: 60
+
+automation:
+  - id: bizon_wake_jellyfin
+    alias: Bizon wake for Jellyfin
+    description: Wakes the Bizon when a request to jf.yuriip4.duckdns.org found it asleep.
+    # With the delay at the end: one wake a minute however many requests come
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: webhook
+        webhook_id: bizon_wake_jellyfin
+        allowed_methods:
+          - POST
+        local_only: true
+    actions:
+      # Shows on the Bizon card next to the button presses
+      - event: host_power_command
+        event_data:
+          host: bizon
+          command: wakeup
+          who: Jellyfin
+      - action: script.host_power
+        data:
+          host: bizon
+          command: wakeup
+      - delay: "00:01:00"
+
+  - id: bizon_autosuspend
+    alias: Bizon autosuspend
+    description: >-
+      Suspends the Bizon after 5 min awake with no SSH session and no Jellyfin
+      progress, while input_boolean.bizon_autosuspend is on.
+    mode: single
+    triggers:
+      - trigger: time_pattern
+        minutes: "/1"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.bizon_autosuspend
+        state: "on"
+      - condition: state
+        entity_id: binary_sensor.bizon_awake
+        state: "on"
+        for: "00:05:00"
+      - condition: state
+        entity_id: sensor.bizon_ssh_sessions
+        state: "0"
+        for: "00:05:00"
+      - condition: template
+        value_template: >-
+          {{ has_value('sensor.jellyfin_position')
+             and now() - states.sensor.jellyfin_position.last_changed >= timedelta(minutes=5) }}
+    actions:
+      # Shows on the Bizon card next to the button presses
+      - event: host_power_command
+        event_data:
+          host: bizon
+          command: suspend
+          who: Autosuspend
+      - action: script.host_power
+        data:
+          host: bizon
+          command: suspend
+      # Bizon Awake needs up to 30 s to notice
+      - delay: "00:02:00"

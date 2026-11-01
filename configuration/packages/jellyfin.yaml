@@ -16,6 +16,14 @@ rest:
         state_class: measurement
         value_template: >-
           {{ value_json | selectattr('NowPlayingItem', 'defined') | list | count }}
+      # Sum of all playback positions, seconds: changes only while something
+      # really plays, stays the same on pause (packages/bizon_autosuspend.yaml).
+      - name: "Jellyfin position"
+        unique_id: jellyfin_position
+        icon: mdi:movie-open-play
+        value_template: >-
+          {{ value_json | selectattr('NowPlayingItem', 'defined')
+             | map(attribute='PlayState.PositionTicks', default=0) | sum // 10000000 }}
       # One line per playing session, tab-separated for the Bizon card:
       # user, title, paused (1/0), progress %, device name.
       - name: "Jellyfin now playing"
