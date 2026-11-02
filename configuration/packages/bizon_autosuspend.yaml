@@ -14,6 +14,32 @@ input_boolean:
     name: "Bizon autosuspend"
     icon: mdi:power-sleep
 
+# Who woke Bizon: maps the DeviceId nginx saw to the Jellyfin user
+rest_command:
+  jellyfin_devices:
+    url: http://192.168.1.4:8096/Devices
+    headers:
+      Authorization: !secret jellyfin_auth
+    timeout: 10
+
+# Set by nginx on the first real use after a wake (bizon_jellyfin_nginx.conf)
+template:
+  - triggers:
+      - trigger: webhook
+        webhook_id: bizon_jellyfin_confirmed
+        allowed_methods:
+          - POST
+        local_only: true
+    sensor:
+      - name: "Bizon Jellyfin confirmed"
+        unique_id: bizon_jellyfin_confirmed
+        icon: mdi:account-check
+        device_class: timestamp
+        state: "{{ now().isoformat() }}"
+        attributes:
+          path: "{{ trigger.json.path | default('') if trigger.json is mapping else '' }}"
+          device: "{{ trigger.json.device | default(trigger.json.os | default('')) if trigger.json is mapping else '' }}"
+
 command_line:
   - sensor:
       name: "Bizon SSH sessions"
@@ -39,16 +65,73 @@ automation:
           - POST
         local_only: true
     actions:
-      # Shows on the Bizon card next to the button presses
-      - event: host_power_command
-        event_data:
-          host: bizon
-          command: wakeup
-          who: Jellyfin
+      # nginx sends path, client, device, device_id, os (see bizon_jellyfin_nginx.conf)
+      - variables:
+          req: "{{ trigger.json if trigger.json is defined and trigger.json is mapping else {} }}"
+          woke_at: "{{ now().isoformat() }}"
       - action: script.host_power
         data:
           host: bizon
           command: wakeup
+      # The user is known only to Jellyfin, so ask it once it is up
+      - if:
+          - condition: template
+            value_template: "{{ req.device_id | default('', true) | length > 0 }}"
+        then:
+          - wait_template: "{{ has_value('sensor.jellyfin_playing') }}"
+            timeout: "00:01:30"
+          - if:
+              - condition: template
+                value_template: "{{ wait.completed }}"
+            then:
+              - action: rest_command.jellyfin_devices
+                response_variable: devices
+                continue_on_error: true
+      # Shows on the Bizon card next to the button presses: "Jellyfin (yurii)",
+      # the device when the user is unknown ("Jellyfin (iPhone)"), else "Jellyfin"
+      - event: host_power_command
+        event_data:
+          host: bizon
+          command: wakeup
+          who: >-
+            {%- set items = (devices.content.Items if devices is defined and devices.content is mapping else []) or [] %}
+            {%- set dev = items | selectattr('Id', 'eq', req.device_id | default('')) | list | first | default({}) %}
+            {%- set who = dev.LastUserName | default('', true) or req.device | default('', true) or req.os | default('', true) %}
+            {%- set who = who | replace(' ()', '') | trim %}
+            {{- 'Jellyfin (%s)' | format(who) if who else 'Jellyfin' }}
+      # Real use confirms the wake (sensor.bizon_jellyfin_confirmed). Without it
+      # (an app starting in the background, a tab Safari restores) Bizon goes
+      # back to sleep after 3 min instead of the 5 idle min of autosuspend.
+      - wait_template: >-
+          {{ (states('sensor.bizon_jellyfin_confirmed') | as_datetime(none)) is not none
+             and states('sensor.bizon_jellyfin_confirmed') | as_datetime > as_datetime(woke_at) }}
+        timeout: "00:03:00"
+      - if:
+          - condition: template
+            value_template: "{{ not wait.completed }}"
+          - condition: state
+            entity_id: input_boolean.bizon_autosuspend
+            state: "on"
+          - condition: state
+            entity_id: binary_sensor.bizon_awake
+            state: "on"
+          - condition: state
+            entity_id: sensor.bizon_ssh_sessions
+            state: "0"
+          - condition: template
+            value_template: "{{ states('sensor.jellyfin_playing') | int(0) == 0 }}"
+        then:
+          - event: host_power_command
+            event_data:
+              host: bizon
+              command: suspend
+              who: Unconfirmed wake
+          - action: script.host_power
+            data:
+              host: bizon
+              command: suspend
+          # No delay: a request right after this must be able to wake it again
+          - stop: Unconfirmed wake
       - delay: "00:01:00"
 
   - id: bizon_autosuspend
