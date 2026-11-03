@@ -14,7 +14,9 @@ step when a patch is added or dropped:
    here), which shifts "now"/current-lesson logic by an hour and shows
    lessons an hour early in a browser in Poland. They get Europe/Warsaw
    instead (still converted to HA's zone by dt_util.as_local, so the instant
-   is right everywhere; the cards then show browser-local time).
+   is right everywhere; the cards then show browser-local time). Also the
+   activities outside the timetable (calendar.py, v0.12.34) and the "test
+   within 24 hours" start (binary_sensor.py, v0.12.37).
 2. Subject names: "<Polish> (<Ukrainian>)" from librus/subjects_uk.json,
    applied where the integration builds its subject id -> name map, so the
    translation shows up in every sensor, the calendars and the cards.
@@ -122,11 +124,22 @@ TZ_IMPORT = (TZ_IMPORT_ANCHOR
              + "_SCHOOL_TZ = _ZoneInfo(\"Europe/Warsaw\")\n")
 
 TZ_PATCHES = {
+    # Third item = how many times upstream has the line (default 1). calendar.py
+    # has it twice since v0.12.34: lessons + activities outside the timetable
+    # (their hours are Synergia's, i.e. Polish, too).
     "calendar.py": [
         ("dt_util.as_local(datetime.combine(day, start_time))",
-         "dt_util.as_local(datetime.combine(day, start_time, tzinfo=_SCHOOL_TZ))"),
+         "dt_util.as_local(datetime.combine(day, start_time, tzinfo=_SCHOOL_TZ))", 2),
         ("dt_util.as_local(datetime.combine(day, end_time))",
-         "dt_util.as_local(datetime.combine(day, end_time, tzinfo=_SCHOOL_TZ))"),
+         "dt_util.as_local(datetime.combine(day, end_time, tzinfo=_SCHOOL_TZ))", 2),
+    ],
+    # v0.12.37 "test within 24 hours": the test's start (entry time, else the
+    # subject's first lesson, else 08:00) is a school time too.
+    "binary_sensor.py": [
+        ("dt_util.as_local(datetime.combine(day, at))",
+         "dt_util.as_local(datetime.combine(day, at, tzinfo=_SCHOOL_TZ))"),
+        ("dt_util.as_local(datetime.combine(day, time(8, 0)))",
+         "dt_util.as_local(datetime.combine(day, time(8, 0), tzinfo=_SCHOOL_TZ))"),
     ],
     "sensor.py": [
         ("dt_util.as_local(datetime.combine(day, start_t))",
@@ -776,14 +789,16 @@ def patch_attachments() -> None:
     print("services.py: attachments patched")
 
 
-def patch_file(name: str, edits: list[tuple[str, str]]) -> str:
+def patch_file(name: str, edits: list[tuple]) -> str:
     path = INTEGRATION / name
     text = path.read_text(encoding="utf-8")
     if MARKER in text:
         return f"{name}: already patched"
-    for old, new in edits:
-        if text.count(old) != 1:
-            sys.exit(f"{name}: expected exactly one {old!r} - upstream changed, patch not applied")
+    for old, new, *count in edits:
+        expected = count[0] if count else 1
+        if text.count(old) != expected:
+            sys.exit(f"{name}: expected {expected} x {old!r}, found {text.count(old)}"
+                     " - upstream changed, patch not applied")
         text = text.replace(old, new)
     path.write_text(text, encoding="utf-8")
     return f"{name}: patched"

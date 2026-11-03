@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo as _ZoneInfo  # homeControll local patch: school t
 _SCHOOL_TZ = _ZoneInfo("Europe/Warsaw")
 
 from librus_synergia.models import (
+    ExtraActivityData,
     FreeDayData,
     HomeworkEventData,
     LessonData,
@@ -41,6 +42,7 @@ from .coordinator import (
     lesson_change,
     on_demand_week_starts,
 )
+from .exam_prep import exam_lines, exams_by_day_and_subject
 from .forecast import DataMemo
 from .subject_emoji import category_emoji, subject_emoji, with_emoji
 
@@ -54,6 +56,17 @@ _CHANGE_LABELS = {
     "room_change": "zmiana sali",
     "moved": "przeniesiona",
 }
+
+# Activities outside the regular timetable (issue #23): what each kind is
+# called in Synergia. Their events carry a uid starting with
+# EXTRA_ACTIVITY_UID_PREFIX - the companion cards keep them out of the
+# lesson grid by it.
+_EXTRA_ACTIVITY_LABELS = {
+    "other": "Zajęcia dodatkowe",
+    "individual_path": "Zindywidualizowana ścieżka kształcenia",
+    "one_to_one": "Nauczanie indywidualne",
+}
+EXTRA_ACTIVITY_UID_PREFIX = "librus-extra-"
 
 
 async def async_setup_entry(
@@ -125,6 +138,26 @@ def _lesson_topic(
         owner=owner,
     )
     return index.get((day.isoformat(), lesson.lesson_no))
+
+
+_EXAM_INDEX = DataMemo()
+
+
+def _lesson_exams(
+    day: date, lesson: LessonData, data: LibrusData, owner: Hashable | None = None
+) -> list[str]:
+    """"Sprawdzian: ..." lines for a lesson: tests in the Agenda on this day
+    in this lesson's subject (the Agenda has no lesson number, so a double
+    lesson gets the line on both)."""
+    try:
+        subject = int(lesson.subject_id) if lesson.subject_id is not None else None
+    except (TypeError, ValueError):
+        subject = None
+    if subject is None:
+        return []
+    index = _EXAM_INDEX.get(data, None, lambda: exams_by_day_and_subject(data), owner=owner)
+    items = index.get((day.isoformat(), subject))
+    return exam_lines(data, items) if items else []
 
 
 @dataclass(frozen=True)
@@ -290,6 +323,8 @@ def _lesson_parts(
         lines.append(f"Zastępstwo za: {replaced}")
     if change["room_changed"]:
         lines.append(f"Zmiana sali: {change['original_classroom'] or '?'} → {classroom_name or '?'}")
+    if change["kind"] != "canceled":
+        lines.extend(_lesson_exams(day, lesson, data, owner))
     topic = _lesson_topic(day, lesson, data, owner)
     if topic:
         lines.append(f"Temat: {topic}")
@@ -310,6 +345,46 @@ def _lesson_parts(
         subject=subject_name,
         cancelled=change["kind"] == "canceled",
     )
+
+
+def _extra_activity_event(activity: ExtraActivityData, emoji: bool = False) -> CalendarEvent | None:
+    """An activity outside the timetable as a timetable calendar event:
+    its title (a cancelled one with the same "(odwołane)" suffix as a
+    lesson), the teacher on the first description line like a lesson's,
+    then what kind of activity it is unless the title already says so."""
+    if not activity.date or not activity.hour_from or not activity.hour_to:
+        return None
+    try:
+        day = date.fromisoformat(activity.date[:10])
+        start_time = datetime.strptime(activity.hour_from, "%H:%M").time()
+        end_time = datetime.strptime(activity.hour_to, "%H:%M").time()
+    except ValueError:
+        return None
+    label = _EXTRA_ACTIVITY_LABELS.get(activity.kind, "Zajęcia")
+    title = activity.title or label
+    summary = f"{title} ({_CHANGE_LABELS['canceled']})" if activity.cancelled else title
+    details = [] if title.casefold().startswith(label.casefold()) else [label]
+    description = "\n".join([activity.teacher or "", *details]).strip() or None
+    start = dt_util.as_local(datetime.combine(day, start_time, tzinfo=_SCHOOL_TZ))
+    end = dt_util.as_local(datetime.combine(day, end_time, tzinfo=_SCHOOL_TZ))
+    if end <= start:
+        return None
+    return CalendarEvent(
+        start=start,
+        end=end,
+        summary=with_emoji(subject_emoji(title), summary) if emoji else summary,
+        location=activity.classroom,
+        description=description,
+        uid=f"{EXTRA_ACTIVITY_UID_PREFIX}{activity.kind}-{activity.id}",
+    )
+
+
+def _extra_activity_events(
+    activities: list[ExtraActivityData], emoji: bool = False
+) -> list[CalendarEvent]:
+    return [
+        event for activity in activities if (event := _extra_activity_event(activity, emoji))
+    ]
 
 
 def _homework_to_event(
@@ -539,7 +614,13 @@ def _timetable_events(
         day: _day_events(day, lessons, data, merge, owner, emoji)
         for day, lessons in data.timetable.items()
     }
-    ordered = sorted((event for events in by_day.values() for event in events), key=lambda e: e.start)
+    # `by_day` holds lessons only (range queries add the activities outside
+    # the timetable on their own); the current/next event looks at both.
+    extra = _extra_activity_events(data.extra_activities, emoji)
+    ordered = sorted(
+        [*(event for events in by_day.values() for event in events), *extra],
+        key=lambda e: e.start,
+    )
     return _TimetableEvents(by_day, ordered, [event.start for event in ordered])
 
 
@@ -634,6 +715,17 @@ class LibrusTimetableCalendar(CoordinatorEntity[LibrusDataUpdateCoordinator], Ca
                 # ha_config_get_calendar_events on a real Sunday.
                 if event.start < end_date and event.end > start_date:
                     events.append(event)
+        # Activities outside the timetable (issue #23) - the polled two weeks
+        # from the data, other weeks fetched with their timetable above.
+        extra = self.coordinator.extra_activities_between(
+            start_date.date(), _inclusive_end_date(end_date)
+        )
+        events.extend(
+            event
+            for event in _extra_activity_events(extra, self._emoji)
+            if event.start < end_date and event.end > start_date
+        )
+        events.sort(key=lambda event: event.start)
         return events
 
 

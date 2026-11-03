@@ -19,14 +19,16 @@ import logging
 import re
 from collections.abc import Awaitable, Callable
 from datetime import date, datetime, time, timedelta
+from functools import partial
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, CoreState, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -39,7 +41,7 @@ from librus_synergia import (
     LibrusSessionData,
     LibrusSessionExpiredError,
 )
-from librus_synergia.const import MESSAGE_RECIPIENT_GROUPS
+from librus_synergia.const import EXTRA_ACTIVITY_ENDPOINTS, MESSAGE_RECIPIENT_GROUPS
 from librus_synergia.parsers import mark_class_tutor, message_recipient_groups
 from librus_synergia.changes import Changes, ChangeTracker, SeenIds
 from librus_synergia.exceptions import LibrusUnexpectedResponseError
@@ -50,6 +52,7 @@ from librus_synergia.models import (
     AttendanceTypeData,
     BehaviourGradeData,
     ClassData,
+    ExtraActivityData,
     FreeDayData,
     GradeCategoryData,
     GradeData,
@@ -107,6 +110,7 @@ from librus_synergia.parsers import (  # noqa: F401
     parse_parent_teacher_conferences,
     parse_justifications,
     parse_realizations,
+    parse_extra_activities,
     parse_library_lendings,
     parse_message_recipients,
     validate_message,
@@ -138,6 +142,7 @@ from .const import (
     CONF_FREE_DAYS_ENABLED,
     CONF_GRADE_THRESHOLDS,
     CONF_MESSAGES_COUNT,
+    CONF_EXTRA_ACTIVITIES,
     CONF_MESSAGES_ENABLED,
     CONF_POINT_GRADE_THRESHOLDS,
     CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT,
@@ -154,7 +159,9 @@ from .const import (
     DEFAULT_DESCRIPTIVE_GRADES_ENABLED,
     DEFAULT_FREE_DAYS_ENABLED,
     DEFAULT_MESSAGES_COUNT,
+    DEFAULT_EXTRA_ACTIVITIES,
     DEFAULT_MESSAGES_ENABLED,
+    EXTRA_ACTIVITY_KINDS,
     DEFAULT_QUIET_HOURS_ENABLED,
     DEFAULT_QUIET_HOURS_END,
     DEFAULT_QUIET_HOURS_START,
@@ -244,6 +251,7 @@ _EXTRA_LABELS = (
     "DescriptiveGrades/Skills",
     "PartialGrades",
     "Auth/Subjects",
+    *EXTRA_ACTIVITY_ENDPOINTS.values(),
 )
 # Read receipts: the newest sent messages from the last this-many days.
 _READ_RECEIPT_DAYS = 30
@@ -268,7 +276,11 @@ _SCHOOL_SETTING_LABELS = frozenset({"GradingSystem", "ClassFreeDays/Types"})
 # Optional modules a school may not have at all (no e-library, no access
 # to the year's plan changes): a refusal (401/403/404) is an empty answer,
 # asked again on the endpoint's own schedule - not a degraded endpoint.
-_OPTIONAL_MODULE_LABELS = frozenset({"EbiblioLendings", "Calendars/Substitutions"})
+# The lists of activities outside the timetable (issue #23) are optional
+# modules too.
+_OPTIONAL_MODULE_LABELS = frozenset(
+    {"EbiblioLendings", "Calendars/Substitutions", *EXTRA_ACTIVITY_ENDPOINTS.values()}
+)
 
 
 def _is_module_refusal(err: BaseException) -> bool:
@@ -1083,6 +1095,14 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         # of them it is recorded silently instead of being announced as a
         # whole batch of "new" items.
         self._unseeded_kinds: set[str] = set()
+        # Bus events fired before Home Assistant has started (the first
+        # refresh runs while it boots), in order, and the listener that fires
+        # them once it has - see async_fire_event. Saved with the tracked
+        # state, next to the ids they announce: an unload, a failed setup or
+        # a stop before the start leaves them to the next setup.
+        self._held_events: list[tuple[str, dict[str, Any]]] = []
+        self._fire_held_at_start: CALLBACK_TYPE | None = None
+        entry.async_on_unload(self._async_cancel_fire_at_start)
         # Earned badge key ("sixes_10") -> date earned (YYYY-MM-DD). None =
         # not seeded yet: the first computation records everything silently
         # (badges are dated from the whole school year, so an install or an
@@ -1173,6 +1193,12 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._week_cache: dict[date, tuple[dict[date, list[LessonData]], datetime]] = {}
         self._week_fetches: dict[date, asyncio.Task[dict[date, list[LessonData]]]] = {}
         self._week_fetch_limit = asyncio.Semaphore(_WEEK_FETCH_CONCURRENCY)
+        # The same weeks' activities outside the timetable (issue #23):
+        # week Monday -> (activities, fetched at).
+        self._extra_week_cache: dict[date, tuple[list[ExtraActivityData], datetime]] = {}
+        # The Monday of the two weeks the polled activities cover - a new
+        # week asks again at once instead of after the hourly cache.
+        self._extra_activities_from: date | None = None
         # Week Monday -> when its on-demand fetch last failed (not retried
         # for _WEEK_FAILURE_BACKOFF), and when the last forced login was made.
         self._week_failed_at: dict[date, datetime] = {}
@@ -1249,7 +1275,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
     async def async_restore_state(self) -> None:
         """Load what the previous run saved: the ids already announced (so
         a grade added while HA was off still fires its event instead of
-        being swallowed by the silent first-poll seeding), the last good
+        being swallowed by the silent first-poll seeding) and the events
+        still held for them (see async_fire_event), the last good
         responses, when Librus last answered, the newest session cookies and
         when each throttled request was last made (so a restart or an
         options change doesn't ask Librus for every daily lookup again). A
@@ -1304,6 +1331,17 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._restore_kindergarten(stored.get("kindergarten"))
         if saved := stored.get("last_success_at"):
             self.last_success_at = dt_util.parse_datetime(saved)
+        if isinstance(held := stored.get("held_events"), list):
+            # Held by a setup that ended before Home Assistant had started -
+            # saved with the ids they announce, fired by this one (below).
+            self._held_events = [
+                (event["event_type"], event["data"])
+                for event in held
+                if isinstance(event, dict)
+                and isinstance(event.get("event_type"), str)
+                and event["event_type"].startswith(f"{DOMAIN}_")
+                and isinstance(event.get("data"), dict)
+            ]
 
         # The responses: their own file since 0.12.5-beta.9; older versions
         # kept them in the tracked state (moved to the new file with the next
@@ -1366,6 +1404,9 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             self._payloads_saved_at = payloads_saved_at
         else:
             self._payloads_saved_at = self.last_success_at
+        if self._held_events:
+            # Already in the file: no write until they are fired.
+            self._async_fire_held_when_started(save=False)
 
     async def _async_load(self, store: Store[dict[str, Any]]) -> dict[str, Any] | None:
         try:
@@ -1668,6 +1709,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             # Written promptly (not with the periodic write): a restart
             # compares it with the payloads file's `saved_at`.
             self._payloads_changed_at,
+            # Saved next to the ids they announce (see async_fire_event).
+            self._held_events,
         )
 
     def _payloads_changed(self) -> None:
@@ -1796,6 +1839,12 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 else None
             ),
             "average_digests": self.average_digests,
+            # Found before Home Assistant had started, not fired yet - in the
+            # same write as the ids they announce (see async_fire_event).
+            "held_events": [
+                {"event_type": event_type, "data": event_data}
+                for event_type, event_data in self._held_events
+            ],
         }
 
     def set_average_digest(self, statistic_id: str, digest: str | None) -> None:
@@ -2389,6 +2438,11 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             )
             return cached[0] if cached is not None else {}
         merged = merge_timetables(payload)
+        if self.extra_activity_kinds:
+            async with self._week_fetch_limit:
+                extra = await self._async_fetch_extra_week(week_start)
+            if extra is not None:
+                self._extra_week_cache[week_start] = (extra, dt_util.utcnow())
         self._week_cache[week_start] = (merged, dt_util.utcnow())
         self._week_failed_at.pop(week_start, None)
         self._prune_week_cache()
@@ -2427,6 +2481,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         for week_start, failed_at in list(self._week_failed_at.items()):
             if now - failed_at >= _WEEK_FAILURE_BACKOFF:
                 del self._week_failed_at[week_start]
+        for week_start in [w for w in self._extra_week_cache if w not in self._week_cache]:
+            del self._extra_week_cache[week_start]
 
     async def _async_relogin(self, seen: int) -> None:
         """Force a fresh login after Librus rejected the session - one at a
@@ -3042,6 +3098,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             ),
             self._async_get_descriptive_grade_lookups(core_payloads),
             self._async_get_partial_grades(),
+            self._async_get_extra_activities(week_start),
         )
         (
             text_grades_payload,
@@ -3053,6 +3110,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             timetable_entries,
             descriptive_lookups,
             partial_grades,
+            extra_activity_payloads,
         ) = extra_results
         extras = {
             "BaseTextGrades": text_grades_payload,
@@ -3064,6 +3122,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             "TimetableEntries": timetable_entries,
             **descriptive_lookups,
             **partial_grades,
+            **extra_activity_payloads,
         }
         payloads = list(core_payloads)
         payloads[_TIMETABLE_THIS_WEEK] = timetable_this_week
@@ -3256,6 +3315,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             school_files=parse_school_files((extras or {}).get("SchoolFiles") or {}),
             library_lendings=parse_library_lendings((extras or {}).get("EbiblioLendings") or {}),
             plan_changes=parse_plan_changes((extras or {}).get("Calendars/Substitutions") or {}),
+            extra_activities=self._extra_activities_from_payloads(extras or {}),
             standing_timetable=parse_timetable_entries(
                 (extras or {}).get("TimetableEntries") or {}, self._cached_lesson_subjects
             ),
@@ -3386,7 +3446,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 old = known.get(forecast.subject_id)
                 if old is None or old == forecast.predicted:
                     continue
-                self.hass.bus.async_fire(
+                self.async_fire_event(
                     EVENT_FORECAST_CHANGED,
                     {
                         "entry_id": entry_id,
@@ -4172,6 +4232,90 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             ),
         }
 
+    @property
+    def extra_activity_kinds(self) -> tuple[str, ...]:
+        """The kinds of activities outside the timetable switched on in the
+        options (`EXTRA_ACTIVITY_KINDS`; all of them by default)."""
+        if self.config_entry is None:
+            return EXTRA_ACTIVITY_KINDS
+        chosen = self.config_entry.options.get(CONF_EXTRA_ACTIVITIES, DEFAULT_EXTRA_ACTIVITIES)
+        if not isinstance(chosen, (list, tuple)):
+            return EXTRA_ACTIVITY_KINDS
+        return tuple(kind for kind in EXTRA_ACTIVITY_KINDS if kind in chosen)
+
+    async def _async_get_extra_activities(self, week_start: date) -> dict[str, dict[str, Any]]:
+        """This week's and next week's activities outside the timetable
+        (issue #23), one request per kind switched on, at most once an hour
+        - and at once when a new week starts. A kind switched off is not
+        asked for; a school without the module answers with a refusal,
+        which counts as "none"."""
+        kinds = self.extra_activity_kinds
+        same_range = self._extra_activities_from == week_start
+        payloads: dict[str, dict[str, Any]] = {}
+        for kind, label in EXTRA_ACTIVITY_ENDPOINTS.items():
+            if kind not in kinds:
+                payloads[label] = self._degrade_optional_payload(label, {})
+                continue
+            payloads[label] = await self._async_optional(
+                label,
+                partial(
+                    self._client.async_get_extra_activities,
+                    kind,
+                    week_start,
+                    week_start + timedelta(days=13),
+                ),
+                every=_HOURLY if same_range else None,
+            )
+        if not any(label in self._failed_this_cycle for label in payloads):
+            self._extra_activities_from = week_start
+        return payloads
+
+    def _extra_activities_from_payloads(self, extras: dict[str, Any]) -> list[ExtraActivityData]:
+        kinds = self.extra_activity_kinds
+        result = [
+            activity
+            for kind, label in EXTRA_ACTIVITY_ENDPOINTS.items()
+            if kind in kinds
+            for activity in parse_extra_activities(extras.get(label) or {}, kind)
+        ]
+        result.sort(key=lambda activity: (activity.date or "", activity.hour_from or ""))
+        return result
+
+    async def _async_fetch_extra_week(self, week_start: date) -> list[ExtraActivityData] | None:
+        """One on-demand week's activities outside the timetable, or None
+        when a kind couldn't be read (the last copy is kept then). A refused
+        kind (the school doesn't have it) counts as none."""
+        result: list[ExtraActivityData] = []
+        for kind in self.extra_activity_kinds:
+            try:
+                payload = await self._client.async_get_extra_activities(
+                    kind, week_start, week_start + timedelta(days=6)
+                )
+            except LibrusError as err:
+                if _is_module_refusal(err):
+                    continue
+                _LOGGER.debug(
+                    "Activities outside the timetable (%s) for the week starting %s: %s",
+                    kind,
+                    week_start,
+                    err,
+                )
+                return None
+            result.extend(parse_extra_activities(payload, kind))
+        return result
+
+    def extra_activities_between(self, start: date, end: date) -> list[ExtraActivityData]:
+        """Activities outside the timetable dated `start`..`end` (both
+        included): the polled two weeks from the data, other weeks from the
+        on-demand cache (filled with their timetable weeks)."""
+        found: dict[str, ExtraActivityData] = {}
+        polled = self.data.extra_activities if self.data is not None else []
+        cached = (activity for activities, _ in self._extra_week_cache.values() for activity in activities)
+        for activity in (*polled, *cached):
+            if activity.date and start.isoformat() <= activity.date <= end.isoformat():
+                found.setdefault(f"{activity.kind}:{activity.id}", activity)
+        return sorted(found.values(), key=lambda a: (a.date or "", a.hour_from or ""))
+
     async def _async_get_partial_grades(self) -> dict[str, dict[str, Any]]:
         """Grades from the new descriptive grading some schools use for
         grade 1 from 2026 (a POST per cycle, CONFIRMED reachable on a grade 7
@@ -4790,7 +4934,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 before = {r["name"] for r in known["receivers"] if r["read"]}
                 for receiver in receivers:
                     if receiver["read"] and receiver["name"] not in before:
-                        self.hass.bus.async_fire(
+                        self.async_fire_event(
                             EVENT_MESSAGE_READ,
                             {
                                 "entry_id": self.config_entry.entry_id if self.config_entry else None,
@@ -4836,6 +4980,85 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._archived_messages = parse_message_list(payload, ARCHIVE_MAILBOX)
         self._archive_fetched_at = now
 
+    @callback
+    def async_fire_event(self, event_type: str, event_data: dict[str, Any]) -> None:
+        """Fire one of this integration's bus events - all of them go
+        through here (tests/test_events_after_startup.py checks). Until Home
+        Assistant has started they are held, then fired in the order they
+        came.
+
+        The first refresh runs in async_setup_entry, while Home Assistant
+        boots: automations arm their triggers only at the end of the start
+        (startup jobs, right before EVENT_HOMEASSISTANT_STARTED) and the
+        event entities don't exist yet. So what that refresh found - a grade
+        added while HA was off or restarting - was announced to nobody, and
+        recorded as seen: never announced again. `starting` holds too
+        (`hass.is_running` is already true then, the triggers aren't armed
+        yet). Running fires at once, as before - and so does stopping, when
+        no start is coming to fire anything held.
+
+        What is held is saved with the tracked state, in the same write as
+        the ids it announces. So the entry unloading (a reload, an options
+        change), its setup failing or Home Assistant stopping before the
+        start has finished doesn't lose it: the next setup restores it and
+        fires it once Home Assistant has started."""
+        if self.hass.state not in (CoreState.not_running, CoreState.starting):
+            self.hass.bus.async_fire(event_type, event_data)
+            return
+        self._held_events.append((event_type, event_data))
+        _LOGGER.debug("Holding %s until Home Assistant has started", event_type)
+        self._async_fire_held_when_started()
+
+    @callback
+    def _async_fire_held_when_started(self, *, save: bool = True) -> None:
+        """Fire what is held once Home Assistant has started - at once if it
+        has. Meanwhile it is written with the tracked state (`save` False:
+        restored, so the file has it already); one write for a burst, as the
+        store builds the data when it writes."""
+        if self.hass.state not in (CoreState.not_running, CoreState.starting):
+            self._async_fire_held_events(self.hass)
+        elif self._fire_held_at_start is None:
+            # Not started yet, so this never calls back right away.
+            self._fire_held_at_start = async_at_started(
+                self.hass, self._async_fire_held_events
+            )
+            if save:
+                self._schedule_save()
+
+    @callback
+    def _async_fire_held_events(self, _hass: HomeAssistant) -> None:
+        """Home Assistant has started - its automations are armed by now.
+        Fire what was held, without checking the state again; the next
+        write drops the saved copy. An entry already unloading fires
+        nothing: its final write leaves them to the next setup."""
+        self._fire_held_at_start = None
+        if self._closed:
+            return
+        held, self._held_events = self._held_events, []
+        _LOGGER.debug("Home Assistant has started: firing %s held event(s)", len(held))
+        for event_type, event_data in held:
+            self.hass.bus.async_fire(event_type, event_data)
+        self._schedule_save()
+
+    @callback
+    def _async_cancel_fire_at_start(self) -> None:
+        """The entry unloads, or its setup failed: this coordinator fires
+        nothing more. What it holds is left to the next setup, which restores
+        it with the ids it announces and fires it once Home Assistant has
+        started. async_close_state has written it; after a failed setup the
+        list is kept for a write still pending (until that one lands, the
+        saved state doesn't have those items as seen, so the retry finds
+        them again). A deleted entry's saved state goes with it."""
+        if self._fire_held_at_start is not None:
+            self._fire_held_at_start()
+            self._fire_held_at_start = None
+        if self._held_events:
+            _LOGGER.debug(
+                "Leaving %s held event(s) to the next setup: unloaded before Home "
+                "Assistant has started",
+                len(self._held_events),
+            )
+
     def _fire_change_events(self, changes: Changes, data: LibrusData) -> None:
         """Fire one bus event per new item the tracker reported.
 
@@ -4852,7 +5075,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         }
 
         def fire(event: str, item_id: Any, payload: dict[str, Any]) -> None:
-            self.hass.bus.async_fire(event, {**base, "id": item_id, **payload})
+            self.async_fire_event(event, {**base, "id": item_id, **payload})
 
         def subject_name(subject_id: int | str | None) -> str | None:
             if subject_id is None:
@@ -5178,7 +5401,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             before = known.get(str(item.id))
             if before is None or before == item.status:
                 continue
-            self.hass.bus.async_fire(
+            self.async_fire_event(
                 EVENT_JUSTIFICATION_STATUS,
                 {
                     "entry_id": self.config_entry.entry_id if self.config_entry else None,
@@ -5231,7 +5454,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         ):
             for item_id in sorted(ids):
                 fields = source[item_id]
-                self.hass.bus.async_fire(
+                self.async_fire_event(
                     EVENT_LIBRARY_CHANGED,
                     {
                         **base,
@@ -5282,7 +5505,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             changed = [key for key in _AGENDA_COMPARED if before.get(key) != fields.get(key)]
             if not changed or not (upcoming(fields) or upcoming(before)):
                 continue
-            self.hass.bus.async_fire(
+            self.async_fire_event(
                 EVENT_AGENDA_CHANGED,
                 {
                     **base,
@@ -5296,7 +5519,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         for item_id, before in known.items():
             if item_id in current or not upcoming(before):
                 continue
-            self.hass.bus.async_fire(
+            self.async_fire_event(
                 EVENT_AGENDA_CHANGED,
                 {**base, "id": _restore_id(item_id), "kind": "removed", **before},
             )
@@ -5415,7 +5638,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         for key in new:
             if dates[key] < cutoff:
                 continue
-            self.hass.bus.async_fire(
+            self.async_fire_event(
                 EVENT_ACHIEVEMENT_UNLOCKED,
                 {
                     "entry_id": entry_id,
@@ -5518,7 +5741,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             return current_ids
         new_ids = current_ids - known
         for item_id in new_ids:
-            self.hass.bus.async_fire(
+            self.async_fire_event(
                 event, {"entry_id": entry_id, "id": item_id, "student": student, **items[item_id]}
             )
         # Union, not replace: an item that later drops out of the fetch

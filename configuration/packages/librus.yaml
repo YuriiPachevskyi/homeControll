@@ -463,6 +463,7 @@ command_line:
       icon: mdi:bandage
       command: >-
         m=""; for e in custom_components/librus_synergia/calendar.py:1
+        custom_components/librus_synergia/binary_sensor.py:1
         custom_components/librus_synergia/coordinator.py:7
         custom_components/librus_synergia/sensor.py:2
         custom_components/librus_synergia/services.py:1

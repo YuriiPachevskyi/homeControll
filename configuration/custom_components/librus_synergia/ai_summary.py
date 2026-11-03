@@ -42,7 +42,10 @@ from librus_synergia.models import LibrusData
 
 from .absence_budget import MIN_HELD, absence_budget
 from .const import (
+    AI_AUDIENCE_BOTH,
+    AI_AUDIENCE_PARENT,
     AI_AUDIENCE_STUDENT,
+    AI_LANGUAGE_AUTO,
     AVERAGE_MODE_ARITHMETIC,
     CONF_AVERAGE_MODE,
     DEFAULT_AVERAGE_MODE,
@@ -271,6 +274,34 @@ def _is_schema_error(err: BaseException) -> bool:
     return isinstance(err, ServiceValidationError) or any(
         cls.__name__ == "Invalid" for cls in type(err).__mro__
     )
+
+
+# How AI providers word "the answer hit the output limit" (Anthropic, OpenAI,
+# Google, Ollama...), lowercased.
+_TOKEN_LIMIT_MARKERS = (
+    "token limit",
+    "max_tokens",
+    "max_output_tokens",
+    "maximum tokens",
+    "max tokens",
+    "output limit",
+)
+TOKEN_LIMIT_HINT = (
+    "The AI ran out of room for its answer. In the settings of the AI Task entity"
+    " (Settings > Devices & services > your AI provider > AI Task > Configure),"
+    " untick the recommended settings and raise the maximum tokens (8000 is"
+    " plenty); turning off thinking also helps."
+)
+
+
+def explain_error(err: BaseException) -> str:
+    """The error text, with a hint when the model hit its output limit."""
+    text = str(err) or type(err).__name__
+    key = getattr(err, "translation_key", None) or ""
+    lowered = text.lower()
+    if key == "response_max_tokens" or any(m in lowered for m in _TOKEN_LIMIT_MARKERS):
+        return f"{text} {TOKEN_LIMIT_HINT}"
+    return text
 
 
 # A subject with at most this many absences left this semester is mentioned.
@@ -868,6 +899,7 @@ class LibrusWeeklySummary:
         audience: str,
         weekday: int,
         at: time,
+        language: str = AI_LANGUAGE_AUTO,
         extra_context: str | None,
         include_news: bool,
     ) -> None:
@@ -877,6 +909,7 @@ class LibrusWeeklySummary:
         self._coordinator = coordinator
         self.ai_task_entity = ai_task_entity
         self.audience = audience
+        self._language = language
         self.weekday = weekday
         self.at = at
         self._extra = extra_context
@@ -891,19 +924,46 @@ class LibrusWeeklySummary:
         self._attempts: tuple[str, int] = ("", 0)
         # The scheduled moment the last automatic run (or skip) was for.
         self._done_due: str | None = None
-        self.result: dict[str, Any] | None = None
+        # audience ("parent" / "student") -> that audience's latest text.
+        self.results: dict[str, dict[str, Any]] = {}
         self.last_error: str | None = None
         self.running = False
         # The "Automatic weekly summary" switch: off pauses scheduled runs
         # and catch-ups; the button still works.
         self.enabled = True
 
+    @property
+    def language(self) -> str:
+        """The language the summary is written in: the option, or HA's own."""
+        if self._language and self._language != AI_LANGUAGE_AUTO:
+            return self._language
+        return self.hass.config.language
+
+    @property
+    def audiences(self) -> list[str]:
+        """Who gets a text each week: one audience, or the parent and the student."""
+        if self.audience == AI_AUDIENCE_BOTH:
+            return [AI_AUDIENCE_PARENT, AI_AUDIENCE_STUDENT]
+        return [AI_AUDIENCE_STUDENT if self.audience == AI_AUDIENCE_STUDENT else AI_AUDIENCE_PARENT]
+
+    @property
+    def result(self) -> dict[str, Any] | None:
+        """The main text: the first configured audience's, else whatever is stored."""
+        for audience in self.audiences:
+            if audience in self.results:
+                return self.results[audience]
+        return next(iter(self.results.values()), None)
+
     async def async_start(self) -> None:
         """Load the stored state and hook up the triggers."""
         stored = await self._store.async_load()
         if isinstance(stored, dict):
-            result = stored.get("result")
-            self.result = result if isinstance(result, dict) else None
+            results = stored.get("results")
+            if isinstance(results, dict):
+                self.results = {k: v for k, v in results.items() if isinstance(v, dict)}
+            elif isinstance(result := stored.get("result"), dict):
+                # Saved before there could be two texts.
+                self.results = {result.get("audience") or AI_AUDIENCE_PARENT: result}
             self.enabled = stored.get("enabled", True) is not False
             self._done_due = stored.get("done_due")
         self._unsubs += [
@@ -934,7 +994,7 @@ class LibrusWeeklySummary:
 
     async def _async_save(self) -> None:
         await self._store.async_save(
-            {"enabled": self.enabled, "result": self.result, "done_due": self._done_due}
+            {"enabled": self.enabled, "results": self.results, "done_due": self._done_due}
         )
 
     @callback
@@ -1006,17 +1066,17 @@ class LibrusWeeklySummary:
             self.running = True
             self._notify()
             try:
-                result = await self._async_call(skip_empty=scheduled_for is not None)
-                if result is not None:
-                    self.result = result
+                results = await self._async_call(skip_empty=scheduled_for is not None)
+                if results is not None:
+                    self.results = results
                 self.last_error = None
                 if scheduled_for is not None:
                     self._done_due = scheduled_for
                 await self._async_save()
-                if result is not None:
-                    self._fire_event(manual=scheduled_for is None)
+                if results is not None:
+                    self._fire_events(manual=scheduled_for is None)
             except Exception as err:  # noqa: BLE001 - any provider error ends up here
-                self.last_error = str(err) or type(err).__name__
+                self.last_error = explain_error(err)
                 _LOGGER.warning("Weekly summary failed: %s", self.last_error)
                 raise HomeAssistantError(f"Weekly summary failed: {self.last_error}") from err
             finally:
@@ -1024,28 +1084,34 @@ class LibrusWeeklySummary:
                 self._notify()
 
     @callback
-    def _fire_event(self, manual: bool) -> None:
-        """Announce a fresh summary; ``manual`` = started from the button."""
-        result = self.result or {}
-        self.hass.bus.async_fire(
-            EVENT_WEEKLY_SUMMARY,
-            {
-                "entry_id": self._entry.entry_id,
-                "student": result.get("student"),
-                "manual": manual,
-                **{
-                    key: result.get(key)
-                    for key in (
-                        "headline", "status", "sections", "advice", "warning",
-                        "summary", "week_from", "week_to", "audience",
-                    )
+    def _fire_events(self, manual: bool) -> None:
+        """Announce a fresh summary, one event per audience; ``manual`` =
+        started from the button."""
+        labels = labels_for(self.language)
+        for audience in self.audiences:
+            if (result := self.results.get(audience)) is None:
+                continue
+            # Through the coordinator: held until Home Assistant has started.
+            self._coordinator.async_fire_event(
+                EVENT_WEEKLY_SUMMARY,
+                {
+                    "entry_id": self._entry.entry_id,
+                    "student": result.get("student"),
+                    "manual": manual,
+                    **{
+                        key: result.get(key)
+                        for key in (
+                            "headline", "status", "sections", "advice", "warning",
+                            "summary", "week_from", "week_to", "audience",
+                        )
+                    },
+                    "labels": labels,
                 },
-                "labels": labels_for(self.hass.config.language),
-            },
-        )
+            )
 
-    async def _async_call(self, skip_empty: bool) -> dict[str, Any] | None:
-        """Ask the model; None when an automatic run found an empty week."""
+    async def _async_call(self, skip_empty: bool) -> dict[str, dict[str, Any]] | None:
+        """Ask the model once per audience; None when an automatic run found
+        an empty week."""
         data = self._coordinator.data
         if data is None:
             raise HomeAssistantError("No Librus data yet")
@@ -1072,11 +1138,20 @@ class LibrusWeeklySummary:
         if skip_empty and is_empty_week(context):
             _LOGGER.debug("Weekly summary skipped: nothing happened this week or next")
             return None
+        return {
+            audience: await self._async_ask(context, today, student, audience)
+            for audience in self.audiences
+        }
+
+    async def _async_ask(
+        self, context: dict[str, Any], today: date, student: str | None, audience: str
+    ) -> dict[str, Any]:
+        """One text, written to ``audience``."""
         service_data: dict[str, Any] = {
             "task_name": "Librus weekly summary",
             "entity_id": self.ai_task_entity,
             "instructions": build_instructions(
-                context, today, self.hass.config.language, self.audience, self._extra
+                context, today, self.language, audience, self._extra
             ),
         }
         try:
@@ -1106,7 +1181,7 @@ class LibrusWeeklySummary:
             # context spells out the weekday for the model.
             "week_from": (today - timedelta(days=WINDOW_DAYS - 1)).isoformat(),
             "week_to": today.isoformat(),
-            "audience": self.audience,
+            "audience": audience,
             "generated_at": dt_util.utcnow().isoformat(),
             "ai_task_entity": self.ai_task_entity,
         }
