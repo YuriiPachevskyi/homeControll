@@ -3,12 +3,17 @@
 # no SSH session and no progress in Jellyfin for those 5 min. A paused player
 # does not count as progress (sensor.jellyfin_position stays the same).
 # If a sensor is unavailable the state is unknown, so nothing is suspended.
+# sensor.bizon_ssh_sessions also counts RDP connections and a real use of the
+# web UIs (js/rd/sr/qb/bzpr/bzpl.yuriip4) in the last 15 min, see
+# ~/.local/bin/bizon-ssh-sessions on Bizon.
 #
 # Wake on demand: https://jf.yuriip4.duckdns.org is the Jellyfin address that
 # wakes Bizon (Nginx Proxy Manager host, its advanced config is kept in
 # bizon_jellyfin_nginx.conf). When Bizon does not answer, nginx calls the webhook
 # below and holds the request until Jellyfin is back. local_only: the webhook
 # cannot be reached from outside, so its id does not have to be secret.
+# The same webhook wakes Bizon for its web UIs (bizon_web_nginx.conf) and for
+# RDP through rpi4 (bizon-rdp-wake.service); they send {"service": <app>}.
 input_boolean:
   bizon_autosuspend:
     name: "Bizon autosuspend"
@@ -54,7 +59,9 @@ command_line:
 automation:
   - id: bizon_wake_jellyfin
     alias: Bizon wake for Jellyfin
-    description: Wakes the Bizon when a request to jf.yuriip4.duckdns.org found it asleep.
+    description: >-
+      Wakes the Bizon when a request to jf.yuriip4.duckdns.org, a Bizon web UI on
+      rpi4 or an RDP connection to rpi4 found it asleep.
     # With the delay at the end: one wake a minute however many requests come
     mode: single
     max_exceeded: silent
@@ -65,10 +72,13 @@ automation:
           - POST
         local_only: true
     actions:
-      # nginx sends path, client, device, device_id, os (see bizon_jellyfin_nginx.conf)
+      # nginx sends path, client, device, device_id, os (see bizon_jellyfin_nginx.conf);
+      # web UIs and RDP send service (and path)
       - variables:
           req: "{{ trigger.json if trigger.json is defined and trigger.json is mapping else {} }}"
           woke_at: "{{ now().isoformat() }}"
+          # Same form as DateLastActivity in Jellyfin /Devices, compared as text
+          woke_utc: "{{ utcnow().strftime('%Y-%m-%dT%H:%M:%S') }}"
       - action: script.host_power
         data:
           host: bizon
@@ -87,8 +97,9 @@ automation:
               - action: rest_command.jellyfin_devices
                 response_variable: devices
                 continue_on_error: true
-      # Shows on the Bizon card next to the button presses: "Jellyfin (yurii)",
-      # the device when the user is unknown ("Jellyfin (iPhone)"), else "Jellyfin"
+      # Shows on the Bizon card next to the button presses: user and device
+      # ("Jellyfin (yurii · iPhone)"), whichever of them is known, else the
+      # platform from the User-Agent ("Jellyfin (Android TV)"), else "Jellyfin"
       - event: host_power_command
         event_data:
           host: bizon
@@ -96,9 +107,21 @@ automation:
           who: >-
             {%- set items = (devices.content.Items if devices is defined and devices.content is mapping else []) or [] %}
             {%- set dev = items | selectattr('Id', 'eq', req.device_id | default('')) | list | first | default({}) %}
-            {%- set who = dev.LastUserName | default('', true) or req.device | default('', true) or req.os | default('', true) %}
+            {#- The Android TV app sends an Id at start that /Devices does not list
+                (it lists another one), so else: the same app and device name,
+                active since the wake, most recent first #}
+            {%- if not dev %}
+              {%- set dev = items | selectattr('AppName', 'eq', req.client | default('', true))
+                    | selectattr('Name', 'eq', req.device | default('', true))
+                    | selectattr('DateLastActivity', 'defined') | selectattr('DateLastActivity', 'ge', woke_utc)
+                    | sort(attribute='DateLastActivity', reverse=true) | first | default({}) %}
+            {%- endif %}
+            {%- set user = dev.LastUserName | default('', true) | trim %}
+            {%- set device = (req.device | default('', true) or dev.Name | default('', true)) | trim %}
+            {%- set who = [user, device] | select | join(' · ') or req.os | default('', true) %}
             {%- set who = who | replace(' ()', '') | trim %}
-            {{- 'Jellyfin (%s)' | format(who) if who else 'Jellyfin' }}
+            {%- if req.service | default('', true) %}{{ req.service }}
+            {%- else %}{{ 'Jellyfin (%s)' | format(who) if who else 'Jellyfin' }}{% endif %}
       # Real use confirms the wake (sensor.bizon_jellyfin_confirmed). Without it
       # (an app starting in the background, a tab Safari restores) Bizon goes
       # back to sleep after 3 min instead of the 5 idle min of autosuspend.
