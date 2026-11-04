@@ -120,6 +120,12 @@ class KoecCabinet:
         if not form and done:
             return {"closed": True, "value": _num(done.group(1)),
                     "date": datetime.strptime(done.group(2), "%d.%m.%Y").date().isoformat()}
+        # Seen 2026-11-03 (fees still ended at September): the supplier's side
+        # had no readings on file for the meter, so the form was replaced by
+        # "відсутня інформація щодо фактичних показників".
+        if not form and "відсутня інформація щодо фактичних показників" in t:
+            raise CabinetError("КОЕК не має попередніх показників лічильника, форму "
+                               "закрито - ймовірно, закривають місяць; спробуй пізніше")
         if not form:
             raise CabinetError("readings form not found")
         f = form.group(0)
