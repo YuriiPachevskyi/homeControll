@@ -47,6 +47,7 @@
 #  Monthly full charge (binary_sensor.deye_6kw_full_charge, winter, the night
 #  to the 1st, 23:10-06:30): the 6kW is woken and deye_state_controller
 #  charges it from the grid to 100 % (BMS calibration after weeks at the floor).
+#  Only while input_boolean.deye_6kw_full_charge_enabled is on (off by default).
 # Snow (input_boolean.deye_6kw_snow, set by hand when the 6kW panels are
 # covered - winter 2025/26 they gave 2-14 kWh a week for ~8 weeks while the
 # 5kW ones worked): the 6kW stays in Standby day and night (phase 4 at any
@@ -115,7 +116,8 @@ template:
         unique_id: deye_6kw_full_charge
         icon: mdi:battery-charging-100
         state: >-
-          {{ is_state('binary_sensor.summer_season', 'off')
+          {{ is_state('input_boolean.deye_6kw_full_charge_enabled', 'on')
+             and is_state('binary_sensor.summer_season', 'off')
              and is_state('binary_sensor.night_charge_window', 'on')
              and (now().day == 1 if now().hour < 12
                   else (now() + timedelta(days=1)).day == 1) }}
@@ -129,6 +131,10 @@ input_boolean:
   deye_6kw_snow:
     name: "Deye 6kW snow"
     icon: mdi:snowflake
+  # Gate of binary_sensor.deye_6kw_full_charge (set by hand)
+  deye_6kw_full_charge_enabled:
+    name: "Deye 6kW monthly full charge"
+    icon: mdi:battery-charging-100
   # Bizon was asleep when the 6kW blacked it out: suspend it again after boot
   bizon_resleep:
     name: "Bizon resleep"
