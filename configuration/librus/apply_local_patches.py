@@ -106,6 +106,13 @@ step when a patch is added or dropped:
    upstream's download, served inline (last 5 files kept in memory for an
    hour), which the letter reader card (www/librus-message-reader.js) signs
    (auth/sign_path) and opens in a new tab.
+10. School-day card (cards plugin): upstream asks the timetable calendar
+   without activities outside the timetable ({extra:!0} is passed only by
+   the Today-lessons, week and Tomorrow cards), so a day with an extra
+   activity (Mila's Thursday reading class after lesson 7) showed one
+   lesson too few and ended too early. The card now asks with {extra:!0}
+   and draws such a segment with the green dashed outline the week card
+   uses for them. Found by the card's own element name, not minified names.
 
 Idempotent (each patch carries a marker). If upstream code changed so an
 expected line is missing, it stops with an error instead of guessing.
@@ -713,6 +720,42 @@ def patch_cards() -> None:
     print("cards: start_time zone patched (bump the Lovelace resource URL so browsers reload it)")
 
 
+SCHOOL_DAY_MARKER = f"/* {MARKER}: school-day extra activities */"
+SCHOOL_DAY_START = 'getStubConfig(){return{type:"custom:librus-school-day-card"}}'
+SCHOOL_DAY_END = 'he("librus-school-day-card")'
+SCHOOL_DAY_FETCH = re.compile(r"await pt\(this\.hass,\w+,\w+,\w+\)")
+SCHOOL_DAY_SEG = 'e.substitution||e.roomChange||e.moved?"sub":""}'
+SCHOOL_DAY_CSS = ".seg.sub{"
+
+
+def patch_school_day_card() -> None:
+    """Patch 10 - see the module docstring."""
+    import gzip
+    text = CARDS.read_text(encoding="utf-8")
+    if SCHOOL_DAY_MARKER in text:
+        print("cards: school-day extra activities already patched")
+        return
+    start = text.find(SCHOOL_DAY_START)
+    end = text.find(SCHOOL_DAY_END, start)
+    if start < 0 or end < 0:
+        sys.exit("cards: school-day card not found - upstream changed, patch 10 not applied")
+    body = text[start:end]
+    fetch = SCHOOL_DAY_FETCH.findall(body)
+    if (len(fetch) != 1 or body.count(SCHOOL_DAY_SEG) != 1
+            or body.count(SCHOOL_DAY_CSS) != 1):
+        sys.exit("cards: school-day card changed upstream - patch 10 not applied")
+    body = body.replace(fetch[0], fetch[0][:-1] + ",{extra:!0})")
+    body = body.replace(SCHOOL_DAY_SEG, SCHOOL_DAY_SEG + ' ${e.extra?"xa":""}')
+    body = body.replace(SCHOOL_DAY_CSS, ".seg.xa{outline:2px dashed var(--lc-good);outline-offset:-2px}"
+                        + SCHOOL_DAY_CSS)
+    text = SCHOOL_DAY_MARKER + "\n" + text[:start] + body + text[end:]
+    CARDS.write_text(text, encoding="utf-8")
+    gz = CARDS.with_name(CARDS.name + ".gz")
+    if gz.exists():
+        gz.write_bytes(gzip.compress(text.encode("utf-8"), 9))
+    print("cards: school-day extra activities patched (bump the Lovelace resource URL)")
+
+
 ATT_MARKER = f"{MARKER}: attachments"
 ATT_FUNC = f'''
 
@@ -823,6 +866,7 @@ def main() -> None:
     patch_cache()
     patch_school_date()
     patch_cards()
+    patch_school_day_card()
     patch_attachments()
     print("Restart Home Assistant for the patches to take effect.")
 
