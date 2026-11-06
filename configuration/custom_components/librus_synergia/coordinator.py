@@ -26,8 +26,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD
 from homeassistant.core import CALLBACK_TYPE, CoreState, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.event import async_track_time_change
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
+from homeassistant.helpers.event import async_call_later, async_track_time_change
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -172,6 +172,7 @@ from .const import (
     EVENT_ACHIEVEMENT_UNLOCKED,
     EVENT_AGENDA_CHANGED,
     EVENT_FORECAST_CHANGED,
+    EVENT_GRADE_CHANGED,
     EVENT_JUSTIFICATION_STATUS,
     EVENT_LIBRARY_CHANGED,
     EVENT_NEW_SCHOOL_DOCUMENT,
@@ -196,6 +197,7 @@ from .const import (
     SMART_POLLING_NIGHT,
     SMART_POLLING_NIGHT_END,
     SMART_POLLING_NIGHT_START,
+    HELD_EVENTS_DELAY,
     STATE_SAVE_DELAY,
     STATE_SAVE_MAX_INTERVAL,
     STATE_STORE_VERSION,
@@ -296,6 +298,11 @@ _ACHIEVEMENT_NEWS_DAYS = timedelta(days=7)
 _HOURLY = timedelta(hours=1)
 # The standing weekly plan changes a few times a year.
 _DAILY = timedelta(days=1)
+# Modules that change a few times a month at most: school-library loans,
+# the whole year's plan changes (refetched at once when a polled timetable
+# week changes - the fresh changes are in those weeks anyway), and the
+# activities outside the timetable while the last answer had none.
+_SLOW_REFRESH = timedelta(hours=6)
 # A mailbox Librus answered 404 for (the account doesn't have it) is asked
 # again after this long, not every cycle.
 _MISSING_MAILBOX_RECHECK = timedelta(hours=24)
@@ -585,6 +592,42 @@ _MESSAGE_TUPLE_POSITIONS: dict[str, int] = {
 # Agenda fields whose change fires EVENT_AGENDA_CHANGED (names resolved
 # alongside, but compared by id so a renamed category isn't a change).
 _AGENDA_COMPARED = ("date", "time_from", "content", "category_id", "subject_id")
+
+
+# What first_seen() tracks, and how long an item Librus no longer lists is
+# remembered.
+_FIRST_SEEN_KINDS = ("agenda", "plan_changes")
+_FIRST_SEEN_KEPT = timedelta(days=60)
+
+
+# The grades whose edits and deletions fire EVENT_GRADE_CHANGED: "grades" are
+# the ordinary ones (/Grades), the rest the kinds in `_known_items`.
+_GRADE_SOURCES = (
+    "grades",
+    "text_grades",
+    "descriptive_grades",
+    "point_grades",
+    "behaviour_grades",
+)
+# Grade fields whose change is an edit worth an event: the grade itself and
+# what decides how it counts. A renamed category or a new comment isn't.
+_GRADE_COMPARED = ("value", "points", "max_points", "weight", "counts_to_average")
+# Fields that come from the grade's category: empty before means the category
+# wasn't known yet, so getting a value is a lookup, not an edit.
+_GRADE_LOOKUP_FIELDS = ("max_points", "weight", "counts_to_average")
+# More edits and deletions than this in one kind in one sync are the school
+# changing something wholesale (a category's weight, a new school year), not
+# a teacher correcting a grade: recorded quietly.
+_GRADE_CHANGE_BURST = 5
+# Marks a saved grade missing from the last sync: removed once it is missing
+# from the next one too (see _fire_grade_change_events).
+_GRADE_MISSING = "missing"
+_GRADE_KIND_FLAGS = {
+    "semester": "is_semester",
+    "final": "is_final",
+    "semester_proposition": "is_semester_proposition",
+    "final_proposition": "is_final_proposition",
+}
 
 
 def _agenda_fields(item: Any, data: LibrusData) -> dict[str, Any]:
@@ -898,6 +941,42 @@ def _grade_event_details(
     }
 
 
+def _grade_fields(
+    grade: GradeData, data: LibrusData, improves: dict[int, str] | None = None
+) -> dict[str, Any]:
+    """An ordinary grade as a JSON-able dict: saved, compared and carried by
+    EVENT_GRADE_CHANGED (EVENT_NEW_GRADE's fields without the averages, plus
+    `category_id` to put the grade back for the average before)."""
+    return {
+        "subject_id": grade.subject_id,
+        "subject": data.subjects.get(grade.subject_id, str(grade.subject_id))
+        if grade.subject_id is not None
+        else None,
+        "value": grade.value,
+        "teacher": _teacher_name(data, grade.teacher_id),
+        "category_id": grade.category_id,
+        **_grade_event_details(grade, data.grade_categories, improves),
+    }
+
+
+def _grade_from_fields(grade_id: Any, fields: dict[str, Any]) -> GradeData:
+    """A saved ordinary grade (_grade_fields) back as GradeData - what the
+    subject average needs, for the average before an edit or a deletion."""
+    flag = _GRADE_KIND_FLAGS.get(fields.get("kind") or "")
+    return GradeData(
+        id=grade_id,
+        value=str(fields.get("value") or ""),
+        category_id=fields.get("category_id"),
+        subject_id=fields.get("subject_id"),
+        semester=fields.get("semester"),
+        add_date=fields.get("date"),
+        is_semester_proposition=flag == "is_semester_proposition",
+        is_final_proposition=flag == "is_final_proposition",
+        is_semester=flag == "is_semester",
+        is_final=flag == "is_final",
+    )
+
+
 def calculate_average(
     grades: list[GradeData],
     categories: dict[int, GradeCategoryData],
@@ -1095,12 +1174,20 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         # of them it is recorded silently instead of being announced as a
         # whole batch of "new" items.
         self._unseeded_kinds: set[str] = set()
+        self._message_window_grew = False
+        # Optional modules the school refused (403/404) at their last poll -
+        # on-demand fetches skip them (see _async_fetch_extra_week).
+        self._refused_modules: set[str] = set()
+        # A polled timetable week changed this cycle (see
+        # _remember_timetable_week).
+        self._timetable_changed_this_cycle = False
         # Bus events fired before Home Assistant has started (the first
         # refresh runs while it boots), in order, and the listener that fires
         # them once it has - see async_fire_event. Saved with the tracked
         # state, next to the ids they announce: an unload, a failed setup or
         # a stop before the start leaves them to the next setup.
         self._held_events: list[tuple[str, dict[str, Any]]] = []
+        # Waiting for STARTED, then for HELD_EVENTS_DELAY after it.
         self._fire_held_at_start: CALLBACK_TYPE | None = None
         entry.async_on_unload(self._async_cancel_fire_at_start)
         # Earned badge key ("sixes_10") -> date earned (YYYY-MM-DD). None =
@@ -1132,6 +1219,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         # seeded yet), and the basis it was computed on.
         self._known_forecast: dict[int, int] | None = None
         self._known_forecast_basis: str | None = None
+        # The settings the known forecast was worked out with (thresholds,
+        # average mode, point scales) - a change of them is not a change of
+        # the child's grades, so it re-seeds quietly.
+        self._known_forecast_settings: str | None = None
         # Real homework assignments - the library's ChangeTracker doesn't
         # cover HomeWorkAssignments, so same seed-then-union set as above.
         self._known_homework_assignment_ids: set[Any] | None = None
@@ -1162,6 +1253,28 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             "school_files": None,
             **{f"{box}_messages": None for box in _EVENT_MAILBOXES},
         }
+        # Every grade as last seen, per kind ("grades" for the ordinary ones,
+        # then the kinds above) - what an edit or a deletion is compared
+        # against (see _fire_grade_change_events). None until the first sync,
+        # which only seeds it.
+        self._known_grades: dict[str, dict[str, dict[str, Any]] | None] = dict.fromkeys(
+            _GRADE_SOURCES
+        )
+        # The school year those grades are from (Classes BeginSchoolYear): a
+        # new one starts _known_grades over.
+        self._known_grades_year: str | None = None
+        # The edits seen this school year, per kind and grade id: when the
+        # change was noticed and what the changed fields were before
+        # ({"at": ISO time, "previous": {field: old value}}). Librus keeps no
+        # modification date, so this is what lets the cards put an edited
+        # grade ("bz" -> "5") back at the top (issue #28). See grade_edit().
+        self._grade_edits: dict[str, dict[str, dict[str, Any]]] = {}
+        # When an Agenda entry and a plan change (Calendars/Substitutions)
+        # first showed up, per id - Librus gives neither an add date, and the
+        # Recent activity card lists them under the day they appeared (issue
+        # #28). None until the first sync, which records what's there with
+        # "" (appeared before we looked). See first_seen().
+        self._first_seen: dict[str, dict[str, str] | None] = dict.fromkeys(_FIRST_SEEN_KINDS)
         # When each throttled optional endpoint last answered (see
         # _async_optional).
         self._fetched_at: dict[str, datetime] = {}
@@ -1300,6 +1413,20 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             for kind in self._known_items:
                 if isinstance(ids := items.get(kind), list):
                     self._known_items[kind] = set(ids)
+        if isinstance(grades := stored.get("grades"), dict):
+            for source in self._known_grades:
+                if isinstance(known := grades.get(source), dict):
+                    self._known_grades[source] = known
+        if isinstance(year := stored.get("grades_year"), str):
+            self._known_grades_year = year
+        if isinstance(seen := stored.get("first_seen"), dict):
+            for kind in _FIRST_SEEN_KINDS:
+                if isinstance(ids := seen.get(kind), dict):
+                    self._first_seen[kind] = {str(k): str(v) for k, v in ids.items()}
+        if isinstance(edits := stored.get("grade_edits"), dict):
+            self._grade_edits = {
+                str(source): dict(items) for source, items in edits.items() if isinstance(items, dict)
+            }
         if isinstance(ids := stored.get("homework_assignment_ids"), list):
             self._known_homework_assignment_ids = set(ids)
         if isinstance(dates := stored.get("achievement_dates"), dict):
@@ -1323,6 +1450,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 _restore_id(k): v for k, v in forecast["values"].items() if isinstance(v, int)
             }
             self._known_forecast_basis = forecast.get("basis")
+            settings = forecast.get("settings")
+            self._known_forecast_settings = settings if isinstance(settings, str) else None
         if isinstance(number := stored.get("student_number"), int):
             self.student_number_from_librus = number
         if isinstance(digests := stored.get("average_digests"), dict):
@@ -1393,6 +1522,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             self._kindergarten_source, self._last_good.get("Me")
         )
         self._restore_throttles(stored.get("throttles"), trust_until)
+        if self._message_window_grew:
+            self._reseed_messages_quietly()
 
         # What was just read is what the files hold: nothing to write until
         # it changes (or STATE_SAVE_MAX_INTERVAL passes).
@@ -1407,6 +1538,19 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         if self._held_events:
             # Already in the file: no write until they are fired.
             self._async_fire_held_when_started(save=False)
+
+    def _reseed_messages_quietly(self) -> None:
+        """"Messages to fetch per mailbox" was raised: the next lists reach
+        further back, and the older messages in them were seen ids never
+        held - announcing them would send one "new message" per message.
+        The first lists after the change are recorded silently instead, as
+        on install (a message that really arrives during that one refresh
+        is recorded with them)."""
+        self._message_window_grew = False
+        if self._change_tracker.is_seeded:
+            self._unseeded_kinds.add("messages")
+        for box in _EVENT_MAILBOXES:
+            self._known_items[f"{box}_messages"] = None
 
     async def _async_load(self, store: Store[dict[str, Any]]) -> dict[str, Any] | None:
         try:
@@ -1536,7 +1680,13 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         # Lists saved with another "Messages to fetch per mailbox" (state from
         # before the option: always 10) are dropped, so a changed option shows
         # on the first refresh instead of up to a day later.
-        same_limit = saved.get("mailbox_limit", DEFAULT_MESSAGES_COUNT) == self.messages_limit
+        saved_limit = saved.get("mailbox_limit", DEFAULT_MESSAGES_COUNT)
+        same_limit = saved_limit == self.messages_limit
+        # A larger window brings older messages into the lists for the first
+        # time: they are not new (see _reseed_messages_quietly).
+        self._message_window_grew = (
+            isinstance(saved_limit, int) and self.messages_limit > saved_limit
+        )
         if same_limit and isinstance(archive := saved.get("archive"), list):
             self._archived_messages = _messages_from_saved(archive)
             self._archive_fetched_at = when(saved.get("archive_fetched_at"))
@@ -1681,6 +1831,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             self._known_justifications,
             self._known_library,
             self._known_items,
+            self._known_grades,
+            self._known_grades_year,
+            self._grade_edits,
+            self._first_seen,
             self._known_homework_assignment_ids,
             self._achievement_dates,
             self._achievement_year,
@@ -1690,6 +1844,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             self.homework_done_ever,
             self._known_forecast,
             self._known_forecast_basis,
+            self._known_forecast_settings,
             self.student_number_from_librus,
             self._session_state,
             (
@@ -1787,6 +1942,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 kind: sorted(ids, key=str) if ids is not None else None
                 for kind, ids in self._known_items.items()
             },
+            "grades": self._known_grades,
+            "grades_year": self._known_grades_year,
+            "grade_edits": self._grade_edits,
+            "first_seen": self._first_seen,
             "homework_assignment_ids": (
                 sorted(self._known_homework_assignment_ids, key=str)
                 if self._known_homework_assignment_ids is not None
@@ -1802,6 +1961,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             "forecast": (
                 {
                     "basis": self._known_forecast_basis,
+                    "settings": self._known_forecast_settings,
                     "values": {str(k): v for k, v in self._known_forecast.items()},
                 }
                 if self._known_forecast is not None
@@ -2067,6 +2227,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         key = week_start.isoformat()
         if self._timetable_cache.get(key) != payload:
             self._payloads_changed()
+            if key in self._timetable_cache:
+                # Something moved in a polled week: the year's plan changes
+                # (Calendars/Substitutions) are asked again this cycle.
+                self._timetable_changed_this_cycle = True
         self._timetable_cache[key] = payload
         for old in [k for k in self._timetable_cache if k < this_week.isoformat()]:
             # A past week dropped: written with the next save, not dated - a
@@ -2872,6 +3036,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             return self.data
         self.fallback_sections = set()
         self._failed_this_cycle = set()
+        self._timetable_changed_this_cycle = False
         try:
             # Nothing changed (most polls): the old object comes back (see
             # `_async_fetch_live`). The entities see the same data object
@@ -3086,12 +3251,15 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 "SchoolFiles", self._client.async_get_school_files, every=_HOURLY
             ),
             self._async_optional(
-                "EbiblioLendings", self._client.async_get_library_lendings, every=_HOURLY
+                "EbiblioLendings", self._client.async_get_library_lendings, every=_SLOW_REFRESH
             ),
             # The whole year's cancelled lessons and substitutions - the two
-            # timetable weeks fetched every cycle carry the fresh ones.
+            # timetable weeks fetched every cycle carry the fresh ones, so
+            # this is asked again when one of them changed, else 4x a day.
             self._async_optional(
-                "Calendars/Substitutions", self._client.async_get_plan_changes, every=_HOURLY
+                "Calendars/Substitutions",
+                self._client.async_get_plan_changes,
+                every=None if self._timetable_changed_this_cycle else _SLOW_REFRESH,
             ),
             self._async_optional(
                 "TimetableEntries", self._client.async_get_timetable_entries, every=_DAILY
@@ -3152,8 +3320,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 data = previous
         self._built_signature, self._built_data = signature, data
         self._fire_change_events(self._update_change_tracker(data, today), data)
+        self._fire_grade_edit_events(data)
         self._fire_new_homework_assignment_events(data)
         self._fire_agenda_change_events(data, today)
+        self._note_first_seen(data)
         self._fire_justification_events(data)
         self._fire_library_events(data)
         self._fire_extra_item_events(data)
@@ -3420,8 +3590,9 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
 
     def _fire_forecast_events(self, data: LibrusData, today: date) -> None:
         """EVENT_FORECAST_CHANGED when a subject's forecast grade moves.
-        Silent on the first poll and when the basis changes (the second
-        semester starts), so neither looks like a jump. Skipped for the data
+        Silent on the first poll, when the basis changes (the second
+        semester starts) and when the thresholds, average mode or point
+        scales under Configure change, so none of them looks like a jump. Skipped for the data
         object and day it was last worked out for (an unchanged poll keeps
         the data object - nothing can have moved)."""
         checked = (data, today)
@@ -3430,17 +3601,25 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         ):
             return
         basis, _semester = forecast_basis(data, today)
+        thresholds = self.grade_thresholds
+        weighted = self.weighted_average
+        point_thresholds = self.point_grade_thresholds_for(data)
+        settings = repr((thresholds, weighted, point_thresholds))
         forecasts = subject_forecasts(
             data,
             today,
-            self.grade_thresholds,
-            weighted=self.weighted_average,
+            thresholds,
+            weighted=weighted,
             owner=self.memo_owner,
-            point_thresholds=self.point_grade_thresholds_for(data),
+            point_thresholds=point_thresholds,
         )
         current = {f.subject_id: f.predicted for f in forecasts}
         known = self._known_forecast
-        if known is not None and basis == self._known_forecast_basis:
+        if (
+            known is not None
+            and basis == self._known_forecast_basis
+            and settings == self._known_forecast_settings
+        ):
             entry_id = self.config_entry.entry_id if self.config_entry else None
             for forecast in forecasts:
                 old = known.get(forecast.subject_id)
@@ -3466,6 +3645,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 )
         self._known_forecast = current
         self._known_forecast_basis = basis
+        self._known_forecast_settings = settings
         self._forecast_checked = checked
 
     def _feature_enabled(self, key: str, default: bool) -> bool:
@@ -3744,6 +3924,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         isn't a failure worth flagging)."""
         if isinstance(result, BaseException):
             if label in _OPTIONAL_MODULE_LABELS and _is_module_refusal(result):
+                self._refused_modules.add(label)
                 self._note_optional_endpoint_recovery(label)
                 self._remember_payload(label, {})
                 self._fetched_at[label] = dt_util.utcnow()
@@ -3758,6 +3939,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 self._note_optional_endpoint_failure(label)
                 return self._fallback(label)
             raise result
+        self._refused_modules.discard(label)
         self._note_optional_endpoint_recovery(label)
         self._remember_payload(label, result)
         return result
@@ -4256,6 +4438,9 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             if kind not in kinds:
                 payloads[label] = self._degrade_optional_payload(label, {})
                 continue
+            # Hourly while the school has some; every few hours while it has
+            # none (most schools never do) or refuses the module.
+            empty = not parse_extra_activities(self._last_good.get(label) or {}, kind)
             payloads[label] = await self._async_optional(
                 label,
                 partial(
@@ -4264,7 +4449,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                     week_start,
                     week_start + timedelta(days=13),
                 ),
-                every=_HOURLY if same_range else None,
+                every=(_SLOW_REFRESH if empty else _HOURLY) if same_range else None,
             )
         if not any(label in self._failed_this_cycle for label in payloads):
             self._extra_activities_from = week_start
@@ -4285,23 +4470,37 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         """One on-demand week's activities outside the timetable, or None
         when a kind couldn't be read (the last copy is kept then). A refused
         kind (the school doesn't have it) counts as none."""
-        result: list[ExtraActivityData] = []
-        for kind in self.extra_activity_kinds:
-            try:
-                payload = await self._client.async_get_extra_activities(
+        # Kinds the poll found refused (the school doesn't have the module)
+        # aren't asked for every browsed week; the others in parallel.
+        kinds = [
+            kind
+            for kind in self.extra_activity_kinds
+            if EXTRA_ACTIVITY_ENDPOINTS.get(kind) not in self._refused_modules
+        ]
+        answers = await asyncio.gather(
+            *(
+                self._client.async_get_extra_activities(
                     kind, week_start, week_start + timedelta(days=6)
                 )
-            except LibrusError as err:
-                if _is_module_refusal(err):
+                for kind in kinds
+            ),
+            return_exceptions=True,
+        )
+        result: list[ExtraActivityData] = []
+        for kind, answer in zip(kinds, answers, strict=True):
+            if isinstance(answer, LibrusError):
+                if _is_module_refusal(answer):
                     continue
                 _LOGGER.debug(
                     "Activities outside the timetable (%s) for the week starting %s: %s",
                     kind,
                     week_start,
-                    err,
+                    answer,
                 )
                 return None
-            result.extend(parse_extra_activities(payload, kind))
+            if isinstance(answer, BaseException):
+                raise answer
+            result.extend(parse_extra_activities(answer, kind))
         return result
 
     def extra_activities_between(self, start: date, end: date) -> list[ExtraActivityData]:
@@ -4457,15 +4656,15 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             return await self._client.async_download_school_file(path)
 
     async def _async_get_justifications(self) -> list[JustificationData]:
-        """The parent's submitted absence justifications. A failure keeps
-        the last good copy, like any optional endpoint."""
-        try:
-            result: dict[str, Any] | BaseException = await self._limited(
-                self._client.async_get_justifications()
+        """The parent's submitted absence justifications, at most once an
+        hour (a status changes when a teacher gets to it, not by the
+        minute). A failure keeps the last good copy, like any optional
+        endpoint."""
+        return parse_justifications(
+            await self._async_optional(
+                "Justifications", self._client.async_get_justifications, every=_HOURLY
             )
-        except LibrusError as err:
-            result = err
-        return parse_justifications(self._degrade_optional_payload("Justifications", result))
+        )
 
     def _saved_point_grades(self) -> list[PointGradeData]:
         grades_label, categories_label = _POINT_GRADE_LABELS
@@ -5002,6 +5201,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         change), its setup failing or Home Assistant stopping before the
         start has finished doesn't lose it: the next setup restores it and
         fires it once Home Assistant has started."""
+        event_data = self._with_device_id(event_data)
         if self.hass.state not in (CoreState.not_running, CoreState.starting):
             self.hass.bus.async_fire(event_type, event_data)
             return
@@ -5016,19 +5216,31 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         restored, so the file has it already); one write for a burst, as the
         store builds the data when it writes."""
         if self.hass.state not in (CoreState.not_running, CoreState.starting):
-            self._async_fire_held_events(self.hass)
+            self._async_fire_held_events()
         elif self._fire_held_at_start is None:
             # Not started yet, so this never calls back right away.
-            self._fire_held_at_start = async_at_started(
-                self.hass, self._async_fire_held_events
-            )
+            self._fire_held_at_start = async_at_started(self.hass, self._async_started)
             if save:
                 self._schedule_save()
 
     @callback
-    def _async_fire_held_events(self, _hass: HomeAssistant) -> None:
-        """Home Assistant has started - its automations are armed by now.
-        Fire what was held, without checking the state again; the next
+    def _async_started(self, _hass: HomeAssistant) -> None:
+        """Home Assistant has started: fire what is held a few seconds later.
+        Since Home Assistant 2026.7 automations arm their triggers before
+        STARTED; older versions arm them in tasks started BY that event,
+        which wouldn't be listening yet if the held events went out in the
+        same dispatch. The delay costs nothing on newer versions."""
+        self._fire_held_at_start = async_call_later(
+            self.hass, HELD_EVENTS_DELAY, self._async_fire_held_events_later
+        )
+
+    @callback
+    def _async_fire_held_events_later(self, _now: datetime) -> None:
+        self._async_fire_held_events()
+
+    @callback
+    def _async_fire_held_events(self) -> None:
+        """Fire what was held, without checking the state again; the next
         write drops the saved copy. An entry already unloading fires
         nothing: its final write leaves them to the next setup."""
         self._fire_held_at_start = None
@@ -5037,8 +5249,21 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         held, self._held_events = self._held_events, []
         _LOGGER.debug("Home Assistant has started: firing %s held event(s)", len(held))
         for event_type, event_data in held:
-            self.hass.bus.async_fire(event_type, event_data)
+            self.hass.bus.async_fire(event_type, self._with_device_id(event_data))
         self._schedule_save()
+
+    def _with_device_id(self, event_data: dict[str, Any]) -> dict[str, Any]:
+        """The student's device id in the event data - for the logbook on
+        the device page (it matches events by `device_id`), and for
+        automations. Events held by an older version get it when fired."""
+        if "device_id" in event_data or self.config_entry is None:
+            return event_data
+        devices = dr.async_entries_for_config_entry(
+            dr.async_get(self.hass), self.config_entry.entry_id
+        )
+        if not devices:
+            return event_data
+        return {**event_data, "device_id": devices[0].id}
 
     @callback
     def _async_cancel_fire_at_start(self) -> None:
@@ -5386,6 +5611,192 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 student=student,
                 available=available,
             )
+            if kind in self._known_grades:
+                self._fire_grade_change_events(kind, items, data, available=available)
+
+    def grade_edit(self, source: str, grade_id: Any) -> dict[str, Any] | None:
+        """The last edit noticed this school year of a grade of one kind
+        (see _GRADE_SOURCES): {"changed_at": ISO time, "previous": {field:
+        value before the first edit}} - or None for a grade never edited."""
+        edit = self._grade_edits.get(source, {}).get(str(grade_id))
+        if not edit:
+            return None
+        return {"changed_at": edit.get("at"), "previous": edit.get("previous") or {}}
+
+    def _fire_grade_edit_events(self, data: LibrusData) -> None:
+        """EVENT_GRADE_CHANGED for the ordinary grades (/Grades), with the
+        subject's average before and after, like EVENT_NEW_GRADE."""
+        year = data.school_class.begin_school_year if data.school_class else None
+        if year and self._known_grades_year and year != self._known_grades_year:
+            # A new school year: last year's grades are gone from Librus but
+            # weren't deleted - forget them and seed again, quietly.
+            self._known_grades = dict.fromkeys(_GRADE_SOURCES)
+            self._grade_edits = {}
+        if year:
+            self._known_grades_year = year
+        improves, _ = grade_improvements(data.grades)
+        self._fire_grade_change_events(
+            "grades",
+            {grade.id: _grade_fields(grade, data, improves) for grade in data.grades},
+            data,
+            available="Grades" not in self._failed_this_cycle
+            and "Grades" not in self.fallback_sections,
+        )
+
+    def _fire_grade_change_events(
+        self,
+        source: str,
+        current: dict[Any, dict[str, Any]],
+        data: LibrusData,
+        *,
+        available: bool = True,
+    ) -> None:
+        """EVENT_GRADE_CHANGED for a grade of one kind (`source`, see
+        _GRADE_SOURCES) whose value, points, weight or counting changed since
+        the last sync (`change: changed`), or that is gone from Librus
+        (`change: removed`). New grades fire EVENT_NEW_GRADE instead.
+
+        A grade has to be missing from two syncs in a row to count as
+        removed: one response leaving it out isn't a teacher deleting it.
+        Everything gone at once (a failed or emptied fetch, a new school
+        year) and more changes than _GRADE_CHANGE_BURST are recorded
+        quietly."""
+        if not available:
+            # The fetch failed this cycle: nothing to compare against, and
+            # seeding from an empty list would report every grade removed.
+            return
+        known = self._known_grades[source]
+        now = {str(grade_id): fields for grade_id, fields in current.items()}
+        if known is None:
+            # First sync: seed silently.
+            self._known_grades[source] = now
+            return
+        if known and not now:
+            # Everything gone at once is an emptied fetch: keep comparing
+            # against the grades as they were. (A new school year starts
+            # over in _fire_grade_edit_events.)
+            return
+        changed: list[tuple[str, dict[str, Any], dict[str, Any], list[str]]] = []
+        for grade_id, fields in list(now.items()):
+            if (before := known.get(grade_id)) is None:
+                continue
+            # A weight / counting the lookup couldn't give this sync (the
+            # category list failed or is late): the last known one stays, so
+            # the next sync compares against it instead of reporting
+            # "3 -> nothing" now and missing "3 -> 2" then.
+            lost = {
+                key: before[key]
+                for key in _GRADE_LOOKUP_FIELDS
+                if fields.get(key) is None and before.get(key) is not None
+            }
+            if lost:
+                fields = now[grade_id] = {**fields, **lost}
+            if keys := [
+                key
+                for key in _GRADE_COMPARED
+                if before.get(key) != fields.get(key)
+                # Weight / counting looked up late (the category wasn't
+                # known yet) is not the teacher editing the grade.
+                and not (key in _GRADE_LOOKUP_FIELDS and before.get(key) is None)
+            ]:
+                changed.append((grade_id, before, fields, keys))
+        removed: list[tuple[str, dict[str, Any]]] = []
+        missing: dict[str, dict[str, Any]] = {}
+        for grade_id, before in known.items():
+            if grade_id in now:
+                continue
+            if before.get(_GRADE_MISSING):
+                removed.append(
+                    (grade_id, {k: v for k, v in before.items() if k != _GRADE_MISSING})
+                )
+            else:
+                missing[grade_id] = {**before, _GRADE_MISSING: True}
+        self._known_grades[source] = {**now, **missing}
+        if not changed and not removed:
+            return
+        quiet = len(changed) + len(removed) > _GRADE_CHANGE_BURST
+        edits = dict(self._grade_edits.get(source, {}))
+        for grade_id, _ in removed:
+            edits.pop(grade_id, None)
+        if not quiet:
+            # A burst (a category's weight changed for every grade in it) is
+            # not the teacher editing these grades: not moved to the top.
+            at = dt_util.now().isoformat(timespec="seconds")
+            for grade_id, before, fields, keys in changed:
+                previous = dict(edits.get(grade_id, {}).get("previous", {}))
+                # A second edit keeps the oldest value of each field; a field
+                # edited back to it is no longer a change.
+                previous.update({key: before.get(key) for key in keys if key not in previous})
+                previous = {k: v for k, v in previous.items() if v != fields.get(k)}
+                if previous:
+                    edits[grade_id] = {"at": at, "previous": previous}
+                else:
+                    edits.pop(grade_id, None)
+        if edits:
+            self._grade_edits = {**self._grade_edits, source: edits}
+        else:
+            self._grade_edits = {k: v for k, v in self._grade_edits.items() if k != source}
+        if quiet:
+            _LOGGER.debug(
+                "%s %s grade(s) changed and %s removed at once: recorded quietly",
+                len(changed),
+                source,
+                len(removed),
+            )
+            return
+
+        def averages(subject_id: Any) -> dict[str, float | None]:
+            # Ordinary grades only, like EVENT_NEW_GRADE: the subject's
+            # average with this sync's edits and deletions undone, and now.
+            if source != "grades":
+                return {}
+            if subject_id is None:
+                return {"average_before": None, "average_after": None}
+
+            def average(grades: list[GradeData]) -> float | None:
+                return calculate_average(
+                    grades,
+                    data.grade_categories,
+                    subject_id=subject_id,
+                    weighted=self.weighted_average,
+                    grading=data.grading_system,
+                )
+
+            return {"average_before": average(earlier), "average_after": average(data.grades)}
+
+        undone = {grade.id: grade for grade in data.grades}
+        if source == "grades":
+            for grade_id, before, *_ in (*changed, *removed):
+                undone[_restore_id(grade_id)] = _grade_from_fields(_restore_id(grade_id), before)
+        earlier = list(undone.values())
+        base = {
+            "entry_id": self.config_entry.entry_id if self.config_entry else None,
+            "student": data.me.display_name,
+        }
+        for grade_id, before, fields, keys in changed:
+            self.async_fire_event(
+                EVENT_GRADE_CHANGED,
+                {
+                    **base,
+                    "id": _restore_id(grade_id),
+                    "change": "changed",
+                    **fields,
+                    **averages(fields.get("subject_id")),
+                    "changed_fields": keys,
+                    "previous": {key: before.get(key) for key in keys},
+                },
+            )
+        for grade_id, before in removed:
+            self.async_fire_event(
+                EVENT_GRADE_CHANGED,
+                {
+                    **base,
+                    "id": _restore_id(grade_id),
+                    "change": "removed",
+                    **before,
+                    **averages(before.get("subject_id")),
+                },
+            )
 
     def _fire_justification_events(self, data: LibrusData) -> None:
         """EVENT_JUSTIFICATION_STATUS when a submitted justification's
@@ -5465,6 +5876,45 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                         "lent_on": fields.get("lent_on"),
                     },
                 )
+
+    def first_seen(self, kind: str, item_id: Any) -> str | None:
+        """When an item of one kind (see _FIRST_SEEN_KINDS) first showed up
+        in Librus, as an ISO time - None when it was already there the first
+        time the integration looked (or isn't known)."""
+        return (self._first_seen.get(kind) or {}).get(str(item_id)) or None
+
+    def _note_first_seen(self, data: LibrusData) -> None:
+        """Record when each Agenda entry and plan change first showed up."""
+        current = {
+            "agenda": {str(item.id) for item in data.homeworks},
+            "plan_changes": {str(item.id) for item in data.plan_changes},
+        }
+        labels = {"agenda": "HomeWorks", "plan_changes": "Calendars/Substitutions"}
+        now = dt_util.now()
+        stamp = now.isoformat(timespec="seconds")
+        cutoff = (now - _FIRST_SEEN_KEPT).isoformat(timespec="seconds")
+        for kind, ids in current.items():
+            label = labels[kind]
+            if label in self._failed_this_cycle or label in self.fallback_sections:
+                continue
+            known = self._first_seen.get(kind)
+            if known is None:
+                # First look: what's there now came before - no date.
+                self._first_seen[kind] = dict.fromkeys(ids, "")
+                continue
+            if known and not ids:
+                # Everything gone at once is a failed or emptied fetch.
+                continue
+            # Items Librus no longer lists are kept a while (an entry can drop
+            # out of a window and come back), then forgotten.
+            kept = {
+                item_id: when
+                for item_id, when in known.items()
+                if item_id in ids or (when and when >= cutoff)
+            }
+            new = {item_id: stamp for item_id in ids if item_id not in known}
+            if new or len(kept) != len(known):
+                self._first_seen[kind] = {**kept, **new}
 
     def _fire_agenda_change_events(self, data: LibrusData, today: date) -> None:
         """EVENT_AGENDA_CHANGED for an upcoming Agenda entry whose date,

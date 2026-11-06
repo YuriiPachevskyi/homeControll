@@ -317,7 +317,23 @@ def _subject_teachers(data: LibrusData) -> dict[str, list[str]]:
     return {subject: sorted(names) for subject, names in sorted(seen.items())}
 
 
-def _point_grade_log(data: LibrusData, grades: list[PointGradeData]) -> list[dict[str, Any]]:
+# A grade's edit as the coordinator noticed it (grade_edit): kind, grade id
+# -> {"changed_at", "previous"} or None.
+type _EditLookup = Callable[[str, Any], dict[str, Any] | None]
+
+
+def _edit_attrs(edits: _EditLookup | None, source: str, grade_id: Any) -> dict[str, Any]:
+    """`changed_at` / `previous` for a grade edited in Librus after it was
+    given (issue #28: the cards put it back at the top) - nothing for one
+    never edited, so other grades keep their attributes as they were."""
+    if edits is None:
+        return {}
+    return edits(source, grade_id) or {}
+
+
+def _point_grade_log(
+    data: LibrusData, grades: list[PointGradeData], edits: _EditLookup | None = None
+) -> list[dict[str, Any]]:
     """Point grades newest first, for attributes."""
     return [
         {
@@ -331,6 +347,7 @@ def _point_grade_log(data: LibrusData, grades: list[PointGradeData]) -> list[dic
             "date": g.add_date,
             "subject": data.subjects.get(g.subject_id) if g.subject_id is not None else None,
             "teacher": data.teachers.get(g.teacher_id) if g.teacher_id is not None else None,
+            **_edit_attrs(edits, "point_grades", g.id),
         }
         for g in sorted(grades, key=lambda g: g.add_date or "", reverse=True)
     ]
@@ -344,7 +361,10 @@ def _by_subject(items: list[Any]) -> dict[Any, list[Any]]:
 
 
 def _text_grade_attrs(
-    data: LibrusData, subject_id: int, owner: Hashable | None = None
+    data: LibrusData,
+    subject_id: int,
+    owner: Hashable | None = None,
+    edits: _EditLookup | None = None,
 ) -> dict[str, Any]:
     """A subject's text grades (free text instead of a number) - only when
     it has any. Grouped by subject once per data object, not filtered out
@@ -361,6 +381,7 @@ def _text_grade_attrs(
                 "category": g.category,
                 "date": g.date,
                 "teacher": data.teachers.get(g.teacher_id) if g.teacher_id is not None else None,
+                **_edit_attrs(edits, "text_grades", g.id),
             }
             for g in grades
         ]
@@ -368,7 +389,10 @@ def _text_grade_attrs(
 
 
 def _point_grade_attrs(
-    data: LibrusData, subject_id: int, owner: Hashable | None = None
+    data: LibrusData,
+    subject_id: int,
+    owner: Hashable | None = None,
+    edits: _EditLookup | None = None,
 ) -> dict[str, Any]:
     """A subject's point grades and their percentage - only when it has any,
     so 1-6 schools see no extra attributes."""
@@ -390,7 +414,7 @@ def _point_grade_attrs(
         "points_percentage_semester_2": point_grades_percentage(
             [g for g in grades if g.semester == 2]
         ),
-        "point_grades": _point_grade_log(data, grades),
+        "point_grades": _point_grade_log(data, grades, edits),
     }
 
 
@@ -746,6 +770,8 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
                 # correction, `improved` marks the earlier grade itself.
                 "improves": improves.get(g.id),
                 "improved": g.id in improved,
+                # Edited in Librus after it was given (issue #28).
+                **_edit_attrs(self.coordinator.grade_edit, "grades", g.id),
             }
             for g in sorted(subject_grades, key=lambda g: g.add_date or "", reverse=True)
         ]
@@ -770,8 +796,8 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
             "final_grade": _summary_grade(grades, "is_final"),
             **self._averages(),
             **self._forecast_attrs(),
-            **_point_grade_attrs(data, self._subject_id, owner),
-            **_text_grade_attrs(data, self._subject_id, owner),
+            **_point_grade_attrs(data, self._subject_id, owner, self.coordinator.grade_edit),
+            **_text_grade_attrs(data, self._subject_id, owner, self.coordinator.grade_edit),
         }
 
     def _forecast_attrs(self) -> dict[str, Any]:
@@ -957,6 +983,7 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
     by_weekday: dict[str, dict[str, int]] = {}
     by_subject: dict[str, dict[str, int]] = {}
     subject_attendance: dict[str, dict[str, Any]] = {}
+    marks: list[dict[str, Any]] = []
     for a in data.attendances:
         t = _attendance_type(data, a.type_id)
         name = t.name if t is not None else str(a.type_id)
@@ -1010,6 +1037,16 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
                 day_bucket[split] += 1
         subject_id = data.lesson_subjects.get(a.lesson_id) if a.lesson_id is not None else None
         subject_name = data.subjects.get(subject_id) if subject_id is not None else None
+        if split and a.date:
+            marks.append(
+                {
+                    "date": a.date,
+                    "lesson_no": a.lesson_no,
+                    "subject": subject_name,
+                    "kind": split,
+                    "type": t.name,
+                }
+            )
         if not subject_name:
             continue
         if split:
@@ -1029,7 +1066,9 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
         bucket["absent"] = bucket["total"] - bucket["present"]
         bucket["percentage"] = round(100 * bucket["present"] / bucket["total"], 1)
     total = len(data.attendances)
+    marks.sort(key=lambda m: (m["date"], m["lesson_no"] or 0), reverse=True)
     return {
+        "recent_marks": marks[:_RECENT_ABSENCES],
         "breakdown": breakdown,
         "presence_by_type": presence_by_type,
         "absence_dates": absence_dates,
@@ -1048,6 +1087,10 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
     }
 
 
+# Absences and late arrivals listed in the Attendance sensor's `recent`.
+_RECENT_ABSENCES = 30
+
+
 class LibrusAttendanceSensor(LibrusSensorBase):
     """Count of real absences - excludes "present"/"late"/"excused" marks.
 
@@ -1061,7 +1104,15 @@ class LibrusAttendanceSensor(LibrusSensorBase):
 
     _attr_translation_key = "attendance"
     _unrecorded_attributes = frozenset(
-        {"breakdown", "presence_by_type", "by_date", "by_semester", "by_weekday", "by_subject"}
+        {
+            "breakdown",
+            "presence_by_type",
+            "by_date",
+            "by_semester",
+            "by_weekday",
+            "by_subject",
+            "recent",
+        }
     )
     _attr_state_class = SensorStateClass.MEASUREMENT
 
@@ -1119,6 +1170,11 @@ class LibrusAttendanceSensor(LibrusSensorBase):
             # name (CONFIRMED live 2026-09-23). A record whose lesson_id
             # doesn't resolve is skipped rather than guessed at.
             "by_subject": summary["by_subject"],
+            # The latest absences and late arrivals, newest first: date,
+            # lesson number, subject (None when the lesson doesn't resolve),
+            # `kind` (unexcused / excused / late) and the school's type name
+            # - the companion Recent activity card lists them (issue #28).
+            "recent": summary["recent_marks"],
         }
 
 
@@ -1915,6 +1971,7 @@ class LibrusDescriptiveGradesSensor(LibrusSensorBase):
                 "semester": g.semester,
                 "skill_id": g.skill_id,
                 "category_id": g.category_id,
+                **_edit_attrs(self.coordinator.grade_edit, "descriptive_grades", g.id),
             }
             for g in sorted(
                 data.descriptive_grades, key=lambda g: g.date or g.add_date or "", reverse=True
@@ -2359,6 +2416,11 @@ class LibrusSchoolEndSensor(_LibrusSchoolTimeSensor):
         return school_day.last_lesson
 
 
+# Agenda entries listed in the Next exam sensor's `recently_added`.
+_AGENDA_ADDED_DAYS = 30
+_AGENDA_ADDED_LISTED = 20
+
+
 class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):
     """Date of the next graded assessment ("sprawdzian" and friends) from
     the Agenda feed. State is a date (`device_class: date`); attributes
@@ -2370,7 +2432,9 @@ class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):
     description (see `exam_prep.EXAM_RE`) - deliberately conservative."""
 
     _attr_translation_key = "next_exam"
-    _unrecorded_attributes = frozenset({"upcoming", "topics", "content", "this_week", "next_week"})
+    _unrecorded_attributes = frozenset(
+        {"upcoming", "topics", "content", "this_week", "next_week", "recently_added"}
+    )
     _attr_device_class = SensorDeviceClass.DATE
 
     def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
@@ -2407,15 +2471,44 @@ class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):
             },
         )
 
+    def _recently_added(self) -> dict[str, Any]:
+        """Agenda entries (any category) that showed up in the last
+        _AGENDA_ADDED_DAYS, newest first, with `seen` (when the integration
+        first saw them - Librus gives no add date). For the companion
+        Recent activity card (issue #28)."""
+        data = self.coordinator.data
+        cutoff = (dt_util.now() - timedelta(days=_AGENDA_ADDED_DAYS)).isoformat(timespec="seconds")
+        added = []
+        for item in data.homeworks:
+            seen = self.coordinator.first_seen("agenda", item.id)
+            if seen and seen >= cutoff:
+                added.append(
+                    {
+                        "seen": seen,
+                        "date": item.date,
+                        "time": item.time_from,
+                        "category": data.homework_categories.get(item.category_id)
+                        if item.category_id is not None
+                        else None,
+                        "subject": data.subjects.get(item.subject_id)
+                        if item.subject_id is not None
+                        else None,
+                        "content": (item.content or "")[:300],
+                    }
+                )
+        added.sort(key=lambda a: a["seen"], reverse=True)
+        return {"recently_added": added[:_AGENDA_ADDED_LISTED]} if added else {}
+
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         preps = self._prep()
         if not preps:
-            return self._weeks() or None
+            return {**self._weeks(), **self._recently_added()} or None
         today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
         first = preps[0]
         return {
             **self._weeks(),
+            **self._recently_added(),
             "days_until": (first.day - today).days,
             "subject": first.subject,
             "category": first.category,
@@ -2483,7 +2576,7 @@ class LibrusPointGradesSensor(LibrusSensorBase):
         return {
             "count": len(data.point_grades),
             "subjects": dict(sorted(subjects.items())),
-            "recent": _point_grade_log(data, data.point_grades),
+            "recent": _point_grade_log(data, data.point_grades, self.coordinator.grade_edit),
         }
 
 
@@ -2761,7 +2854,9 @@ class LibrusCancelledLessonsSensor(LibrusSensorBase):
     and per-month breakdown and the latest changes in attributes."""
 
     _attr_translation_key = "cancelled_lessons"
-    _unrecorded_attributes = frozenset({"by_subject", "by_month", "by_date", "recent"})
+    _unrecorded_attributes = frozenset(
+        {"by_subject", "by_month", "by_date", "recent", "recently_added"}
+    )
 
     def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
         super().__init__(coordinator, entry, "cancelled_lessons")
@@ -2835,6 +2930,36 @@ class LibrusCancelledLessonsSensor(LibrusSensorBase):
                 }
                 for c in recent
             ],
+            **self._recently_added(changes, name),
+        }
+
+    def _recently_added(self, changes: list[Any], name: Callable[..., Any]) -> dict[str, Any]:
+        """Plan changes that showed up in the last _AGENDA_ADDED_DAYS, newest
+        first, with `seen` (when the integration first saw them - Librus
+        gives no add date). For the Recent activity card (issue #28)."""
+        data = self.coordinator.data
+        cutoff = (dt_util.now() - timedelta(days=_AGENDA_ADDED_DAYS)).isoformat(timespec="seconds")
+        added = [
+            (seen, c)
+            for c in changes
+            if (seen := self.coordinator.first_seen("plan_changes", c.id)) and seen >= cutoff
+        ]
+        if not added:
+            return {}
+        added.sort(key=lambda pair: pair[0], reverse=True)
+        return {
+            "recently_added": [
+                {
+                    "seen": seen,
+                    "date": c.original_date,
+                    "lesson_no": c.original_lesson_no,
+                    "subject": name(data.subjects, c.original_subject_id),
+                    "kind": c.kind,
+                    "new_subject": name(data.subjects, c.subject_id),
+                    "new_teacher": name(data.teachers, c.teacher_id),
+                }
+                for seen, c in added[:_AGENDA_ADDED_LISTED]
+            ]
         }
 
 

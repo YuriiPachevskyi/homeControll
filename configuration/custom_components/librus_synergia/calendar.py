@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from bisect import bisect_left
 from collections.abc import Hashable
@@ -29,11 +30,13 @@ from . import LibrusConfigEntry, librus_device_info
 from .absence_days import absence_days
 from .const import (
     CONF_CALENDAR_EMOJI,
+    CONF_EXTRA_CALENDARS,
     CONF_FREE_DAYS_ENABLED,
     CONF_MERGE_PARALLEL_LESSONS,
     DEFAULT_CALENDAR_EMOJI,
     DEFAULT_FREE_DAYS_ENABLED,
     DEFAULT_MERGE_PARALLEL_LESSONS,
+    DOMAIN,
 )
 from .coordinator import (
     LibrusDataUpdateCoordinator,
@@ -67,6 +70,8 @@ _EXTRA_ACTIVITY_LABELS = {
     "one_to_one": "Nauczanie indywidualne",
 }
 EXTRA_ACTIVITY_UID_PREFIX = "librus-extra-"
+# How long one of the other calendars (Configure) may take to answer.
+_OTHER_CALENDAR_TIMEOUT = 15
 
 
 async def async_setup_entry(
@@ -160,6 +165,16 @@ def _lesson_exams(
     return exam_lines(data, items) if items else []
 
 
+def _teacher_description(teacher: str | None, details: list[str]) -> str | None:
+    """Teacher on the first line, details below. The first line stays (empty)
+    when the teacher is unknown - the companion cards read line one as the
+    teacher, so a test or room-change line must never move up into it."""
+    details = [line for line in details if line]
+    if not teacher and not details:
+        return None
+    return "\n".join([teacher or "", *details])
+
+
 @dataclass(frozen=True)
 class _LessonParts:
     """One lesson ready for the calendar; `teacher` and `details` become
@@ -178,7 +193,7 @@ class _LessonParts:
     cancelled: bool = False
 
     def to_event(self, emoji: bool = False) -> CalendarEvent:
-        description = "\n".join([self.teacher or "", *self.details]).strip() or None
+        description = _teacher_description(self.teacher, self.details)
         return CalendarEvent(
             start=self.start,
             end=self.end,
@@ -364,7 +379,7 @@ def _extra_activity_event(activity: ExtraActivityData, emoji: bool = False) -> C
     title = activity.title or label
     summary = f"{title} ({_CHANGE_LABELS['canceled']})" if activity.cancelled else title
     details = [] if title.casefold().startswith(label.casefold()) else [label]
-    description = "\n".join([activity.teacher or "", *details]).strip() or None
+    description = _teacher_description(activity.teacher, details)
     start = dt_util.as_local(datetime.combine(day, start_time, tzinfo=_SCHOOL_TZ))
     end = dt_util.as_local(datetime.combine(day, end_time, tzinfo=_SCHOOL_TZ))
     if end <= start:
@@ -648,6 +663,11 @@ class LibrusTimetableCalendar(CoordinatorEntity[LibrusDataUpdateCoordinator], Ca
             entry.options.get(CONF_MERGE_PARALLEL_LESSONS, DEFAULT_MERGE_PARALLEL_LESSONS)
         )
         self._emoji = bool(entry.options.get(CONF_CALENDAR_EMOJI, DEFAULT_CALENDAR_EMOJI))
+        # Other calendars whose timed events count as activities outside the
+        # timetable (cards issue #13); changing them reloads the entry too.
+        self._other_calendars: tuple[str, ...] = tuple(
+            entry.options.get(CONF_EXTRA_CALENDARS) or ()
+        )
 
     def _polled_events(self) -> _TimetableEvents | None:
         """The polled timetable's events, built once per coordinator data
@@ -725,7 +745,60 @@ class LibrusTimetableCalendar(CoordinatorEntity[LibrusDataUpdateCoordinator], Ca
             for event in _extra_activity_events(extra, self._emoji)
             if event.start < end_date and event.end > start_date
         )
+        events.extend(await self._other_calendar_events(hass, start_date, end_date))
         events.sort(key=lambda event: event.start)
+        return events
+
+    async def _other_calendar_events(
+        self, hass: HomeAssistant, start_date: datetime, end_date: datetime
+    ) -> list[CalendarEvent]:
+        """Timed events of the calendars picked under Configure (Other
+        calendars with activities), as activities outside the timetable: the
+        same uid prefix as Librus's own, so the companion cards show them
+        the same way. All-day events are left out, and so is any calendar of
+        this integration (no loops). A calendar that fails or is gone is
+        skipped - the lessons still show."""
+        component = hass.data.get("calendar")
+        if not self._other_calendars or component is None:
+            return []
+        events: list[CalendarEvent] = []
+        for entity_id in self._other_calendars:
+            entity = component.get_entity(entity_id)
+            platform = getattr(entity, "platform", None)
+            if not isinstance(entity, CalendarEntity) or (
+                platform is not None and platform.platform_name == DOMAIN
+            ):
+                continue
+            try:
+                async with asyncio.timeout(_OTHER_CALENDAR_TIMEOUT):
+                    found = await entity.async_get_events(hass, start_date, end_date)
+            except Exception as err:  # noqa: BLE001 - another integration's calendar
+                _LOGGER.debug("Skipping %s in the timetable calendar: %r", entity_id, err)
+                continue
+            state = hass.states.get(entity_id)
+            source = state.name if state is not None else entity_id
+            for event in found:
+                if not isinstance(event.start, datetime) or not isinstance(event.end, datetime):
+                    continue
+                start = dt_util.as_local(event.start)
+                end = dt_util.as_local(event.end)
+                if not (start < end_date and end > start_date) or end <= start:
+                    continue
+                events.append(
+                    CalendarEvent(
+                        start=start,
+                        end=end,
+                        summary=event.summary,
+                        location=event.location,
+                        # No teacher (the cards read line one as the
+                        # teacher); the calendar it came from below.
+                        description=_teacher_description(None, [source]),
+                        uid=(
+                            f"{EXTRA_ACTIVITY_UID_PREFIX}calendar-{entity_id}-"
+                            f"{event.uid or start.isoformat()}"
+                        ),
+                    )
+                )
         return events
 
 

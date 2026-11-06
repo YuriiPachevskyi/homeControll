@@ -60,6 +60,10 @@ SMART_POLLING_NIGHT_END = 6
 # good response of every endpoint, the fallback while Librus is down.
 STATE_STORE_VERSION = 1
 STATE_SAVE_DELAY = 300  # seconds
+# Events found while Home Assistant starts go out this long after STARTED,
+# once automations of older Home Assistant versions have armed their
+# triggers (coordinator._async_started).
+HELD_EVENTS_DELAY = 5  # seconds
 # The state is only written when something in it changed (a new response, a
 # newly seen item, ...) - but at least this often, so `last_success_at` (how
 # old the saved data is after a restart) doesn't drift far behind.
@@ -95,6 +99,12 @@ DEFAULT_MERGE_PARALLEL_LESSONS = True
 # learning path (ZŚK) and one-to-one teaching (NI) - the three extra lists of
 # Synergia's timetable page. Each can be switched off; all on by default.
 CONF_EXTRA_ACTIVITIES = "extra_activities"
+
+# Other Home Assistant calendars (Local Calendar, Google, ...) whose timed
+# events go into the timetable calendar as activities outside the timetable
+# - after-school clubs, day-care, a sports class Librus doesn't know about
+# (cards issue #13). Empty by default.
+CONF_EXTRA_CALENDARS = "extra_calendars"
 EXTRA_ACTIVITY_KINDS = ("other", "individual_path", "one_to_one")
 DEFAULT_EXTRA_ACTIVITIES = list(EXTRA_ACTIVITY_KINDS)
 
@@ -391,6 +401,12 @@ LUCKY_NUMBER_PUBLISH_HOUR = 15
 # while Home Assistant is off still fire after a restart - once it has
 # started (coordinator.async_fire_event).
 EVENT_NEW_GRADE = f"{DOMAIN}_new_grade"
+# Fires when a grade already announced is edited by the teacher (`change:
+# changed`, with `changed_fields` and the `previous` values - e.g. a 1
+# corrected to a 5) or deleted from Librus (`change: removed`, with the
+# grade as it was). Same fields as EVENT_NEW_GRADE (`kind` is the grade's
+# kind). Seeded silently on the first sync.
+EVENT_GRADE_CHANGED = f"{DOMAIN}_grade_changed"
 EVENT_NEW_ANNOUNCEMENT = f"{DOMAIN}_new_announcement"
 EVENT_NEW_NOTE = f"{DOMAIN}_new_note"
 EVENT_NEW_MESSAGE = f"{DOMAIN}_new_message"

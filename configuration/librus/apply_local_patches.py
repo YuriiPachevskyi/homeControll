@@ -723,7 +723,7 @@ def patch_cards() -> None:
 SCHOOL_DAY_MARKER = f"/* {MARKER}: school-day extra activities */"
 SCHOOL_DAY_START = 'getStubConfig(){return{type:"custom:librus-school-day-card"}}'
 SCHOOL_DAY_END = 'he("librus-school-day-card")'
-SCHOOL_DAY_FETCH = re.compile(r"await pt\(this\.hass,\w+,\w+,\w+\)")
+SCHOOL_DAY_FETCH = re.compile(r"await \w+\(this\.hass,\w+,\w+,\w+\)")  # minified fn name changes (pt -> gt in v0.16.33)
 SCHOOL_DAY_SEG = 'e.substitution||e.roomChange||e.moved?"sub":""}'
 SCHOOL_DAY_CSS = ".seg.sub{"
 
