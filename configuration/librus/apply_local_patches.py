@@ -16,7 +16,8 @@ step when a patch is added or dropped:
    instead (still converted to HA's zone by dt_util.as_local, so the instant
    is right everywhere; the cards then show browser-local time). Also the
    activities outside the timetable (calendar.py, v0.12.34) and the "test
-   within 24 hours" start (binary_sensor.py, v0.12.37).
+   within 24 hours" start (binary_sensor.py, v0.12.37) and the activity
+   ends of the School day end sensor (sensor.py, v0.12.44).
 2. Subject names: "<Polish> (<Ukrainian>)" from librus/subjects_uk.json,
    applied where the integration builds its subject id -> name map, so the
    translation shows up in every sensor, the calendars and the cards.
@@ -153,6 +154,9 @@ TZ_PATCHES = {
          "dt_util.as_local(datetime.combine(day, start_t, tzinfo=_SCHOOL_TZ))"),
         ("dt_util.as_local(datetime.combine(day, end_t))",
          "dt_util.as_local(datetime.combine(day, end_t, tzinfo=_SCHOOL_TZ))"),
+        # v0.12.44 School day end: an activity's end (hour_to) on that day.
+        ("dt_util.as_local(datetime.combine(day, end_time))",
+         "dt_util.as_local(datetime.combine(day, end_time, tzinfo=_SCHOOL_TZ))"),
     ],
 }
 
@@ -686,12 +690,17 @@ CARDS_HELPER = (CARDS_MARKER + "\nfunction __hcSrvDate(s,h){"
                 ".formatToParts(u))p[x.type]=x.value;"
                 "const asUtc=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);"
                 "return new Date(u.getTime()-(asUtc-u.getTime()))}catch(e){return new Date(naive)}}\n")
-# The minified names change between card releases: the next-lesson tile
-# parses `r` twice (new Date(r...) and a time formatter), the Today card
-# `new Date(d...)`; hass is whatever `X=this.hass` came last before each.
-CARDS_EDITS = [  # (regex, expected count)
-    (r'(?<![\w.])r\.replace\(" ","T"\)', 2),
-    (r'(?<=new Date\()d\.replace\(" ","T"\)', 1),
+# The minified names change between card releases (the next-lesson tile's
+# start was `r` up to v0.16.33, `i` in v0.16.35): the tile parses it twice
+# (new Date(x...) right before `,y=new Date,z="on"===` and a time
+# formatter), so its name is read from the first place; the Today card
+# parses `new Date(d...)` inside its item-text. hass is whatever
+# `X=this.hass` came last before each.
+CARDS_NEXT_LESSON = re.compile(r'(?<=new Date\()(\w+)\.replace\(" ","T"\)(?=\),\w+=new Date,\w+="on"===)')
+CARDS_EDITS = [  # (regex, expected count); {var} = the next-lesson tile's start;
+    # the edited part is group 1 when there is one, else the whole match
+    (r'(?<![\w.]){var}\.replace\(" ","T"\)', 2),
+    (r'item-text">\$\{\w+\(\w+,\w+\(new Date\((\w+\.replace\(" ","T"\))', 1),
 ]
 CARDS_HASS = re.compile(r"[,{\s](\w+)=this\.hass[,;]")
 
@@ -703,15 +712,22 @@ def patch_cards() -> None:
     if CARDS_MARKER in text:
         print("cards: start_time zone already patched")
         return
+    tile = list(CARDS_NEXT_LESSON.finditer(text))
+    if len(tile) != 1:
+        sys.exit(f"cards: expected 1 next-lesson start, found {len(tile)} - upstream changed, patch not applied")
+    var = tile[0].group(1)
     for pattern, count in CARDS_EDITS:
+        pattern = pattern.replace("{var}", re.escape(var))
         matches = list(re.finditer(pattern, text))
         if len(matches) != count:
             sys.exit(f"cards: expected {count}x {pattern!r} - upstream changed, patch not applied")
         for m in reversed(matches):
-            hass = [h.group(1) for h in CARDS_HASS.finditer(text, max(0, m.start() - 3000), m.start())]
+            g = 1 if m.lastindex else 0
+            start, end = m.span(g)
+            hass = [h.group(1) for h in CARDS_HASS.finditer(text, max(0, start - 3000), start)]
             if not hass:
-                sys.exit(f"cards: no `=this.hass` before {m.group()!r} - upstream changed, patch not applied")
-            text = f"{text[:m.start()]}__hcSrvDate({m.group()[0]},{hass[-1]}){text[m.end():]}"
+                sys.exit(f"cards: no `=this.hass` before {m.group(g)!r} - upstream changed, patch not applied")
+            text = f"{text[:start]}__hcSrvDate({m.group(g).split('.')[0]},{hass[-1]}){text[end:]}"
     text = CARDS_HELPER + text
     CARDS.write_text(text, encoding="utf-8")
     gz = CARDS.with_name(CARDS.name + ".gz")

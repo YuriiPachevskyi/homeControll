@@ -146,6 +146,8 @@ from .const import (
     CONF_MESSAGES_ENABLED,
     CONF_POINT_GRADE_THRESHOLDS,
     CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT,
+    CONF_SUBJECT_NAMES,
+    CONF_GRADE_CATEGORY_NAMES,
     CONF_QUIET_HOURS_ENABLED,
     CONF_QUIET_HOURS_END,
     CONF_QUIET_HOURS_START,
@@ -188,6 +190,7 @@ from .const import (
     EVENT_TIMETABLE_CHANGED,
     ISSUE_OPTIONAL_ENDPOINT_DEGRADED,
     ISSUE_SCHOOL_YEAR_ROLLOVER,
+    CONF_SUBJECT_COLORS,
     LAST_GOOD_DATA_MAX_AGE,
     LUCKY_NUMBER_PUBLISH_HOUR,
     OPTIONAL_ENDPOINT_LABELS,
@@ -207,6 +210,13 @@ from .const import (
     STATUS_STALE,
 )
 from .achievements import Badge, compute_badges, key_title
+from .subject_colors import parse_subject_colors
+from .subject_names import (
+    category_key,
+    parse_category_names,
+    parse_subject_names,
+    rename_subjects,
+)
 from .forecast import (
     PointThresholds,
     PointThresholdsArg,
@@ -765,6 +775,13 @@ def optional_endpoint_issue_id(entry_id: str, label: str) -> str:
     return f"{ISSUE_OPTIONAL_ENDPOINT_DEGRADED}_{entry_id}_{label.lower().replace('/', '_')}"
 
 
+def unmatched_setting_issue_id(entry_id: str, kind: str) -> str:
+    """Repair-issue id for one entry's lines under Configure that match
+    nothing (`const.UNMATCHED_SETTING_ISSUES`) - public for the same reason
+    as `optional_endpoint_issue_id`."""
+    return f"{kind}_{entry_id}"
+
+
 def school_year_issue_id(entry_id: str) -> str:
     """Stable repair-issue id for one entry's school-year-rollover check -
     see `optional_endpoint_issue_id`'s docstring for why this is public."""
@@ -1064,6 +1081,18 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._last_fetch_at: datetime | None = None
         self._force_next_fetch = False
         self._cached_subjects: dict[int | str, str] = {}
+        # Subject names under Configure (see _display_subjects).
+        self._subject_names_key: tuple[int, str | None] | None = None
+        self._subject_names_parsed: tuple[dict[int | str, str], list[str]] = ({}, [])
+        self._display_subjects_for: dict[int | str, str] | None = None
+        self._display_subjects_cache: dict[int | str, str] = {}
+        # Grade category names lines that didn't work (_rename_grade_categories).
+        self.grade_category_names_unmatched: list[str] = []
+        # Lines under Configure that matched nothing, per repair issue
+        # (_check_unmatched_settings) - what the registry was last told.
+        self._unmatched_reported: dict[str, tuple[str, ...]] = {}
+        # Grade categories the Names step offers (_rename_grade_categories).
+        self.grade_category_choices: list[str] = []
         self._cached_teachers: dict[int | str, str] = {}
         self._cached_classrooms: dict[int | str, str] = {}
         self._cached_lesson_subjects: dict[int, int] = {}
@@ -3427,7 +3456,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         attendance_types = self._cached_attendance_types
         timetable = merge_timetables(timetable_this_week, timetable_next_week)
         grade_categories = self._cached_grade_categories
-        return LibrusData(
+        data = LibrusData(
             me=me,
             grades=grades,
             grade_categories=grade_categories,
@@ -3438,7 +3467,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             homeworks=homeworks,
             school_notices=school_notices,
             lucky_number=lucky_number,
-            subjects=self._cached_subjects,
+            subjects=self._display_subjects(),
             teachers=self._cached_teachers,
             classrooms=self._cached_classrooms,
             lesson_subjects=self._cached_lesson_subjects,
@@ -3494,6 +3523,9 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 parent_teacher_conferences_payload
             ),
         )
+        data = self._rename_grade_categories(data)
+        self._check_unmatched_settings(data)
+        return data
 
     @property
     def achievements(self) -> list[dict[str, str]]:
@@ -3586,7 +3618,141 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             else None
         )
         subjects = data.subjects if data is not None else {}
-        return parse_point_thresholds_by_subject(text, subjects)
+        return parse_point_thresholds_by_subject(text, subjects, self._cached_subjects)
+
+    def _grade_category_names(self, data: LibrusData) -> tuple[dict[str, str], list[str]]:
+        """Grade category names under Configure, matched against this data's
+        category names (ordinary, point and text grades)."""
+        text = (
+            self.config_entry.options.get(CONF_GRADE_CATEGORY_NAMES) if self.config_entry else None
+        )
+        if not text:
+            return {}, []
+        known = [c.name for c in data.grade_categories.values()]
+        known += [g.category for g in data.point_grades if g.category]
+        known += [g.category for g in data.text_grades if g.category]
+        return parse_category_names(text, known)
+
+    def _rename_grade_categories(self, data: LibrusData) -> LibrusData:
+        """Your grade category names (Configure, issue #29) in place of the
+        school's, for ordinary, point and text grades. Matched against the
+        original names, so it's applied once to freshly built data."""
+        # What the Names step under Configure offers: the categories this
+        # student's grades use, with the school's names.
+        used = {g.category_id for g in data.grades}
+        self.grade_category_choices = sorted(
+            {c.name for cid, c in data.grade_categories.items() if cid in used and c.name}
+            | {g.category for g in data.point_grades if g.category}
+            | {g.category for g in data.text_grades if g.category},
+            key=category_key,
+        )
+        names, unmatched = self._grade_category_names(data)
+        self.grade_category_names_unmatched = unmatched
+        if not names:
+            return data
+
+        def new(name: str | None) -> str | None:
+            return names.get(category_key(name), name) if name else name
+
+        return dataclasses.replace(
+            data,
+            grade_categories={
+                cid: dataclasses.replace(c, name=new(c.name) or c.name)
+                for cid, c in data.grade_categories.items()
+            },
+            point_grades=[dataclasses.replace(g, category=new(g.category)) for g in data.point_grades],
+            text_grades=[dataclasses.replace(g, category=new(g.category)) for g in data.text_grades],
+        )
+
+    @property
+    def original_subjects(self) -> dict[int | str, str]:
+        """The subjects with the names from Librus, whatever Subject names
+        under Configure renames - for options that name a subject."""
+        return self._cached_subjects
+
+    def _subject_names(self) -> tuple[dict[int | str, str], list[str]]:
+        text = self.config_entry.options.get(CONF_SUBJECT_NAMES) if self.config_entry else None
+        key = (id(self._cached_subjects), text)
+        if self._subject_names_key != key:
+            self._subject_names_key = key
+            self._subject_names_parsed = parse_subject_names(text, self._cached_subjects)
+        return self._subject_names_parsed
+
+    def _display_subjects(self) -> dict[int | str, str]:
+        """The subjects as the data shows them: your names from Subject
+        names under Configure (issue #29) in place of Librus's. The same dict
+        object while nothing changes, so an unchanged poll keeps equal data."""
+        names, _unmatched = self._subject_names()
+        if not names:
+            return self._cached_subjects
+        if self._display_subjects_for is not self._cached_subjects:
+            self._display_subjects_for = self._cached_subjects
+            self._display_subjects_cache = rename_subjects(self._cached_subjects, names)
+        return self._display_subjects_cache
+
+    @property
+    def subject_choices(self) -> list[str]:
+        """The student's subjects with the names from Librus, for the Names
+        step under Configure: the ones in the timetable, the standing plan or
+        the grades - not the school's whole list."""
+        data = self.data
+        if data is None:
+            return []
+        ids: set[int | str] = {g.subject_id for g in data.grades if g.subject_id is not None}
+        for lessons in data.timetable.values():
+            ids.update(lesson.subject_id for lesson in lessons if lesson.subject_id is not None)
+        ids.update(lesson.subject_id for lesson in data.standing_timetable if lesson.subject_id is not None)
+        return sorted(
+            {self._cached_subjects[sid] for sid in ids if self._cached_subjects.get(sid)},
+            key=category_key,
+        )
+
+    @property
+    def subject_names_unmatched(self) -> list[str]:
+        """Subject names lines that didn't work, to show the user."""
+        return self._subject_names()[1]
+
+    def _check_unmatched_settings(self, data: LibrusData) -> None:
+        """A repair issue for each setting under Configure with lines that
+        match nothing - typically the school renamed a subject - so they
+        don't go unnoticed in an attribute. Cleared once they match or are
+        gone. Judged only when Librus's subjects (and, for the category
+        names, the grade categories) are known."""
+        if self.config_entry is None or not self._cached_subjects:
+            return
+        options = self.config_entry.options
+        found: dict[str, list[str]] = {
+            "unmatched_subject_names": self._subject_names()[1],
+            "unmatched_subject_colors": parse_subject_colors(
+                options.get(CONF_SUBJECT_COLORS), data.subjects, self._cached_subjects
+            )[1],
+            "unmatched_point_thresholds": self._point_thresholds_by_subject(data)[1],
+        }
+        if data.grade_categories:
+            found["unmatched_category_names"] = self.grade_category_names_unmatched
+        entry_id = self.config_entry.entry_id
+        for kind, lines in found.items():
+            key = tuple(lines)
+            if self._unmatched_reported.get(kind, ()) == key and kind in self._unmatched_reported:
+                continue
+            self._unmatched_reported[kind] = key
+            issue_id = unmatched_setting_issue_id(entry_id, kind)
+            if not lines:
+                ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+                continue
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=True,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=kind,
+                translation_placeholders={
+                    "student": self.config_entry.title,
+                    "lines": "\n".join(f"- {line}" for line in lines),
+                },
+                data={"entry_id": entry_id, "kind": kind},
+            )
 
     def _fire_forecast_events(self, data: LibrusData, today: date) -> None:
         """EVENT_FORECAST_CHANGED when a subject's forecast grade moves.

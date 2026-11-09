@@ -105,6 +105,21 @@ CONF_EXTRA_ACTIVITIES = "extra_activities"
 # - after-school clubs, day-care, a sports class Librus doesn't know about
 # (cards issue #13). Empty by default.
 CONF_EXTRA_CALENDARS = "extra_calendars"
+
+# Subject colours for the companion cards, one "Subject: colour" a line
+# (subject_colors.py). Empty: every subject keeps its automatic colour.
+CONF_SUBJECT_COLORS = "subject_colors"
+
+# Your own subject names, one "Librus name: your name" a line
+# (subject_names.py, issue #29). Empty: the names from Librus.
+CONF_SUBJECT_NAMES = "subject_names"
+
+# Your own grade category names, one "Librus name: your name" a line
+# (issue #29). Agenda categories stay as they are - tests are recognised
+# by their Polish names.
+CONF_GRADE_CATEGORY_NAMES = "grade_category_names"
+# Set on their own options step (Names); Settings keeps them when saving.
+NAME_OPTION_KEYS = (CONF_SUBJECT_NAMES, CONF_GRADE_CATEGORY_NAMES)
 EXTRA_ACTIVITY_KINDS = ("other", "individual_path", "one_to_one")
 DEFAULT_EXTRA_ACTIVITIES = list(EXTRA_ACTIVITY_KINDS)
 
@@ -217,7 +232,7 @@ DEFAULT_AI_INCLUDE_MESSAGES = False
 # server language (Settings > System > General), not a user's profile.
 CONF_AI_LANGUAGE = "ai_language"
 AI_LANGUAGE_AUTO = "auto"
-AI_LANGUAGES = (AI_LANGUAGE_AUTO, "pl", "en")
+AI_LANGUAGES = (AI_LANGUAGE_AUTO, "pl", "en", "uk", "pt", "ru", "de", "fr")
 DEFAULT_AI_LANGUAGE = AI_LANGUAGE_AUTO
 AI_OPTION_KEYS = (
     CONF_AI_TASK_ENTITY,
@@ -388,6 +403,14 @@ MISC_DEGRADABLE_ENDPOINT_LABELS = (
 # when it's raised/cleared.
 ISSUE_SCHOOL_YEAR_ROLLOVER = "school_year_rollover"
 ISSUE_OPTIONAL_ENDPOINT_DEGRADED = "optional_endpoint_degraded"
+# A line under Configure that matches nothing any more (the school renamed
+# a subject, a typo...): issue translation key -> the option it is about.
+UNMATCHED_SETTING_ISSUES = {
+    "unmatched_subject_names": CONF_SUBJECT_NAMES,
+    "unmatched_category_names": CONF_GRADE_CATEGORY_NAMES,
+    "unmatched_subject_colors": CONF_SUBJECT_COLORS,
+    "unmatched_point_thresholds": CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT,
+}
 
 # The daily lucky number ("szczęśliwy numerek") is normally published by this
 # local hour; the coordinator avoids re-polling it before then once today's

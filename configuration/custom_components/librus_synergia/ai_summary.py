@@ -99,6 +99,7 @@ _LANGUAGE_NAMES = {
     "nl": "Dutch",
     "pt": "Portuguese",
     "uk": "Ukrainian",
+    "ru": "Russian",
 }
 
 # Sections of the summary, in display order: key -> what it covers. Each
@@ -256,6 +257,41 @@ _LABELS: dict[str, dict[str, Any]] = {
         "sections": {"grades": "Oceny", "attendance": "Frekwencja",
                      "behaviour": "Zachowanie", "next_week": "Następny tydzień",
                      "school_news": "Szkoła pisze"},
+    },
+    "uk": {
+        "title": "Підсумок тижня", "advice": "На цей тиждень", "warning": "Увага",
+        "statuses": {"good": "Добре", "ok": "Нормально", "caution": "Потребує уваги"},
+        "sections": {"grades": "Оцінки", "attendance": "Відвідуваність",
+                     "behaviour": "Поведінка", "next_week": "Наступний тиждень",
+                     "school_news": "Новини школи"},
+    },
+    "pt": {
+        "title": "Resumo da semana", "advice": "Para esta semana", "warning": "Atenção",
+        "statuses": {"good": "Bem", "ok": "OK", "caution": "Requer atenção"},
+        "sections": {"grades": "Notas", "attendance": "Assiduidade",
+                     "behaviour": "Comportamento", "next_week": "Próxima semana",
+                     "school_news": "Da escola"},
+    },
+    "ru": {
+        "title": "Итоги недели", "advice": "На эту неделю", "warning": "Внимание",
+        "statuses": {"good": "Хорошо", "ok": "Нормально", "caution": "Требует внимания"},
+        "sections": {"grades": "Оценки", "attendance": "Посещаемость",
+                     "behaviour": "Поведение", "next_week": "Следующая неделя",
+                     "school_news": "Новости школы"},
+    },
+    "de": {
+        "title": "Wochenzusammenfassung", "advice": "Für die kommende Woche", "warning": "Achtung",
+        "statuses": {"good": "Gut", "ok": "OK", "caution": "Beachten"},
+        "sections": {"grades": "Noten", "attendance": "Anwesenheit",
+                     "behaviour": "Verhalten", "next_week": "Nächste Woche",
+                     "school_news": "Von der Schule"},
+    },
+    "fr": {
+        "title": "Résumé de la semaine", "advice": "Pour la semaine à venir", "warning": "Attention",
+        "statuses": {"good": "Bien", "ok": "OK", "caution": "À surveiller"},
+        "sections": {"grades": "Notes", "attendance": "Assiduité",
+                     "behaviour": "Comportement", "next_week": "Semaine prochaine",
+                     "school_news": "De l'école"},
     },
 }
 

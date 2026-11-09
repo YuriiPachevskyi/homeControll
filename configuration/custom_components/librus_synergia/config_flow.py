@@ -27,6 +27,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_PASSWORD, CONF_SCAN_INTERVAL, CONF_USERNAME
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.selector import (
@@ -54,12 +55,14 @@ from librus_synergia import (
     LibrusInvalidCredentialsError,
 )
 
+from .subject_names import category_key, parse_category_names
 from .const import (
     AI_AUDIENCE_BOTH,
     AI_AUDIENCE_PARENT,
     AI_AUDIENCE_STUDENT,
     AI_LANGUAGES,
     AI_OPTION_KEYS,
+    NAME_OPTION_KEYS,
     AVERAGE_MODE_ARITHMETIC,
     AVERAGE_MODE_WEIGHTED,
     CONF_AI_AUDIENCE,
@@ -79,6 +82,9 @@ from .const import (
     CONF_GRADE_THRESHOLDS,
     CONF_EXTRA_ACTIVITIES,
     CONF_EXTRA_CALENDARS,
+    CONF_SUBJECT_COLORS,
+    CONF_SUBJECT_NAMES,
+    CONF_GRADE_CATEGORY_NAMES,
     CONF_HIDE_EMPTY_SUBJECTS,
     CONF_MERGE_PARALLEL_LESSONS,
     CONF_MESSAGES_COUNT,
@@ -134,6 +140,27 @@ USER_SCHEMA = vol.Schema(
         vol.Required(CONF_PASSWORD): PASSWORD_SELECTOR,
     }
 )
+
+
+def names_schema(names: list[str], current: dict[str, str]) -> vol.Schema:
+    """One text field per subject or category name, for your own name
+    (Names step, and the repair for names that match nothing)."""
+    return vol.Schema(
+        {
+            vol.Optional(
+                name, description={"suggested_value": current.get(category_key(name))}
+            ): TextSelector(TextSelectorConfig())
+            for name in names
+        }
+    )
+
+
+def names_text(values: Mapping[str, Any]) -> str:
+    """The names fields saved the way the option stores them: one
+    "Librus name: your name" a line, empty fields left out."""
+    return "\n".join(
+        f"{name}: {str(value).strip()}" for name, value in values.items() if value and str(value).strip()
+    )
 
 
 def _login_error_code(err: LibrusError) -> str:
@@ -359,7 +386,9 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Show the options menu."""
-        return self.async_show_menu(step_id="init", menu_options=["settings", "ai_summary"])
+        return self.async_show_menu(
+            step_id="init", menu_options=["settings", "names", "ai_summary"]
+        )
 
     async def async_step_settings(
         self, user_input: dict[str, Any] | None = None
@@ -370,12 +399,12 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
         the student number must disappear) but keeps the AI summary's own
         options, which live on the other menu step."""
         if user_input is not None:
-            ai_options = {
+            kept = {
                 key: value
                 for key, value in self.config_entry.options.items()
-                if key in AI_OPTION_KEYS
+                if key in AI_OPTION_KEYS or key in NAME_OPTION_KEYS
             }
-            return self.async_create_entry(data={**ai_options, **user_input})
+            return self.async_create_entry(data={**kept, **user_input})
 
         options = self.config_entry.options
         # The integration's own calendars can't feed the timetable calendar.
@@ -507,6 +536,11 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
                         domain="calendar", multiple=True, exclude_entities=own_calendars
                     )
                 ),
+                # One "Subject: colour" a line; empty = automatic colours.
+                vol.Optional(
+                    CONF_SUBJECT_COLORS,
+                    description={"suggested_value": options.get(CONF_SUBJECT_COLORS)},
+                ): TextSelector(TextSelectorConfig(multiline=True)),
                 vol.Required(
                     CONF_CALENDAR_EMOJI,
                     default=options.get(CONF_CALENDAR_EMOJI, DEFAULT_CALENDAR_EMOJI),
@@ -534,6 +568,40 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
             }
         )
         return self.async_show_form(step_id="settings", data_schema=schema)
+
+    async def async_step_names(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Your own names for the student's subjects and grade categories
+        (issue #29): each one from the account is listed, with a field for
+        your name. Stored as "Librus name: your name" lines."""
+        coordinator = getattr(self.config_entry, "runtime_data", None)
+        if coordinator is None or coordinator.data is None:
+            return self.async_abort(reason="no_data")
+        subjects = coordinator.subject_choices
+        categories = coordinator.grade_category_choices
+        options = self.config_entry.options
+
+        if user_input is not None:
+            data = {key: value for key, value in options.items() if key not in NAME_OPTION_KEYS}
+            for key, part in ((CONF_SUBJECT_NAMES, "subjects"), (CONF_GRADE_CATEGORY_NAMES, "categories")):
+                if text := names_text(user_input.get(part) or {}):
+                    data[key] = text
+            return self.async_create_entry(data=data)
+
+        current_subjects, _ = parse_category_names(options.get(CONF_SUBJECT_NAMES), subjects)
+        current_categories, _ = parse_category_names(options.get(CONF_GRADE_CATEGORY_NAMES), categories)
+
+        schema: dict[Any, Any] = {}
+        if subjects:
+            schema[vol.Required("subjects")] = section(names_schema(subjects, current_subjects), {"collapsed": False})
+        if categories:
+            schema[vol.Required("categories")] = section(
+                names_schema(categories, current_categories), {"collapsed": True}
+            )
+        if not schema:
+            return self.async_abort(reason="no_data")
+        return self.async_show_form(step_id="names", data_schema=vol.Schema(schema))
 
     async def async_step_ai_summary(
         self, user_input: dict[str, Any] | None = None

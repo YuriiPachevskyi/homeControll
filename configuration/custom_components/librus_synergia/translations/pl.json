@@ -46,7 +46,16 @@
         "title": "Opcje Librus Synergia",
         "menu_options": {
           "settings": "Ustawienia",
+          "names": "Nazwy przedmiotów i kategorii",
           "ai_summary": "Podsumowanie tygodnia (AI)"
+        }
+      },
+      "names": {
+        "title": "Nazwy przedmiotów i kategorii",
+        "description": "Własne nazwy, widoczne wszędzie zamiast tych z Librusa: w nazwach encji, atrybutach, zdarzeniach, kalendarzach, Assist, podsumowaniu AI i kartach. Puste pole zostawia nazwę z Librusa. Kategorie terminarza (Sprawdzian, Wycieczka...) zostają po polsku - po nich rozpoznawane są sprawdziany.",
+        "sections": {
+          "subjects": { "name": "Przedmioty" },
+          "categories": { "name": "Kategorie ocen" }
         }
       },
       "ai_summary": {
@@ -91,6 +100,7 @@
           "merge_parallel_lessons": "Łącz lekcje odbywające się w tym samym czasie",
           "extra_activities": "Zajęcia spoza planu lekcji",
           "extra_calendars": "Dodatkowe kalendarze z zajęciami",
+          "subject_colors": "Kolory przedmiotów",
           "calendar_emoji": "Emoji w tytułach kalendarza",
           "smart_polling": "Sprytne odświeżanie",
           "quiet_hours_enabled": "Włącz ciszę nocną (bez odpytywania w nocy)",
@@ -116,6 +126,7 @@
           "merge_parallel_lessons": "Lekcje o tej samej godzinie rozpoczęcia i zakończenia (np. przedmiot i Wspomaganie albo grupy) są jednym wpisem w kalendarzu planu lekcji, np. „Edukacja wczesnoszkolna + Wspomaganie”. Odwołana lekcja i jej zastępstwo zawsze zostają osobno.",
           "extra_activities": "Pokazywane w kalendarzu planu lekcji obok lekcji, z własnymi godzinami, nauczycielem i salą. To dodatkowe listy ze strony planu lekcji w Synergii: zajęcia dodatkowe, zindywidualizowana ścieżka kształcenia (ZŚK) i nauczanie indywidualne (NI). Odznacz te, których nie chcesz; szkoła, która ich nie prowadzi, po prostu ich nie ma.",
           "extra_calendars": "Twoje kalendarze (Local Calendar, Google, ...) z zajęciami, których nie ma w Librusie: koło, świetlica, basen. Ich wydarzenia z godziną pojawiają się w kalendarzu planu lekcji jako zajęcia spoza planu, więc pokazują je też karty (plan tygodnia, dzisiejsze lekcje, jutro, godziny w szkole). Wydarzenia całodniowe są pomijane. Nie przesuwają Początku i Końca lekcji ani Na lekcjach - te idą za lekcjami.",
+          "subject_colors": "Karty dają każdemu przedmiotowi własny kolor, taki sam w każdej karcie. Żeby wybrać kolory samemu, wpisz jeden przedmiot w linii: \"Matematyka: #2563eb\" (nazwa jak w Librusie - wielkość liter i polskie znaki bez znaczenia - i dowolny kolor CSS: #2563eb, teal, rgb(37 99 235)). Puste pole: kolory automatyczne.",
           "smart_polling": "Oszczędza zapytania, kiedy nic się nie dzieje. W dni szkolne od 6:00 do 22:00 dane odświeżają się co interwał ustawiony wyżej. W dzień bez lekcji (weekend, ferie) najwyżej raz na godzinę, a w nocy (22:00-6:00) najwyżej co 3 godziny. Akcja Odśwież (librus_synergia.refresh) zawsze pobiera od razu. Godziny ciszy poniżej, jeśli włączone, nadal działają.",
           "quiet_hours_enabled": "Gdy włączone, w oknie poniżej nie są pobierane żadne dane z Librusa - encje po prostu zachowują ostatni znany stan przez noc.",
           "quiet_hours_start": "Używane tylko, gdy cisza nocna jest włączona powyżej.",
@@ -124,6 +135,7 @@
       }
     },
     "abort": {
+      "no_data": "Integracja nie wczytała jeszcze danych ucznia. Spróbuj za minutę.",
       "no_ai_task": "Integracja AI Task jest niedostępna. Najpierw skonfiguruj dostawcę AI (Google Gemini, OpenAI, Anthropic, Ollama...) w Home Assistant 2025.8 lub nowszym."
     }
   },
@@ -223,7 +235,12 @@
       "options": {
         "auto": "Automatycznie (język Home Assistant)",
         "pl": "Polski",
-        "en": "Angielski"
+        "en": "Angielski",
+        "uk": "ukraiński",
+        "pt": "portugalski",
+        "ru": "rosyjski",
+        "de": "niemiecki",
+        "fr": "francuski"
       }
     },
     "ai_audience": {
@@ -252,6 +269,68 @@
     }
   },
   "issues": {
+    "unmatched_subject_names": {
+      "title": "Nazwy przedmiotów ucznia {student} nie pasują do przedmiotu",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Nazwy przedmiotów",
+            "description": "Te linie w Konfiguruj → Nazwy przedmiotów i kategorii nie pasują już do żadnego przedmiotu w Librusie. Szkoła mogła zmienić nazwę przedmiotu:\n\n{lines}\n\nWpisz swoje nazwy jeszcze raz poniżej. Puste pole zostawia nazwę z Librusa; linie powyżej znikną po zapisaniu."
+          }
+        },
+        "abort": {
+          "no_data": "Integracja nie wczytała jeszcze danych ucznia. Spróbuj za minutę."
+        }
+      }
+    },
+    "unmatched_category_names": {
+      "title": "Nazwy kategorii ocen ucznia {student} nie pasują do kategorii",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Nazwy kategorii ocen",
+            "description": "Te linie w Konfiguruj → Nazwy przedmiotów i kategorii nie pasują już do żadnej kategorii ocen w Librusie:\n\n{lines}\n\nWpisz swoje nazwy jeszcze raz poniżej. Puste pole zostawia nazwę z Librusa; linie powyżej znikną po zapisaniu."
+          }
+        },
+        "abort": {
+          "no_data": "Integracja nie wczytała jeszcze danych ucznia. Spróbuj za minutę."
+        }
+      }
+    },
+    "unmatched_subject_colors": {
+      "title": "Kolory przedmiotów ucznia {student} nie działają",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Kolory przedmiotów",
+            "description": "Te linie w Konfiguruj → Ustawienia → Kolory przedmiotów nie pasują do żadnego przedmiotu albo nie mają poprawnego koloru:\n\n{lines}\n\nPrzedmioty ucznia: {subjects}.\n\nPopraw albo usuń je poniżej.",
+            "data": {
+              "subject_colors": "Kolory przedmiotów"
+            }
+          }
+        },
+        "abort": {
+          "no_data": "Integracja nie wczytała jeszcze danych ucznia. Spróbuj za minutę."
+        }
+      }
+    },
+    "unmatched_point_thresholds": {
+      "title": "Progi ocen punktowych ucznia {student} nie działają",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Progi ocen punktowych dla przedmiotów",
+            "description": "Te linie w Konfiguruj → Ustawienia → Progi ocen punktowych dla przedmiotów nie pasują do żadnego przedmiotu albo nie mają pięciu procentów:\n\n{lines}\n\nPrzedmioty ucznia: {subjects}.\n\nPopraw albo usuń je poniżej.",
+            "data": {
+              "point_grade_thresholds_by_subject": "Progi ocen punktowych dla przedmiotów"
+            }
+          }
+        },
+        "abort": {
+          "no_data": "Integracja nie wczytała jeszcze danych ucznia. Spróbuj za minutę."
+        }
+      }
+    },
     "school_year_rollover": {
       "title": "Data końca roku szkolnego wygląda na nieaktualną",
       "fix_flow": {
@@ -320,6 +399,7 @@
       "current_lesson": { "name": "Bieżąca lekcja" },
       "school_start": { "name": "Początek lekcji" },
       "school_end": { "name": "Koniec lekcji" },
+      "school_day_end": { "name": "Koniec dnia w szkole" },
       "next_exam": { "name": "Najbliższy sprawdzian" },
       "lucky_number": { "name": "Szczęśliwy numerek" },
       "unread_announcements": { "name": "Nieprzeczytane ogłoszenia" },

@@ -60,8 +60,10 @@ from .const import (
     CONF_AVERAGE_MODE,
     CONF_BEHAVIOUR_GRADES_ENABLED,
     CONF_DESCRIPTIVE_GRADES_ENABLED,
+    CONF_EXTRA_CALENDARS,
     CONF_HIDE_EMPTY_SUBJECTS,
     CONF_STUDENT_NUMBER,
+    CONF_SUBJECT_COLORS,
     DEFAULT_ANNOUNCEMENTS_ENABLED,
     DEFAULT_AVERAGE_MODE,
     DEFAULT_BEHAVIOUR_GRADES_ENABLED,
@@ -101,6 +103,8 @@ from .forecast import (
     report_average,
     subject_forecasts,
 )
+from .other_calendars import OtherActivity, async_other_activities
+from .subject_colors import palette_slots, parse_subject_colors, student_subjects
 from .school_day import (
     SchoolDay,
     SchoolDayRefresh,
@@ -443,6 +447,7 @@ async def async_setup_entry(
             LibrusCurrentLessonSensor(coordinator, entry),
             LibrusSchoolStartSensor(coordinator, entry),
             LibrusSchoolEndSensor(coordinator, entry),
+            LibrusSchoolDayEndSensor(coordinator, entry),
             LibrusNextExamSensor(coordinator, entry),
             LibrusLuckyNumberSensor(coordinator, entry),
             LibrusUnreadAnnouncementsSensor(coordinator, entry),
@@ -2112,7 +2117,9 @@ class LibrusSchoolSensor(LibrusSensorBase):
     (refreshed on the same 24h cadence as subjects/teachers/classrooms)."""
 
     _attr_translation_key = "school"
-    _unrecorded_attributes = frozenset({"bell_schedule", "subject_teachers"})
+    _unrecorded_attributes = frozenset(
+        {"bell_schedule", "subject_teachers", "subject_palette", "subject_colors"}
+    )
 
     def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
         super().__init__(coordinator, entry, "school")
@@ -2146,6 +2153,28 @@ class LibrusSchoolSensor(LibrusSensorBase):
             # subject teachers never were, despite the data already being
             # fetched every cycle for the Next/Current lesson sensors.
             "subject_teachers": _subject_teachers(self.coordinator.data),
+            **self._subject_colors(),
+        }
+
+    def _subject_colors(self) -> dict[str, Any]:
+        """One colour per subject for the companion cards: a palette slot
+        (1-16) for each of the student's subjects, and the colours set under
+        Configure (Subject colours) - see subject_colors.py."""
+        data = self.coordinator.data
+        originals = self.coordinator.original_subjects
+        colors, unmatched = parse_subject_colors(
+            self._entry.options.get(CONF_SUBJECT_COLORS), data.subjects, originals
+        )
+        # The slot comes from the Librus name, so a renamed subject (Subject
+        # names under Configure) keeps its colour.
+        mine = student_subjects(data)
+        slots = palette_slots(originals.get(sid, name) for sid, name in mine.items())
+        return {
+            "subject_palette": {name: slots[originals.get(sid, name)] for sid, name in mine.items()},
+            "subject_colors": colors,
+            "subject_colors_unmatched": unmatched,
+            "subject_names_unmatched": self.coordinator.subject_names_unmatched,
+            "grade_category_names_unmatched": self.coordinator.grade_category_names_unmatched,
         }
 
 
@@ -2414,6 +2443,145 @@ class LibrusSchoolEndSensor(_LibrusSchoolTimeSensor):
 
     def _lesson(self, school_day: SchoolDay) -> LessonData:
         return school_day.last_lesson
+
+
+# How far ahead the School day end sensor reads the other calendars, and how
+# often (besides every refresh of the integration) at most.
+_DAY_END_LOOKAHEAD = timedelta(days=15)
+_DAY_END_RELOAD = timedelta(minutes=10)
+
+
+class LibrusSchoolDayEndSensor(SchoolDayRefresh, LibrusSensorBase):
+    """When the school day really ends: the last lesson, or a later activity
+    that day - Librus's own activities outside the timetable and the timed
+    events of the calendars picked under Configure (Other calendars with
+    activities). Today's until it passes, then the next school day's. For
+    pick-up reminders when a club or day-care keeps the child longer; School
+    end stays the lessons' own end."""
+
+    _attr_translation_key = "school_day_end"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "school_day_end")
+        # Changing the option reloads the entry.
+        self._calendars = tuple(entry.options.get(CONF_EXTRA_CALENDARS) or ())
+        self._others: tuple[OtherActivity, ...] = ()
+        self._loaded_at: datetime | None = None
+        self._unsub_timer: CALLBACK_TYPE | None = None
+
+    def _side_state(self) -> Any:
+        return self._others
+
+    def _activity_ends(self, day: date) -> list[tuple[datetime, str]]:
+        """Ends of the activities held on `day`, with their names."""
+        data = self.coordinator.data
+        ends: list[tuple[datetime, str]] = []
+        iso = day.isoformat()
+        for activity in data.extra_activities if data is not None else []:
+            if activity.cancelled or not activity.hour_to or (activity.date or "")[:10] != iso:
+                continue
+            try:
+                end_time = datetime.strptime(activity.hour_to, "%H:%M").time()
+            except ValueError:
+                continue
+            ends.append(
+                (dt_util.as_local(datetime.combine(day, end_time, tzinfo=_SCHOOL_TZ)), activity.title or "Zajęcia")
+            )
+        ends.extend((other.end, other.summary) for other in self._others if other.start.date() == day)
+        return ends
+
+    def _pick(self) -> tuple[SchoolDay, datetime, str | None] | None:
+        """The first school day whose end (lessons or a later activity)
+        hasn't passed yet."""
+        days = school_days(self.coordinator.data, self.coordinator.memo_owner)
+        now = dt_util.now()
+        for day in sorted(days):
+            if day < now.date():
+                continue
+            school_day = days[day]
+            end, activity = school_day.last_end, None
+            for activity_end, name in self._activity_ends(day):
+                if activity_end > end:
+                    end, activity = activity_end, name
+            if end > now:
+                return school_day, end, activity
+        return None
+
+    @property
+    def native_value(self) -> datetime | None:
+        picked = self._pick()
+        return picked[1] if picked else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        picked = self._pick()
+        if picked is None:
+            return None
+        school_day, _end, activity = picked
+        return {
+            "date": school_day.day.isoformat(),
+            "is_today": school_day.day == dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date(),
+            "lessons_end": school_day.last_end.isoformat(),
+            # The activity that ends the day, or None when the lessons do.
+            "activity": activity,
+        }
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(self._cancel_timer)
+        self._arm_timer()
+        if self._calendars:
+            self.hass.async_create_task(self._async_load_others())
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        if self._calendars and (
+            self._loaded_at is None or dt_util.now() - self._loaded_at >= _DAY_END_RELOAD
+        ):
+            self.hass.async_create_task(self._async_load_others())
+        self._arm_timer()
+        super()._handle_coordinator_update()
+
+    async def _async_load_others(self) -> None:
+        """Read the other calendars' activities (they change outside Librus,
+        so at most every _DAY_END_RELOAD, with the integration's refresh)."""
+        self._loaded_at = dt_util.now()
+        start = dt_util.start_of_local_day()
+        others = tuple(
+            await async_other_activities(self.hass, self._calendars, start, start + _DAY_END_LOOKAHEAD)
+        )
+        if others != self._others:
+            self._others = others
+            self._arm_timer()
+            self.async_write_ha_state()
+
+    @callback
+    def _cancel_timer(self) -> None:
+        if self._unsub_timer is not None:
+            self._unsub_timer()
+            self._unsub_timer = None
+
+    @callback
+    def _arm_timer(self) -> None:
+        """Move on to the next school day right after this one ends (an
+        activity can end after the lessons, which the school-day clock
+        doesn't know about)."""
+        self._cancel_timer()
+        if self.hass is None:
+            return
+        picked = self._pick()
+        if picked is None:
+            return
+        self._unsub_timer = async_track_point_in_time(
+            self.hass, self._async_end, picked[1] + timedelta(seconds=1)
+        )
+
+    @callback
+    def _async_end(self, _now: datetime) -> None:
+        self._unsub_timer = None
+        self.async_write_ha_state()
+        self._arm_timer()
 
 
 # Agenda entries listed in the Next exam sensor's `recently_added`.
