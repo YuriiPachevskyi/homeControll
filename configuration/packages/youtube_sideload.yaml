@@ -45,6 +45,22 @@ automation:
               message: >-
                 MacBook не відповідає (спить або не в мережі). Відкрий його і натисни ще раз.
 
+  # sensor.youtube_sideload_* are pushed by the Mac via /api/states, so they
+  # vanish on every HA restart; ask the Mac to publish them again right away
+  # instead of waiting up to an hour for its next run
+  - id: youtube_sideload_refresh_on_start
+    alias: "YouTube: оновити статус телефонів після старту HA"
+    mode: single
+    triggers:
+      - trigger: homeassistant
+        event: start
+    actions:
+      - delay: "00:01:00"
+      - action: shell_command.youtube_resign
+        data:
+          slug: refresh
+        continue_on_error: true
+
 # Every phone-signing notification (id youtube…, or "YouTube" in the title;
 # from the Mac or the automation above) is moved off the notification bell
 # into this sensor's `notes` attribute ({notification_id: {title, message,
