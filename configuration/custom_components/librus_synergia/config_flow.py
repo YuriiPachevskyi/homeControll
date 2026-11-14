@@ -76,6 +76,7 @@ from .const import (
     CONF_AVERAGE_MODE,
     CONF_BEHAVIOUR_GRADES_ENABLED,
     CONF_CALENDAR_EMOJI,
+    CONF_CALENDAR_FEED_ENABLED,
     CONF_COOKIES,
     CONF_DESCRIPTIVE_GRADES_ENABLED,
     CONF_FREE_DAYS_ENABLED,
@@ -90,6 +91,7 @@ from .const import (
     CONF_MESSAGES_COUNT,
     CONF_MESSAGES_ENABLED,
     CONF_MESSAGE_SENDING_ENABLED,
+    CONF_ASSIST_FULL_MESSAGES,
     CONF_POINT_GRADE_THRESHOLDS,
     CONF_POINT_GRADE_THRESHOLDS_BY_SUBJECT,
     CONF_QUIET_HOURS_ENABLED,
@@ -107,6 +109,7 @@ from .const import (
     DEFAULT_AVERAGE_MODE,
     DEFAULT_BEHAVIOUR_GRADES_ENABLED,
     DEFAULT_CALENDAR_EMOJI,
+    DEFAULT_CALENDAR_FEED_ENABLED,
     DEFAULT_DESCRIPTIVE_GRADES_ENABLED,
     DEFAULT_FREE_DAYS_ENABLED,
     DEFAULT_EXTRA_ACTIVITIES,
@@ -116,6 +119,7 @@ from .const import (
     DEFAULT_MESSAGES_COUNT,
     DEFAULT_MESSAGES_ENABLED,
     DEFAULT_MESSAGE_SENDING_ENABLED,
+    DEFAULT_ASSIST_FULL_MESSAGES,
     DEFAULT_QUIET_HOURS_ENABLED,
     DEFAULT_QUIET_HOURS_END,
     DEFAULT_QUIET_HOURS_START,
@@ -451,6 +455,10 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
                     ),
                 ): BooleanSelector(),
                 vol.Required(
+                    CONF_ASSIST_FULL_MESSAGES,
+                    default=options.get(CONF_ASSIST_FULL_MESSAGES, DEFAULT_ASSIST_FULL_MESSAGES),
+                ): BooleanSelector(),
+                vol.Required(
                     CONF_ANNOUNCEMENTS_ENABLED,
                     default=options.get(CONF_ANNOUNCEMENTS_ENABLED, DEFAULT_ANNOUNCEMENTS_ENABLED),
                 ): BooleanSelector(),
@@ -544,6 +552,10 @@ class LibrusSynergiaOptionsFlow(OptionsFlow):
                 vol.Required(
                     CONF_CALENDAR_EMOJI,
                     default=options.get(CONF_CALENDAR_EMOJI, DEFAULT_CALENDAR_EMOJI),
+                ): BooleanSelector(),
+                vol.Required(
+                    CONF_CALENDAR_FEED_ENABLED,
+                    default=options.get(CONF_CALENDAR_FEED_ENABLED, DEFAULT_CALENDAR_FEED_ENABLED),
                 ): BooleanSelector(),
                 vol.Required(
                     CONF_SMART_POLLING,

@@ -65,6 +65,11 @@ new_absence:
       selector:
         boolean:
 
+new_late:
+  target: *target
+  fields:
+    subject: *subject
+
 new_message:
   target: *target
   fields:

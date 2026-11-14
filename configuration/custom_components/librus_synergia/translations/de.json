@@ -83,10 +83,12 @@
       "settings": {
         "title": "Librus-Synergia-Optionen",
         "data": {
+          "calendar_feed_enabled": "Kalenderlink für andere",
           "scan_interval": "Abfrageintervall (Minuten)",
           "messages_enabled": "Private Nachrichten abrufen (Wiadomości)",
           "messages_count": "Abzurufende Nachrichten pro Postfach",
           "message_sending_enabled": "Senden von Nachrichten erlauben (Beta)",
+          "assist_full_messages": "Assist ganze Nachrichten öffnen lassen (markiert sie als gelesen)",
           "announcements_enabled": "Ankündigungen abrufen (ogłoszenia)",
           "behaviour_grades_enabled": "Verhaltensnote abrufen (ocena zachowania)",
           "descriptive_grades_enabled": "Beschreibende Noten abrufen",
@@ -108,10 +110,12 @@
           "quiet_hours_end": "Ende der Ruhezeiten"
         },
         "data_description": {
+          "calendar_feed_enabled": "Ein privater Link zu einem .ics-Kalender mit dem Stundenplan dieser und der nächsten Woche, dem Terminkalender, den freien Tagen und den Ankündigungen - damit Großeltern oder der andere Elternteil ihn ohne Home-Assistant-Konto auf dem Handy oder im Google Kalender abonnieren können. Jeder mit dem Link kann ihn sehen. Der Link steht im Sensor „Kalenderlink“. Aus- und wieder einschalten ergibt einen neuen Link (der alte funktioniert dann nicht mehr).",
           "scan_interval": "Wie oft Noten, Anwesenheit, Stundenplan und Ankündigungen aktualisiert werden. Bleib zurückhaltend - das ist eine inoffizielle API.",
           "messages_enabled": "Wenn aus, ist der Sensor Ungelesene Nachrichten nicht verfügbar und es werden keine Nachrichten abgefragt - weniger Anfragen an Librus.",
           "messages_count": "Wie viele der neuesten Nachrichten jede Postfachliste enthält (empfangen, gesendet, Archiv und die übrigen), 10-50. Mehr bedeutet längere Listen in der Nachrichten-Karte, etwas mehr Daten pro Aktualisierung und größere Sensorattribute.",
           "message_sending_enabled": "Erlaubt den Diensten send_message und withdraw_message sowie Antworten / Schreiben in der Nachrichten-Karte, in Wiadomości an Lehrkräfte und die Schule zu schreiben. Standardmäßig aus: Eine gesendete Nachricht geht an eine echte Person. Für Assist und die KI-Zusammenfassung nicht verfügbar.",
+          "assist_full_messages": "Erlaubt dem Assist-Werkzeug librus_get_full_message, eine Nachricht zu öffnen und ganz zu lesen - für Fragen wie „Was braucht sie für den Schulappell morgen?“. Das Öffnen einer Nachricht markiert sie in Wiadomości als gelesen, genau wie in der Librus-App. Standardmäßig aus: Assist sieht dann nur den Anfang jeder Nachricht.",
           "announcements_enabled": "Wenn aus, ist der Sensor Ungelesene Ankündigungen nicht verfügbar und es gibt keine SchoolNotices-Abfragen.",
           "behaviour_grades_enabled": "Wenn aus, ist der Sensor Verhaltensnote nicht verfügbar und es gibt keine BehaviourGrades-Abfragen.",
           "descriptive_grades_enabled": "Wenn aus, ist der Sensor Beschreibende Noten nicht verfügbar und es gibt keine DescriptiveGrades-Abfragen.",
@@ -352,6 +356,7 @@
       "grade_event": { "name": "Neue Note", "state_attributes": { "event_type": { "state": { "new_grade": "Neue Note" } } } },
       "note_event": { "name": "Neue Verhaltensnotiz", "state_attributes": { "event_type": { "state": { "positive": "Positiv", "negative": "Negativ", "neutral": "Neutral" } } } },
       "absence_event": { "name": "Neue Fehlzeit", "state_attributes": { "event_type": { "state": { "unexcused": "Unentschuldigt", "excused": "Entschuldigt" } } } },
+      "late_event": { "name": "Neue Verspätung", "state_attributes": { "event_type": { "state": { "late": "Verspätet" } } } },
       "timetable_change_event": { "name": "Stundenplanänderung", "state_attributes": { "event_type": { "state": { "canceled": "Stunde ausgefallen", "substitution": "Vertretung" } } } },
       "homework_event": { "name": "Neue Hausaufgabe", "state_attributes": { "event_type": { "state": { "new_homework": "Neue Hausaufgabe" } } } },
       "agenda_event": { "name": "Neuer Terminkalender-Eintrag", "state_attributes": { "event_type": { "state": { "new_entry": "Neuer Eintrag" } } } },
@@ -378,6 +383,7 @@
       "homework": { "name": "Hausaufgaben" }
     },
     "sensor": {
+      "calendar_feed": { "name": "Kalenderlink" },
       "lesson_topics": { "name": "Stundenthemen" },
       "plan_changes": { "name": "Abweichungen vom Regelstundenplan" },
       "school_trips": { "name": "Nächster Schulausflug" },
@@ -430,6 +436,7 @@
       "weekly_summary_enabled": { "name": "Automatische Wochenzusammenfassung" }
     },
     "calendar": {
+      "announcements": { "name": "Ankündigungen" },
       "timetable": { "name": "Stundenplan" },
       "agenda": { "name": "Terminkalender" },
       "free_days": { "name": "Freie Tage" },
@@ -437,6 +444,17 @@
     }
   },
   "services": {
+    "count_lessons": {
+      "name": "Stunden zählen",
+      "description": "Wie viele Stunden eines Fachs zwischen zwei Daten liegen, z. B. „wie viele Mathestunden bis zur Klassenarbeit?“. Bekannte Wochen werden nach dem echten Stundenplan gezählt, spätere nach dem festen Wochenplan; freie Tage werden übersprungen.",
+      "fields": {
+        "device_id": { "name": "Gerät", "description": "Das Librus-Synergia-Gerät (Schüler)." },
+        "subject": { "name": "Fach", "description": "Ein Fachname oder ein Teil davon („matem“), mehrere durch Kommas getrennt, oder eine Fach-ID." },
+        "start_date": { "name": "Von", "description": "Der erste gezählte Tag. Leer = heute." },
+        "end_date": { "name": "Bis", "description": "Der letzte gezählte Tag (einschließlich)." },
+        "include_cancelled": { "name": "Ausgefallene Stunden mitzählen", "description": "Auch Stunden zählen, die im Stundenplan ausfallen." }
+      }
+    },
     "refresh": {
       "name": "Jetzt aktualisieren",
       "description": "Erzwingt eine sofortige Datenaktualisierung, statt auf die nächste Abfrage zu warten.",
@@ -579,6 +597,10 @@
           "name": "Titelpräfix",
           "description": "Wird jedem Titel vorangestellt, z. B. der Vorname des Kindes (\"Ola:\"), wenn sich mehrere Kinder einen Kalender teilen."
         },
+        "event_time": {
+          "name": "Uhrzeit der Termine",
+          "description": "Kopierte Klassenarbeiten, Tests und Ausflüge bekommen eine Uhrzeit, z. B. 07:00, damit das Handy zu einer sinnvollen Zeit erinnert statt um Mitternacht. Ein Eintrag mit eigener Uhrzeit in Librus (ein Elternabend um 17:30) behält sie. Freie Tage bleiben ganztägig. Leer = ganztägige Kopien."
+        },
         "dry_run": {
           "name": "Testlauf",
           "description": "Listet nur auf, was sich ändern würde, ohne den Kalender zu ändern."
@@ -661,11 +683,21 @@
     },
     "new_absence": {
       "name": "Neue Fehlzeit",
-      "description": "Eine neue Fehlzeit wird eingetragen (nicht anwesend oder verspätet).",
+      "description": "Eine neue Fehlzeit wird eingetragen (nicht anwesend; Verspätungen hat der Auslöser Neue Verspätung).",
       "fields": {
         "only_unexcused": {
           "name": "Nur unentschuldigt",
           "description": "Sofort als entschuldigt eingetragene Fehlzeiten überspringen."
+        }
+      }
+    },
+    "new_late": {
+      "name": "Neue Verspätung",
+      "description": "Eine Verspätung wird eingetragen (Spóźnienie).",
+      "fields": {
+        "subject": {
+          "name": "Fach",
+          "description": "Nur diese Fächer - ein Teil des Namens genügt, mehrere durch Kommas getrennt. Leer: jedes Fach."
         }
       }
     },

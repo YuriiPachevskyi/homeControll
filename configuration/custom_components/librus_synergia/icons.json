@@ -54,11 +54,17 @@
       },
       "timetable": {
         "default": "mdi:timetable"
+      },
+      "announcements": {
+        "default": "mdi:bullhorn-outline"
       }
     },
     "event": {
       "absence_event": {
         "default": "mdi:account-cancel-outline"
+      },
+      "late_event": {
+        "default": "mdi:clock-alert-outline"
       },
       "achievement_event": {
         "default": "mdi:trophy-outline"
@@ -294,6 +300,9 @@
       },
       "weekly_summary": {
         "default": "mdi:creation"
+      },
+      "calendar_feed": {
+        "default": "mdi:calendar-export-outline"
       }
     },
     "switch": {
@@ -338,6 +347,9 @@
     },
     "withdraw_message": {
       "service": "mdi:email-remove-outline"
+    },
+    "count_lessons": {
+      "service": "mdi:counter"
     }
   },
   "triggers": {
@@ -349,6 +361,9 @@
     },
     "new_absence": {
       "trigger": "mdi:account-cancel-outline"
+    },
+    "new_late": {
+      "trigger": "mdi:clock-alert-outline"
     },
     "new_message": {
       "trigger": "mdi:email-outline"

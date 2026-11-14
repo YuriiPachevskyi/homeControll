@@ -153,7 +153,12 @@ DEFAULT_MESSAGE_SENDING_ENABLED = False
 MESSAGE_SEND_LIMIT_PER_HOUR = 10
 # Options read live wherever they're used - changing one doesn't reload
 # the integration.
-LIVE_OPTIONS = frozenset({CONF_MESSAGE_SENDING_ENABLED})
+# Assist (the "Librus Synergia" LLM API) may open a whole message - off by
+# default: opening a message in Wiadomosci marks it read (CONFIRMED live,
+# 2026-09-06), so a question to Assist would change what Librus shows.
+CONF_ASSIST_FULL_MESSAGES = "assist_full_messages"
+DEFAULT_ASSIST_FULL_MESSAGES = False
+LIVE_OPTIONS = frozenset({CONF_MESSAGE_SENDING_ENABLED, CONF_ASSIST_FULL_MESSAGES})
 
 # Same "skip the fetch, sensor goes unavailable" shape as CONF_MESSAGES_
 # ENABLED above, extended to the other optional (non-core) data groups.
@@ -169,6 +174,16 @@ CONF_DESCRIPTIVE_GRADES_ENABLED = "descriptive_grades_enabled"
 DEFAULT_DESCRIPTIVE_GRADES_ENABLED = True
 CONF_FREE_DAYS_ENABLED = "free_days_enabled"
 DEFAULT_FREE_DAYS_ENABLED = True
+
+# A calendar feed (.ics) other people can subscribe to without a Home
+# Assistant account - the timetable, Agenda, days off and announcements
+# (calendar_feed.py). Off by default: the link opens the child's schedule to
+# anyone who has it. The secret part of the link lives in the entry's data
+# (CONF_CALENDAR_FEED_TOKEN); turning the option off drops it, so turning it
+# on again gives a new link and the old one stops working.
+CONF_CALENDAR_FEED_ENABLED = "calendar_feed_enabled"
+DEFAULT_CALENDAR_FEED_ENABLED = False
+CONF_CALENDAR_FEED_TOKEN = "calendar_feed_token"
 
 # Which average the Overall/Subject average sensors (and Rank) report as
 # their STATE. Weighted (by grade-category weight) is what Librus itself
@@ -465,6 +480,9 @@ EVENT_NEW_HOMEWORK_ASSIGNMENT = f"{DOMAIN}_new_homework_assignment"
 # Fires for a newly-seen real absence record (excused or not - `excused`
 # in the payload says which). Seeded silently on the first sync.
 EVENT_NEW_ABSENCE = f"{DOMAIN}_new_absence"
+# A new lateness ("Spóźnienie"). Librus counts it as a presence kind, so
+# EVENT_NEW_ABSENCE never covers it.
+EVENT_NEW_LATE = f"{DOMAIN}_new_late"
 # Fires when a lesson on today's date or later newly turns up cancelled or
 # as a substitution vs. the previous poll (seeded silently on the first
 # sync, same as the *_new_* events). Signature-keyed on date+period+kind,

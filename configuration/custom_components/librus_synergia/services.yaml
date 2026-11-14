@@ -177,7 +177,38 @@ sync_calendar:
       example: "Ola:"
       selector:
         text:
+    event_time:
+      required: false
+      example: "07:00"
+      selector:
+        time:
     dry_run:
+      required: false
+      default: false
+      selector:
+        boolean:
+
+count_lessons:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: librus_synergia
+    subject:
+      required: true
+      example: "matematyka"
+      selector:
+        text:
+    start_date:
+      required: false
+      selector:
+        date:
+    end_date:
+      required: true
+      selector:
+        date:
+    include_cancelled:
       required: false
       default: false
       selector:

@@ -25,6 +25,8 @@
 - `sync_calendar` - copies the Agenda and days off into another calendar
   (e.g. a family Google Calendar) and keeps the copies up to date; see
   calendar_sync.py.
+- `count_lessons` - how many lessons of a subject fall between two dates
+  (lesson_count.py); read-only, may fetch timetable weeks like a dashboard.
 """
 
 from __future__ import annotations
@@ -59,11 +61,51 @@ from .coordinator import (
     LibrusDataUpdateCoordinator,
     decode_message_content,
     grade_improvements,
+    on_demand_week_starts,
     resolve_sender_name,
 )
+from .lesson_count import MAX_RANGE_DAYS, count_lessons, match_subjects
 from .messaging import RecipientError, recipient_dict, resolve_recipient
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def message_details(raw: Any, mailbox: str, message_id: str) -> dict[str, Any] | None:
+    """One opened message (`async_fetch_message`'s answer) as `get_message`
+    returns it - also what the Assist full-message tool reads. None when the
+    answer has no message in it."""
+    data = raw.get("data") if isinstance(raw, dict) else None
+    if not isinstance(data, dict):
+        return None
+    full = parse_message(raw, mailbox, message_id)
+    # CONFIRMED live (2026-09-17): each entry is {"filename": ..., "id":
+    # ...}. The file itself downloads through attachment_view.py.
+    attachments = [
+        {"id": str(a["id"]), "filename": a.get("filename")}
+        for a in data.get("attachments") or []
+        if isinstance(a, dict) and a.get("id") is not None
+    ]
+    return {
+        "id": message_id,
+        "mailbox": mailbox,
+        "sender": resolve_sender_name(data),
+        "topic": data.get("topic", ""),
+        "content": decode_message_content(data.get("Message", "")),
+        "send_date": data.get("sendDate"),
+        "read_date": data.get("readDate"),
+        "has_attachment": bool(attachments),
+        "attachments": attachments,
+        # A sent message: who it went to and when each one read it.
+        "receivers": [
+            {"name": r.name, "group": r.group, "read_date": r.read_date}
+            for r in parse_message_receivers(data)
+        ],
+        # For writing (send_message): whether Librus takes a reply to it,
+        # and - for a sent one - whether it can still be withdrawn.
+        "no_reply": full.no_reply if full else False,
+        "can_withdraw": full.can_withdraw if full else None,
+    }
+
 
 SERVICE_GET_MESSAGE = "get_message"
 SERVICE_REFRESH = "refresh"
@@ -74,7 +116,9 @@ SERVICE_WITHDRAW_MESSAGE = "withdraw_message"
 SERVICE_MARK_ANNOUNCEMENT_READ = "mark_announcement_read"
 SERVICE_MARK_MESSAGE_READ = "mark_message_read"
 SERVICE_SYNC_CALENDAR = "sync_calendar"
+SERVICE_COUNT_LESSONS = "count_lessons"
 _SERVICES = (
+    SERVICE_COUNT_LESSONS,
     SERVICE_GET_MESSAGE,
     SERVICE_REFRESH,
     SERVICE_GET_GRADES,
@@ -146,7 +190,21 @@ _SYNC_CALENDAR_SCHEMA = vol.Schema(
         vol.Optional("free_days", default=True): cv.boolean,
         # "Ola:" in front of every title - handy with more than one child.
         vol.Optional("prefix"): cv.string,
+        # "07:00": Agenda copies become timed events (see calendar_sync).
+        # Empty or left out: all-day copies, as before.
+        vol.Optional("event_time"): vol.Any(None, cv.string),
         vol.Optional("dry_run", default=False): cv.boolean,
+    }
+)
+
+_COUNT_LESSONS_SCHEMA = vol.Schema(
+    {
+        vol.Required("device_id"): cv.string,
+        # "matematyka", "matem", "polski, angielski" or a subject id.
+        vol.Required("subject"): cv.string,
+        vol.Optional("start_date"): cv.date,
+        vol.Required("end_date"): cv.date,
+        vol.Optional("include_cancelled", default=False): cv.boolean,
     }
 )
 
@@ -233,39 +291,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
         except LibrusError as err:
             raise HomeAssistantError(f"Failed to fetch message {message_id}: {err}") from err
 
-        data = raw.get("data")
-        if not isinstance(data, dict):
+        details = message_details(raw, mailbox, message_id)
+        if details is None:
             raise HomeAssistantError(f"Unexpected response fetching message {message_id}.")
-
-        sender_name = resolve_sender_name(data)
-        full = parse_message(raw, mailbox, message_id)
-        # CONFIRMED live (2026-09-17): each entry is {"filename": ..., "id":
-        # ...}. The file itself downloads through attachment_view.py.
-        attachments = [
-            {"id": str(a["id"]), "filename": a.get("filename")}
-            for a in data.get("attachments") or []
-            if isinstance(a, dict) and a.get("id") is not None
-        ]
-        return {
-            "id": message_id,
-            "mailbox": mailbox,
-            "sender": sender_name,
-            "topic": data.get("topic", ""),
-            "content": decode_message_content(data.get("Message", "")),
-            "send_date": data.get("sendDate"),
-            "read_date": data.get("readDate"),
-            "has_attachment": bool(attachments),
-            "attachments": attachments,
-            # A sent message: who it went to and when each one read it.
-            "receivers": [
-                {"name": r.name, "group": r.group, "read_date": r.read_date}
-                for r in parse_message_receivers(data)
-            ],
-            # For writing (send_message): whether Librus takes a reply to it,
-            # and - for a sent one - whether it can still be withdrawn.
-            "no_reply": full.no_reply if full else False,
-            "can_withdraw": full.can_withdraw if full else None,
-        }
+        return details
 
     hass.services.async_register(
         DOMAIN,
@@ -607,6 +636,10 @@ def _async_setup_message_writing(hass: HomeAssistant) -> None:
             raise HomeAssistantError("No Librus data yet - try again after the next refresh.")
         today = dt_util.now().date()
         days = call.data["days"]
+        raw_time = (call.data.get("event_time") or "").strip()
+        event_time = dt_util.parse_time(raw_time) if raw_time else None
+        if raw_time and event_time is None:
+            raise ServiceValidationError(f"event_time should look like 07:00, not {raw_time!r}.")
         items = sync_items(
             data,
             today=today,
@@ -615,6 +648,7 @@ def _async_setup_message_writing(hass: HomeAssistant) -> None:
             free_days=call.data["free_days"],
             prefix=call.data.get("prefix") or "",
             emoji=bool(entry.options.get(CONF_CALENDAR_EMOJI, DEFAULT_CALENDAR_EMOJI)),
+            event_time=event_time,
         )
         return await async_sync_calendar(
             hass,
@@ -632,6 +666,69 @@ def _async_setup_message_writing(hass: HomeAssistant) -> None:
         _async_handle_sync_calendar,
         schema=_SYNC_CALENDAR_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    async def _async_handle_count_lessons(call: ServiceCall) -> ServiceResponse:
+        """How many lessons of a subject fall between two dates - see
+        lesson_count.py. Weeks within the integration's on-demand range come
+        from the real timetable (fetched and cached like a dashboard's), the
+        rest from the standing weekly plan."""
+        coordinator = resolve_coordinator(hass, call.data["device_id"])
+        data = coordinator.data
+        if data is None:
+            raise HomeAssistantError("No Librus data yet - try again after the next refresh.")
+        today = dt_util.now().date()
+        start = call.data.get("start_date") or today
+        end = call.data["end_date"]
+        if end < start:
+            raise ServiceValidationError("end_date is before start_date.")
+        if (end - start).days > MAX_RANGE_DAYS:
+            raise ServiceValidationError(f"At most {MAX_RANGE_DAYS} days at once.")
+        subjects = match_subjects(data, call.data["subject"])
+        if not subjects:
+            raise ServiceValidationError(
+                f"No subject matches {call.data['subject']!r}. Subjects: "
+                + ", ".join(sorted(data.subjects.values()))
+            )
+        weeks = on_demand_week_starts(start, end)
+        timetable = await coordinator.async_get_timetable_weeks(weeks) if weeks else {}
+        lessons = count_lessons(
+            data,
+            timetable,
+            set(subjects),
+            start,
+            end,
+            today,
+            include_cancelled=call.data["include_cancelled"],
+        )
+        return {
+            "subjects": sorted(subjects.values()),
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "count": len(lessons),
+            "cancelled": sum(1 for lesson in lessons if lesson.cancelled),
+            "from_timetable": sum(1 for lesson in lessons if lesson.source == "timetable"),
+            "from_plan": sum(1 for lesson in lessons if lesson.source == "plan"),
+            "lessons": [
+                {
+                    "date": lesson.day.isoformat(),
+                    "lesson_no": lesson.lesson_no,
+                    "subject": subjects.get(lesson.subject_id),
+                    "start": lesson.start,
+                    "end": lesson.end,
+                    "source": lesson.source,
+                    "cancelled": lesson.cancelled,
+                }
+                for lesson in lessons
+            ],
+        }
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_COUNT_LESSONS,
+        _async_handle_count_lessons,
+        schema=_COUNT_LESSONS_SCHEMA,
+        supports_response=SupportsResponse.ONLY,
     )
 
 

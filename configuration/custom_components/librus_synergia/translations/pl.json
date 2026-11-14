@@ -83,10 +83,12 @@
       "settings": {
         "title": "Opcje Librus Synergia",
         "data": {
+          "calendar_feed_enabled": "Link do kalendarza dla innych",
           "scan_interval": "Częstotliwość odpytywania (minuty)",
           "messages_enabled": "Pobieraj wiadomości prywatne (Wiadomości)",
           "messages_count": "Liczba pobieranych wiadomości w skrzynce",
           "message_sending_enabled": "Pozwól wysyłać wiadomości (beta)",
+          "assist_full_messages": "Pozwól Assist otwierać całe wiadomości (oznacza je jako przeczytane)",
           "announcements_enabled": "Pobieraj ogłoszenia",
           "behaviour_grades_enabled": "Pobieraj ocenę zachowania",
           "descriptive_grades_enabled": "Pobieraj oceny opisowe",
@@ -108,10 +110,12 @@
           "quiet_hours_end": "Koniec ciszy nocnej"
         },
         "data_description": {
+          "calendar_feed_enabled": "Prywatny link do kalendarza .ics z planem lekcji na ten i przyszły tydzień, terminarzem, dniami wolnymi i ogłoszeniami - żeby dziadkowie albo drugi rodzic mogli go dodać w telefonie lub w Kalendarzu Google bez konta w Home Assistant. Widzi go każdy, kto ma link. Link jest w czujniku „Link do kalendarza”. Wyłącz i włącz ponownie, żeby dostać nowy link (stary przestanie działać).",
           "scan_interval": "Jak często odświeżać oceny, frekwencję, plan lekcji i ogłoszenia. Zachowaj umiar - to nieoficjalne API.",
           "messages_enabled": "Gdy wyłączone, sensor Nieprzeczytane wiadomości staje się niedostępny i nie są wykonywane żadne zapytania o wiadomości - mniej ruchu do Librusa.",
           "messages_count": "Ile najnowszych wiadomości trzyma lista każdej skrzynki (odebrane, wysłane, archiwum i pozostałe), 10-50. Więcej to dłuższe listy w karcie Wiadomości, trochę więcej danych przy odświeżaniu i większe atrybuty sensora.",
           "message_sending_enabled": "Pozwala usługom send_message i withdraw_message oraz przyciskom Odpowiedz / Napisz w karcie Wiadomości pisać do nauczycieli i szkoły w Wiadomościach. Domyślnie wyłączone: wysłana wiadomość trafia do prawdziwej osoby. Niedostępne dla Assist ani podsumowania AI.",
+          "assist_full_messages": "Pozwala narzędziu Assist librus_get_full_message otworzyć wiadomość, żeby przeczytać ją w całości - przy pytaniach typu „co trzeba na jutrzejszy apel?”. Otwarcie wiadomości w Wiadomościach oznacza ją tam jako przeczytaną, tak samo jak w aplikacji Librus. Domyślnie wyłączone: Assist widzi wtedy tylko początek każdej wiadomości.",
           "announcements_enabled": "Gdy wyłączone, sensor Nieprzeczytane ogłoszenia staje się niedostępny i nie są wykonywane żadne zapytania o ogłoszenia.",
           "behaviour_grades_enabled": "Gdy wyłączone, sensor Ocena zachowania staje się niedostępny i nie są wykonywane żadne zapytania o ocenę zachowania.",
           "descriptive_grades_enabled": "Gdy wyłączone, sensor Oceny opisowe staje się niedostępny i nie są wykonywane żadne zapytania o oceny opisowe.",
@@ -352,6 +356,7 @@
       "grade_event": { "name": "Nowa ocena", "state_attributes": { "event_type": { "state": { "new_grade": "Nowa ocena" } } } },
       "note_event": { "name": "Nowa uwaga", "state_attributes": { "event_type": { "state": { "positive": "Pozytywna", "negative": "Negatywna", "neutral": "Neutralna" } } } },
       "absence_event": { "name": "Nowa nieobecność", "state_attributes": { "event_type": { "state": { "unexcused": "Nieusprawiedliwiona", "excused": "Usprawiedliwiona" } } } },
+      "late_event": { "name": "Nowe spóźnienie", "state_attributes": { "event_type": { "state": { "late": "Spóźnienie" } } } },
       "timetable_change_event": { "name": "Zmiana w planie", "state_attributes": { "event_type": { "state": { "canceled": "Lekcja odwołana", "substitution": "Zastępstwo" } } } },
       "homework_event": { "name": "Nowe zadanie domowe", "state_attributes": { "event_type": { "state": { "new_homework": "Nowe zadanie domowe" } } } },
       "agenda_event": { "name": "Nowy wpis w terminarzu", "state_attributes": { "event_type": { "state": { "new_entry": "Nowy wpis" } } } },
@@ -378,6 +383,7 @@
       "homework": { "name": "Zadania domowe" }
     },
     "sensor": {
+      "calendar_feed": { "name": "Link do kalendarza" },
       "lesson_topics": { "name": "Tematy lekcji" },
       "plan_changes": { "name": "Zmiany względem stałego planu" },
       "school_trips": { "name": "Najbliższa wycieczka" },
@@ -430,6 +436,7 @@
       "weekly_summary_enabled": { "name": "Automatyczne podsumowanie tygodnia" }
     },
     "calendar": {
+      "announcements": { "name": "Ogłoszenia" },
       "timetable": { "name": "Plan lekcji" },
       "agenda": { "name": "Terminarz" },
       "free_days": { "name": "Dni wolne" },
@@ -437,6 +444,17 @@
     }
   },
   "services": {
+    "count_lessons": {
+      "name": "Policz lekcje",
+      "description": "Ile lekcji danego przedmiotu wypada między dwiema datami, np. „ile matematyk przed sprawdzianem?”. Znane tygodnie liczy z prawdziwego planu, dalsze ze stałego planu tygodnia; dni wolne pomija.",
+      "fields": {
+        "device_id": { "name": "Urządzenie", "description": "Urządzenie Librus Synergia (uczeń)." },
+        "subject": { "name": "Przedmiot", "description": "Nazwa przedmiotu albo jej część („matem”), kilka po przecinku, albo id przedmiotu." },
+        "start_date": { "name": "Od", "description": "Pierwszy liczony dzień. Puste = dziś." },
+        "end_date": { "name": "Do", "description": "Ostatni liczony dzień (włącznie)." },
+        "include_cancelled": { "name": "Licz odwołane lekcje", "description": "Licz też lekcje odwołane w planie." }
+      }
+    },
     "refresh": {
       "name": "Odśwież teraz",
       "description": "Wymuś natychmiastowe odświeżenie danych, bez czekania na kolejne odpytanie.",
@@ -579,6 +597,10 @@
           "name": "Przedrostek tytułu",
           "description": "Dodawany przed każdym tytułem, np. imię ucznia („Ola:”), gdy kilkoro dzieci dzieli jeden kalendarz."
         },
+        "event_time": {
+          "name": "Godzina wydarzeń",
+          "description": "Kopiowane sprawdziany, kartkówki i wycieczki dostają godzinę, np. 07:00, żeby telefon przypominał o nich o sensownej porze, a nie o północy. Wpis z własną godziną w Librusie (zebranie o 17:30) ją zachowuje. Dni wolne zostają całodniowe. Puste = kopie całodniowe."
+        },
         "dry_run": {
           "name": "Próba",
           "description": "Tylko pokaż, co by się zmieniło, bez zmieniania kalendarza."
@@ -661,11 +683,21 @@
     },
     "new_absence": {
       "name": "Nowa nieobecność",
-      "description": "Pojawia się nowa nieobecność (nie obecność ani spóźnienie).",
+      "description": "Pojawia się nowa nieobecność (spóźnienia ma wyzwalacz Nowe spóźnienie).",
       "fields": {
         "only_unexcused": {
           "name": "Tylko nieusprawiedliwione",
           "description": "Pomiń nieobecności od razu usprawiedliwione."
+        }
+      }
+    },
+    "new_late": {
+      "name": "Nowe spóźnienie",
+      "description": "Uczeń dostaje spóźnienie.",
+      "fields": {
+        "subject": {
+          "name": "Przedmiot",
+          "description": "Tylko te przedmioty - wystarczy fragment nazwy, kilka po przecinku. Puste: każdy przedmiot."
         }
       }
     },

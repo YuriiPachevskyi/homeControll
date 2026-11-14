@@ -131,6 +131,7 @@ from librus_synergia.parsers import (  # noqa: F401
     resolve_sender_name,
 )
 
+from .absence_days import is_late_type_name
 from .const import (
     MESSAGE_SEND_LIMIT_PER_HOUR,
     AVERAGE_MODE_ARITHMETIC,
@@ -181,6 +182,7 @@ from .const import (
     EVENT_NEW_SCHOOL_TRIP,
     EVENT_NEW_ABSENCE,
     EVENT_NEW_ANNOUNCEMENT,
+    EVENT_NEW_LATE,
     EVENT_NEW_GRADE,
     EVENT_NEW_HOMEWORK,
     EVENT_NEW_HOMEWORK_ASSIGNMENT,
@@ -347,10 +349,15 @@ _PAYLOADS_SAVE_INTERVAL = timedelta(hours=6)
 # retried for this long (the last copy or no lessons meanwhile), a week
 # further than ON_DEMAND_WEEKS from the current one is never fetched, and a
 # rejected session isn't logged in again for an on-demand week within
-# _ON_DEMAND_RELOGIN_GAP of the last forced login.
+# _ON_DEMAND_RELOGIN_GAP of the last forced login. Short on purpose: Librus
+# drops a session after about 10 minutes without a request (its oauth_token
+# cookie comes with Max-Age=600), so a rejection several minutes after a good
+# login is ordinary and a new login fixes it. Found live 2026-11-14: at 10
+# minutes the guard turned a dashboard's month view into "Failed to fetch the
+# timetable ... HTTP 401" for weeks that a login would have fetched fine.
 _WEEK_FAILURE_BACKOFF = timedelta(minutes=15)
 ON_DEMAND_WEEKS = 12
-_ON_DEMAND_RELOGIN_GAP = timedelta(minutes=10)
+_ON_DEMAND_RELOGIN_GAP = timedelta(minutes=2)
 # A kindergarten child's LID whose timetable Librus has refused (403) or
 # failed to give for _KINDERGARTEN_REFUSED_RESET, or that has had no lesson
 # in either polled week for _KINDERGARTEN_EMPTY_RESET, is dropped and the
@@ -1270,9 +1277,9 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self.message_recipients_summary: dict[str, Any] | None = None
         self._sent_at: list[datetime] = []
         # Ids already announced per kind (text, descriptive, point and
-        # behaviour grades, school trips, school documents, messages in the
-        # mailboxes other than the inbox); None until the first sync, which
-        # only seeds them.
+        # behaviour grades, school trips, school documents, latenesses,
+        # messages in the mailboxes other than the inbox); None until the
+        # first sync, which only seeds them.
         self._known_items: dict[str, set[Any] | None] = {
             "text_grades": None,
             "descriptive_grades": None,
@@ -1280,6 +1287,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             "behaviour_grades": None,
             "school_trips": None,
             "school_files": None,
+            "late": None,
             **{f"{box}_messages": None for box in _EVENT_MAILBOXES},
         }
         # Every grade as last seen, per kind ("grades" for the ordinary ones,
@@ -1345,6 +1353,12 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         # for _WEEK_FAILURE_BACKOFF), and when the last forced login was made.
         self._week_failed_at: dict[date, datetime] = {}
         self._last_forced_login_at: datetime | None = None
+        # How rejected sessions were renewed since start (`session_renewals`,
+        # shown in the diagnostics): Librus's token refresh or a password login.
+        self._token_renewals = 0
+        self._password_logins = 0
+        self._last_token_renewal_at: datetime | None = None
+        self._last_password_login_at: datetime | None = None
         # The shared clock of the school-day entities (school_day.py),
         # created by the first one; stopped on unload.
         self.school_day_clock: Any = None
@@ -2498,13 +2512,37 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         try:
             return await self._fetch_timetable_or_unpublished(week_start, track=track)
         except LibrusSessionExpiredError:
-            if not track and self._login_count == seen and self._recent_forced_login():
+            if (
+                not track
+                and self._login_count == seen
+                and not self._login_lock.locked()
+                and self._recent_forced_login()
+            ):
                 # An on-demand week (a dashboard paging months) right after
                 # a forced login that didn't help: not another full password
                 # login for it - the caller shows the last copy meanwhile.
+                # Not while a login is still running: two weeks fetched at
+                # once are both rejected by the same expired session, and the
+                # second must wait for the first one's login and retry, not
+                # give up (found live 2026-11-14 - one of two weeks failed).
                 raise
             await self._async_relogin(seen)
             return await self._fetch_timetable_or_unpublished(week_start, track=track)
+
+    @property
+    def session_renewals(self) -> dict[str, Any]:
+        """How sessions Librus rejected were renewed since Home Assistant
+        started - for the diagnostics."""
+
+        def iso(value: datetime | None) -> str | None:
+            return value.isoformat() if value is not None else None
+
+        return {
+            "token_refreshes": self._token_renewals,
+            "password_logins": self._password_logins,
+            "last_token_refresh": iso(self._last_token_renewal_at),
+            "last_password_login": iso(self._last_password_login_at),
+        }
 
     def _recent_forced_login(self) -> bool:
         last = self._last_forced_login_at
@@ -2695,10 +2733,26 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         async with self._login_lock:
             if self._login_count != seen:
                 return
+            # The token first, the password only when that fails. Librus
+            # drops a session after about 10 minutes without a request, so
+            # with polls 20 minutes apart nearly every poll used to start
+            # with a full password login (~70 a day). CONFIRMED live
+            # 2026-11-14: after 11.5 idle minutes Me answered 401, and
+            # /refreshToken (200, new oauth_token) brought the same session
+            # back - Me answered again, no password needed.
+            if await self._client.async_refresh_session():
+                self._token_renewals += 1
+                self._last_token_renewal_at = dt_util.utcnow()
+            else:
+                await self._client.async_ensure_session_valid(
+                    self.config_entry.data[CONF_PASSWORD], force=True
+                )
+                self._password_logins += 1
+                self._last_password_login_at = dt_util.utcnow()
+            # Stamped once the login is done: stamped before it, a request
+            # rejected while the login was still running read "a forced
+            # login just happened and didn't help" and gave up.
             self._last_forced_login_at = dt_util.utcnow()
-            await self._client.async_ensure_session_valid(
-                self.config_entry.data[CONF_PASSWORD], force=True
-            )
             self._login_count += 1
 
     async def async_fetch_message(self, mailbox: str, message_id: str) -> Any:
@@ -2968,6 +3022,29 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             if done:
                 self._show_messages_read(mailbox, set(done))
         return done
+
+    async def async_open_message(self, mailbox: str, message_id: str) -> Any:
+        """Opens one message for its whole body (Assist's full-message tool)
+        and shows it read straight away, as `async_mark_messages_read` does -
+        opening is what marks it read in Wiadomości. The outbox has nothing
+        of ours to mark."""
+        raw = await self.async_fetch_message(mailbox, message_id)
+        if mailbox in _MARKABLE_MAILBOXES:
+            self._show_messages_read(mailbox, {message_id})
+        return raw
+
+    def find_message(self, message_id: str) -> tuple[str, MessageData] | None:
+        """(mailbox, message) for a message id on one of this student's lists
+        (inbox, the other mailboxes, the archive, the outbox)."""
+        if self.data is None:
+            return None
+        lists = [(box, getattr(self.data, attr)) for box, attr in _MARKABLE_MAILBOXES.items()]
+        lists.append(("outbox", self.data.sent_messages))
+        for mailbox, messages in lists:
+            for message in messages or []:
+                if str(message.id) == message_id:
+                    return mailbox, message
+        return None
 
     def _mailbox_messages(self, mailbox: str) -> list[MessageData]:
         if self.data is None:
@@ -5672,6 +5749,22 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             item.id: {"name": item.name, "added": item.added, "url": school_file_url(item.download_path)}
             for item in data.school_files
         }
+        # Latenesses ("Spóźnienie"): a presence kind to Librus, so the
+        # library's absence tracking (EVENT_NEW_ABSENCE) skips them. Told
+        # apart by the type's name, like everywhere else (is_late_type_name).
+        late = {}
+        for record in data.attendances:
+            kind = data.attendance_types.get(record.type_id)
+            if kind is None or not kind.is_presence_kind or not is_late_type_name(kind.name):
+                continue
+            subject_id = data.lesson_subjects.get(record.lesson_id)
+            late[record.id] = {
+                "date": record.date,
+                "type": kind.name,
+                "lesson_no": record.lesson_no,
+                "subject_id": subject_id,
+                "subject": data.subjects.get(subject_id) if subject_id is not None else None,
+            }
         # Behaviour grades ("ocena zachowania"): `value` is the short form
         # ("bdb", or the points "+5"), `name` the full one ("bardzo dobre"),
         # `month` the month it is for. A grade with nothing set yet is left
@@ -5723,6 +5816,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             ("behaviour_grades", EVENT_NEW_GRADE, behaviour_grades),
             ("school_trips", EVENT_NEW_SCHOOL_TRIP, trips),
             ("school_files", EVENT_NEW_SCHOOL_DOCUMENT, files),
+            ("late", EVENT_NEW_LATE, late),
             *((f"{box}_messages", EVENT_NEW_MESSAGE, mailbox_items[box]) for box in _EVENT_MAILBOXES),
         ):
             if kind.endswith("_messages"):
@@ -5751,6 +5845,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 "behaviour_grades": "BehaviourGrades/Points",
                 "school_trips": "SchoolTrips",
                 "school_files": "SchoolFiles",
+                "late": "Attendances",
             }[kind]
             available = label not in self._failed_this_cycle
             if kind == "descriptive_grades":

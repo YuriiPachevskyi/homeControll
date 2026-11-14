@@ -83,10 +83,12 @@
       "settings": {
         "title": "Librus Synergia options",
         "data": {
+          "calendar_feed_enabled": "Calendar link for others",
           "scan_interval": "Poll interval (minutes)",
           "messages_enabled": "Fetch private messages (Wiadomości)",
           "messages_count": "Messages to fetch per mailbox",
           "message_sending_enabled": "Allow sending messages (beta)",
+          "assist_full_messages": "Let Assist open whole messages (marks them read)",
           "announcements_enabled": "Fetch announcements (ogłoszenia)",
           "behaviour_grades_enabled": "Fetch behaviour grade (ocena zachowania)",
           "descriptive_grades_enabled": "Fetch descriptive grades",
@@ -108,10 +110,12 @@
           "quiet_hours_end": "Quiet hours end"
         },
         "data_description": {
+          "calendar_feed_enabled": "A private link to an .ics calendar with this week's and next week's timetable, the Agenda, days off and announcements - for a grandparent or the other parent to subscribe to on their phone or in Google Calendar, without a Home Assistant account. Anyone with the link can see it. The link is in the \"Calendar link\" sensor. Turn this off and on again for a new link (the old one stops working).",
           "scan_interval": "How often to refresh grades, attendance, timetable and announcements. Keep this modest - it is an unofficial API.",
           "messages_enabled": "When off, the Unread messages sensor goes unavailable and no messages calls are made - fewer requests to Librus.",
           "messages_count": "How many of the newest messages each mailbox list holds (received, sent, archive and the others), 10-50. More means longer lists in the Messages card, a bit more data per refresh and larger sensor attributes.",
           "message_sending_enabled": "Lets the send_message and withdraw_message services - and the Messages card's Reply / Write - write to teachers and the school in Wiadomości. Off by default: a sent message goes to a real person. Not available to Assist or the AI summary.",
+          "assist_full_messages": "Lets Assist's librus_get_full_message tool open a message to read all of it - for questions such as \"what does she need for tomorrow's assembly?\". Opening a message in Wiadomości marks it read there, exactly as in the Librus app. Off by default: Assist then only sees the start of each message.",
           "announcements_enabled": "When off, the Unread announcements sensor goes unavailable and no SchoolNotices calls are made.",
           "behaviour_grades_enabled": "When off, the Behaviour grade sensor goes unavailable and no BehaviourGrades calls are made.",
           "descriptive_grades_enabled": "When off, the Descriptive grades sensor goes unavailable and no DescriptiveGrades calls are made.",
@@ -352,6 +356,7 @@
       "grade_event": { "name": "New grade", "state_attributes": { "event_type": { "state": { "new_grade": "New grade" } } } },
       "note_event": { "name": "New behaviour note", "state_attributes": { "event_type": { "state": { "positive": "Positive", "negative": "Negative", "neutral": "Neutral" } } } },
       "absence_event": { "name": "New absence", "state_attributes": { "event_type": { "state": { "unexcused": "Unexcused", "excused": "Excused" } } } },
+      "late_event": { "name": "New lateness", "state_attributes": { "event_type": { "state": { "late": "Late" } } } },
       "timetable_change_event": { "name": "Timetable change", "state_attributes": { "event_type": { "state": { "canceled": "Lesson cancelled", "substitution": "Substitution" } } } },
       "homework_event": { "name": "New homework", "state_attributes": { "event_type": { "state": { "new_homework": "New homework" } } } },
       "agenda_event": { "name": "New agenda entry", "state_attributes": { "event_type": { "state": { "new_entry": "New entry" } } } },
@@ -378,6 +383,7 @@
       "homework": { "name": "Homework" }
     },
     "sensor": {
+      "calendar_feed": { "name": "Calendar link" },
       "lesson_topics": { "name": "Lesson topics" },
       "plan_changes": { "name": "Changes to the usual timetable" },
       "school_trips": { "name": "Next school trip" },
@@ -430,6 +436,7 @@
       "weekly_summary_enabled": { "name": "Automatic weekly summary" }
     },
     "calendar": {
+      "announcements": { "name": "Announcements" },
       "timetable": { "name": "Timetable" },
       "agenda": { "name": "Agenda" },
       "free_days": { "name": "Free days" },
@@ -437,6 +444,17 @@
     }
   },
   "services": {
+    "count_lessons": {
+      "name": "Count lessons",
+      "description": "How many lessons of a subject fall between two dates, e.g. \"how many maths lessons before the test?\". Known weeks are counted from the real timetable, further ones from the standard weekly plan; days off are skipped.",
+      "fields": {
+        "device_id": { "name": "Device", "description": "The Librus Synergia device (student)." },
+        "subject": { "name": "Subject", "description": "A subject name or part of it (\"matem\"), several separated by commas, or a subject id." },
+        "start_date": { "name": "From", "description": "The first day counted. Today if left empty." },
+        "end_date": { "name": "To", "description": "The last day counted (included)." },
+        "include_cancelled": { "name": "Include cancelled lessons", "description": "Also count lessons that are cancelled in the timetable." }
+      }
+    },
     "refresh": {
       "name": "Refresh now",
       "description": "Force an immediate data refresh instead of waiting for the next poll.",
@@ -579,6 +597,10 @@
           "name": "Title prefix",
           "description": "Put in front of every title, e.g. the student's first name (\"Ola:\") when several children share one calendar."
         },
+        "event_time": {
+          "name": "Event time",
+          "description": "Give the copied tests, quizzes and trips a time, e.g. 07:00, so a phone reminds about them at a useful hour instead of at midnight. An entry with its own time in Librus (a meeting at 17:30) keeps it. Days off stay all-day. Leave empty for all-day copies."
+        },
         "dry_run": {
           "name": "Dry run",
           "description": "Only list what would change, without changing the calendar."
@@ -661,11 +683,21 @@
     },
     "new_absence": {
       "name": "New absence",
-      "description": "A new absence is marked (not present or late).",
+      "description": "A new absence is marked (not present; a lateness is the New lateness trigger).",
       "fields": {
         "only_unexcused": {
           "name": "Only unexcused",
           "description": "Skip absences marked excused right away."
+        }
+      }
+    },
+    "new_late": {
+      "name": "New lateness",
+      "description": "The student is marked late (Spóźnienie).",
+      "fields": {
+        "subject": {
+          "name": "Subject",
+          "description": "Only these subjects - part of the name is enough, several separated by commas. Empty: every subject."
         }
       }
     },

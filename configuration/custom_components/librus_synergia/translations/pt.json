@@ -83,10 +83,12 @@
       "settings": {
         "title": "Opções do Librus Synergia",
         "data": {
+          "calendar_feed_enabled": "Link do calendário para outros",
           "scan_interval": "Intervalo de consulta (minutos)",
           "messages_enabled": "Obter mensagens privadas (Wiadomości)",
           "messages_count": "Mensagens a obter por caixa de correio",
           "message_sending_enabled": "Permitir o envio de mensagens (beta)",
+          "assist_full_messages": "Deixar o Assist abrir mensagens inteiras (marca-as como lidas)",
           "announcements_enabled": "Obter anúncios (ogłoszenia)",
           "behaviour_grades_enabled": "Obter a nota de comportamento (ocena zachowania)",
           "descriptive_grades_enabled": "Obter notas descritivas",
@@ -108,10 +110,12 @@
           "quiet_hours_end": "Fim das horas de silêncio"
         },
         "data_description": {
+          "calendar_feed_enabled": "Um link privado para um calendário .ics com o horário desta semana e da próxima, a Agenda, os dias livres e os avisos - para os avós ou o outro progenitor o subscreverem no telemóvel ou no Google Calendar, sem conta no Home Assistant. Quem tiver o link pode vê-lo. O link está no sensor \"Link do calendário\". Desative e volte a ativar para obter um link novo (o antigo deixa de funcionar).",
           "scan_interval": "Com que frequência atualizar notas, assiduidade, horário e anúncios. Mantenha um valor moderado - é uma API não oficial.",
           "messages_enabled": "Quando desativado, o sensor Mensagens não lidas fica indisponível e não são feitos pedidos de mensagens - menos pedidos ao Librus.",
           "messages_count": "Quantas das mensagens mais recentes cada lista de caixa de correio contém (recebidas, enviadas, arquivo e as restantes), 10-50. Mais significa listas mais longas no cartão Mensagens, um pouco mais de dados por atualização e atributos do sensor maiores.",
           "message_sending_enabled": "Permite que os serviços send_message e withdraw_message - e os botões Responder / Escrever do cartão Mensagens - escrevam aos professores e à escola no Wiadomości. Desativado por predefinição: uma mensagem enviada chega a uma pessoa real. Não disponível para o Assist nem para o resumo por IA.",
+          "assist_full_messages": "Permite que a ferramenta do Assist librus_get_full_message abra uma mensagem para a ler toda - para perguntas como «o que é preciso para a cerimónia de amanhã?». Abrir uma mensagem marca-a como lida no Wiadomości, tal como na aplicação Librus. Desativado por predefinição: o Assist vê então só o início de cada mensagem.",
           "announcements_enabled": "Quando desativado, o sensor Anúncios não lidos fica indisponível e não são feitos pedidos SchoolNotices.",
           "behaviour_grades_enabled": "Quando desativado, o sensor Nota de comportamento fica indisponível e não são feitos pedidos BehaviourGrades.",
           "descriptive_grades_enabled": "Quando desativado, o sensor Notas descritivas fica indisponível e não são feitos pedidos DescriptiveGrades.",
@@ -352,6 +356,7 @@
       "grade_event": { "name": "Nova nota", "state_attributes": { "event_type": { "state": { "new_grade": "Nova nota" } } } },
       "note_event": { "name": "Nova observação de comportamento", "state_attributes": { "event_type": { "state": { "positive": "Positiva", "negative": "Negativa", "neutral": "Neutra" } } } },
       "absence_event": { "name": "Nova falta", "state_attributes": { "event_type": { "state": { "unexcused": "Injustificada", "excused": "Justificada" } } } },
+      "late_event": { "name": "Novo atraso", "state_attributes": { "event_type": { "state": { "late": "Atraso" } } } },
       "timetable_change_event": { "name": "Alteração no horário", "state_attributes": { "event_type": { "state": { "canceled": "Aula cancelada", "substitution": "Substituição" } } } },
       "homework_event": { "name": "Novo trabalho de casa", "state_attributes": { "event_type": { "state": { "new_homework": "Novo trabalho de casa" } } } },
       "agenda_event": { "name": "Nova entrada na agenda", "state_attributes": { "event_type": { "state": { "new_entry": "Nova entrada" } } } },
@@ -378,6 +383,7 @@
       "homework": { "name": "Trabalhos de casa" }
     },
     "sensor": {
+      "calendar_feed": { "name": "Link do calendário" },
       "lesson_topics": { "name": "Sumários das aulas" },
       "plan_changes": { "name": "Alterações ao horário habitual" },
       "school_trips": { "name": "Próxima visita de estudo" },
@@ -430,6 +436,7 @@
       "weekly_summary_enabled": { "name": "Resumo semanal automático" }
     },
     "calendar": {
+      "announcements": { "name": "Avisos" },
       "timetable": { "name": "Horário" },
       "agenda": { "name": "Agenda" },
       "free_days": { "name": "Dias livres" },
@@ -437,6 +444,17 @@
     }
   },
   "services": {
+    "count_lessons": {
+      "name": "Contar aulas",
+      "description": "Quantas aulas de uma disciplina há entre duas datas, por exemplo \"quantas aulas de matemática até ao teste?\". As semanas conhecidas contam pelo horário real, as seguintes pelo plano semanal fixo; os dias livres são ignorados.",
+      "fields": {
+        "device_id": { "name": "Dispositivo", "description": "O dispositivo Librus Synergia (aluno)." },
+        "subject": { "name": "Disciplina", "description": "O nome da disciplina ou parte dele (\"matem\"), várias separadas por vírgulas, ou o id da disciplina." },
+        "start_date": { "name": "De", "description": "O primeiro dia contado. Hoje, se ficar vazio." },
+        "end_date": { "name": "Até", "description": "O último dia contado (incluído)." },
+        "include_cancelled": { "name": "Contar aulas canceladas", "description": "Contar também as aulas canceladas no horário." }
+      }
+    },
     "refresh": {
       "name": "Atualizar agora",
       "description": "Força uma atualização imediata dos dados em vez de esperar pela próxima consulta.",
@@ -579,6 +597,10 @@
           "name": "Prefixo do título",
           "description": "Colocado antes de cada título, p. ex. o primeiro nome do aluno (\"Ola:\") quando vários filhos partilham um calendário."
         },
+        "event_time": {
+          "name": "Hora dos eventos",
+          "description": "Dá uma hora aos testes, minitestes e visitas copiados, por exemplo 07:00, para o telemóvel lembrar a uma hora útil e não à meia-noite. Uma entrada com hora própria no Librus (uma reunião às 17:30) mantém-na. Os dias livres continuam de dia inteiro. Vazio = cópias de dia inteiro."
+        },
         "dry_run": {
           "name": "Simulação",
           "description": "Apenas listar o que mudaria, sem alterar o calendário."
@@ -661,11 +683,21 @@
     },
     "new_absence": {
       "name": "Nova falta",
-      "description": "É marcada uma nova falta (ausência ou atraso).",
+      "description": "É marcada uma nova falta (ausência; os atrasos têm o acionador Novo atraso).",
       "fields": {
         "only_unexcused": {
           "name": "Apenas injustificadas",
           "description": "Ignorar as faltas marcadas logo como justificadas."
+        }
+      }
+    },
+    "new_late": {
+      "name": "Novo atraso",
+      "description": "É marcado um atraso (Spóźnienie).",
+      "fields": {
+        "subject": {
+          "name": "Disciplina",
+          "description": "Apenas estas disciplinas - basta parte do nome, várias separadas por vírgulas. Vazio: todas as disciplinas."
         }
       }
     },

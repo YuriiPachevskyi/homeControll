@@ -50,7 +50,12 @@ from librus_synergia.parsers import justified_dates, plan_differences, point_gra
 
 from . import LibrusConfigEntry, librus_device_info
 from .ai_summary import MAX_STATE_LENGTH, LibrusWeeklySummary
+from .calendar_feed import feed_url
+from .lesson_count import lessons_before
 from .const import (
+    CONF_CALENDAR_FEED_ENABLED,
+    CONF_CALENDAR_FEED_TOKEN,
+    DEFAULT_CALENDAR_FEED_ENABLED,
     CONF_MESSAGE_SENDING_ENABLED,
     DEFAULT_MESSAGE_SENDING_ENABLED,
     ATTR_SUBJECT_ID,
@@ -97,6 +102,7 @@ from .forecast import (
     HONOURS_AVERAGE,
     DataMemo,
     SubjectForecast,
+    current_semester,
     forecast_basis,
     overall_with_points,
     point_sums,
@@ -472,6 +478,16 @@ async def async_setup_entry(
         coordinator.data is not None and coordinator.data.point_grades
     ):
         async_add_entities([LibrusPointGradesSensor(coordinator, entry)])
+
+    # The calendar feed's link - only while "Calendar link for others" is on.
+    if entry.options.get(CONF_CALENDAR_FEED_ENABLED, DEFAULT_CALENDAR_FEED_ENABLED) and entry.data.get(
+        CONF_CALENDAR_FEED_TOKEN
+    ):
+        async_add_entities([LibrusCalendarFeedSensor(coordinator, entry)])
+    elif entity_id := er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_calendar_feed"
+    ):
+        er.async_get(hass).async_remove(entity_id)
 
     # The weekly AI summary exists only while an ai_task entity is picked in
     # the options.
@@ -982,7 +998,7 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
     presence_by_type: dict[str, bool] = {}
     absence_dates: list[str] = []
     unexcused_dates: set[str] = set()
-    excused = unexcused = presence_records = 0
+    excused = unexcused = presence_records = late = 0
     by_date: dict[str, str] = {}
     by_semester: dict[str, dict[str, Any]] = {}
     by_weekday: dict[str, dict[str, int]] = {}
@@ -997,6 +1013,8 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
             presence_by_type[name] = t.is_presence_kind
             if t.is_presence_kind:
                 presence_records += 1
+                if _is_late_type_name(t.name):
+                    late += 1
             else:
                 if a.date:
                     absence_dates.append(a.date)
@@ -1018,10 +1036,14 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
             if existing is None or _STATUS_RANK[status] > _STATUS_RANK[existing]:
                 by_date[a.date] = status
         if a.semester is not None:
-            bucket = by_semester.setdefault(str(a.semester), {"total": 0, "present": 0})
+            bucket = by_semester.setdefault(
+                str(a.semester), {"total": 0, "present": 0, "late": 0}
+            )
             bucket["total"] += 1
             if t is not None and t.is_presence_kind:
                 bucket["present"] += 1
+                if _is_late_type_name(t.name):
+                    bucket["late"] += 1
         if t is None:
             continue
         # The excused/unexcused/late split, by weekday and by subject (see
@@ -1080,6 +1102,7 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
         "unexcused_dates": unexcused_dates,
         "excused": excused,
         "unexcused": unexcused,
+        "late": late,
         "total_records": total,
         "percentage": round(100 * presence_records / total, 1) if total else None,
         "by_date": by_date,
@@ -1090,6 +1113,13 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
             sorted(subject_attendance.items(), key=lambda kv: (kv[1]["percentage"], kv[0]))
         ),
     }
+
+
+def _late_this_semester(data: LibrusData, summary: dict[str, Any]) -> int | None:
+    semester = current_semester(data, dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date())
+    if semester is None:
+        return None
+    return summary["by_semester"].get(str(semester), {}).get("late", 0)
 
 
 # Absences and late arrivals listed in the Attendance sensor's `recent`.
@@ -1163,6 +1193,11 @@ class LibrusAttendanceSensor(LibrusSensorBase):
             # view. There's also a dedicated `sensor.*_unexcused_absences`.
             "excused_count": summary["excused"],
             "unexcused_count": summary["unexcused"],
+            # Late arrivals ("Spóźnienie" - a presence kind, so not in the
+            # state): this school year, and in the current semester (from
+            # the class's first-semester end date; 0 before any record).
+            "late_count": summary["late"],
+            "late_this_semester": _late_this_semester(self.coordinator.data, summary),
             # One worst status per calendar date (good/warn/bad).
             "by_date": summary["by_date"],
             # Excused/unexcused/late RECORDS per ISO weekday (1=Monday..
@@ -2622,6 +2657,24 @@ class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):
         preps = self._prep()
         return preps[0].day if preps else None
 
+    def _lessons_left(self) -> dict[int, int | None]:
+        """Agenda id -> lessons of the test's subject after today and before
+        the test (lesson_count.lessons_before): the polled timetable, then
+        the standing plan. Once a day - today isn't counted, so the number
+        doesn't move as the day's lessons pass."""
+        data = self.coordinator.data
+        if data is None:
+            return {}
+        today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
+        return self._cached(
+            "lessons_left",
+            today,
+            lambda: {
+                prep.item.id: lessons_before(data, prep.item.subject_id, today, prep.day)
+                for prep in self._prep()
+            },
+        )
+
     def _weeks(self) -> dict[str, Any]:
         """Tests in this Monday-Sunday week and the next one (exam_prep.
         week_load) - for "a heavy week ahead"."""
@@ -2674,10 +2727,12 @@ class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):
             return {**self._weeks(), **self._recently_added()} or None
         today = dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date()
         first = preps[0]
+        lessons_left = self._lessons_left()
         return {
             **self._weeks(),
             **self._recently_added(),
             "days_until": (first.day - today).days,
+            "lessons_left": lessons_left.get(first.item.id),
             "subject": first.subject,
             "category": first.category,
             "content": first.item.content,
@@ -2693,6 +2748,7 @@ class LibrusNextExamSensor(_MinuteTick, LibrusSensorBase):
                     "date": prep.day.isoformat(),
                     "subject": prep.subject,
                     "category": prep.category,
+                    "lessons_left": lessons_left.get(prep.item.id),
                     "content": prep.item.content[:200],
                     "topics": topics_as_dicts(prep),
                     "topics_since": prep.since.isoformat() if prep.since else None,
@@ -3204,6 +3260,28 @@ class LibrusLastUpdateSensor(LibrusSensorBase):
     @property
     def native_value(self) -> datetime | None:
         return self.coordinator.last_success_at
+
+
+class LibrusCalendarFeedSensor(LibrusSensorBase):
+    """The link to the student's calendar feed (calendar_feed.py) - to copy
+    into a phone's or Google's "subscribe to a calendar". Exists only while
+    "Calendar link for others" is on; anyone with the link sees the
+    timetable, Agenda, days off and announcements."""
+
+    _attr_translation_key = "calendar_feed"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: LibrusDataUpdateCoordinator, entry: LibrusConfigEntry) -> None:
+        super().__init__(coordinator, entry, "calendar_feed")
+
+    @property
+    def available(self) -> bool:
+        return bool(self._entry.data.get(CONF_CALENDAR_FEED_TOKEN))
+
+    @property
+    def native_value(self) -> str | None:
+        token = self._entry.data.get(CONF_CALENDAR_FEED_TOKEN)
+        return feed_url(self.hass, token) if token else None
 
 
 class LibrusWeeklySummarySensor(SensorEntity):
