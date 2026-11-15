@@ -1,0 +1,455 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "lovelace.dashboard_librus",
+  "data": {
+    "config": {
+      "title": "Librus",
+      "views": [
+        {
+          "type": "sections",
+          "max_columns": 3,
+          "title": "Сьогодні",
+          "path": "today",
+          "icon": "mdi:calendar-today",
+          "sections": [
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Сьогодні",
+                  "heading_style": "title",
+                  "icon": "mdi:white-balance-sunny"
+                },
+                {
+                  "type": "custom:librus-today-card"
+                },
+                {
+                  "type": "custom:librus-next-lesson-tile-card"
+                },
+                {
+                  "type": "custom:librus-school-day-card"
+                },
+                {
+                  "type": "custom:librus-today-lessons-card"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Завтра",
+                  "heading_style": "title",
+                  "icon": "mdi:calendar-arrow-right"
+                },
+                {
+                  "type": "custom:librus-tomorrow-card"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Що нового",
+                  "heading_style": "title",
+                  "icon": "mdi:bell-ring"
+                },
+                {
+                  "type": "custom:librus-exam-countdown-card",
+                  "exam_keywords": "sprawdzian, kartkówka, praca klasowa"
+                },
+                {
+                  "type": "custom:librus-recent-activity-card",
+                  "max_items": 8
+                },
+                {
+                  "type": "custom:librus-school-trips-card"
+                },
+                {
+                  "type": "custom:librus-lucky-number-card"
+                }
+              ]
+            }
+          ],
+          "visible": [
+            {
+              "user": "c752ac86fa49439cb55697fc03086f22"
+            },
+            {
+              "user": "47ed1b74f73c4a08b653b1c979b9c035"
+            },
+            {
+              "user": "8c053a011ebf477a9076052054f01b22"
+            }
+          ]
+        },
+        {
+          "type": "sections",
+          "max_columns": 3,
+          "title": "Розклад",
+          "path": "timetable",
+          "icon": "mdi:timetable",
+          "sections": [
+            {
+              "type": "grid",
+              "column_span": 2,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Тиждень",
+                  "heading_style": "title",
+                  "icon": "mdi:table-large"
+                },
+                {
+                  "type": "custom:librus-week-timetable-card"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "День",
+                  "heading_style": "title",
+                  "icon": "mdi:clock-outline"
+                },
+                {
+                  "type": "custom:librus-bell-schedule-card"
+                },
+                {
+                  "type": "custom:librus-free-days-card"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 2,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Що вивчали",
+                  "heading_style": "title",
+                  "icon": "mdi:book-open-variant"
+                },
+                {
+                  "type": "custom:librus-lesson-topics-card"
+                }
+              ]
+            }
+          ],
+          "visible": [
+            {
+              "user": "c752ac86fa49439cb55697fc03086f22"
+            },
+            {
+              "user": "47ed1b74f73c4a08b653b1c979b9c035"
+            },
+            {
+              "user": "8c053a011ebf477a9076052054f01b22"
+            }
+          ]
+        },
+        {
+          "type": "sections",
+          "max_columns": 1,
+          "title": "Календар",
+          "path": "calendar",
+          "icon": "mdi:calendar-month",
+          "sections": [
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "markdown",
+                  "text_only": true,
+                  "content": "<ha-icon icon=\"mdi:calendar-plus\"></ha-icon> [Додати заняття (музика, гуртки)](/calendar)"
+                },
+                {
+                  "type": "calendar",
+                  "initial_view": "listWeek",
+                  "entities": [
+                    "calendar.e_dziennik_mila_pachevska_agenda",
+                    "calendar.e_dziennik_mila_pachevska_free_days",
+                    "calendar.e_dziennik_mila_pachevska_timetable",
+                    "calendar.gurtki"
+                  ],
+                  "fill_screen": true,
+                  "grid_options": {
+                    "columns": "full"
+                  }
+                }
+              ]
+            }
+          ],
+          "visible": [
+            {
+              "user": "c752ac86fa49439cb55697fc03086f22"
+            },
+            {
+              "user": "47ed1b74f73c4a08b653b1c979b9c035"
+            },
+            {
+              "user": "8c053a011ebf477a9076052054f01b22"
+            }
+          ]
+        },
+        {
+          "type": "sections",
+          "max_columns": 3,
+          "title": "Повідомлення",
+          "path": "messages",
+          "icon": "mdi:email",
+          "sections": [
+            {
+              "type": "grid",
+              "column_span": 2,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Повідомлення",
+                  "heading_style": "title",
+                  "icon": "mdi:email-outline"
+                },
+                {
+                  "type": "custom:librus-message-reader-card",
+                  "grid_options": {
+                    "columns": "full"
+                  }
+                },
+                {
+                  "type": "custom:librus-messages-card",
+                  "max_items": 15,
+                  "grid_options": {
+                    "columns": "full"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Оголошення і заміни",
+                  "heading_style": "title",
+                  "icon": "mdi:bullhorn"
+                },
+                {
+                  "type": "custom:librus-announcements-card"
+                },
+                {
+                  "type": "custom:librus-substitutions-card"
+                },
+                {
+                  "type": "custom:librus-school-documents-card"
+                }
+              ]
+            }
+          ],
+          "visible": [
+            {
+              "user": "c752ac86fa49439cb55697fc03086f22"
+            },
+            {
+              "user": "47ed1b74f73c4a08b653b1c979b9c035"
+            },
+            {
+              "user": "8c053a011ebf477a9076052054f01b22"
+            }
+          ]
+        },
+        {
+          "type": "sections",
+          "max_columns": 3,
+          "title": "Оцінки",
+          "path": "grades",
+          "icon": "mdi:star-circle",
+          "sections": [
+            {
+              "type": "grid",
+              "column_span": 2,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Описові оцінки",
+                  "heading_style": "title",
+                  "icon": "mdi:text-box-check"
+                },
+                {
+                  "type": "custom:librus-descriptive-grades-card"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Журнал і поведінка",
+                  "heading_style": "title",
+                  "icon": "mdi:notebook"
+                },
+                {
+                  "type": "custom:librus-latest-grade-card"
+                },
+                {
+                  "type": "custom:librus-grade-log-card",
+                  "max_items": 20
+                },
+                {
+                  "type": "custom:librus-behaviour-grade-card"
+                },
+                {
+                  "type": "custom:librus-behaviour-notices-card"
+                }
+              ]
+            }
+          ],
+          "visible": [
+            {
+              "user": "c752ac86fa49439cb55697fc03086f22"
+            },
+            {
+              "user": "47ed1b74f73c4a08b653b1c979b9c035"
+            },
+            {
+              "user": "8c053a011ebf477a9076052054f01b22"
+            }
+          ]
+        },
+        {
+          "type": "sections",
+          "max_columns": 3,
+          "title": "Контрольні й домашні",
+          "path": "agenda",
+          "icon": "mdi:clipboard-text-clock",
+          "sections": [
+            {
+              "type": "grid",
+              "column_span": 2,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Терміни",
+                  "heading_style": "title",
+                  "icon": "mdi:calendar-clock"
+                },
+                {
+                  "type": "custom:librus-agenda-card",
+                  "days_ahead": 21
+                },
+                {
+                  "type": "custom:librus-exam-prep-card"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Домашні завдання",
+                  "heading_style": "title",
+                  "icon": "mdi:home-edit"
+                },
+                {
+                  "type": "custom:librus-exam-countdown-card",
+                  "exam_keywords": "sprawdzian, kartkówka, praca klasowa"
+                },
+                {
+                  "type": "custom:librus-homework-assignments-card"
+                }
+              ]
+            }
+          ],
+          "visible": [
+            {
+              "user": "c752ac86fa49439cb55697fc03086f22"
+            },
+            {
+              "user": "47ed1b74f73c4a08b653b1c979b9c035"
+            },
+            {
+              "user": "8c053a011ebf477a9076052054f01b22"
+            }
+          ]
+        },
+        {
+          "type": "sections",
+          "max_columns": 3,
+          "title": "Відвідування",
+          "path": "attendance",
+          "icon": "mdi:account-check",
+          "sections": [
+            {
+              "type": "grid",
+              "column_span": 2,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Відвідування",
+                  "heading_style": "title",
+                  "icon": "mdi:account-check-outline"
+                },
+                {
+                  "type": "custom:librus-attendance-card"
+                },
+                {
+                  "type": "custom:librus-attendance-heatmap-card"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Пропуски",
+                  "heading_style": "title",
+                  "icon": "mdi:chart-bar"
+                },
+                {
+                  "type": "custom:librus-justifications-card"
+                },
+                {
+                  "type": "custom:librus-attendance-weekday-card"
+                },
+                {
+                  "type": "custom:librus-attendance-subject-card"
+                },
+                {
+                  "type": "custom:librus-streak-card"
+                }
+              ]
+            }
+          ],
+          "visible": [
+            {
+              "user": "c752ac86fa49439cb55697fc03086f22"
+            },
+            {
+              "user": "47ed1b74f73c4a08b653b1c979b9c035"
+            },
+            {
+              "user": "8c053a011ebf477a9076052054f01b22"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

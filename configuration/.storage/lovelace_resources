@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "lovelace_resources",
+  "data": {
+    "items": [
+      {
+        "id": "e436daa092754a5cb1367e07eec9feff",
+        "url": "/local/community/sunsynk-power-flow-card/sunsynk-power-flow-card.js?v=613588535758",
+        "type": "module"
+      },
+      {
+        "id": "3a018743a32e49a09b544d7ac5ae8ec6",
+        "url": "/local/community/apexcharts-card/apexcharts-card.js?v=331701152223",
+        "type": "module"
+      },
+      {
+        "id": "mini_graph_card_resource",
+        "url": "/local/community/mini-graph-card/mini-graph-card-bundle.js",
+        "type": "module"
+      },
+      {
+        "id": "history_explorer_card_resource",
+        "url": "/local/community/history-explorer-card/history-explorer-card.js",
+        "type": "module"
+      },
+      {
+        "id": "ha_sankey_chart_resource",
+        "url": "/local/community/ha-sankey-chart/ha-sankey-chart.js",
+        "type": "module"
+      },
+      {
+        "id": "card_mod_resource",
+        "url": "/local/community/card-mod/card-mod.js",
+        "type": "module"
+      },
+      {
+        "id": "86367ba20564415892afa3a06772af2f",
+        "url": "/local/community/power-flow-card-plus/power-flow-card-plus.js?v=618081815061",
+        "type": "module"
+      },
+      {
+        "id": "b9621f28e8d1460d872fcb21c2fe135a",
+        "url": "/local/community/ha-librus-synergia-cards/librus-synergia-cards.js?v=1359116539-v0.16.41&hc=1794688239",
+        "type": "module"
+      },
+      {
+        "id": "803816ac7d5444e885fdd0b87662a641",
+        "url": "/local/calendar-card-fix.js?v=20260927",
+        "type": "module"
+      },
+      {
+        "id": "f10678d15d6f445ea7f727597e1de493",
+        "url": "/local/librus-message-reader.js?v=1790678485",
+        "type": "module"
+      },
+      {
+        "id": "41c35cb1919046e98dbeadddde02a8cd",
+        "url": "/local/reduced-motion.js?v=20260929",
+        "type": "module"
+      },
+      {
+        "id": "3daf5523d2a5418fbc23c24f90e6ce49",
+        "url": "/local/community/lovelace-multiple-entity-row/multiple-entity-row.js?v=1789210374131",
+        "type": "module"
+      },
+      {
+        "id": "52c5900df19e45508cd95543ea598970",
+        "url": "/local/multiple-entity-row-confirm/multiple-entity-row-confirm.js?v=20261020",
+        "type": "module"
+      },
+      {
+        "id": "2da3831c4c7c4e7da57c884bbfd6807d",
+        "url": "/local/device-gate-card.js?v=20261024",
+        "type": "module"
+      },
+      {
+        "id": "e41a83d69f99465fad5582d2624e5660",
+        "url": "/local/notify-log-card.js?v=20261026",
+        "type": "module"
+      },
+      {
+        "id": "a68ab1fb19104b0eaaf26561fdb46a79",
+        "url": "/local/youtube-sideload-card.js?v=202611050808",
+        "type": "module"
+      },
+      {
+        "id": "bf80e8bf1b334d98a226186bcdace6ca",
+        "url": "/local/day-offset-card.js?v=20261105f",
+        "type": "module"
+      }
+    ]
+  }
+}

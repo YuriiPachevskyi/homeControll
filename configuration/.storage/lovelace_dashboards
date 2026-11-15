@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "lovelace_dashboards",
+  "data": {
+    "items": [
+      {
+        "id": "lovelace",
+        "icon": "mdi:view-dashboard",
+        "title": "Overview",
+        "url_path": "lovelace",
+        "mode": "storage",
+        "show_in_sidebar": true,
+        "require_admin": false
+      },
+      {
+        "id": "map",
+        "icon": "mdi:map",
+        "title": "Map",
+        "url_path": "map",
+        "require_admin": false,
+        "mode": "storage",
+        "show_in_sidebar": false
+      },
+      {
+        "id": "dashboard_payments",
+        "url_path": "dashboard-payments",
+        "title": "Payments",
+        "icon": "mdi:cash-multiple",
+        "show_in_sidebar": true,
+        "require_admin": true,
+        "mode": "storage"
+      },
+      {
+        "id": "dashboard_librus",
+        "url_path": "dashboard-librus",
+        "title": "Librus",
+        "icon": "mdi:school",
+        "show_in_sidebar": true,
+        "require_admin": false,
+        "mode": "storage"
+      }
+    ]
+  }
+}

@@ -1,0 +1,725 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "lovelace.dashboard_payments",
+  "data": {
+    "config": {
+      "views": [
+        {
+          "type": "sections",
+          "max_columns": 2,
+          "title": "До оплати",
+          "path": "todo",
+          "icon": "mdi:checkbox-marked-circle-outline",
+          "sections": [
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Що оплатити",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "todo-list",
+                  "entity": "todo.payments",
+                  "title": "Payments"
+                },
+                {
+                  "type": "markdown",
+                  "title": "Квитанції",
+                  "content": "{%- set items = state_attr('sensor.oselya_payments', 'outstanding') or [] -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{% for i in items -%}\n{%- set text = i.object ~ ' — ' ~ i.purpose ~ ' — ' ~ i.period ~ ' — ' ~ ('%.2f' % i.amount) ~ ' грн' -%}\n🧾 {% if docs.get(i.receipt) %}<a href=\"{{ docs[i.receipt] }}\" target=\"_blank\" rel=\"noopener\">{{ text }}</a>{% else %}{{ text }}{% endif %}\n{% endfor %}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sections",
+          "max_columns": 2,
+          "title": "Таблиці",
+          "path": "tables",
+          "icon": "mdi:table",
+          "sections": [
+            {
+              "type": "grid",
+              "visibility": [
+                {
+                  "condition": "screen",
+                  "media_query": "(min-width: 768px)"
+                }
+              ],
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Огляд",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "horizontal-stack",
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "2025",
+                      "show_icon": false,
+                      "show_name": true,
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "call-service",
+                        "service": "input_select.select_option",
+                        "service_data": {
+                          "entity_id": "input_select.oselya_payments_year",
+                          "option": "2025"
+                        }
+                      },
+                      "card_mod": {
+                        "style": "ha-card { box-shadow: none; border: none; background: none; min-height: 28px; padding: 0; }\n.info { font-weight: bold; text-decoration: underline; }\n"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "2026",
+                      "show_icon": false,
+                      "show_name": true,
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "call-service",
+                        "service": "input_select.select_option",
+                        "service_data": {
+                          "entity_id": "input_select.oselya_payments_year",
+                          "option": "2026"
+                        }
+                      },
+                      "card_mod": {
+                        "style": "ha-card { box-shadow: none; border: none; background: none; min-height: 28px; padding: 0; }\n.info { font-weight: bold; text-decoration: underline; }\n"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "conditional",
+                  "conditions": [
+                    {
+                      "condition": "state",
+                      "entity": "input_boolean.oselya_payments_expanded",
+                      "state": "off"
+                    }
+                  ],
+                  "card": {
+                    "type": "button",
+                    "name": "▸ Розгорнути по платежах",
+                    "show_icon": false,
+                    "show_name": true,
+                    "show_state": false,
+                    "tap_action": {
+                      "action": "call-service",
+                      "service": "input_boolean.toggle",
+                      "service_data": {
+                        "entity_id": "input_boolean.oselya_payments_expanded"
+                      }
+                    },
+                    "card_mod": {
+                      "style": "ha-card { box-shadow: none; border: none; background: none; min-height: 28px; padding: 0; }\n.info { font-weight: bold; text-decoration: underline; }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "conditional",
+                  "conditions": [
+                    {
+                      "condition": "state",
+                      "entity": "input_boolean.oselya_payments_expanded",
+                      "state": "on"
+                    }
+                  ],
+                  "card": {
+                    "type": "button",
+                    "name": "▾ Згорнути до місяців",
+                    "show_icon": false,
+                    "show_name": true,
+                    "show_state": false,
+                    "tap_action": {
+                      "action": "call-service",
+                      "service": "input_boolean.toggle",
+                      "service_data": {
+                        "entity_id": "input_boolean.oselya_payments_expanded"
+                      }
+                    },
+                    "card_mod": {
+                      "style": "ha-card { box-shadow: none; border: none; background: none; min-height: 28px; padding: 0; }\n.info { font-weight: bold; text-decoration: underline; }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "markdown",
+                  "title": "Підсумок по роках",
+                  "content": "{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_years = objs.values() | map(attribute='year_totals') | sum(start=[]) | map(attribute='year') | unique | sort | list -%}\n{%- set years = all_years[-3:] -%}\n| Об'єкт | {% for y in years %}{{ y }} | {% endfor %}\n|:--|{% for y in years %}--:|{% endfor %}\n{% for key, label in [[\"apartment_197\", \"Квартира 197\"], [\"apartment_177\", \"Квартира 177\"], [\"storage_39k\", \"Комірка 39k\"], [\"parking_277\", \"Машиномісце 277\"], [\"parking_79\", \"Машиномісце 79\"]] -%}\n{%- set yt = objs.get(key, {}).get('year_totals', []) -%}\n| {{ label }} | {% for y in years -%}\n{%- set match = yt | selectattr('year', 'eq', y) | map(attribute='total') | list -%}\n{{ '%.0f' % (match[0] if match else 0) }} | {% endfor %}\n{% endfor -%}\n| **Разом** | {% for y in years -%}\n{%- set total = namespace(v=0) -%}\n{%- for key, label in [[\"apartment_197\", \"Квартира 197\"], [\"apartment_177\", \"Квартира 177\"], [\"storage_39k\", \"Комірка 39k\"], [\"parking_277\", \"Машиномісце 277\"], [\"parking_79\", \"Машиномісце 79\"]] -%}\n{%- set yt = objs.get(key, {}).get('year_totals', []) -%}\n{%- set match = yt | selectattr('year', 'eq', y) | map(attribute='total') | list -%}\n{%- set total.v = total.v + (match[0] if match else 0) -%}\n{%- endfor -%}\n**{{ '%.0f' % total.v }}** | {% endfor %}\n\nгрн нараховано за рік (борги/переплати вже враховані у сумі)"
+                },
+                {
+                  "type": "heading",
+                  "heading": "Квартира 177",
+                  "heading_style": "title",
+                  "icon": "mdi:home-city"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('apartment_177', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>Нарах.</th><th>Опл.</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.accrued }}</b></td><td><b>{{ '%.2f' % r.paid }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"electricity\", \"Електроенергія\"], [\"water\", \"Вода\"], [\"trash\", \"Вивіз сміття\"], [\"housing\", \"ЖЕК\"]] -%}\n{%- set found = all_bills.get('apartment_177.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('apartment_177.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.accrued }}</td><td>{{ '%.2f' % b.paid }}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td></td><td></td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='accrued')) }}</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='paid')) }}</b></td><td></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 31%; }\nth:nth-child(2), td:nth-child(2) { width: 17%; }\nth:nth-child(3), td:nth-child(3) { width: 17%; }\nth:nth-child(4), td:nth-child(4) { width: 19%; }\nth:nth-child(5), td:nth-child(5) { width: 16%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "heading",
+                  "heading": "Машиномісце 277",
+                  "heading_style": "title",
+                  "icon": "mdi:car"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('parking_277', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>Нарах.</th><th>Опл.</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.accrued }}</b></td><td><b>{{ '%.2f' % r.paid }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"utility\", \"Комунальні\"]] -%}\n{%- set found = all_bills.get('parking_277.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('parking_277.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.accrued }}</td><td>{{ '%.2f' % b.paid }}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td></td><td></td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='accrued')) }}</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='paid')) }}</b></td><td></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 31%; }\nth:nth-child(2), td:nth-child(2) { width: 17%; }\nth:nth-child(3), td:nth-child(3) { width: 17%; }\nth:nth-child(4), td:nth-child(4) { width: 19%; }\nth:nth-child(5), td:nth-child(5) { width: 16%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\n"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "visibility": [
+                {
+                  "condition": "screen",
+                  "media_query": "(min-width: 768px)"
+                }
+              ],
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Квартира 197",
+                  "heading_style": "title",
+                  "icon": "mdi:home-city"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('apartment_197', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>Нарах.</th><th>Опл.</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.accrued }}</b></td><td><b>{{ '%.2f' % r.paid }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"utility\", \"Комунальні\"], [\"concierge\", \"Консьєрж\"], [\"electricity\", \"Електроенергія\"], [\"water\", \"Вода\"], [\"trash\", \"Вивіз сміття\"]] -%}\n{%- set found = all_bills.get('apartment_197.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('apartment_197.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.accrued }}</td><td>{{ '%.2f' % b.paid }}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td></td><td></td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='accrued')) }}</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='paid')) }}</b></td><td></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 31%; }\nth:nth-child(2), td:nth-child(2) { width: 17%; }\nth:nth-child(3), td:nth-child(3) { width: 17%; }\nth:nth-child(4), td:nth-child(4) { width: 19%; }\nth:nth-child(5), td:nth-child(5) { width: 16%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "heading",
+                  "heading": "Комірка 39k",
+                  "heading_style": "title",
+                  "icon": "mdi:package-variant-closed"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('storage_39k', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>Нарах.</th><th>Опл.</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.accrued }}</b></td><td><b>{{ '%.2f' % r.paid }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"utility\", \"Комунальні\"]] -%}\n{%- set found = all_bills.get('storage_39k.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('storage_39k.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.accrued }}</td><td>{{ '%.2f' % b.paid }}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td></td><td></td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='accrued')) }}</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='paid')) }}</b></td><td></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 31%; }\nth:nth-child(2), td:nth-child(2) { width: 17%; }\nth:nth-child(3), td:nth-child(3) { width: 17%; }\nth:nth-child(4), td:nth-child(4) { width: 19%; }\nth:nth-child(5), td:nth-child(5) { width: 16%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "heading",
+                  "heading": "Машиномісце 79",
+                  "heading_style": "title",
+                  "icon": "mdi:car"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('parking_79', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>Нарах.</th><th>Опл.</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.accrued }}</b></td><td><b>{{ '%.2f' % r.paid }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"utility\", \"Комунальні\"]] -%}\n{%- set found = all_bills.get('parking_79.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('parking_79.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.accrued }}</td><td>{{ '%.2f' % b.paid }}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td></td><td></td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='accrued')) }}</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='paid')) }}</b></td><td></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 31%; }\nth:nth-child(2), td:nth-child(2) { width: 17%; }\nth:nth-child(3), td:nth-child(3) { width: 17%; }\nth:nth-child(4), td:nth-child(4) { width: 19%; }\nth:nth-child(5), td:nth-child(5) { width: 16%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\n"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "visibility": [
+                {
+                  "condition": "screen",
+                  "media_query": "(max-width: 767px)"
+                }
+              ],
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Огляд",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "horizontal-stack",
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "2025",
+                      "show_icon": false,
+                      "show_name": true,
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "call-service",
+                        "service": "input_select.select_option",
+                        "service_data": {
+                          "entity_id": "input_select.oselya_payments_year",
+                          "option": "2025"
+                        }
+                      },
+                      "card_mod": {
+                        "style": "ha-card { box-shadow: none; border: none; background: none; min-height: 28px; padding: 0; }\n.info { font-weight: bold; text-decoration: underline; }\n"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "2026",
+                      "show_icon": false,
+                      "show_name": true,
+                      "show_state": false,
+                      "tap_action": {
+                        "action": "call-service",
+                        "service": "input_select.select_option",
+                        "service_data": {
+                          "entity_id": "input_select.oselya_payments_year",
+                          "option": "2026"
+                        }
+                      },
+                      "card_mod": {
+                        "style": "ha-card { box-shadow: none; border: none; background: none; min-height: 28px; padding: 0; }\n.info { font-weight: bold; text-decoration: underline; }\n"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "conditional",
+                  "conditions": [
+                    {
+                      "condition": "state",
+                      "entity": "input_boolean.oselya_payments_expanded",
+                      "state": "off"
+                    }
+                  ],
+                  "card": {
+                    "type": "button",
+                    "name": "▸ Розгорнути по платежах",
+                    "show_icon": false,
+                    "show_name": true,
+                    "show_state": false,
+                    "tap_action": {
+                      "action": "call-service",
+                      "service": "input_boolean.toggle",
+                      "service_data": {
+                        "entity_id": "input_boolean.oselya_payments_expanded"
+                      }
+                    },
+                    "card_mod": {
+                      "style": "ha-card { box-shadow: none; border: none; background: none; min-height: 28px; padding: 0; }\n.info { font-weight: bold; text-decoration: underline; }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "conditional",
+                  "conditions": [
+                    {
+                      "condition": "state",
+                      "entity": "input_boolean.oselya_payments_expanded",
+                      "state": "on"
+                    }
+                  ],
+                  "card": {
+                    "type": "button",
+                    "name": "▾ Згорнути до місяців",
+                    "show_icon": false,
+                    "show_name": true,
+                    "show_state": false,
+                    "tap_action": {
+                      "action": "call-service",
+                      "service": "input_boolean.toggle",
+                      "service_data": {
+                        "entity_id": "input_boolean.oselya_payments_expanded"
+                      }
+                    },
+                    "card_mod": {
+                      "style": "ha-card { box-shadow: none; border: none; background: none; min-height: 28px; padding: 0; }\n.info { font-weight: bold; text-decoration: underline; }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "markdown",
+                  "title": "Підсумок по роках",
+                  "content": "{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_years = objs.values() | map(attribute='year_totals') | sum(start=[]) | map(attribute='year') | unique | sort | list -%}\n{%- set years = all_years[-3:] -%}\n| Об'єкт | {% for y in years %}{{ y }} | {% endfor %}\n|:--|{% for y in years %}--:|{% endfor %}\n{% for key, label in [[\"apartment_197\", \"Квартира 197\"], [\"apartment_177\", \"Квартира 177\"], [\"storage_39k\", \"Комірка 39k\"], [\"parking_277\", \"Машиномісце 277\"], [\"parking_79\", \"Машиномісце 79\"]] -%}\n{%- set yt = objs.get(key, {}).get('year_totals', []) -%}\n| {{ label }} | {% for y in years -%}\n{%- set match = yt | selectattr('year', 'eq', y) | map(attribute='total') | list -%}\n{{ '%.0f' % (match[0] if match else 0) }} | {% endfor %}\n{% endfor -%}\n| **Разом** | {% for y in years -%}\n{%- set total = namespace(v=0) -%}\n{%- for key, label in [[\"apartment_197\", \"Квартира 197\"], [\"apartment_177\", \"Квартира 177\"], [\"storage_39k\", \"Комірка 39k\"], [\"parking_277\", \"Машиномісце 277\"], [\"parking_79\", \"Машиномісце 79\"]] -%}\n{%- set yt = objs.get(key, {}).get('year_totals', []) -%}\n{%- set match = yt | selectattr('year', 'eq', y) | map(attribute='total') | list -%}\n{%- set total.v = total.v + (match[0] if match else 0) -%}\n{%- endfor -%}\n**{{ '%.0f' % total.v }}** | {% endfor %}\n\nгрн нараховано за рік (борги/переплати вже враховані у сумі)"
+                },
+                {
+                  "type": "heading",
+                  "heading": "Квартира 197",
+                  "heading_style": "title",
+                  "icon": "mdi:home-city"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('apartment_197', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"utility\", \"Комунальні\"], [\"concierge\", \"Консьєрж\"], [\"electricity\", \"Електроенергія\"], [\"water\", \"Вода\"], [\"trash\", \"Вивіз сміття\"]] -%}\n{%- set found = all_bills.get('apartment_197.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('apartment_197.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='total_due')) }}</b></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 44%; }\nth:nth-child(2), td:nth-child(2) { width: 32%; }\nth:nth-child(3), td:nth-child(3) { width: 24%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\ntable { font-size: 12px; }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "heading",
+                  "heading": "Квартира 177",
+                  "heading_style": "title",
+                  "icon": "mdi:home-city"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('apartment_177', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"electricity\", \"Електроенергія\"], [\"water\", \"Вода\"], [\"trash\", \"Вивіз сміття\"], [\"housing\", \"ЖЕК\"]] -%}\n{%- set found = all_bills.get('apartment_177.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('apartment_177.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='total_due')) }}</b></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 44%; }\nth:nth-child(2), td:nth-child(2) { width: 32%; }\nth:nth-child(3), td:nth-child(3) { width: 24%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\ntable { font-size: 12px; }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "heading",
+                  "heading": "Комірка 39k",
+                  "heading_style": "title",
+                  "icon": "mdi:package-variant-closed"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('storage_39k', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"utility\", \"Комунальні\"]] -%}\n{%- set found = all_bills.get('storage_39k.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('storage_39k.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='total_due')) }}</b></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 44%; }\nth:nth-child(2), td:nth-child(2) { width: 32%; }\nth:nth-child(3), td:nth-child(3) { width: 24%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\ntable { font-size: 12px; }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "heading",
+                  "heading": "Машиномісце 277",
+                  "heading_style": "title",
+                  "icon": "mdi:car"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('parking_277', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"utility\", \"Комунальні\"]] -%}\n{%- set found = all_bills.get('parking_277.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('parking_277.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='total_due')) }}</b></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 44%; }\nth:nth-child(2), td:nth-child(2) { width: 32%; }\nth:nth-child(3), td:nth-child(3) { width: 24%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\ntable { font-size: 12px; }\n"
+                    }
+                  }
+                },
+                {
+                  "type": "heading",
+                  "heading": "Машиномісце 79",
+                  "heading_style": "title",
+                  "icon": "mdi:car"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set y = states('input_select.oselya_payments_year') -%}\n{%- set expanded = is_state('input_boolean.oselya_payments_expanded', 'on') -%}\n{%- set objs = state_attr('sensor.oselya_payments', 'objects') or {} -%}\n{%- set all_bills = state_attr('sensor.oselya_payments', 'bills') or {} -%}\n{%- set rows = objs.get('parking_79', {}).get('rows', []) | selectattr('period', 'match', '^' + y) | list -%}\n{%- set docs = state_attr('sensor.document_links', 'oselya') or {} -%}\n{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n**{{ y }} рік**\n\n<table><tr><th>Період</th><th>До сплати</th><th>Статус</th></tr></table>\n{% for r in rows -%}\n<details{{ ' open' if expanded }}><summary><table><tr><td><b>{{ months[r.period[5:7] | int - 1] }}</b></td><td><b>{{ '%.2f' % r.total_due }}</b></td><td>{{ '✅' if r.status == 'paid' else '🟡' if r.status == 'partial' else '⏳' }}</td></tr></table></summary><table>\n{% for bill_key, label in [[\"utility\", \"Комунальні\"]] -%}\n{%- set found = all_bills.get('parking_79.' ~ bill_key, {}).get('rows', []) | selectattr('period', 'eq', r.period) | list -%}\n{%- set b = found[0] if found else none -%}\n{%- if b -%}\n{%- set d = docs.get('parking_79.' ~ bill_key ~ '_' ~ r.period) -%}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ label }}</a>{% else %}{{ label }}{% endif %}</td><td>{{ '%.2f' % b.total_due }}</td><td>{{ '✅' if b.status == 'paid' else '⏳' }}</td></tr>\n{%- if (b.secondary_due or 0) > 0 %}\n<tr><td>↳ {% if d %}<a href=\"{{ d }}\" target=\"_blank\" rel=\"noopener\">{{ b.secondary_label }}</a>{% else %}{{ b.secondary_label }}{% endif %}</td><td>{{ '%.2f' % b.secondary_due }}</td><td>{{ '✅' if b.secondary_status == 'paid' else '⏳' }}</td></tr>\n{%- endif -%}\n{%- endif -%}\n{% endfor %}\n</table></details>\n{% endfor -%}\n<table><tr><td><b>Разом</b></td><td><b>{{ '%.2f' % (rows | sum(attribute='total_due')) }}</b></td><td></td></tr></table>\n\nгрн · ✅ оплачено · 🟡 частково · ⏳ очікує оплати · клік по місяцю — його платежі",
+                  "card_mod": {
+                    "style": {
+                      "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(1), td:nth-child(1) { width: 44%; }\nth:nth-child(2), td:nth-child(2) { width: 32%; }\nth:nth-child(3), td:nth-child(3) { width: 24%; }\nth, td { padding: 3px 6px !important; text-align: right; }\nth:first-child, td:first-child { text-align: left; }\nth:last-child, td:last-child { text-align: center; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 18px !important; }\ndetails { border-top: 1px solid var(--divider-color); }\ntable { font-size: 12px; }\n"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sections",
+          "max_columns": 2,
+          "title": "Тарифи",
+          "path": "rates",
+          "icon": "mdi:tag-text-outline",
+          "sections": [
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Фіксовані тарифи",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'] -%}\n{%- macro month(p) -%}{{ months[p[5:7] | int - 1] ~ ' ' ~ p[:4] if p else '—' }}{%- endmacro -%}\n| Об'єкт | Платіж | Сума, грн | Діє з | Діє до |\n|:--|:--|--:|:--|:--|\n{% for r in state_attr('sensor.oselya_payments', 'rates') or [] -%}\n| {{ r.object }} | {{ r.bill }} | {{ '%.2f' % r.rate }} | {{ month(r.valid_from) }} | {{ month(r.valid_to) }} |\n{% endfor %}\nСуми, яких немає звідки взяти автоматично. Оплату відмічай галочкою у списку «Payments». «—» у «Діє до» означає, що тариф чинний зараз."
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Змінити тариф",
+                  "heading_style": "title",
+                  "icon": "mdi:pencil"
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "input_select.oselya_rate_bill",
+                      "tap_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "entity": "input_number.oselya_rate_amount",
+                      "tap_action": {
+                        "action": "none"
+                      }
+                    },
+                    {
+                      "entity": "input_datetime.oselya_rate_from",
+                      "tap_action": {
+                        "action": "none"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "horizontal-stack",
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "Зберегти",
+                      "icon": "mdi:content-save",
+                      "show_state": false,
+                      "icon_height": "32px",
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.oselya_rate_save",
+                        "confirmation": {
+                          "text": "Зберегти новий тариф?"
+                        }
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Скасувати останню зміну",
+                      "icon": "mdi:undo",
+                      "show_state": false,
+                      "icon_height": "32px",
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.oselya_rate_undo",
+                        "confirmation": {
+                          "text": "Повернути тарифи до стану перед останнім збереженням?"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set s = states('input_text.oselya_rate_status') -%}{{ s if s not in ['unknown', 'unavailable', ''] else '' }}"
+                },
+                {
+                  "type": "markdown",
+                  "content": "Нова сума діє **з вказаного місяця**: попередній тариф закривається місяцем раніше, старі місяці лишаються зі старою сумою.\n\n- **0** — платіж припиняється з цього місяця.\n- **Минулий місяць** — виправляє суму вже створених місяців (позначки «оплачено» зберігаються).\n- **Скасувати останню зміну** — повертає тарифи до стану перед останнім збереженням (можна натискати кілька разів, пам'ятає 20 змін).\n- Новий *вид* платежу (не зміну суми) додає Claude в objects.yaml."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sections",
+          "max_columns": 2,
+          "title": "Лічильники",
+          "path": "meters",
+          "icon": "mdi:counter",
+          "sections": [
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Показники лічильників",
+                  "heading_style": "title",
+                  "icon": "mdi:counter"
+                },
+                {
+                  "type": "entities",
+                  "entities": [
+                    {
+                      "entity": "input_select.oselya_meter_point",
+                      "tap_action": {
+                        "action": "none"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- macro n(v) -%}{{ ('%.3f' % v).rstrip('0').rstrip('.') }}{%- endmacro -%}\n{%- if not (state_attr('sensor.oselya_meters', 'label') == states('input_select.oselya_meter_point')) -%}\nОбери лічильник вище - показники завантажаться з сайту постачальника.\n{%- else -%}\n**{{ state_attr('sensor.oselya_meters', 'label') }}**, {{ state_attr('sensor.oselya_meters', 'info') }}\n\n| Лічильник | На сайті | Сайт приймає | |\n|:--|--:|--:|:--|\n{% for m in state_attr('sensor.oselya_meters', 'meters') or [] -%}\n| {{ m.name }} | **{{ n(m.previous) }}** {{ m.unit }} | {{ (n(m.min) if m.min is not none else '') ~ '–' ~ (n(m.max) if m.max is not none else '') if m.min is not none or m.max is not none else '—' }} | {{ m.detail }} |\n{% endfor %}\n{%- endif %}"
+                },
+                {
+                  "type": "conditional",
+                  "conditions": [
+                    {
+                      "condition": "state",
+                      "entity": "input_select.oselya_meter_point",
+                      "state": "Квартира 177 — Електроенергія"
+                    }
+                  ],
+                  "card": {
+                    "type": "entities",
+                    "entities": [
+                      {
+                        "entity": "input_number.oselya_meter_1",
+                        "name": "День, кВт·год",
+                        "icon": "mdi:white-balance-sunny",
+                        "tap_action": {
+                          "action": "none"
+                        }
+                      },
+                      {
+                        "entity": "input_number.oselya_meter_2",
+                        "name": "Ніч, кВт·год",
+                        "icon": "mdi:weather-night",
+                        "tap_action": {
+                          "action": "none"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "conditional",
+                  "conditions": [
+                    {
+                      "condition": "state",
+                      "entity": "input_select.oselya_meter_point",
+                      "state": "Квартира 197 — Вода"
+                    }
+                  ],
+                  "card": {
+                    "type": "entities",
+                    "entities": [
+                      {
+                        "entity": "input_number.oselya_meter_1",
+                        "name": "Холодна вода, м³",
+                        "icon": "mdi:water",
+                        "tap_action": {
+                          "action": "none"
+                        }
+                      },
+                      {
+                        "entity": "input_number.oselya_meter_2",
+                        "name": "Гаряча вода, м³",
+                        "icon": "mdi:water-thermometer",
+                        "tap_action": {
+                          "action": "none"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "conditional",
+                  "conditions": [
+                    {
+                      "condition": "state",
+                      "entity": "input_select.oselya_meter_point",
+                      "state": "Квартира 177 — Вода"
+                    }
+                  ],
+                  "card": {
+                    "type": "entities",
+                    "entities": [
+                      {
+                        "entity": "input_number.oselya_meter_1",
+                        "name": "Холодна вода, м³",
+                        "icon": "mdi:water",
+                        "tap_action": {
+                          "action": "none"
+                        }
+                      },
+                      {
+                        "entity": "input_number.oselya_meter_2",
+                        "name": "Гаряча вода, м³",
+                        "icon": "mdi:water-thermometer",
+                        "tap_action": {
+                          "action": "none"
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- macro n(v) -%}{{ ('%.3f' % v).rstrip('0').rstrip('.') }}{%- endmacro -%}\n{%- if state_attr('sensor.oselya_meters', 'label') == states('input_select.oselya_meter_point') -%}\n{%- set ms = (state_attr('sensor.oselya_meters', 'meters') or []) | selectattr('n', 'le', 3) | list -%}\n{%- set ns = namespace(total=0, known=true, warn=false) -%}\n| Лічильник | Було | Стане | Різниця | |\n|:--|--:|--:|--:|:-:|\n{% for m in ms -%}\n{%- set new = states('input_number.oselya_meter_' ~ m.n) | float(none) -%}\n{%- set d = new - m.previous if new is not none else none -%}\n{%- if d is none %}{% set ns.known = false %}{% else %}{% set ns.total = ns.total + d %}{% endif -%}\n{%- set high = d is not none and m.get('warn_above') is not none and d > m.warn_above -%}\n{%- if high %}{% set ns.warn = true %}{% endif -%}\n| {{ m.name }} | {{ n(m.previous) }} | **{{ n(new) if new is not none else '?' }}** | **{{ ('+' if d > 0 else '') ~ n(d) if d is not none else '?' }}** {{ m.unit }} | {{ '❓' if d is none else '❌' if d < -0.0005 else '⚪' if d < 0.0005 else '⚠️' if high else '✅' }} |\n{% endfor -%}\n{%- set lim = ms[0].get('warn_total_above') if ms else none -%}\n{%- if lim is not none and ms | length > 1 and ns.known -%}\n{%- set ns.warn = ns.warn or ns.total > lim -%}\n| **Разом** | | | **{{ ('+' if ns.total > 0 else '') ~ n(ns.total) }}** {{ ms[0].unit }} | {{ '⚠️' if ns.total > lim else '' }} |\n{% endif %}\n{%- if ns.warn %}\n⚠️ **Більше, ніж зазвичай** ({{ ms[0].warn_basis }}). Перевір цифри - якщо все правильно, передавай.\n{%- endif %}\n{%- endif %}"
+                },
+                {
+                  "type": "horizontal-stack",
+                  "cards": [
+                    {
+                      "type": "button",
+                      "name": "Передати показники",
+                      "icon": "mdi:send",
+                      "show_state": false,
+                      "icon_height": "32px",
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.oselya_meter_submit",
+                        "confirmation": {
+                          "text": "Передати ці показники на сайт постачальника?"
+                        }
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "name": "Оновити",
+                      "icon": "mdi:refresh",
+                      "show_state": false,
+                      "icon_height": "32px",
+                      "tap_action": {
+                        "action": "perform-action",
+                        "perform_action": "script.oselya_meter_load"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- set s = states('input_text.oselya_meter_status') -%}{{ s if s not in ['unknown', 'unavailable', ''] else '' }}"
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Передані звідси",
+                  "heading_style": "title",
+                  "icon": "mdi:history"
+                },
+                {
+                  "type": "markdown",
+                  "content": "{%- macro n(v) -%}{{ ('%.3f' % v).rstrip('0').rstrip('.') }}{%- endmacro -%}\n{%- set h = state_attr('sensor.oselya_meters', 'history') or [] -%}\n{%- if h and state_attr('sensor.oselya_meters', 'label') == states('input_select.oselya_meter_point') -%}\n| Коли | Передано | |\n|:--|:--|:-:|\n{% for r in h -%}\n| {{ r.time[8:10] }}.{{ r.time[5:7] }}.{{ r.time[:4] }} {{ r.time[11:16] }} | {% for m in r.meters %}{{ m.name | lower }} {{ n(m.sent) }}{{ ', ' if not loop.last else ' ' ~ m.unit }}{% endfor %} | {{ '✅' if r.applied else '📨' if r.accepted else '⚠️' }} |\n{% endfor %}\n{%- else -%}\nЩе нічого не передавали звідси.\n{%- endif %}"
+                },
+                {
+                  "type": "markdown",
+                  "content": "- Перед передачею звір **Різницю**: ❌ - менше за попередні (не передасться), ⚪ - поле не змінено, ⚠️ - більше, ніж зазвичай (лише підказка, передати можна).\n- Поля заповнюються показниками, які вже є на сайті, - зміни на поточні з лічильників.\n- Значення поза межами «Сайт приймає» (або менше попередніх) не передаються - буде помилка.\n- **Електроенергія**: лише цілі кВт·год, показники йдуть одразу оператору (ДТЕК) - одразу ✅.\n- **Вода**: сайт спершу лише приймає (📨), оператор вносить у базу протягом робочого дня; ✅ з'явиться після перевірки (при відкритті та щоночі). Поки 📨 - повторно не передавай.\n- ⚠️ - сайт не прийняв: передай вручну на сайті постачальника.\n- «Оновити» - ще раз прочитати показники з сайту."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

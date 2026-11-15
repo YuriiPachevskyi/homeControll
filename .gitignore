@@ -1,5 +1,9 @@
 configuration/home-*
-configuration/.storage/
+configuration/.storage/*
+!configuration/.storage/lovelace.lovelace
+!configuration/.storage/lovelace.dashboard_*
+!configuration/.storage/lovelace_dashboards
+!configuration/.storage/lovelace_resources
 configuration/.ha_run.lock
 configuration/.ssh/
 configuration/secrets.yaml
