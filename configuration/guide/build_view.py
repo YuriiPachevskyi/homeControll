@@ -41,18 +41,25 @@ CASCADE_HOW = """\
 """
 
 CASCADE_STEPS = """\
-Enable іде зверху вниз, Disable — у зворотному порядку. Береться перший крок, умови якого виконуються.
+Enable іде зверху вниз, Disable — у зворотному порядку. Береться перший крок, умови якого виконуються. Де стоїть експорт 5.5 kW — до чи після бойлера — вибирає *Cascade model* на Home (зараз **{{ 'експорт перед бойлером' if 'Ex5.5->Bo' in states('input_select.cascade_model') else 'бойлер перед експортом' }}**).
 
 | # | Enable (надлишок) | Disable (перевантаження) |
 |---|---|---|
-| 1 | Заряд 6kW 0.75 kW | Експорт 5kW → значення стану |
+{% if 'Ex5.5->Bo' in states('input_select.cascade_model') %}| 1 | Заряд 6kW 0.75 kW | Бойлер 2.0 → 1.2 |
+| 2 | Заряд 6kW 1.5 kW | Бойлер 1.2 → 0.8 |
+| 3 | Заряд 6kW 2.25 kW | Бойлер 0.8 OFF |
+| 4 | Експорт 5kW 5.5 kW ¹ | Експорт 5kW → значення стану |
+| 5 | Бойлер 0.8 kW | Заряд 6kW → 1.5 |
+| 6 | Бойлер 1.2 kW (замість 0.8) | Заряд 6kW → 0.75 |
+| 7 | Бойлер 2.0 kW (1.2 + 0.8) | Заряд 6kW → 0 |
+{% else %}| 1 | Заряд 6kW 0.75 kW | Експорт 5kW → значення стану |
 | 2 | Заряд 6kW 1.5 kW | Бойлер 2.0 → 1.2 |
 | 3 | Заряд 6kW 2.25 kW | Бойлер 1.2 → 0.8 |
 | 4 | Бойлер 0.8 kW | Бойлер 0.8 OFF |
 | 5 | Бойлер 1.2 kW (замість 0.8) | Заряд 6kW → 1.5 |
 | 6 | Бойлер 2.0 kW (1.2 + 0.8) | Заряд 6kW → 0.75 |
 | 7 | Експорт 5kW 5.5 kW ¹ | Заряд 6kW → 0 |
-| 8 | Кондиціонер Bedroom ² | Big Bedroom OFF (6kW ≤ 70 %) |
+{% endif %}| 8 | Кондиціонер Bedroom ² | Big Bedroom OFF (6kW ≤ 70 %) |
 | 9 | Кондиціонер Big Bedroom ² | Bedroom OFF (6kW ≤ 50 %) |
 
 🟩 заряд 6kW · 🟧 бойлер · 🟦 експорт 5kW · 🟪 кондиціонери
@@ -61,6 +68,7 @@ Enable іде зверху вниз, Disable — у зворотному пор�
 - Бойлер і заряд 6kW — «драбини»: за один крок лише на одну сходинку. Перша сходинка бойлера (0.8 kW) вмикається одразу при надлишку, наступні — коли надлишок тримається 30 с (обрізання PV1: 30 с, далі 15 с), щоб побачити, що зробив інвертор.
 - Кроки заряду 6kW працюють лише поки 6kW < 95 %. Заряд понад 1.5 kW (наприклад, 3 kW після зникнення мережі) при перевантаженні одразу падає до 1.5.
 - Поки 6kW у No Battery (нічний Standby, ще не прокинувся), кроки заряду 6kW пропускаються (вони тоді нічого не дають), а бойлер не вмикається через те, що 5kW заряджається на межі: цей лишок 5kW і так віддає в мережу. Бойлер тоді вмикається лише коли 5kW справді обрізає PV або немає мережі.
+- У моделі «експорт перед бойлером» бойлер не вмикається, поки експорт ще можна підняти до 5.5 kW; коли підняти не можна (Idle; Save і Save + Night Charge, поки 5kW не 100 %), бойлер іде одразу після заряду 6kW, як і раніше.
 - ¹ Лише в станах продажу (коли межа експорту стану > 1000 W). В Idle не спрацьовує, у Save + Night Charge — поки 5kW не заряджена до 100 %.
 - ² Лише коли 6kW заряджена на 100 % і для кондиціонера на вкладці Climate вибрано режим (не *off*). Вимикаються останніми й тільки при низькому заряді 6kW: комфорт важливіший за продаж.
 - Вручну ввімкнений бойлер чи кондиціонер каскад теж може вимкнути при перевантаженні.
@@ -123,16 +131,30 @@ BOILER_FANS = """\
 """
 
 # Step table cells tinted by device, so the reversed Disable order is visible:
-# (column, first row, last row, colour). Rows follow CASCADE_STEPS; keep in sync.
+# (column, first row, last row, colour). Rows follow CASCADE_STEPS, one set
+# per input_select.cascade_model option; keep in sync.
 GREEN, ORANGE, BLUE, PURPLE = "76, 175, 80", "255, 152, 0", "33, 150, 243", "156, 39, 176"
 STEP_GROUPS = [
     (2, 1, 3, GREEN), (2, 4, 6, ORANGE), (2, 7, 7, BLUE), (2, 8, 9, PURPLE),
     (3, 1, 1, BLUE), (3, 2, 4, ORANGE), (3, 5, 7, GREEN), (3, 8, 9, PURPLE),
 ]
-STEPS_CSS = "table { border-collapse: collapse; }\n" + "\n".join(
-    f"tbody tr:nth-child(n+{first}):nth-child(-n+{last}) td:nth-child({col}) "
-    f"{{ background: rgba({rgb}, 0.2); }}"
-    for col, first, last, rgb in STEP_GROUPS)
+STEP_GROUPS_EXPORT_FIRST = [
+    (2, 1, 3, GREEN), (2, 4, 4, BLUE), (2, 5, 7, ORANGE), (2, 8, 9, PURPLE),
+    (3, 1, 3, ORANGE), (3, 4, 4, BLUE), (3, 5, 7, GREEN), (3, 8, 9, PURPLE),
+]
+
+
+def steps_css(groups):
+    return "\n".join(
+        f"tbody tr:nth-child(n+{first}):nth-child(-n+{last}) td:nth-child({col}) "
+        f"{{ background: rgba({rgb}, 0.2); }}"
+        for col, first, last, rgb in groups)
+
+
+# card_mod renders the style as a template, so the colours follow the model
+STEPS_CSS = ("table { border-collapse: collapse; }\n"
+             "{% if 'Ex5.5->Bo' in states('input_select.cascade_model') %}\n" + steps_css(STEP_GROUPS_EXPORT_FIRST)
+             + "\n{% else %}\n" + steps_css(STEP_GROUPS) + "\n{% endif %}")
 
 # Both STATES tables list the states in the same order, so row N = the same
 # state in each; tint whole rows (Morning Export, Max Solar, Evening Export, Idle).

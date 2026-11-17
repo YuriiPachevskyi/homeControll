@@ -6,6 +6,18 @@
 # (packages/energy/conditions.yaml). Every step is logged with
 # script.energy_log; the automation spaces steps by that entity's
 # last_reported.
+#
+# input_select.cascade_model picks where Export 5.5kW sits in the Enable
+# order: after the boiler ladder (default) or right after the 6kW charge
+# ladder. Disable always runs the Enable order in reverse.
+input_select:
+  cascade_model:
+    name: Cascade model
+    icon: mdi:stairs
+    options:
+      - Ba0.75->Ba1.5->Ba2.25->Bo0.8->Bo1.2->Bo2->Ex5.5
+      - Ba0.75->Ba1.5->Ba2.25->Ex5.5->Bo0.8->Bo1.2->Bo2
+
 automation:
   - id: '1773316386421'
     alias: Power load cascade
@@ -129,6 +141,12 @@ script:
             "2.0": [true, true]
           boiler_down: "{{ {2.0: 1.2, 1.2: 0.8, 0.8: 0.0}.get(boiler) }}"
           boiler_up: "{{ {0.8: 1.2, 1.2: 2.0}.get(boiler) }}"
+          # Export 5.5kW before the boiler (and shed after it)
+          export_first: "{{ is_state('input_select.cascade_model', 'Ba0.75->Ba1.5->Ba2.25->Ex5.5->Bo0.8->Bo1.2->Bo2') }}"
+          # Export can still be raised to 5.5kW (same test as its Enable step)
+          export_up_ok: >-
+            {{ states('input_number.export_deye_5kw_power') | float(0) < 5500
+               and states('input_number.export_deye_5kw_power_base') | float(0) > 1000 }}
           no_battery_6kw: "{{ is_state('select.deye_6kw_battery_operation_mode', 'No Battery') }}"
           charged_6kw: "{{ states('binary_sensor.battery_deye_6kw_charged') }}"
           grid_off_fast: "{{ is_state('binary_sensor.grid_off_and_deye_6kw_charging_fast', 'on') }}"
@@ -190,12 +208,14 @@ script:
                             - switch.1562_heating_main
                             - switch.1563_heating_ten_1_5_kwh
                             - switch.1564_heating_ten_3_kwh
+                  # Export first model: the boiler goes down first, export after it
                   - alias: "Disable: Export back to state value"
                     conditions:
                       - condition: template
                         value_template: >-
                           {{ states('input_number.export_deye_5kw_power') | float(0)
-                             > states('input_number.export_deye_5kw_power_base') | float(0) }}
+                             > states('input_number.export_deye_5kw_power_base') | float(0)
+                             and (not export_first or boiler_down is none) }}
                     sequence:
                       - action: script.energy_log
                         data:
@@ -274,7 +294,7 @@ script:
                     conditions:
                       - condition: template
                         value_template: >-
-                          {{ boiler == 0
+                          {{ boiler == 0 and not (export_first and export_up_ok)
                              and (grid_off_fast or pv1_30 or (surplus and not no_battery_6kw)) }}
                     sequence:
                       - action: script.energy_log
@@ -287,7 +307,7 @@ script:
                     conditions:
                       - condition: template
                         value_template: >-
-                          {{ boiler_up is not none
+                          {{ boiler_up is not none and not (export_first and export_up_ok)
                              and (grid_off_fast or (surplus_30 and not no_battery_6kw) or pv1_15) }}
                     sequence:
                       - action: script.energy_log
