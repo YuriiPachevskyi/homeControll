@@ -143,10 +143,12 @@ script:
           boiler_up: "{{ {0.8: 1.2, 1.2: 2.0}.get(boiler) }}"
           # Export 5.5kW before the boiler (and shed after it)
           export_first: "{{ is_state('input_select.cascade_model', 'Ba0.75->Ba1.5->Ba2.25->Ex5.5->Bo0.8->Bo1.2->Bo2') }}"
-          # Export can still be raised to 5.5kW (same test as its Enable step)
+          # Export can still be raised to 5.5kW (same test as its Enable step);
+          # never without the grid, so a grid loss still feeds the boiler
           export_up_ok: >-
             {{ states('input_number.export_deye_5kw_power') | float(0) < 5500
-               and states('input_number.export_deye_5kw_power_base') | float(0) > 1000 }}
+               and states('input_number.export_deye_5kw_power_base') | float(0) > 1000
+               and not is_state('binary_sensor.deye_5kw_grid', 'off') }}
           no_battery_6kw: "{{ is_state('select.deye_6kw_battery_operation_mode', 'No Battery') }}"
           charged_6kw: "{{ states('binary_sensor.battery_deye_6kw_charged') }}"
           grid_off_fast: "{{ is_state('binary_sensor.grid_off_and_deye_6kw_charging_fast', 'on') }}"
