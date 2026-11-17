@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 from collections.abc import Callable, Hashable
 from datetime import date, datetime, timedelta
@@ -97,7 +98,11 @@ from .absence_days import is_late_type_name
 from .catch_up import catch_up
 from .semester_summary import semester_summary
 from .exam_prep import ExamPrep, exam_prep, topics_as_dicts, week_load
-from .average_history import points_statistic_id
+from .average_history import (
+    points_statistic_id,
+    statistic_id_prefix,
+    subject_statistic_id,
+)
 from .forecast import (
     HONOURS_AVERAGE,
     DataMemo,
@@ -643,6 +648,10 @@ class LibrusOverallAverageSensor(LibrusSensorBase):
                 grading=self._grading),
             # Both semesters in numbers, for the Semester in numbers card.
             "semester_summary": self._semester_summary(weighted),
+            # The daily average since the first grade in long-term statistics
+            # (average_history.py) - the Grade trend card charts it; the state
+            # history only goes back as far as the recorder keeps it.
+            "statistic_id": statistic_id_prefix(self._entry.entry_id),
         }
 
     def _semester_summary(self, weighted: bool) -> dict[str, Any] | None:
@@ -803,6 +812,12 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
             # translation string ("{subject} average" vs "Średnia -
             # {subject}"), which is fragile to parse back apart in JS.
             "subject": self._subject_name,
+            # The name from Librus, also when Subject names under Configure
+            # renamed it ("Matematyka" for "Maths") - for cards that know
+            # subjects by their Polish names (the Hero card's groups).
+            "subject_librus": self.coordinator.original_subjects.get(
+                self._subject_id, self._subject_name
+            ),
             "latest_grade": latest.value if latest else None,
             "latest_grade_date": latest.add_date if latest else None,
             "latest_grade_comments": latest.comments if latest else [],
@@ -832,6 +847,11 @@ class LibrusSubjectAverageSensor(LibrusSensorBase):
         )
         if scales and (values := scales.for_subject(self._subject_id)) and has_points:
             attrs["point_thresholds"] = list(values)
+        if self.coordinator.config_entry is not None and not has_points:
+            # The daily 1-6 average series (see the overall sensor's).
+            attrs["statistic_id"] = subject_statistic_id(
+                self.coordinator.config_entry.entry_id, self._subject_id
+            )
         if has_points and self.coordinator.config_entry is not None:
             # The daily percentage series in long-term statistics (see
             # average_history.py) - the Grade trend card charts it.
@@ -960,12 +980,6 @@ def _attendance_type(data: LibrusData, type_id: int | str | None) -> AttendanceT
 # to tell "already resolved" from "still needs attention".
 
 
-# "Spóźnienie" (late) is a PRESENCE-kind type - see
-# absence_days.is_late_type_name. Needed for by_weekday below -
-# _record_status()/by_date fold "late" into plain "good", which is fine for
-# a single worst-status-per-day heatmap but can't answer "how many lates
-# happened on a given weekday" on its own.
-_is_late_type_name = is_late_type_name
 
 
 # Same three-way status used by the companion cards' own attendanceStatus()
@@ -1013,7 +1027,7 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
             presence_by_type[name] = t.is_presence_kind
             if t.is_presence_kind:
                 presence_records += 1
-                if _is_late_type_name(t.name):
+                if is_late_type_name(t.name):
                     late += 1
             else:
                 if a.date:
@@ -1042,14 +1056,14 @@ def _compute_attendance(data: LibrusData) -> dict[str, Any]:
             bucket["total"] += 1
             if t is not None and t.is_presence_kind:
                 bucket["present"] += 1
-                if _is_late_type_name(t.name):
+                if is_late_type_name(t.name):
                     bucket["late"] += 1
         if t is None:
             continue
         # The excused/unexcused/late split, by weekday and by subject (see
         # the Attendance sensor's attribute comments below).
         if t.is_presence_kind:
-            split = "late" if _is_late_type_name(t.name) else None
+            split = "late" if is_late_type_name(t.name) else None
         else:
             split = "excused" if t.is_excused_absence else "unexcused"
         if split and a.date:
@@ -1520,8 +1534,8 @@ class LibrusRankSensor(LibrusSensorBase):
     average sensor's own state - turns a raw number into
     something a bit more game-like on a dashboard. No extra API calls.
     Point-graded subjects count too once they have a scale
-    (`point_grade_thresholds`): each at its forecast grade, weighted by its
-    number of point grades - the same average the Hero card shows."""
+    (`point_grade_thresholds`): each at its forecast grade, weighing as much
+    as a typical 1-6 subject - the same average the Hero card shows."""
 
     _attr_translation_key = "rank"
     _attr_device_class = SensorDeviceClass.ENUM
@@ -2167,9 +2181,17 @@ class LibrusSchoolSensor(LibrusSensorBase):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        if self.coordinator.data is None or self.coordinator.data.school is None:
+        if self.coordinator.data is None:
             return None
         school = self.coordinator.data.school
+        if school is None:
+            # No Schools data (seen with kindergartens): the subject colours
+            # and the unmatched-settings lists still belong here - the cards
+            # read the colours from this sensor.
+            return {
+                "bell_schedule": _bell_schedule(self.coordinator.data.timetable),
+                **self._subject_colors(),
+            }
         return {
             "town": school.town,
             "street": school.street,
@@ -2504,6 +2526,8 @@ class LibrusSchoolDayEndSensor(SchoolDayRefresh, LibrusSensorBase):
         self._others: tuple[OtherActivity, ...] = ()
         self._loaded_at: datetime | None = None
         self._unsub_timer: CALLBACK_TYPE | None = None
+        self._load_task: asyncio.Task[None] | None = None
+        self._removed = False
 
     def _side_state(self) -> Any:
         return self._others
@@ -2565,18 +2589,34 @@ class LibrusSchoolDayEndSensor(SchoolDayRefresh, LibrusSensorBase):
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self.async_on_remove(self._cancel_timer)
+        self.async_on_remove(self._cancel_load)
         self._arm_timer()
         if self._calendars:
-            self.hass.async_create_task(self._async_load_others())
+            self._start_load()
 
     @callback
     def _handle_coordinator_update(self) -> None:
         if self._calendars and (
             self._loaded_at is None or dt_util.now() - self._loaded_at >= _DAY_END_RELOAD
         ):
-            self.hass.async_create_task(self._async_load_others())
+            self._start_load()
         self._arm_timer()
         super()._handle_coordinator_update()
+
+    @callback
+    def _start_load(self) -> None:
+        if self._load_task is None or self._load_task.done():
+            self._load_task = self.hass.async_create_task(self._async_load_others())
+
+    @callback
+    def _cancel_load(self) -> None:
+        """A reload while the other calendars are still being read (up to 15 s
+        each): the read must not arm a timer for an entity that's gone - that
+        timer was never cancelled and re-armed itself every school day."""
+        self._removed = True
+        if self._load_task is not None and not self._load_task.done():
+            self._load_task.cancel()
+        self._load_task = None
 
     async def _async_load_others(self) -> None:
         """Read the other calendars' activities (they change outside Librus,
@@ -2586,6 +2626,8 @@ class LibrusSchoolDayEndSensor(SchoolDayRefresh, LibrusSensorBase):
         others = tuple(
             await async_other_activities(self.hass, self._calendars, start, start + _DAY_END_LOOKAHEAD)
         )
+        if self._removed:
+            return
         if others != self._others:
             self._others = others
             self._arm_timer()
@@ -2603,7 +2645,7 @@ class LibrusSchoolDayEndSensor(SchoolDayRefresh, LibrusSensorBase):
         activity can end after the lessons, which the school-day clock
         doesn't know about)."""
         self._cancel_timer()
-        if self.hass is None:
+        if self.hass is None or self._removed:
             return
         picked = self._pick()
         if picked is None:
@@ -3223,16 +3265,22 @@ class LibrusStatusSensor(LibrusSensorBase):
         def iso(value: datetime | None) -> str | None:
             return value.isoformat() if value else None
 
+        # The last success and the next attempt only while something is
+        # wrong: when all is well they moved on every poll, which wrote this
+        # entity's state 72 times a day for nothing (the Last update sensor
+        # has the time of the last success; the cards read these only during
+        # an outage).
+        failing = coordinator.status != "ok"
         return {
             "data_source": coordinator.data_source,
-            "last_success": iso(coordinator.last_success_at),
+            "last_success": iso(coordinator.last_success_at) if failing else None,
             # The last FAILED attempt (None until one fails): a successful
             # cycle is `last_success` already, and a timestamp that moved
             # on every poll made each one a new state.
             "last_attempt": iso(coordinator.last_attempt_at),
             "last_error": coordinator.last_error,
             "failures": coordinator.failures,
-            "next_attempt": iso(coordinator.next_attempt_at),
+            "next_attempt": iso(coordinator.next_attempt_at) if failing else None,
             "fallback_sections": sorted(coordinator.fallback_sections),
             "degraded_endpoints": {
                 label: since.isoformat() for label, since in coordinator.degraded_endpoints.items()

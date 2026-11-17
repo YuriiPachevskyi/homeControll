@@ -332,6 +332,11 @@ _REFERENCE_CONCURRENCY = 6
 # further ones for _WEEK_CACHE_FAR_TTL; nothing older than _WEEK_CACHE_KEEP
 # is kept. At most _WEEK_FETCH_CONCURRENCY weeks are fetched at once.
 _WEEK_CACHE_NEAR = timedelta(weeks=3)
+# How far ahead `count_lessons` (action and Assist tool) fetches real weeks:
+# where a substitution or a cancelled lesson can still be known. Beyond that
+# the standing plan counts just as well, and an automation counting "lessons
+# until the end of the semester" every hour used to fetch up to 12 weeks.
+COUNT_FETCH_WEEKS = 3
 _WEEK_CACHE_NEAR_TTL = timedelta(hours=2)
 _WEEK_CACHE_FAR_TTL = timedelta(hours=24)
 _WEEK_CACHE_KEEP = timedelta(weeks=8)
@@ -438,6 +443,24 @@ def summarize_kindergarten_entries(entries: Any) -> dict[str, Any]:
                 {key: entry.get(key) for key in _KG_EXAMPLE_KEYS if isinstance(entry.get(key), str)}
             )
     return summary
+
+
+def _receipt_interval(message: MessageData, now: datetime) -> timedelta:
+    """How often a sent message's read receipts are asked again: hourly for
+    two days (most people read within that), every 6 hours up to a week,
+    then daily until READ_RECEIPT_DAYS. A message that waited for a reader
+    for a month used to be asked 24 times a day."""
+    sent = dt_util.parse_datetime((message.send_date or "").replace(" ", "T"))
+    if sent is None:
+        return _HOURLY
+    if sent.tzinfo is None:
+        sent = sent.replace(tzinfo=dt_util.get_default_time_zone())
+    age = now - sent
+    if age < timedelta(days=2):
+        return _HOURLY
+    if age < timedelta(days=7):
+        return _SLOW_REFRESH
+    return _DAILY
 
 
 def _week_start(day: date) -> date:
@@ -1089,7 +1112,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._force_next_fetch = False
         self._cached_subjects: dict[int | str, str] = {}
         # Subject names under Configure (see _display_subjects).
-        self._subject_names_key: tuple[int, str | None] | None = None
+        # The subjects dict and option text the parse below was made from -
+        # the dict itself, not its id(): a freed dict's id can come back for
+        # a new one, and the old parse (with its unmatched lines) stayed.
+        self._subject_names_for: tuple[dict[int | str, str], str | None] | None = None
         self._subject_names_parsed: tuple[dict[int | str, str], list[str]] = ({}, [])
         self._display_subjects_for: dict[int | str, str] | None = None
         self._display_subjects_cache: dict[int | str, str] = {}
@@ -1359,6 +1385,21 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         self._password_logins = 0
         self._last_token_renewal_at: datetime | None = None
         self._last_password_login_at: datetime | None = None
+        # True from a token refresh until a request on the refreshed session
+        # works. A rejection while it's still True means the refresh gave a
+        # session Librus won't take, so the next renewal is a password login
+        # - else every cycle refreshed the token, was rejected again and
+        # never fell back to the password.
+        self._token_session_unproven = False
+        # The last answer for each polled timetable week, for the week asked
+        # only hourly (`_polled_week`).
+        self._polled_week_payloads: dict[date, tuple[dict[str, Any], datetime]] = {}
+        # Wiadomości since start (`session_renewals` in the diagnostics): how
+        # often its session was set up, and how often a cycle's first attempt
+        # failed and was retried with a fresh one - to see whether that
+        # session also dies between polls.
+        self._messages_bootstraps = 0
+        self._messages_retries = 0
         # The shared clock of the school-day entities (school_day.py),
         # created by the first one; stopped on unload.
         self.school_day_clock: Any = None
@@ -2527,7 +2568,9 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 # give up (found live 2026-11-14 - one of two weeks failed).
                 raise
             await self._async_relogin(seen)
-            return await self._fetch_timetable_or_unpublished(week_start, track=track)
+            result = await self._fetch_timetable_or_unpublished(week_start, track=track)
+            self._token_session_unproven = False
+            return result
 
     @property
     def session_renewals(self) -> dict[str, Any]:
@@ -2539,6 +2582,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
 
         return {
             "token_refreshes": self._token_renewals,
+            "messages_bootstraps": self._messages_bootstraps,
+            "messages_retries": self._messages_retries,
             "password_logins": self._password_logins,
             "last_token_refresh": iso(self._last_token_renewal_at),
             "last_password_login": iso(self._last_password_login_at),
@@ -2565,21 +2610,28 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         return days or None
 
     async def async_get_timetable_weeks(
-        self, week_starts: list[date]
+        self, week_starts: list[date], *, fetch_weeks: int = ON_DEMAND_WEEKS
     ) -> dict[date, list[LessonData]]:
         """Lessons of several weeks merged (a month view, a few days for
         Assist): the polled weeks from the data, the others from the
         on-demand cache, the missing ones fetched together - at most
-        _WEEK_FETCH_CONCURRENCY at a time (`_week_fetch_limit`)."""
+        _WEEK_FETCH_CONCURRENCY at a time (`_week_fetch_limit`). Weeks
+        further than `fetch_weeks` from this one are only read from the
+        cache (see `async_get_timetable_week`)."""
         weeks = await asyncio.gather(
-            *(self.async_get_timetable_week(week) for week in dict.fromkeys(week_starts))
+            *(
+                self.async_get_timetable_week(week, fetch_weeks=fetch_weeks)
+                for week in dict.fromkeys(week_starts)
+            )
         )
         merged: dict[date, list[LessonData]] = {}
         for week in weeks:
             merged.update(week)
         return merged
 
-    async def async_get_timetable_week(self, week_start: date) -> dict[date, list[LessonData]]:
+    async def async_get_timetable_week(
+        self, week_start: date, *, fetch_weeks: int = ON_DEMAND_WEEKS
+    ) -> dict[date, list[LessonData]]:
         """One week's lessons for the timetable calendar and the Assist
         timetable tool. Never raises a Librus error: a week that can't be
         fetched is its last copy (however old), or no lessons.
@@ -2594,7 +2646,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         twice.
 
         Not fetched at all (the last copy, or no lessons): a week further
-        than ON_DEMAND_WEEKS from the current one, a week whose fetch failed
+        than `fetch_weeks` (default ON_DEMAND_WEEKS) from the current one -
+        `count_lessons` passes COUNT_FETCH_WEEKS: further weeks it counts
+        from the standing plan instead of a request each -, a week whose
+        fetch failed
         less than _WEEK_FAILURE_BACKOFF ago, any week while the polls are
         backing off after failures (Librus is down), and anything once the
         entry is unloading. The fetch runs as the config entry's background
@@ -2611,7 +2666,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         failed_at = self._week_failed_at.get(week_start)
         if (
             self._closed
-            or abs(week_start - this_week) > timedelta(weeks=ON_DEMAND_WEEKS)
+            or abs(week_start - this_week) > timedelta(weeks=min(fetch_weeks, ON_DEMAND_WEEKS))
             or (failed_at is not None and now - failed_at < _WEEK_FAILURE_BACKOFF)
             or self._in_outage_backoff()
         ):
@@ -2740,10 +2795,12 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             # 2026-11-14: after 11.5 idle minutes Me answered 401, and
             # /refreshToken (200, new oauth_token) brought the same session
             # back - Me answered again, no password needed.
-            if await self._client.async_refresh_session():
+            if not self._token_session_unproven and await self._client.async_refresh_session():
                 self._token_renewals += 1
                 self._last_token_renewal_at = dt_util.utcnow()
+                self._token_session_unproven = True
             else:
+                self._token_session_unproven = False
                 await self._client.async_ensure_session_valid(
                     self.config_entry.data[CONF_PASSWORD], force=True
                 )
@@ -3281,6 +3338,8 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             raise ConfigEntryAuthFailed(str(err)) from err
         except LibrusError as err:
             raise UpdateFailed(str(err)) from err
+        # The session (a refreshed one too) works.
+        self._token_session_unproven = False
 
         # Order: _CORE_PAYLOAD_LABELS (Me, tier 1, tier 2).
         me_payload = core_payloads[0]
@@ -3329,7 +3388,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             await self._async_resolve_missing_lookups(core_payloads, refreshed)
             return await self._async_get_point_grades()
 
-        had_text_grades = bool((self._last_good.get("BaseTextGrades") or {}).get("Grades"))
+        # Text grades are rare: every cycle only for two days after one was
+        # added, hourly otherwise (it used to be every cycle for good once a
+        # student had one).
+        recent_text_grade = self._recent_text_grade(today)
         (
             lucky_number,
             point_grades,
@@ -3341,11 +3403,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             reference_chain(),
             self._async_get_messages(),
             self._async_get_justifications(),
-            # Text grades are rare: hourly while the last answer had none.
             self._async_optional(
                 "BaseTextGrades",
                 self._client.async_get_base_text_grades,
-                every=None if had_text_grades else _SPARSE_REFRESH,
+                every=None if recent_text_grade else _SPARSE_REFRESH,
             ),
             self._async_optional(
                 "Realizations", self._client.async_get_realizations, every=_HOURLY
@@ -3749,11 +3810,17 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
 
     def _subject_names(self) -> tuple[dict[int | str, str], list[str]]:
         text = self.config_entry.options.get(CONF_SUBJECT_NAMES) if self.config_entry else None
-        key = (id(self._cached_subjects), text)
-        if self._subject_names_key != key:
-            self._subject_names_key = key
+        made_from = self._subject_names_for
+        if made_from is None or made_from[0] is not self._cached_subjects or made_from[1] != text:
+            self._subject_names_for = (self._cached_subjects, text)
             self._subject_names_parsed = parse_subject_names(text, self._cached_subjects)
         return self._subject_names_parsed
+
+    @property
+    def subject_name_overrides(self) -> dict[int | str, str]:
+        """Subject id -> your name, from Subject names under Configure (the
+        lines that matched)."""
+        return self._subject_names()[0]
 
     def _display_subjects(self) -> dict[int | str, str]:
         """The subjects as the data shows them: your names from Subject
@@ -4008,6 +4075,11 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
 
         me_payload = await self._client.async_get_me()
 
+        # The week the next school day is in - Monday to Friday this week,
+        # at the weekend the next one - is asked every cycle; the other
+        # polled week hourly (a change there is days away).
+        near_week = week_start if dt_util.now().weekday() < 5 else next_week_start
+
         gathered_labels = [
             label for label in OPTIONAL_ENDPOINT_LABELS if label not in _COMMENT_SOURCES
         ]
@@ -4021,8 +4093,10 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 self._client.async_get_grades(),
                 self._client.async_get_notes(),
                 self._client.async_get_attendances(),
-                self._fetch_timetable_or_unpublished(week_start),
-                self._fetch_timetable_or_unpublished(next_week_start),
+                self._polled_week(week_start, None if near_week == week_start else _HOURLY),
+                self._polled_week(
+                    next_week_start, None if near_week == next_week_start else _HOURLY
+                ),
                 self._client.async_get_homeworks(),
                 self._maybe(announcements_enabled, self._client.async_get_school_notices),
                 return_exceptions=True,
@@ -4046,7 +4120,15 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                     None if had_descriptive else _SPARSE_REFRESH,
                     sparse_fetched,
                 ),
-                self._client.async_get_parent_teacher_conferences(),
+                # Almost always empty, and the Agenda carries the same
+                # meetings anyway (confirmed live): 4x a day, not every cycle.
+                self._sparse(
+                    "ParentTeacherConferences",
+                    True,
+                    self._client.async_get_parent_teacher_conferences,
+                    _SLOW_REFRESH,
+                    sparse_fetched,
+                ),
                 return_exceptions=True,
             ),
         )
@@ -4092,6 +4174,24 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
 
         return (*core, *(optional[label] for label in OPTIONAL_ENDPOINT_LABELS))
 
+    async def _polled_week(self, week_start: date, every: timedelta | None) -> dict[str, Any]:
+        """One of the two polled timetable weeks: a new request, or (with
+        `every`) its last answer while younger than that. Only a successful
+        answer is kept; only this week and the next are."""
+        cached = self._polled_week_payloads.get(week_start)
+        now = dt_util.utcnow()
+        if every is not None and cached is not None and now - cached[1] < every:
+            return cached[0]
+        payload = await self._fetch_timetable_or_unpublished(week_start)
+        this_week = _week_start(dt_util.now(dt_util.get_time_zone("Europe/Warsaw")).date())
+        self._polled_week_payloads = {
+            week: entry
+            for week, entry in self._polled_week_payloads.items()
+            if week in (this_week, this_week + timedelta(days=7)) and week != week_start
+        }
+        self._polled_week_payloads[week_start] = (payload, now)
+        return payload
+
     async def _sparse(
         self,
         label: str,
@@ -4109,6 +4209,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         cycle's responses are kept."""
         if not enabled:
             return {}
+        every = self._stretch(every)
         fetched = self._fetched_at.get(label)
         if (
             every is not None
@@ -4823,12 +4924,46 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             ),
         }
 
+    def _recent_text_grade(self, today: date) -> bool:
+        """A text grade added in the last two days (the teacher may still
+        add more for the same piece of work)."""
+        data = self.data
+        if data is None:
+            return False
+        since = (today - timedelta(days=2)).isoformat()
+        return any(
+            (grade.add_date or grade.date or "")[:10] >= since for grade in data.text_grades
+        )
+
+    def _stretch(self, every: timedelta | None) -> timedelta | None:
+        """`every` for an endpoint asked at most hourly-ish, made
+        _SLOW_REFRESH at night (22-06) and on a day without lessons -
+        teachers don't post then, and these were asked 24 times a day.
+        Every-cycle endpoints (None) and longer gaps stay as they are; the
+        smart polling option itself doesn't matter here."""
+        if every is None or every >= _SLOW_REFRESH:
+            return every
+        # Imported here: school_day -> ai_summary -> coordinator.
+        from .school_day import school_days  # noqa: PLC0415
+
+        now = dt_util.now()
+        if now.hour >= SMART_POLLING_NIGHT_START or now.hour < SMART_POLLING_NIGHT_END:
+            return _SLOW_REFRESH
+        days = school_days(self.data, self.memo_owner)
+        # A day off only counts when the timetable is known at all: without
+        # one (not published, a kindergarten) every day would look free.
+        if days and now.date() not in days:
+            return _SLOW_REFRESH
+        return every
+
     async def _async_optional(
         self, label: str, factory: Any, *, every: timedelta | None = None
     ) -> dict[str, Any]:
         """One optional endpoint's payload: the last good copy on failure,
         and with `every`, the cached copy until it's that old (endpoints
-        that change a few times a day, not every cycle)."""
+        that change a few times a day, not every cycle; stretched at night
+        and on days off - see `_stretch`)."""
+        every = self._stretch(every)
         fetched = self._fetched_at.get(label)
         if (
             every is not None
@@ -5067,6 +5202,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             or now >= self._messages_recheck_at
         )
         if not self._messages_bootstrapped or recheck:
+            self._messages_bootstraps += 1
             self._messages_available = await self._client.async_bootstrap_messages()
             self._messages_bootstrapped = True
             if self._messages_available:
@@ -5198,6 +5334,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             # per cycle" shape as _async_update_data's own recovery for the
             # main session - the dedicated wiadomosci session may have died
             # independently of it.
+            self._messages_retries += 1
             self._messages_bootstrapped = False
             try:
                 unread_count, unread_by_mailbox, inbox_messages = (
@@ -5341,7 +5478,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             if known and (known["total"] == 0 or known["read"] >= known["total"]):
                 continue
             fetched = self._receipts_fetched_at.get(message.id)
-            if known and fetched and now - fetched < _HOURLY:
+            if known and fetched and now - fetched < _receipt_interval(message, now):
                 continue
             due.append(message)
         if not due:
@@ -5884,6 +6021,34 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             return None
         return {"changed_at": edit.get("at"), "previous": edit.get("previous") or {}}
 
+    def _prune_seen_for_new_year(self, data: LibrusData) -> None:
+        """At a new school year, drop the "already seen" ids of things that
+        belong to one school year (grades of every kind, notes, absences,
+        latenesses) and are gone from Librus now - they never come back,
+        and the sets otherwise grew every year (compared on every refresh,
+        written with every save). Ids still in the data stay, so nothing
+        is announced again."""
+        seen = self._change_tracker.seen
+        current: dict[str, set[str]] = {
+            "grades": {str(g.id) for g in data.grades},
+            "notes": {str(n.id) for n in data.notes},
+            "absences": {str(a.id) for a in data.attendances},
+        }
+        for kind, ids in current.items():
+            setattr(seen, kind, getattr(seen, kind) & ids)
+        attendance_ids = current["absences"]
+        for kind, ids in (
+            ("text_grades", {str(g.id) for g in data.text_grades}),
+            ("descriptive_grades", {str(g.id) for g in data.descriptive_grades}),
+            ("point_grades", {str(g.id) for g in data.point_grades}),
+            ("behaviour_grades", {str(g.id) for g in data.behaviour_grades}),
+            ("late", attendance_ids),
+        ):
+            known = self._known_items.get(kind)
+            if known is not None:
+                self._known_items[kind] = {i for i in known if str(i) in ids}
+        self._state_dirty = True
+
     def _fire_grade_edit_events(self, data: LibrusData) -> None:
         """EVENT_GRADE_CHANGED for the ordinary grades (/Grades), with the
         subject's average before and after, like EVENT_NEW_GRADE."""
@@ -5893,6 +6058,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
             # weren't deleted - forget them and seed again, quietly.
             self._known_grades = dict.fromkeys(_GRADE_SOURCES)
             self._grade_edits = {}
+            self._prune_seen_for_new_year(data)
         if year:
             self._known_grades_year = year
         improves, _ = grade_improvements(data.grades)
