@@ -195,11 +195,21 @@ script:
                 state: "on"
             sequence:
               - choose:
+                  # Electric heating is only switched on by hand (Home, Heating
+                  # row); any of its relays on means it goes down first.
                   - alias: "Disable: Turn off Heating"
                     conditions:
-                      - condition: state
-                        entity_id: switch.1562_heating_main
-                        state: "on"
+                      - condition: or
+                        conditions:
+                          - condition: state
+                            entity_id: switch.1562_heating_main
+                            state: "on"
+                          - condition: state
+                            entity_id: switch.1563_heating_ten_1_5_kwh
+                            state: "on"
+                          - condition: state
+                            entity_id: switch.1564_heating_ten_3_kwh
+                            state: "on"
                     sequence:
                       - action: script.energy_log
                         data:
