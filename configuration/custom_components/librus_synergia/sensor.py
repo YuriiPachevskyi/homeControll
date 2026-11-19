@@ -362,6 +362,7 @@ def _point_grade_log(
             "date": g.add_date,
             "subject": data.subjects.get(g.subject_id) if g.subject_id is not None else None,
             "teacher": data.teachers.get(g.teacher_id) if g.teacher_id is not None else None,
+            "comments": list(g.comments),
             **_edit_attrs(edits, "point_grades", g.id),
         }
         for g in sorted(grades, key=lambda g: g.add_date or "", reverse=True)

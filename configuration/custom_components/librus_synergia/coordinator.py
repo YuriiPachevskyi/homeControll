@@ -602,6 +602,9 @@ _RESTORABLE_REFERENCE_LABELS = tuple(
 )
 # Labels of the two point-grade requests (const.MISC_DEGRADABLE_ENDPOINT_LABELS).
 _POINT_GRADE_LABELS = ("PointGrades", "PointGrades/Categories")
+# Teachers' comments on point grades (const.MISC_DEGRADABLE_ENDPOINT_LABELS),
+# asked like the other comment lookups.
+_POINT_GRADE_COMMENTS_LABEL = "PointGrades/Comments"
 # `_async_get_messages`' result when nothing was fetched.
 _NO_MESSAGES: tuple[Any, ...] = (0, {}, [], [], [], [], [], [])
 
@@ -4722,7 +4725,18 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         categories = parse_point_grade_categories(categories_payload)
         if categories_label not in self._failed_this_cycle:
             self._unresolved_lookup_ids[categories_label] = referenced - set(categories)
-        return parse_point_grades(grades_payload, categories)
+        # The comments only once a point grade points at one (most point
+        # grades have none), then like the other comment lookups.
+        comments_payload: dict[str, Any] = {}
+        if _referenced_comment_ids(grades_payload):
+            comments_payload = await self._async_get_comments(
+                _POINT_GRADE_COMMENTS_LABEL,
+                self._client.async_get_point_grade_comments,
+                grades_payload,
+            )
+        return parse_point_grades(
+            grades_payload, categories, parse_comment_text_map(comments_payload)
+        )
 
     async def _async_get_descriptive_grade_lookups(
         self, core_payloads: tuple[dict[str, Any], ...]
@@ -5049,6 +5063,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
         return parse_point_grades(
             self._last_good.get(grades_label) or {},
             parse_point_grade_categories(self._last_good.get(categories_label) or {}),
+            parse_comment_text_map(self._last_good.get(_POINT_GRADE_COMMENTS_LABEL) or {}),
         )
 
     async def _async_refresh_student_number(self) -> None:
@@ -5860,7 +5875,7 @@ class LibrusDataUpdateCoordinator(DataUpdateCoordinator[LibrusData]):
                 "category": grade.category,
                 "weight": grade.weight,
                 "counts_to_average": grade.counts_to_average,
-                "comments": [],
+                "comments": list(grade.comments),
                 "date": grade.add_date,
                 "semester": grade.semester,
                 "kind": "point",

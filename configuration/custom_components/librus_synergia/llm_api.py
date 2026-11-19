@@ -340,6 +340,7 @@ def _point_grade_summary(data: Any, subject_ids: set[Any] | None, since: date | 
                     "category": g.category,
                     "weight": g.weight,
                     "counts_to_average": False if not g.counts_to_average else None,
+                    "comment": _cut("; ".join(g.comments)),
                     "teacher": _teacher_name(data, g.teacher_id),
                 }
             )
