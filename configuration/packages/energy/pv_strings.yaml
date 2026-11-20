@@ -1,0 +1,52 @@
+# Per-string (MPPT) PV energy. Deye exposes only the total daily PV energy
+# (register 108), so each string is integrated from its own power sensor
+# and reset at midnight by utility_meter. Shown on the Home sunsynk cards.
+
+sensor:
+  - platform: integration
+    source: sensor.deye_5kw_pv1_power
+    name: deye_5kw_pv1_energy
+    unit_prefix: k
+    method: trapezoidal
+    round: 3
+    # Integrate at least every 5 min even if the power value does not change
+    max_sub_interval:
+      minutes: 5
+  - platform: integration
+    source: sensor.deye_5kw_pv2_power
+    name: deye_5kw_pv2_energy
+    unit_prefix: k
+    method: trapezoidal
+    round: 3
+    max_sub_interval:
+      minutes: 5
+  - platform: integration
+    source: sensor.deye_6kw_pv1_power
+    name: deye_6kw_pv1_energy
+    unit_prefix: k
+    method: trapezoidal
+    round: 3
+    max_sub_interval:
+      minutes: 5
+  - platform: integration
+    source: sensor.deye_6kw_pv2_power
+    name: deye_6kw_pv2_energy
+    unit_prefix: k
+    method: trapezoidal
+    round: 3
+    max_sub_interval:
+      minutes: 5
+
+utility_meter:
+  deye_5kw_pv1_energy_daily:
+    source: sensor.deye_5kw_pv1_energy
+    cycle: daily
+  deye_5kw_pv2_energy_daily:
+    source: sensor.deye_5kw_pv2_energy
+    cycle: daily
+  deye_6kw_pv1_energy_daily:
+    source: sensor.deye_6kw_pv1_energy
+    cycle: daily
+  deye_6kw_pv2_energy_daily:
+    source: sensor.deye_6kw_pv2_energy
+    cycle: daily

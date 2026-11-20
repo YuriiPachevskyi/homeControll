@@ -159,7 +159,7 @@
                     "essential_load1": "sensor.total_load_power_realtime"
                   },
                   "card_mod": {
-                    "style": "ha-card {\n  border-bottom-left-radius: 0 !important;\n  border-bottom-right-radius: 0 !important;\n  border-bottom: none !important;\n}\n"
+                    "style": "ha-card {\n  border-bottom-left-radius: 0 !important;\n  border-bottom-right-radius: 0 !important;\n  border-bottom: none !important;\n}\n/* Per-string daily PV energy next to the PV1/PV2 boxes (packages/energy/pv_strings.yaml).\n   Positions are in SVG viewBox units (490 wide) converted to cqw. */\nha-card {\n  container-type: inline-size;\n}\nha-card::before,\nha-card::after {\n  position: absolute;\n  top: 13.2cqw;\n  font: 2.65cqw/1 Roboto, Noto, sans-serif;\n  color: {{ '#FFA500' if (states('sensor.deye_5kw_pv1_power') | float(0) + states('sensor.deye_5kw_pv2_power') | float(0)) > 10 else 'grey' }};\n  pointer-events: none;\n}\nha-card::before {\n  content: \"{{ '%.1f' | format(states('sensor.deye_5kw_pv1_energy_daily') | float(0)) }} kWh\";\n  right: 69.6cqw;\n}\nha-card::after {\n  content: \"{{ '%.1f' | format(states('sensor.deye_5kw_pv2_energy_daily') | float(0)) }} kWh\";\n  left: 67.8cqw;\n}\n"
                   }
                 },
                 {
@@ -317,7 +317,7 @@
                   "aux_name": "Boiler",
                   "show_daily_aux": true,
                   "card_mod": {
-                    "style": "ha-card {\n  border-bottom-left-radius: 0 !important;\n  border-bottom-right-radius: 0 !important;\n  border-bottom: none !important;\n}\n"
+                    "style": "ha-card {\n  border-bottom-left-radius: 0 !important;\n  border-bottom-right-radius: 0 !important;\n  border-bottom: none !important;\n}\n/* Per-string daily PV energy next to the PV1/PV2 boxes (packages/energy/pv_strings.yaml).\n   Positions are in SVG viewBox units (490 wide) converted to cqw. */\nha-card {\n  container-type: inline-size;\n}\nha-card::before,\nha-card::after {\n  position: absolute;\n  top: 13.2cqw;\n  font: 2.65cqw/1 Roboto, Noto, sans-serif;\n  color: {{ '#FFA500' if (states('sensor.deye_6kw_pv1_power') | float(0) + states('sensor.deye_6kw_pv2_power') | float(0)) > 10 else 'grey' }};\n  pointer-events: none;\n}\nha-card::before {\n  content: \"{{ '%.1f' | format(states('sensor.deye_6kw_pv1_energy_daily') | float(0)) }} kWh\";\n  right: 69.6cqw;\n}\nha-card::after {\n  content: \"{{ '%.1f' | format(states('sensor.deye_6kw_pv2_energy_daily') | float(0)) }} kWh\";\n  left: 67.8cqw;\n}\n"
                   }
                 },
                 {
@@ -483,7 +483,10 @@
                         }
                       ]
                     }
-                  ]
+                  ],
+                  "card_mod": {
+                    "style": ".card-content {\n  padding: 0 16px !important;\n  margin: -1px 0 !important;\n}\n"
+                  }
                 },
                 {
                   "type": "entities",
@@ -1197,6 +1200,39 @@
                       "ha-markdown $": "table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 0 !important; }\nth:nth-child(2), td:nth-child(2) { width: 20.75%; }\nth:nth-child(3), td:nth-child(3) { width: 20.75%; }\nth:nth-child(4), td:nth-child(4) { width: 15.56%; }\nth:nth-child(5), td:nth-child(5) { width: 25.94%; }\nth, td { padding: 2px 2px !important; text-align: right; }\nth:first-child, td:first-child { width: 17%; text-align: left; white-space: nowrap; }\nth, td { border: 1px solid var(--divider-color) !important; border-top: none !important; white-space: nowrap; box-sizing: border-box; }\nth { border-top: 1px solid var(--divider-color) !important; }\nth { font-weight: normal; vertical-align: bottom; text-align: right !important; }\nth:first-child { text-align: left !important; }\ntd small { color: var(--secondary-text-color); }\ni { font-style: normal; color: #66bb6a; }\ntd em { font-style: normal; font-size: smaller; white-space: nowrap; }\ntd em ha-icon[icon] { --mdc-icon-size: 12px; color: inherit; margin-right: 2px; }\ntd em:nth-of-type(1) { color: #5c6bc0; }\ntd em:nth-of-type(2) { color: #ef6c00; }\ntd em:nth-of-type(3) { color: #f9a825; }\ntd:nth-child(3) small { color: #4caf50; }\ntd:nth-child(5) small { color: #f44336; }\nsummary { list-style: none; cursor: pointer; }\nsummary::-webkit-details-marker { display: none; }\nsummary td:first-child::before { content: '▸ '; }\ndetails[open] > summary td:first-child::before { content: '▾ '; }\ndetails[open] > table td:first-child { padding-left: 10px !important; }\ndetails[open] > summary td:not(:first-child) { font-size: 0; }\ndetails[open] > summary td:not(:first-child) * { display: none; }\ndetails[open] > table tr:last-child td { border-top: 2px solid var(--divider-color) !important; }\ndetails[open] > table tr:last-child td:first-child { padding-left: 6px !important; }\nha-icon[icon=\"mdi:solar-power-variant\"] { color: #ffc107; }\nha-icon[icon=\"mdi:transmission-tower-export\"] { color: #4caf50; }\nha-icon[icon=\"mdi:transmission-tower-import\"] { color: #44739e; }\nha-icon[icon=\"mdi:water-boiler\"] { color: #ffc107; }\nha-icon[icon=\"mdi:home-lightning-bolt\"] { color: #ff9800; }\nha-icon[icon=\"mdi:washing-machine\"] { color: #42a5f5; }\nth, th:first-child { font-weight: bold; text-align: left !important; vertical-align: middle; }\nth, td { padding: 3px 6px !important; }\nha-icon { --mdc-icon-size: 16px; vertical-align: text-bottom; }\ntable { font-size: 12px; }\np { margin: 2px 0 !important; font-size: 12px; }\ntable + p { margin-top: 6px !important; }\np + p { margin-top: 8px !important; }\np small { font-size: inherit; color: #4caf50; }\np span { display: inline-block; min-width: 4.6em; }\np b span { min-width: 2.3em; text-align: right; }\np em { font-style: normal; display: inline-block; min-width: 4.4em; }\n"
                     }
                   }
+                },
+                {
+                  "type": "entities",
+                  "show_header_toggle": false,
+                  "entities": [
+                    {
+                      "entity": "input_select.bedroom_ac",
+                      "name": "Bedroom AC",
+                      "icon": "mdi:air-conditioner",
+                      "card_mod": {
+                        "style": {
+                          "ha-select $ ha-picker-field $": "ha-combo-box-item {\n  min-height: 44px !important;\n  height: 44px !important;\n}\n",
+                          "ha-select $ ha-picker-field $ ha-combo-box-item $": "md-item {\n  min-height: 44px !important;\n  height: 44px !important;\n}\n",
+                          ".": "{% set s = states(config.entity) %}\n{% set c = states(config.entity | replace('input_select.', 'climate.')) %}\n{% set ce = config.entity | replace('input_select.', 'climate.') %}\n{% set cur = state_attr(ce, 'current_temperature') %}\n{% set tgt = state_attr(ce, 'temperature') %}\n{% set live = c not in ['off', 'unavailable', 'unknown'] %}\n{% set dot = 'var(--red-color)' if c == 'heat' else 'var(--blue-color)' if c == 'cool' else 'var(--green-color)' %}\n:host {\n  --card-mod-icon-color: {{ 'var(--red-color)' if s == 'heating' else 'var(--blue-color)' if s == 'cooling' else 'var(--grey-color)' }};\n  {% if s == 'heating' %}--card-mod-icon: mdi:fire;{% elif s == 'cooling' %}--card-mod-icon: mdi:snowflake;{% endif %}\n}\n/* Current -> target temperature, moved to the row end via flex order */\nhui-generic-entity-row::before {\n  cursor: pointer;\n  content: \"{% if cur is number %}{{ '%g' | format(cur) }}°{% endif %}{% if tgt is number %}→{{ '%g' | format(tgt) }}°{% endif %}\";\n  order: 1;\n  margin-left: 8px;\n  white-space: nowrap;\n  font-size: 13px;\n  color: {{ dot if live else 'var(--secondary-text-color)' }};\n}\n/* Real AC state (climate entity): glowing dot at the row end while it runs */\nhui-generic-entity-row::after {\n  content: \"\";\n  order: 2;\n  flex: 0 0 10px;\n  width: 10px;\n  height: 10px;\n  margin-left: 6px;\n  border-radius: 50%;\n  {% if live %}\n  background: {{ dot }};\n  box-shadow: 0 0 6px 2px {{ dot }};\n  animation: ac-live 2s ease-in-out infinite;\n  {% else %}\n  background: transparent;\n  border: 1.5px solid var(--disabled-color, #bdbdbd);\n  box-sizing: border-box;\n  {% endif %}\n}\n@keyframes ac-live { 50% { opacity: 0.45; } }\n"
+                        }
+                      }
+                    },
+                    {
+                      "entity": "input_select.big_bedroom_ac",
+                      "name": "Big Bedroom AC",
+                      "icon": "mdi:hvac",
+                      "card_mod": {
+                        "style": {
+                          "ha-select $ ha-picker-field $": "ha-combo-box-item {\n  min-height: 44px !important;\n  height: 44px !important;\n}\n",
+                          "ha-select $ ha-picker-field $ ha-combo-box-item $": "md-item {\n  min-height: 44px !important;\n  height: 44px !important;\n}\n",
+                          ".": "{% set s = states(config.entity) %}\n{% set c = states(config.entity | replace('input_select.', 'climate.')) %}\n{% set ce = config.entity | replace('input_select.', 'climate.') %}\n{% set cur = state_attr(ce, 'current_temperature') %}\n{% set tgt = state_attr(ce, 'temperature') %}\n{% set live = c not in ['off', 'unavailable', 'unknown'] %}\n{% set dot = 'var(--red-color)' if c == 'heat' else 'var(--blue-color)' if c == 'cool' else 'var(--green-color)' %}\n:host {\n  --card-mod-icon-color: {{ 'var(--red-color)' if s == 'heating' else 'var(--blue-color)' if s == 'cooling' else 'var(--grey-color)' }};\n  {% if s == 'heating' %}--card-mod-icon: mdi:fire;{% elif s == 'cooling' %}--card-mod-icon: mdi:snowflake;{% endif %}\n}\n/* Current -> target temperature, moved to the row end via flex order */\nhui-generic-entity-row::before {\n  cursor: pointer;\n  content: \"{% if cur is number %}{{ '%g' | format(cur) }}°{% endif %}{% if tgt is number %}→{{ '%g' | format(tgt) }}°{% endif %}\";\n  order: 1;\n  margin-left: 8px;\n  white-space: nowrap;\n  font-size: 13px;\n  color: {{ dot if live else 'var(--secondary-text-color)' }};\n}\n/* Real AC state (climate entity): glowing dot at the row end while it runs */\nhui-generic-entity-row::after {\n  content: \"\";\n  order: 2;\n  flex: 0 0 10px;\n  width: 10px;\n  height: 10px;\n  margin-left: 6px;\n  border-radius: 50%;\n  {% if live %}\n  background: {{ dot }};\n  box-shadow: 0 0 6px 2px {{ dot }};\n  animation: ac-live 2s ease-in-out infinite;\n  {% else %}\n  background: transparent;\n  border: 1.5px solid var(--disabled-color, #bdbdbd);\n  box-sizing: border-box;\n  {% endif %}\n}\n@keyframes ac-live { 50% { opacity: 0.45; } }\n"
+                        }
+                      }
+                    }
+                  ],
+                  "card_mod": {
+                    "style": "ha-card {\n  --entities-card-row-gap: 0px;\n}\n"
+                  }
                 }
               ]
             },
@@ -1247,82 +1283,6 @@
                         ],
                         "state_content": "name",
                         "name": "autosuspend"
-                      },
-                      {
-                        "type": "entity",
-                        "entity": "sensor.192_168_1_4_cpu_usage",
-                        "icon": "mdi:cpu-64-bit",
-                        "name": "CPU",
-                        "show_state": true,
-                        "show_icon": true,
-                        "visibility": [
-                          {
-                            "condition": "state",
-                            "entity": "sensor.192_168_1_4_cpu_usage",
-                            "state_not": "unavailable"
-                          }
-                        ]
-                      },
-                      {
-                        "type": "entity",
-                        "entity": "sensor.192_168_1_4_memory_usage",
-                        "icon": "mdi:memory",
-                        "name": "RAM",
-                        "show_state": true,
-                        "show_icon": true,
-                        "visibility": [
-                          {
-                            "condition": "state",
-                            "entity": "sensor.192_168_1_4_memory_usage",
-                            "state_not": "unavailable"
-                          }
-                        ]
-                      },
-                      {
-                        "type": "entity",
-                        "entity": "sensor.192_168_1_4_tctl_temperature",
-                        "icon": "mdi:thermometer",
-                        "name": "Temp",
-                        "show_state": true,
-                        "show_icon": true,
-                        "visibility": [
-                          {
-                            "condition": "state",
-                            "entity": "sensor.192_168_1_4_tctl_temperature",
-                            "state_not": "unavailable"
-                          }
-                        ]
-                      },
-                      {
-                        "type": "entity",
-                        "entity": "sensor.192_168_1_4_mnt_wd10t_media_disk_usage",
-                        "icon": "mdi:harddisk",
-                        "name": "Disk",
-                        "show_state": true,
-                        "show_icon": true,
-                        "visibility": [
-                          {
-                            "condition": "state",
-                            "entity": "sensor.192_168_1_4_mnt_wd10t_media_disk_usage",
-                            "state_not": "unavailable"
-                          }
-                        ]
-                      },
-                      {
-                        "type": "entity",
-                        "entity": "sensor.192_168_1_4_uptime",
-                        "icon": "mdi:sleep",
-                        "name": "Sleeping",
-                        "show_state": false,
-                        "show_icon": true,
-                        "show_name": true,
-                        "visibility": [
-                          {
-                            "condition": "state",
-                            "entity": "sensor.192_168_1_4_uptime",
-                            "state": "unavailable"
-                          }
-                        ]
                       }
                     ],
                     "card_mod": {
@@ -1348,109 +1308,141 @@
                     }
                   },
                   {
-                    "type": "horizontal-stack",
-                    "cards": [
-                      {
-                        "type": "tile",
-                        "entity": "script.host_power",
-                        "name": "Wake",
-                        "icon": "mdi:power",
-                        "vertical": true,
-                        "hide_state": true,
-                        "tap_action": {
-                          "action": "perform-action",
-                          "perform_action": "script.host_power",
-                          "data": {
-                            "host": "bizon",
-                            "command": "wakeup"
+                    "type": "custom:mod-card",
+                    "card": {
+                      "type": "horizontal-stack",
+                      "cards": [
+                        {
+                          "type": "tile",
+                          "entity": "script.host_power",
+                          "name": "Wake",
+                          "icon": "mdi:power",
+                          "vertical": true,
+                          "hide_state": true,
+                          "tap_action": {
+                            "action": "perform-action",
+                            "perform_action": "script.host_power",
+                            "data": {
+                              "host": "bizon",
+                              "command": "wakeup"
+                            },
+                            "confirmation": {
+                              "text": "Розбудити Bizon?"
+                            }
                           },
-                          "confirmation": {
-                            "text": "Розбудити Bizon?"
+                          "icon_tap_action": {
+                            "action": "none"
+                          },
+                          "card_mod": {
+                            "style": {
+                              ".": "ha-card { --tile-color: var(--green-color) !important; border: none; background: color-mix(in srgb, var(--green-color) 12%, transparent); height: 100%; min-height: 0 !important; }\nha-tile-icon { --tile-icon-size: 22px; --mdc-icon-size: 16px; height: 22px; width: 22px; }\nha-tile-info { --tile-info-primary-font-size: 10px; --tile-info-primary-line-height: 12px; }\n",
+                              "ha-tile-container $": ".content { padding: 3px 2px !important; gap: 0 !important; }"
+                            }
                           }
                         },
-                        "icon_tap_action": {
-                          "action": "none"
-                        },
-                        "card_mod": {
-                          "style": "ha-card { --tile-color: var(--green-color) !important; border: none; background: color-mix(in srgb, var(--green-color) 12%, transparent); }"
-                        }
-                      },
-                      {
-                        "type": "tile",
-                        "entity": "script.host_power",
-                        "name": "Sleep",
-                        "icon": "mdi:power-sleep",
-                        "vertical": true,
-                        "hide_state": true,
-                        "tap_action": {
-                          "action": "perform-action",
-                          "perform_action": "script.host_power",
-                          "data": {
-                            "host": "bizon",
-                            "command": "suspend"
+                        {
+                          "type": "tile",
+                          "entity": "script.host_power",
+                          "name": "Sleep",
+                          "icon": "mdi:power-sleep",
+                          "vertical": true,
+                          "hide_state": true,
+                          "tap_action": {
+                            "action": "perform-action",
+                            "perform_action": "script.host_power",
+                            "data": {
+                              "host": "bizon",
+                              "command": "suspend"
+                            },
+                            "confirmation": {
+                              "text": "Приспати Bizon?"
+                            }
                           },
-                          "confirmation": {
-                            "text": "Приспати Bizon?"
+                          "icon_tap_action": {
+                            "action": "none"
+                          },
+                          "card_mod": {
+                            "style": {
+                              ".": "ha-card { --tile-color: var(--indigo-color) !important; border: none; background: color-mix(in srgb, var(--indigo-color) 12%, transparent); height: 100%; min-height: 0 !important; }\nha-tile-icon { --tile-icon-size: 22px; --mdc-icon-size: 16px; height: 22px; width: 22px; }\nha-tile-info { --tile-info-primary-font-size: 10px; --tile-info-primary-line-height: 12px; }\n",
+                              "ha-tile-container $": ".content { padding: 3px 2px !important; gap: 0 !important; }"
+                            }
                           }
                         },
-                        "icon_tap_action": {
-                          "action": "none"
-                        },
-                        "card_mod": {
-                          "style": "ha-card { --tile-color: var(--indigo-color) !important; border: none; background: color-mix(in srgb, var(--indigo-color) 12%, transparent); }"
-                        }
-                      },
-                      {
-                        "type": "tile",
-                        "entity": "script.host_power",
-                        "name": "Reboot",
-                        "icon": "mdi:restart",
-                        "vertical": true,
-                        "hide_state": true,
-                        "tap_action": {
-                          "action": "perform-action",
-                          "perform_action": "script.host_power",
-                          "data": {
-                            "host": "bizon",
-                            "command": "reboot"
+                        {
+                          "type": "tile",
+                          "entity": "script.host_power",
+                          "name": "Reboot",
+                          "icon": "mdi:restart",
+                          "vertical": true,
+                          "hide_state": true,
+                          "tap_action": {
+                            "action": "perform-action",
+                            "perform_action": "script.host_power",
+                            "data": {
+                              "host": "bizon",
+                              "command": "reboot"
+                            },
+                            "confirmation": {
+                              "text": "Перезавантажити Bizon?"
+                            }
                           },
-                          "confirmation": {
-                            "text": "Перезавантажити Bizon?"
+                          "icon_tap_action": {
+                            "action": "none"
+                          },
+                          "card_mod": {
+                            "style": {
+                              ".": "ha-card { --tile-color: var(--amber-color) !important; border: none; background: color-mix(in srgb, var(--amber-color) 12%, transparent); height: 100%; min-height: 0 !important; }\nha-tile-icon { --tile-icon-size: 22px; --mdc-icon-size: 16px; height: 22px; width: 22px; }\nha-tile-info { --tile-info-primary-font-size: 10px; --tile-info-primary-line-height: 12px; }\n",
+                              "ha-tile-container $": ".content { padding: 3px 2px !important; gap: 0 !important; }"
+                            }
                           }
                         },
-                        "icon_tap_action": {
-                          "action": "none"
-                        },
-                        "card_mod": {
-                          "style": "ha-card { --tile-color: var(--amber-color) !important; border: none; background: color-mix(in srgb, var(--amber-color) 12%, transparent); }"
-                        }
-                      },
-                      {
-                        "type": "tile",
-                        "entity": "script.host_power",
-                        "name": "Off",
-                        "icon": "mdi:power-off",
-                        "vertical": true,
-                        "hide_state": true,
-                        "tap_action": {
-                          "action": "perform-action",
-                          "perform_action": "script.host_power",
-                          "data": {
-                            "host": "bizon",
-                            "command": "poweroff"
+                        {
+                          "type": "tile",
+                          "entity": "script.host_power",
+                          "name": "Off",
+                          "icon": "mdi:power-off",
+                          "vertical": true,
+                          "hide_state": true,
+                          "tap_action": {
+                            "action": "perform-action",
+                            "perform_action": "script.host_power",
+                            "data": {
+                              "host": "bizon",
+                              "command": "poweroff"
+                            },
+                            "confirmation": {
+                              "text": "Вимкнути Bizon?"
+                            }
                           },
-                          "confirmation": {
-                            "text": "Вимкнути Bizon?"
+                          "icon_tap_action": {
+                            "action": "none"
+                          },
+                          "card_mod": {
+                            "style": {
+                              ".": "ha-card { --tile-color: var(--red-color) !important; border: none; background: color-mix(in srgb, var(--red-color) 12%, transparent); height: 100%; min-height: 0 !important; }\nha-tile-icon { --tile-icon-size: 22px; --mdc-icon-size: 16px; height: 22px; width: 22px; }\nha-tile-info { --tile-info-primary-font-size: 10px; --tile-info-primary-line-height: 12px; }\n",
+                              "ha-tile-container $": ".content { padding: 3px 2px !important; gap: 0 !important; }"
+                            }
                           }
                         },
-                        "icon_tap_action": {
-                          "action": "none"
-                        },
-                        "card_mod": {
-                          "style": "ha-card { --tile-color: var(--red-color) !important; border: none; background: color-mix(in srgb, var(--red-color) 12%, transparent); }"
+                        {
+                          "type": "markdown",
+                          "content": "{% set cpu = states('sensor.192_168_1_4_cpu_usage') %}{% set ram = states('sensor.192_168_1_4_memory_usage') %}{% set t = states('sensor.192_168_1_4_tctl_temperature') %}{% set d = states('sensor.192_168_1_4_mnt_wd10t_media_disk_usage') %}{% set w = states('sensor.bizon_power') %}{% macro v(x, u) %}{{ (x | float(0)) | round(0) | int }}{{ u }}{% endmacro %}{% if cpu not in ['unavailable', 'unknown'] %}<div><span><ha-icon icon=\"mdi:cpu-64-bit\"></ha-icon>{{ v(cpu, '%') }}</span><span><ha-icon icon=\"mdi:memory\"></ha-icon>{{ v(ram, '%') }}</span><span><ha-icon icon=\"mdi:harddisk\"></ha-icon>{{ v(d, '%') }}</span>{% if w | is_number %}<span><ha-icon icon=\"mdi:flash\"></ha-icon>{{ v(w, ' W') }}</span>{% endif %}</div>{% else %}<p><ha-icon icon=\"mdi:sleep\"></ha-icon><span>Sleeping</span>{% if w | is_number %}<small>{{ v(w, ' W') }}</small>{% endif %}</p>{% endif %}",
+                          "card_mod": {
+                            "style": {
+                              ".": "ha-card { border: none; box-shadow: none; height: 100%; border-radius: var(--ha-card-border-radius, 12px); background: color-mix(in srgb, var(--primary-color) 8%, transparent); display: flex; align-items: center; }",
+                              "ha-markdown": "ha-markdown { padding: 4px 6px !important; width: 100%; }",
+                              "ha-markdown $": "div { display: grid; grid-template-columns: auto auto; gap: 0 8px; font-size: 12px; line-height: 17px; white-space: nowrap; }\ndiv ha-icon { --mdc-icon-size: 13px; color: var(--secondary-text-color); margin-right: 2px; vertical-align: -1px; }\np { margin: 0;  display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--secondary-text-color); line-height: 14px; }\np ha-icon { --mdc-icon-size: 20px; }\np small { font-size: 10px; }"
+                            }
+                          }
                         }
+                      ]
+                    },
+                    "card_mod": {
+                      "style": {
+                        ".": "ha-card { background: none; border: none; box-shadow: none; }",
+                        "hui-horizontal-stack-card $": "#root { gap: 4px; align-items: stretch; }\n#root > hui-card > * { margin: 0 !important; }\n#root > hui-card:nth-child(5) > * { flex: 3 1 0 !important; }"
                       }
-                    ]
+                    }
                   },
                   {
                     "type": "markdown",
@@ -1464,7 +1456,7 @@
                     ],
                     "card_mod": {
                       "style": {
-                        ".": "ha-card { border: none; box-shadow: none; margin: 0 4px; background: none; }",
+                        ".": "ha-card { border: none; box-shadow: none; margin: 0 4px; background: none; }\nha-markdown { padding: 0 12px 2px !important; }",
                         "ha-markdown $": "h4 { margin: 0 0 6px; } p { margin: 0 0 2px; } ha-icon { --mdc-icon-size: 18px; color: var(--secondary-text-color); } summary { cursor: pointer; } details > div { margin: 2px 0 0 16px; }"
                       }
                     }
@@ -1490,65 +1482,62 @@
                     }
                   },
                   {
-                    "type": "tile",
-                    "entity": "script.host_power",
-                    "name": "Reboot raspberrypi5",
-                    "icon": "mdi:restart",
-                    "vertical": false,
-                    "hide_state": true,
-                    "tap_action": {
-                      "action": "perform-action",
-                      "perform_action": "script.host_power",
-                      "data": {
-                        "host": "rpi5",
-                        "command": "reboot"
-                      },
-                      "confirmation": {
-                        "text": "Перезавантажити raspberrypi5?"
-                      }
-                    },
-                    "icon_tap_action": {
-                      "action": "none"
+                    "type": "custom:mod-card",
+                    "card": {
+                      "type": "horizontal-stack",
+                      "cards": [
+                        {
+                          "type": "tile",
+                          "entity": "script.host_power",
+                          "name": "Reboot",
+                          "icon": "mdi:restart",
+                          "vertical": true,
+                          "hide_state": true,
+                          "tap_action": {
+                            "action": "perform-action",
+                            "perform_action": "script.host_power",
+                            "data": {
+                              "host": "rpi5",
+                              "command": "reboot"
+                            },
+                            "confirmation": {
+                              "text": "Перезавантажити raspberrypi5?"
+                            }
+                          },
+                          "icon_tap_action": {
+                            "action": "none"
+                          },
+                          "card_mod": {
+                            "style": {
+                              ".": "ha-card { --tile-color: var(--amber-color) !important; border: none; background: color-mix(in srgb, var(--amber-color) 12%, transparent); height: 100%; min-height: 0 !important; }\nha-tile-icon { --tile-icon-size: 22px; --mdc-icon-size: 16px; height: 22px; width: 22px; }\nha-tile-info { --tile-info-primary-font-size: 10px; --tile-info-primary-line-height: 12px; }\n",
+                              "ha-tile-container $": ".content { padding: 3px 2px !important; gap: 0 !important; }"
+                            }
+                          }
+                        },
+                        {
+                          "type": "markdown",
+                          "content": "{% set cpu = states('sensor.rpi5_cpu_usage') %}{% macro v(e, u) %}{{ (states(e) | float(0)) | round(0) | int }}{{ u }}{% endmacro %}{% if cpu not in ['unavailable', 'unknown'] %}<div><span><ha-icon icon=\"mdi:cpu-64-bit\"></ha-icon>{{ v('sensor.rpi5_cpu_usage', '%') }}</span><span><ha-icon icon=\"mdi:memory\"></ha-icon>{{ v('sensor.rpi5_memory_usage', '%') }}</span><span><ha-icon icon=\"mdi:thermometer\"></ha-icon>{{ v('sensor.rpi5_cpu_temperature', '°') }}</span><span><ha-icon icon=\"mdi:harddisk\"></ha-icon>{{ v('sensor.rpi5_disk_usage', '%') }}</span></div>{% else %}<p><ha-icon icon=\"mdi:lan-disconnect\"></ha-icon><span>Offline</span></p>{% endif %}",
+                          "card_mod": {
+                            "style": {
+                              ".": "ha-card { border: none; box-shadow: none; height: 100%; border-radius: var(--ha-card-border-radius, 12px); background: color-mix(in srgb, var(--primary-color) 8%, transparent); display: flex; align-items: center; }",
+                              "ha-markdown": "ha-markdown { padding: 4px 6px !important; width: 100%; }",
+                              "ha-markdown $": "div { display: grid; grid-template-columns: auto auto; gap: 0 8px; font-size: 12px; line-height: 17px; white-space: nowrap; }\ndiv ha-icon { --mdc-icon-size: 13px; color: var(--secondary-text-color); margin-right: 2px; vertical-align: -1px; }\np { margin: 0;  display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--secondary-text-color); line-height: 14px; }\np ha-icon { --mdc-icon-size: 20px; }\np small { font-size: 10px; }"
+                            }
+                          }
+                        }
+                      ]
                     },
                     "card_mod": {
-                      "style": "ha-card { --tile-color: var(--amber-color) !important; border: none; background: color-mix(in srgb, var(--amber-color) 12%, transparent); }"
+                      "style": {
+                        ".": "ha-card { background: none; border: none; box-shadow: none; }",
+                        "hui-horizontal-stack-card $": "#root { gap: 4px; align-items: stretch; }\n#root > hui-card > * { margin: 0 !important; }\n#root > hui-card:nth-child(2) > * { flex: 3 1 0 !important; }"
+                      }
                     }
                   }
                 ]
               },
               "card_mod": {
                 "style": "ha-card { background: var(--ha-card-background, var(--card-background-color)); border: 1px solid var(--ha-card-border-color, var(--divider-color)); border-radius: var(--ha-card-border-radius, 12px); padding: 4px 8px 8px; }"
-              }
-            },
-            {
-              "type": "entities",
-              "show_header_toggle": false,
-              "entities": [
-                {
-                  "entity": "input_select.big_bedroom_ac",
-                  "name": "Big Bedroom AC",
-                  "icon": "mdi:air-conditioner",
-                  "card_mod": {
-                    "style": {
-                      "ha-select $ ha-picker-field $": "ha-combo-box-item {\n  min-height: 44px !important;\n  height: 44px !important;\n}\n",
-                      "ha-select $ ha-picker-field $ ha-combo-box-item $": "md-item {\n  min-height: 44px !important;\n  height: 44px !important;\n}\n"
-                    }
-                  }
-                },
-                {
-                  "entity": "input_select.bedroom_ac",
-                  "name": "Bedroom AC",
-                  "icon": "mdi:air-conditioner",
-                  "card_mod": {
-                    "style": {
-                      "ha-select $ ha-picker-field $": "ha-combo-box-item {\n  min-height: 44px !important;\n  height: 44px !important;\n}\n",
-                      "ha-select $ ha-picker-field $ ha-combo-box-item $": "md-item {\n  min-height: 44px !important;\n  height: 44px !important;\n}\n"
-                    }
-                  }
-                }
-              ],
-              "card_mod": {
-                "style": "ha-card {\n  --entities-card-row-gap: 0px;\n}\n"
               }
             }
           ]
@@ -3093,7 +3082,7 @@
                     "essential_load1": "sensor.total_load_power_realtime"
                   },
                   "card_mod": {
-                    "style": "ha-card {\n  border-bottom-left-radius: 0 !important;\n  border-bottom-right-radius: 0 !important;\n  border-bottom: none !important;\n}\n"
+                    "style": "ha-card {\n  border-bottom-left-radius: 0 !important;\n  border-bottom-right-radius: 0 !important;\n  border-bottom: none !important;\n}\n/* Per-string daily PV energy next to the PV1/PV2 boxes (packages/energy/pv_strings.yaml).\n   Positions are in SVG viewBox units (490 wide) converted to cqw. */\nha-card {\n  container-type: inline-size;\n}\nha-card::before,\nha-card::after {\n  position: absolute;\n  top: 13.2cqw;\n  font: 2.65cqw/1 Roboto, Noto, sans-serif;\n  color: {{ '#FFA500' if (states('sensor.deye_5kw_pv1_power') | float(0) + states('sensor.deye_5kw_pv2_power') | float(0)) > 10 else 'grey' }};\n  pointer-events: none;\n}\nha-card::before {\n  content: \"{{ '%.1f' | format(states('sensor.deye_5kw_pv1_energy_daily') | float(0)) }} kWh\";\n  right: 69.6cqw;\n}\nha-card::after {\n  content: \"{{ '%.1f' | format(states('sensor.deye_5kw_pv2_energy_daily') | float(0)) }} kWh\";\n  left: 67.8cqw;\n}\n"
                   }
                 },
                 {
@@ -3923,7 +3912,7 @@
                     "battery_status": "sensor.deye_5kw_power_losses"
                   },
                   "card_mod": {
-                    "style": "ha-card {\n  border-bottom-left-radius: 0 !important;\n  border-bottom-right-radius: 0 !important;\n  border-bottom: none !important;\n}\n"
+                    "style": "ha-card {\n  border-bottom-left-radius: 0 !important;\n  border-bottom-right-radius: 0 !important;\n  border-bottom: none !important;\n}\n/* Per-string daily PV energy next to the PV1/PV2 boxes (packages/energy/pv_strings.yaml).\n   Positions are in SVG viewBox units (490 wide) converted to cqw. */\nha-card {\n  container-type: inline-size;\n}\nha-card::before,\nha-card::after {\n  position: absolute;\n  top: 13.2cqw;\n  font: 2.65cqw/1 Roboto, Noto, sans-serif;\n  color: {{ '#FFA500' if (states('sensor.deye_6kw_pv1_power') | float(0) + states('sensor.deye_6kw_pv2_power') | float(0)) > 10 else 'grey' }};\n  pointer-events: none;\n}\nha-card::before {\n  content: \"{{ '%.1f' | format(states('sensor.deye_6kw_pv1_energy_daily') | float(0)) }} kWh\";\n  right: 69.6cqw;\n}\nha-card::after {\n  content: \"{{ '%.1f' | format(states('sensor.deye_6kw_pv2_energy_daily') | float(0)) }} kWh\";\n  left: 67.8cqw;\n}\n"
                   }
                 },
                 {
