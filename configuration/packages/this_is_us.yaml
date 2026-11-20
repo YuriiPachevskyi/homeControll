@@ -1,0 +1,55 @@
+# Daily check for new Ukrainian-dubbed episodes of "This Is Us" (SunDragon Studio on uakino.ac/ashdi),
+# via the uaplay service of lp.yuriip4 (same data as the "Українською" item in Lampa).
+# 10:00 refresh; when the episode count grows -> Telegram to Yurii (script.notify_all).
+rest:
+  - resource: !secret uaplay_this_is_us_url
+    scan_interval: 604800  # refreshed by the 10:00 automation below
+    timeout: 120
+    sensor:
+      - name: "This Is Us UA episodes"
+        unique_id: this_is_us_ua_episodes
+        icon: mdi:television-classic
+        state_class: measurement
+        value_template: >-
+          {% set v = value_json.voices[0] if value_json is mapping and value_json.voices is defined and value_json.voices else none %}
+          {{ v.seasons | map(attribute='episodes') | map('length') | sum if v else none }}
+      - name: "This Is Us UA last episode"
+        unique_id: this_is_us_ua_last_episode
+        icon: mdi:television-play
+        value_template: >-
+          {% set v = value_json.voices[0] if value_json is mapping and value_json.voices is defined and value_json.voices else none %}
+          {% if v %}{% set s = v.seasons[-1] %}{{ s.name }} · {{ s.episodes[-1].name }} ({{ v.name }}){% else %}{{ none }}{% endif %}
+
+automation:
+  - id: this_is_us_ua_daily_refresh
+    alias: "This Is Us UA: daily check"
+    triggers:
+      - trigger: time
+        at: "10:00:00"
+    actions:
+      - action: homeassistant.update_entity
+        target:
+          entity_id: sensor.this_is_us_ua_episodes
+
+  - id: this_is_us_ua_new_episode
+    alias: "This Is Us UA: new episode -> Telegram"
+    triggers:
+      - trigger: state
+        entity_id: sensor.this_is_us_ua_episodes
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ trigger.from_state is not none and trigger.to_state is not none
+             and trigger.from_state.state | is_number and trigger.to_state.state | is_number
+             and trigger.to_state.state | int > trigger.from_state.state | int }}
+    actions:
+      - delay: "00:00:05"  # let the "last episode" sensor of the same REST call update
+      - action: script.notify_all
+        data:
+          to: yurii_only
+          parse_mode: plain_text
+          title: "Це ми: нова серія українською"
+          message: >-
+            {{ states('sensor.this_is_us_ua_last_episode') }}.
+            Нових серій: {{ trigger.to_state.state | int - trigger.from_state.state | int }}.
+            Lampa → «Це ми» → ▶ Дивитись → Українською.
