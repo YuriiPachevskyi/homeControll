@@ -21,10 +21,13 @@ command_line:
   - sensor:
       name: "Bizon GPU Power"
       unique_id: bizon_gpu_power
-      # unavailable while Bizon sleeps (ssh times out after 3 s)
+      # unavailable while Bizon sleeps (ssh times out after 3 s). flock: if a
+      # previous nvidia-smi is stuck (GPU driver hung, D state - not killable),
+      # new calls exit at once instead of piling up (2026-11-21: a suspend hang
+      # left 564 of them). timeout covers slow but killable hangs.
       command: >-
         ssh -p 2222 -i /ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=3
-        yurii@192.168.1.4 "nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits"
+        yurii@192.168.1.4 "flock -n /tmp/ha-nvidia-smi.lock timeout -s KILL 10 nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits"
       unit_of_measurement: W
       device_class: power
       state_class: measurement
@@ -40,11 +43,20 @@ template:
         state_class: measurement
         icon: mdi:desktop-tower-monitor
         state: >-
-          {% if is_state('binary_sensor.bizon_awake', 'on') %}
+          {% set gpu_s = states.sensor.bizon_gpu_power %}
+          {% if not is_state('binary_sensor.bizon_awake', 'on') %}0
+          {% elif gpu_s is not none and gpu_s.state | is_number %}
             {% set cpu = states('sensor.192_168_1_4_cpu_usage') | float(0) %}
-            {% set gpu = states('sensor.bizon_gpu_power') | float(10) %}
-            {{ (80 + 1.25 * cpu + [gpu - 10, 0] | max * 1.14) | round(0) }}
-          {% else %}0{% endif %}
+            {{ (80 + 1.25 * cpu + [gpu_s.state | float - 10, 0] | max * 1.14) | round(0) }}
+          {% elif gpu_s is not none and now() - gpu_s.last_changed > timedelta(minutes=3) %}
+            {# Pings but nvidia-smi has not answered for 3+ min: hung (e.g. stuck
+               mid-suspend; load ~650 makes Glances CPU read 100 %). Count only
+               the idle base, not the bogus CPU load. #}
+            80
+          {% else %}
+            {% set cpu = states('sensor.192_168_1_4_cpu_usage') | float(0) %}
+            {{ (80 + 1.25 * cpu) | round(0) }}
+          {% endif %}
 
   # Lifetime and today's energy: every minute and on every power
   # change, adds the power of the interval just ended (left Riemann sum). The
