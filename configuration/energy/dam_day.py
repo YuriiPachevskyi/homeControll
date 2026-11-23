@@ -6,6 +6,7 @@ sensor.dam_price_day (packages/dam_price_day.yaml) inside the HA container,
 so the DAP dashboard can scroll back through previous days; today and
 tomorrow come from the live entsoe sensor instead.
 Prices come from the ENTSO-E API with the api_key of the entsoe config entry
+(OREE, oree.com.ua, when ENTSO-E has no data for the day)
 and are cached per day in dam_prices_cache.json (a finished day never
 changes); for today the prices are skipped (the card uses the live sensor).
 Hourly grid export and import (the 5kW's grid port: it is the only
@@ -17,7 +18,9 @@ Output: {"date", "hours": [["HH:00", UAH/kWh], ...], "avg",
 "energy": {"HH:00": [export, house, import] kWh}}; a DST day has 23 or 25
 hours. Stdlib only.
 """
+import html
 import json
+import re
 import sqlite3
 import sys
 import urllib.parse
@@ -71,6 +74,21 @@ def fetch(day: date) -> list:
     return [[t.astimezone(TZ).strftime("%H:00"), round(sum(v) / len(v), 2)] for t, v in sorted(slots.items())]
 
 
+def fetch_oree(day: date) -> list:
+    """Same format as fetch() from oree.com.ua (IPS zone, DAM/2); [] if not published."""
+    req = urllib.request.Request(f"https://www.oree.com.ua/index.php/PXS/get_pxs_hdata/{day:%d.%m.%Y}/DAM/2",
+                                 headers={"User-Agent": "Mozilla/5.0"})
+    body = json.loads(urllib.request.urlopen(req, timeout=30).read()).get("html", "")
+    prices = []
+    for row in re.findall(r"<tr[^>]*>(.*?)</tr>", body, re.S):
+        cells = [html.unescape(re.sub(r"<[^>]+>", "", c)).strip() for c in re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)]
+        if len(cells) >= 3 and cells[1].isdigit():  # hidden index, hour 1..24, price UAH/MWh, ...
+            prices.append(float(cells[2].replace(" ", "").replace(",", ".")))
+    midnight = datetime(day.year, day.month, day.day, tzinfo=TZ).astimezone(timezone.utc)
+    return [[(midnight + timedelta(hours=i)).astimezone(TZ).strftime("%H:00"), round(p / 1000, 2)]
+            for i, p in enumerate(prices)]
+
+
 def energy(day: date) -> dict:
     """{"HH:00": [export, house, import]} for the finished hours of the day, kWh."""
     start = datetime(day.year, day.month, day.day, tzinfo=TZ)
@@ -113,6 +131,11 @@ def main() -> None:
         except Exception as exc:  # show "no data" instead of making the sensor unavailable
             out["error"] = f"ENTSO-E: {exc}"[:200]
             hours = []
+        if len(hours) < 23:  # ENTSO-E sometimes has no UA data for whole days
+            try:
+                hours = fetch_oree(day) or hours
+            except Exception as exc:
+                out["error"] = (out.get("error", "") + f" OREE: {exc}").strip()[:200]
         if len(hours) >= 23:
             cache[key] = hours
             tmp = CACHE.with_suffix(".tmp")

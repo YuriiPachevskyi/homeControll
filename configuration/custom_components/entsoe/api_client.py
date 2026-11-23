@@ -91,6 +91,21 @@ class EntsoeClient:
             "in_Domain": area.code,
             "out_Domain": area.code,
         }
+        # local patch: for UA_IPS fill days missing in ENTSO-E from OREE (oree_fallback.py)
+        if area.name == "UA_IPS":
+            from .oree_fallback import fill_missing
+            try:
+                series = self.parse_price_document(
+                    await self._base_request(params=params, start=start, end=end))
+            except Exception as exc:
+                _LOGGER.warning(f"ENTSO-E request failed, trying OREE: {exc}")
+                series = {}
+            series = await fill_missing(
+                series, start, end, get_interval_minutes(self.configuration_period))
+            if not series:
+                raise EntsoeException("No prices from ENTSO-E nor OREE")
+            return series
+
         response_text = await self._base_request(params=params, start=start, end=end)
 
         try:
