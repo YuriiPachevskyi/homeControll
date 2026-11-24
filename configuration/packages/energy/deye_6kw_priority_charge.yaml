@@ -1,0 +1,133 @@
+# Save + Deye6 Charge: while binary_sensor.deye_6kw_priority_charge is on
+# (packages/energy/conditions.yaml) deye_state_controller puts the 6kW in
+# grid charging (min SOC 100, all 6 programs Grid, max charge 3.5 kW). Its
+# grid port hangs on the 5kW SMART port, so "grid" charging takes the 5kW PV
+# first. This regulator moves the 6kW grid charge current every 20 s so that
+# it takes only what the 5kW would otherwise put into its own battery or
+# export, never grid import or 5kW battery discharge:
+#   spare = 5kW battery charge + 5kW export - margin   (negative on import)
+#   step  = min(spare, 3.5 kW - 6kW battery charge)
+# The setpoint never runs more than 1 kW ahead of what the 6kW really takes
+# from its grid port (anti-windup, e.g. when the firmware charges slower).
+# When the sensor goes off the current is set back to the default 40 A
+# (used by the monthly full charge).
+automation:
+  - id: deye_6kw_priority_charge_regulator
+    alias: Deye 6kW priority charge regulator
+    initial_state: true
+    description: Save + Deye6 Charge - regulates number.deye_6kw_battery_grid_charging_current
+      every 20 s so the 6kW battery charges up to 3.5 kW from both PVs without grid
+      import; back to 40 A when binary_sensor.deye_6kw_priority_charge goes off.
+    triggers:
+    - trigger: time_pattern
+      seconds: /20
+      id: tick
+    - trigger: state
+      entity_id: binary_sensor.deye_6kw_priority_charge
+      to: 'off'
+      id: stop
+    conditions:
+    - condition: template
+      value_template: '{{ trigger.id == ''stop'' or is_state(''binary_sensor.deye_6kw_priority_charge'',
+        ''on'') }}'
+    actions:
+    - variables:
+        voltage: 51
+        default_a: 40
+        max_w: 3500
+        margin_w: 150
+        gain: 0.7
+        cur_a: '{{ states(''number.deye_6kw_battery_grid_charging_current'') | float(0)
+          }}'
+        g5: '{{ states(''sensor.deye_5kw_grid_power'') | float(0) }}'
+        b5: '{{ states(''sensor.deye_5kw_battery_power'') | float(0) }}'
+        b6: '{{ states(''sensor.deye_6kw_battery_power'') | float(0) }}'
+        pv6: '{{ states(''sensor.deye_6kw_pv_power'') | float(0) }}'
+        charge6: '{{ [-b6, 0] | max }}'
+        # 5kW battery charge (b5 < 0) and export (g5 < 0) are spare power;
+        # 5kW discharge and grid import count against it
+        spare: '{{ -b5 - g5 - margin_w }}'
+        step: '{{ [spare, max_w - charge6] | min }}'
+        # What the 6kW battery takes on top of its own PV (Battery First)
+        from_grid_port: '{{ [charge6 - pv6, 0] | max }}'
+        target_w: '{{ [[cur_a * voltage + gain * step, from_grid_port + 1000, max_w]
+          | min, 0] | max }}'
+        new_a: '{{ default_a if trigger.id == ''stop'' else (target_w / voltage) | round(0)
+          | int }}'
+    - if:
+      - condition: template
+        value_template: '{{ (new_a - cur_a) | abs >= 3 or (trigger.id == ''stop'' and
+          new_a != cur_a) or (new_a == 0 and cur_a > 0) }}'
+      then:
+      - action: number.set_value
+        target:
+          entity_id: number.deye_6kw_battery_grid_charging_current
+        data:
+          value: '{{ new_a }}'
+      - if:
+        - condition: template
+          value_template: '{{ trigger.id == ''stop'' or (new_a - cur_a) | abs >= 10 }}'
+        then:
+        - action: script.energy_log
+          data:
+            message: 'Deye6 Charge: 6kW grid charge {{ cur_a | int }} -> {{ new_a }} A
+              (5kW batt {{ b5 | int }} W, grid {{ g5 | int }} W, 6kW charge {{ charge6
+              | int }} W)'
+    mode: single
+
+  # The 6kW drops some writes when deye_state_controller sends many registers
+  # at once (2026-11-24: programs 1-4 and 6 SOC and the max charging current
+  # stayed at the old value, program 5 took it). 30 s after a change, and
+  # every 10 minutes, re-write whatever the inverter does not hold.
+  - id: deye_6kw_write_verify
+    alias: Deye 6kW write verify
+    initial_state: true
+    description: Re-writes the 6kW program SOCs (input_number.deye_6kw_min_soc) and
+      battery max charging current (input_number.charge_power_deye_6kw / 51 V, as in
+      Deye Param Sync) when the inverter did not take them.
+    triggers:
+    - trigger: state
+      entity_id:
+      - input_number.deye_6kw_min_soc
+      - input_number.charge_power_deye_6kw
+      for: 00:00:30
+    - trigger: time_pattern
+      minutes: /10
+    actions:
+    - variables:
+        want_soc: '{{ states(''input_number.deye_6kw_min_soc'') | float(-1) | round(0)
+          }}'
+        want_a: '{{ (states(''input_number.charge_power_deye_6kw'') | float(-1) * 1000
+          / 51) | round(0) }}'
+        bad_soc: '{{ range(1, 7) | map(''string'') | map(''regex_replace'', ''^'', ''number.deye_6kw_program_'')
+          | map(''regex_replace'', ''$'', ''_soc'') | select(''has_value'') | reject(''is_state'',
+          want_soc | int | string) | list }}'
+        bad_a: '{{ has_value(''number.deye_6kw_battery_max_charging_current'') and states(''number.deye_6kw_battery_max_charging_current'')
+          | float(0) | round(0) != want_a }}'
+    - if:
+      - condition: template
+        value_template: '{{ want_soc >= 0 and bad_soc | count > 0 }}'
+      then:
+      - action: number.set_value
+        target:
+          entity_id: '{{ bad_soc }}'
+        data:
+          value: '{{ want_soc }}'
+      - action: script.energy_log
+        data:
+          message: 'Deye 6kW write verify: {{ bad_soc | map(''regex_replace'', ''number.deye_6kw_'',
+            '''') | join('', '') }} -> {{ want_soc | int }}'
+    - if:
+      - condition: template
+        value_template: '{{ want_a >= 0 and bad_a }}'
+      then:
+      - delay: 00:00:03
+      - action: number.set_value
+        target:
+          entity_id: number.deye_6kw_battery_max_charging_current
+        data:
+          value: '{{ want_a }}'
+      - action: script.energy_log
+        data:
+          message: 'Deye 6kW write verify: max charging current -> {{ want_a | int }} A'
+    mode: restart

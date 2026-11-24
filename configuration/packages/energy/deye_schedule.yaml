@@ -11,7 +11,7 @@ automation:
     description: Handles time-based state transitions and input_select.selling_mode.
       Force only works from the start of Morning Export to the end of Max Solar; outside
       that window it is reset to Normal (also on HA start, in case the Evening Export
-      trigger was missed). Save is reset to Normal at every Morning Export start in
+      trigger was missed). Save and Save + Deye6 Charge are reset to Normal at every Morning Export start in
       summer (binary_sensor.summer_season, kept all winter); Save + Night Charge is
       never reset. Changing any of the four start times re-evaluates the state right
       away.
@@ -58,7 +58,8 @@ automation:
       - condition: template
         value_template: '{{ (not force_window and is_state(''input_select.selling_mode'',
           ''Force'')) or (trigger.id == ''Morning Export'' and is_state(''binary_sensor.summer_season'',
-          ''on'') and is_state(''input_select.selling_mode'', ''Save'')) }}'
+          ''on'') and states(''input_select.selling_mode'') in [''Save'', ''Save + Deye6 Charge''])
+          }}'
       then:
       - action: input_select.select_option
         target:
@@ -107,6 +108,12 @@ automation:
       the 6kW charges from the grid to 100 % (min SOC 100, all 6 programs Grid) and the
       5kW min SOC is held at its current SOC so the 5kW battery does not feed it. 6kW
       energy pattern is Battery First in Save and Save + Night Charge, Load First otherwise.
+      Save + Deye6 Charge works like Save for the 5kW; while binary_sensor.deye_6kw_priority_charge
+      is on (Morning Export / Max Solar, 6kW < 100 %) the 6kW charges first - min SOC 100,
+      grid charging on (all 6 programs Grid) through the 5kW SMART port, the grid charge
+      current regulated by packages/energy/deye_6kw_priority_charge.yaml; in this mode
+      input_number.charge_power_deye_6kw is set to 3.5 kW on every run (summer and winter)
+      and the cascade never moves it.
       While binary_sensor.boiler_night_heating is on (Boiler mode Night, night charge window,
       grid present; packages/boiler.yaml) both min SOCs are held at the current SOC, so the
       boiler heats from the grid and no battery is discharged.
@@ -162,11 +169,17 @@ automation:
       - 'on'
       - 'off'
       id: boiler_night_changed
+    - trigger: state
+      entity_id: binary_sensor.deye_6kw_priority_charge
+      to:
+      - 'on'
+      - 'off'
+      id: priority_6kw_changed
     conditions:
     # In Save / Save + Night Charge the periodic re-apply runs every 3 hours only
     - condition: template
       value_template: '{{ trigger.id != ''periodic_update''
-        or states(''input_select.selling_mode'') not in [''Save'', ''Save + Night Charge'']
+        or states(''input_select.selling_mode'') not in [''Save'', ''Save + Night Charge'', ''Save + Deye6 Charge'']
         or now().hour % 3 == 0 }}'
     actions:
     - variables:
@@ -180,7 +193,13 @@ automation:
           max_discharge_power_5kw] | min / 1000) | round(2) }}'
         is_selling_6kw: '{{ is_state(''input_boolean.deye_6kw_battery_selling'', ''on'')
           }}'
-        save: '{{ is_state(''input_select.selling_mode'', ''Save'') }}'
+        # Save + Deye6 Charge drives the 5kW exactly like Save
+        save: '{{ states(''input_select.selling_mode'') in [''Save'', ''Save + Deye6 Charge'']
+          }}'
+        deye6_mode: '{{ is_state(''input_select.selling_mode'', ''Save + Deye6 Charge'')
+          }}'
+        priority_6kw: '{{ is_state(''binary_sensor.deye_6kw_priority_charge'', ''on'')
+          }}'
         full_soc: 100
         full_low_soc: 95
         full_sell: '{% set soc = states(''sensor.deye_5kw_battery'') | float(0) %}{{
@@ -234,20 +253,22 @@ automation:
           6kw_power: 1
         winter_soc_6kw: '{{ export_soc_6kw }}'
         full_charge_6kw: '{{ is_state(''binary_sensor.deye_6kw_full_charge'', ''on'') }}'
+        grid_charge_6kw: '{{ full_charge_6kw or priority_6kw }}'
         boiler_night: '{{ is_state(''binary_sensor.boiler_night_heating'', ''on'') }}'
         s: '{% set base = config.get(current_state, config[''Idle'']) %}{% set base
           = dict(base, **force_override) if force else base %}{% set base = dict(base,
           **{''6kw_soc'': winter_soc_6kw}) if is_state(''binary_sensor.summer_season'',
           ''off'') and not force and not is_selling_6kw else base %}{{ dict(base, **{''6kw_soc'':
-          100}) if full_charge_6kw else dict(base, **{''6kw_soc'': [base[''6kw_soc''] |
+          100}) if grid_charge_6kw else dict(base, **{''6kw_soc'': [base[''6kw_soc''] |
           float(0), states(''sensor.deye_6kw_battery'') | float(0) | round(0)] | max})
           if boiler_night else base }}'
-        grid_charging_6kw: '{{ ''Grid'' if full_charge_6kw else ''Disabled'' }}'
+        grid_charging_6kw: '{{ ''Grid'' if grid_charge_6kw else ''Disabled'' }}'
         grid_charging: '{{ ''Grid'' if night_charge else ''Disabled'' }}'
         energy_pattern_6kw: '{{ ''Battery First'' if save or save_night else ''Load
           First'' }}'
-        winter_charge_6kw: '{{ is_state(''binary_sensor.summer_season'', ''off'') and
-          (save or save_night) }}'
+        winter_charge_6kw: '{{ deye6_mode or (is_state(''binary_sensor.summer_season'',
+          ''off'') and (save or save_night)) }}'
+        charge_power_6kw: '{{ 3.5 if deye6_mode else 1.5 }}'
     - if:
       - condition: template
         value_template: '{{ current_state == ''Evening Export'' }}'
@@ -291,8 +312,8 @@ automation:
           value: '{{ s[''5kw_power''] }}'
       - if:
         - condition: template
-          value_template: '{{ full_charge_6kw or boiler_night or trigger.id in [''full_charge_changed'',
-            ''boiler_night_changed'']
+          value_template: '{{ grid_charge_6kw or boiler_night or trigger.id in [''full_charge_changed'',
+            ''boiler_night_changed'', ''priority_6kw_changed'']
             or not (current_state == ''Evening Export'' and not is_selling_6kw and trigger.id
             != ''state_changed'') }}'
         then:
@@ -314,7 +335,7 @@ automation:
           target:
             entity_id: input_number.charge_power_deye_6kw
           data:
-            value: 1.5
+            value: '{{ charge_power_6kw }}'
       - action: input_number.set_value
         target:
           entity_id:
@@ -360,9 +381,9 @@ automation:
       - if:
         - condition: template
           value_template: '{{ not is_state(''switch.deye_6kw_battery_grid_charging'',
-            ''on'' if full_charge_6kw else ''off'') }}'
+            ''on'' if grid_charge_6kw else ''off'') }}'
         then:
-        - action: switch.turn_{{ 'on' if full_charge_6kw else 'off' }}
+        - action: switch.turn_{{ 'on' if grid_charge_6kw else 'off' }}
           target:
             entity_id: switch.deye_6kw_battery_grid_charging
       - repeat:

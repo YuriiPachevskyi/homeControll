@@ -115,7 +115,9 @@ MODES = """\
 
 **Save + Night Charge** (для зими) — удень спершу заряджає 5kW з PV: експорт 100 W, 5kW не розряджається нижче слайдера *Deye 5kW export SOC*. У Morning Export і Max Solar, щойно 5kW досягне **100 %**, експорт повертається до значення стану, а SOC стає 100: продається лише лишок PV, сама батарея ні (назад на заряд, коли 5kW < 95 %). Peak shaving на 5kW для цього не працює після оновлення прошивки. Увечері й у Idle експорт 100 W, батарея живить дім. Уночі з 23:10 до 06:30 5kW заряджається з мережі до 100 % (~2.4 kW). Каскад при цьому працює далі, і імпорт з мережі для нього — перевантаження: він може зняти бойлер чи заряд 6kW. Автоматично не скидається.
 
-**Зараз:** {{ states('input_select.selling_mode') }}{{ ' · 5kW заряджається з PV до 100 %, далі продаж лишку' if is_state('input_select.selling_mode','Save') else '' }}
+**Save + Deye6 Charge** — як Save для 5kW (експорт 100 W, не нижче слайдера *Deye 5kW export SOC*, на 100 % продаж лишку), але вдень (Morning Export і Max Solar) спершу заряджається **6kW**: SOC 6kW 100, Battery First, grid charging 6kW через SMART-порт 5kW, заряд 6kW до **3.5 kW**. Тобто PV обох інверторів іде в 6kW, поки разом < 3.5 kW; лише надлишок заряджає 5kW. Регулятор кожні 20 с міняє струм grid charging 6kW так, щоб 5kW не тягнув з мережі й не розряджав свою батарею. На 100 % 6kW вимикається (знову нижче 97 %); не працює, коли 6kW у No Battery, немає мережі або йде щомісячна повна зарядка. Каскад заряд 6kW не чіпає (3.5 kW). Увечері й у Idle — як Save. Улітку на початку Morning Export сам повертається в Normal.
+
+**Зараз:** {{ states('input_select.selling_mode') }}{{ ' · 5kW заряджається з PV до 100 %, далі продаж лишку' if is_state('input_select.selling_mode','Save') else '' }}{{ (' · 6kW заряджається першим (grid charge ' ~ states('number.deye_6kw_battery_grid_charging_current') ~ ' A)' if is_state('binary_sensor.deye_6kw_priority_charge','on') else ' · 6kW-пріоритет зараз не активний') if is_state('input_select.selling_mode','Save + Deye6 Charge') else '' }}
 """
 
 BOILER_FANS = """\

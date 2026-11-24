@@ -126,8 +126,12 @@ script:
           # of a grid loss, goes straight to 1.5)
           charge_steps_up: [0.75, 1.5, 2.25]
           charge_steps_down: [0, 0.75, 1.5]
-          # Winter with a Save mode: the 6kW charge stays >= 1.5 kW
-          charge_floor: "{{ 1.5 if is_state('binary_sensor.deye_6kw_winter_charge', 'on') else 0 }}"
+          # Winter with a Save mode: the 6kW charge stays >= 1.5 kW;
+          # Save + Deye6 Charge holds it at 3.5 kW (above every ladder rung,
+          # so neither ladder step runs)
+          charge_floor: >-
+            {{ 3.5 if is_state('input_select.selling_mode', 'Save + Deye6 Charge')
+               else 1.5 if is_state('binary_sensor.deye_6kw_winter_charge', 'on') else 0 }}
           charge_down: "{{ charge_steps_down | select('<', charge) | max | default(none) }}"
           charge_up: "{{ charge_steps_up | select('>', charge) | min | default(none) }}"
           b08: "{{ is_state('switch.1560_boiler_ten_0_8_kwh', 'on') }}"
