@@ -22,7 +22,7 @@
 #     (floor = input_number.deye_6kw_export_soc, in winter the 6kW min SOC),
 #     6kW load < 3 kW (a smaller high load only drains it faster):
 #     5kW -> No Battery (retried up to 10 min if ignored). Once a night.
-#  2/3. 6kW battery at the floor (or 6kW load > 4 kW, Night Charge, monthly full
+#  2/3. 6kW battery at the floor (or 6kW load > 4 kW, night charge, monthly full
 #     charge, boost, 5kW battery selling, 05:00, grid off for 2 min): 5kW ->
 #     Capacity. Off-grid the 6kW would go on below the floor, so this is retried
 #     every minute.
@@ -48,6 +48,8 @@
 #  to the 1st, 23:10-06:30): the 6kW is woken and deye_state_controller
 #  charges it from the grid to 100 % (BMS calibration after weeks at the floor).
 #  Only while input_boolean.deye_6kw_full_charge_enabled is on (off by default).
+#  Night charge modes (binary_sensor.deye_night_grid_charge, Save + Normal /
+#  Full Night Charge, 23:10-06:30) work the same way: 6kW woken, no standby.
 # Snow (input_boolean.deye_6kw_snow, set by hand when the 6kW panels are
 # covered - winter 2025/26 they gave 2-14 kWh a week for ~8 weeks while the
 # 5kW ones worked): the 6kW stays in Standby day and night (phase 4 at any
@@ -164,7 +166,15 @@ automation:
       soc6: "{{ states('sensor.deye_6kw_battery') | float(100) }}"
       # 6kW standby SOC = its winter min SOC (deye_state_controller)
       floor6: "{{ states('input_number.deye_6kw_export_soc') | float(55) }}"
-      full_charge: "{{ is_state('binary_sensor.deye_6kw_full_charge', 'on') }}"
+      # Monthly full charge or a night charge mode: the 6kW charges from the
+      # grid, so it is woken and never put to standby
+      full_charge: >-
+        {{ is_state('binary_sensor.deye_6kw_full_charge', 'on')
+           or is_state('binary_sensor.deye_night_grid_charge', 'on') }}
+      # Night charge modes: no 6kW standby all night, it would be woken
+      # (another ~30 s house blackout) at 23:10 anyway
+      night_mode: >-
+        {{ states('input_select.selling_mode') in ['Save + Normal Night Charge', 'Save + Full Night Charge'] }}
       grid: "{{ is_state('binary_sensor.deye_5kw_grid', 'on') }}"
       # 5 s poll, and unlike binary_sensor.deye_5kw_grid (30 s, reads off ~1 min
       # while the 5kW enters Standby) it stays ~220 V on a healthy grid
@@ -188,8 +198,6 @@ automation:
       busy5: >-
         {{ full_charge
            or is_state('binary_sensor.boiler_night_heating', 'on')
-           or (is_state('input_select.selling_mode', 'Save + Night Charge')
-               and is_state('binary_sensor.night_charge_window', 'on'))
            or (is_state('input_select.deye_system_state', 'Evening Export')
                and is_state('binary_sensor.selling_mode_save', 'off')
                and states('input_number.deye_5kw_export_soc') | float(100) < 100
@@ -241,7 +249,7 @@ automation:
                   inverter: 6kw
                   option: Capacity
                   reason: >-
-                    {{ 'monthly full charge' if full_charge and grid and not grid_v_low
+                    {{ ('night charge' if is_state('binary_sensor.deye_night_grid_charge', 'on') else 'monthly full charge') if full_charge and grid and not grid_v_low
                        else ('no grid, ' if not grid or grid_v_low else '') ~ 'PV ' ~ (states('sensor.deye_6kw_pv_power') | int(0)) ~ ' / '
                             ~ (states('sensor.deye_5kw_pv_power') | int(0)) ~ ' W, sunny '
                             ~ (sunny | int) ~ ' %' }}
@@ -303,7 +311,7 @@ automation:
                   {{ ((winter and night and dark and soc6 <= floor6 + 0.5
                        and is_state('input_boolean.deye_6kw_night_standby', 'on'))
                       or snow)
-                     and grid and not high_load and not full_charge
+                     and grid and not high_load and not full_charge and not night_mode
                      and mode5 == 'Capacity' and mode6 == 'Capacity'
                      and is_state('sensor.deye_6kw_device_state', 'Normal')
                      and soc5 > states('input_number.deye_5kw_min_soc') | float(100)

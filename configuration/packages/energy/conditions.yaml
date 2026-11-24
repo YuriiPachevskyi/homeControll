@@ -11,7 +11,8 @@ template:
       # Overload: grid import or battery discharge above Deye load-off power
       # threshold; in Force also a 5kW battery that charges at less than half
       # the surplus threshold (it should be charging hard then). Grid import
-      # does not count during boiler night heating (packages/boiler.yaml).
+      # does not count during boiler night heating (packages/boiler.yaml) and
+      # the night grid charge of both Deyes (binary_sensor.deye_night_grid_charge).
       - name: "Any device high power"
         unique_id: any_device_high_power
         default_entity_id: binary_sensor.any_device_high_power
@@ -29,7 +30,8 @@ template:
 
           {{
             (states('sensor.deye_5kw_grid_power')|float(0) > limit
-             and not is_state('binary_sensor.boiler_night_heating', 'on')) or
+             and not is_state('binary_sensor.boiler_night_heating', 'on')
+             and not is_state('binary_sensor.deye_night_grid_charge', 'on')) or
             states('sensor.deye_5kw_battery_power')|float(0) > limit or
             states('sensor.deye_6kw_battery_power')|float(0) > limit or
             (is_enabled and not battery_full and battery_power > charge_half_limit)
@@ -69,18 +71,17 @@ template:
         default_entity_id: binary_sensor.battery_deye_6kw_charged
         state: "{{ states('sensor.deye_6kw_battery')|float(0) == 100 }}"
 
-      # Save, Save + Night Charge or Save + Deye6 Charge (off = Normal or
-      # Force)
+      # Any Save mode (off = Normal or Force)
       - name: "Selling mode Save"
         unique_id: selling_mode_save
         default_entity_id: binary_sensor.selling_mode_save
         icon: mdi:piggy-bank-outline
         state: >-
-          {{ states('input_select.selling_mode') in ['Save', 'Save + Night Charge', 'Save + Deye6 Charge'] }}
+          {{ states('input_select.selling_mode') in ['Save', 'Save + Normal Night Charge', 'Save + Full Night Charge', 'Save + Deye6 Charge'] }}
 
-      # Night tariff grid charging window: Save + Night Charge charges the
-      # 5kW, the monthly full charge (binary_sensor.deye_6kw_full_charge) the
-      # 6kW. Change the times only here.
+      # Night tariff grid charging window: the night charge modes charge both
+      # Deyes (binary_sensor.deye_night_grid_charge), the monthly full charge
+      # (binary_sensor.deye_6kw_full_charge) the 6kW. Change the times only here.
       - name: "Night charge window"
         unique_id: night_charge_window
         default_entity_id: binary_sensor.night_charge_window
@@ -88,6 +89,22 @@ template:
         state: >-
           {% set t = now().strftime('%H:%M') %}
           {{ t >= '23:10' or t < '06:30' }}
+
+      # Save + Normal Night Charge / Save + Full Night Charge inside the night
+      # charge window: both Deyes charge from the grid to attribute target
+      # (85 % Normal - the everyday mode, 100 % Full - service full charge a
+      # couple of times a month). deye_state_controller sets min SOC = target
+      # and grid charging on both; deye_night_standby keeps the 6kW awake.
+      - name: "Deye night grid charge"
+        unique_id: deye_night_grid_charge
+        default_entity_id: binary_sensor.deye_night_grid_charge
+        icon: mdi:battery-charging-high
+        state: >-
+          {{ states('input_select.selling_mode') in ['Save + Normal Night Charge', 'Save + Full Night Charge']
+             and is_state('binary_sensor.night_charge_window', 'on') }}
+        attributes:
+          target: >-
+            {{ 100 if is_state('input_select.selling_mode', 'Save + Full Night Charge') else 85 }}
 
       # Winter with a Save mode: the 6kW charge power is held at >= 1.5 kW
       # (deye_state_controller resets it, the cascade never cuts below it)
@@ -97,7 +114,7 @@ template:
         icon: mdi:battery-charging-medium
         state: >-
           {{ is_state('binary_sensor.summer_season', 'off')
-             and states('input_select.selling_mode') in ['Save', 'Save + Night Charge', 'Save + Deye6 Charge'] }}
+             and states('input_select.selling_mode') in ['Save', 'Save + Normal Night Charge', 'Save + Full Night Charge', 'Save + Deye6 Charge'] }}
 
       # Save + Deye6 Charge, daytime: the 6kW battery comes first. The 6kW
       # charges from its own PV and, through grid charging on its grid port

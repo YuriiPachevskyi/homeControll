@@ -12,7 +12,7 @@ automation:
       Force only works from the start of Morning Export to the end of Max Solar; outside
       that window it is reset to Normal (also on HA start, in case the Evening Export
       trigger was missed). Save and Save + Deye6 Charge are reset to Normal at every Morning Export start in
-      summer (binary_sensor.summer_season, kept all winter); Save + Night Charge is
+      summer (binary_sensor.summer_season, kept all winter); the night charge modes are
       never reset. Changing any of the four start times re-evaluates the state right
       away.
     triggers:
@@ -81,24 +81,25 @@ automation:
     description: Applies settings based on current Deye System State. 5kW discharge
       SOC for Morning Export, Max Solar and Evening Export comes from input_number.deye_5kw_export_soc,
       6kW discharge SOC for Evening Export (selling) from input_number.deye_6kw_export_soc
-      (changing either re-applies the settings); in Save and Save + Night Charge the
+      (changing either re-applies the settings); in Save and Save + Normal/Full Night Charge the
       5kW slider is the 5kW discharge floor in every state, Idle included (Normal and
       Force keep Idle at 35). input_select.selling_mode Save forces export 100 W in all states, so PV charges
       the 5kW battery and nothing is sold (min SOC alone does not charge, in Export
       First the Deye sells PV before charging); in Morning Export and Max Solar it sells
-      only once the 5kW battery is full, same as Save + Night Charge (full_sell). Force
+      only once the 5kW battery is full, same as Save + Normal/Full Night Charge (full_sell). Force
       overrides Morning Export and Max Solar with 5kW SOC 40 / 0.35 kW, export 5080,
-      6kW SOC 55 / 1 kW (was the Max Solar Forced state). Save + Night Charge uses
+      6kW SOC 55 / 1 kW (was the Max Solar Forced state). Save + Normal/Full Night Charge uses
       export 100 W (all 5kW PV goes to charging, nothing is sold); in Morning
       Export and Max Solar, once the 5kW battery is at 100% (full_soc, back to charging
       below full_low_soc 95, both hard-coded in the soc_5kw_full/low triggers too) Save
-      and Save + Night Charge switch to SOC 100 + the state's export limit, so the PV
+      and Save + Normal/Full Night Charge switch to SOC 100 + the state's export limit, so the PV
       surplus is sold but the battery is not (5kW grid peak shaving no longer does this
-      since the firmware update). Save + Night Charge is never reset by any automation;
-      from 23:10 to 06:30 it sets 5kW SOC 100 with grid charging on (all 6 programs
-      Grid); the cascade keeps running (add conditions there if the grid import makes
-      it shed loads or start the boiler / battery charge steps). In winter (binary_sensor.summer_season
-      off) in Save and Save + Night Charge every run (except battery_changed) resets
+      since the firmware update). Save + Normal/Full Night Charge is never reset by any automation;
+      from 23:10 to 06:30 (binary_sensor.deye_night_grid_charge) BOTH Deyes get min SOC
+      85 (Normal) / 100 (Full) with grid charging on (all 6 programs Grid), the 6kW
+      charge power is at least 1.5 kW; the grid import does not count as a cascade
+      overload then and deye_night_standby keeps the 6kW awake all night. In winter (binary_sensor.summer_season
+      off) in Save and Save + Normal/Full Night Charge every run (except battery_changed) resets
       input_number.charge_power_deye_6kw to 1.5 kW. In winter 6kW min SOC is
       input_number.deye_6kw_export_soc (in summer the floor the 6kW battery is sold
       down to, in winter its discharge floor = the night standby floor in
@@ -107,7 +108,7 @@ automation:
       binary_sensor.deye_6kw_full_charge is on (winter, the night to the 1st, 23:10-06:30)
       the 6kW charges from the grid to 100 % (min SOC 100, all 6 programs Grid) and the
       5kW min SOC is held at its current SOC so the 5kW battery does not feed it. 6kW
-      energy pattern is Battery First in Save and Save + Night Charge, Load First otherwise.
+      energy pattern is Battery First in Save and Save + Normal/Full Night Charge, Load First otherwise.
       Save + Deye6 Charge works like Save for the 5kW; while binary_sensor.deye_6kw_priority_charge
       is on (Morning Export / Max Solar, 6kW < 100 %) the 6kW charges first - min SOC 100,
       grid charging on (all 6 programs Grid) through the 5kW SMART port, the grid charge
@@ -176,16 +177,20 @@ automation:
       - 'off'
       id: priority_6kw_changed
     conditions:
-    # In Save / Save + Night Charge the periodic re-apply runs every 3 hours only
+    # In Save / Save + Normal/Full Night Charge the periodic re-apply runs every 3 hours only
     - condition: template
       value_template: '{{ trigger.id != ''periodic_update''
-        or states(''input_select.selling_mode'') not in [''Save'', ''Save + Night Charge'', ''Save + Deye6 Charge'']
+        or states(''input_select.selling_mode'') not in [''Save'', ''Save + Normal Night Charge'', ''Save + Full Night Charge'', ''Save + Deye6 Charge'']
         or now().hour % 3 == 0 }}'
     actions:
     - variables:
         current_state: '{{ states(''input_select.deye_system_state'') }}'
-        save_night: '{{ is_state(''input_select.selling_mode'', ''Save + Night Charge'')
-          }}'
+        # Save + Normal Night Charge / Save + Full Night Charge: both Deyes
+        # charge from the grid at night to night_target
+        save_night: '{{ states(''input_select.selling_mode'') in [''Save + Normal Night Charge'',
+          ''Save + Full Night Charge''] }}'
+        night_target: '{{ 100 if is_state(''input_select.selling_mode'', ''Save + Full Night Charge'')
+          else 85 }}'
         night_charge: '{{ save_night and is_state(''binary_sensor.night_charge_window'',
           ''on'') }}'
         max_discharge_power_5kw: 2400
@@ -235,7 +240,7 @@ automation:
             peak_shaving_6kw: '{{ ''off'' if is_selling_6kw else ''on'' }}'
             general_automation: true
           Idle:
-            5kw_soc: '{{ 100 if night_charge else export_soc_5kw if save or save_night
+            5kw_soc: '{{ night_target if night_charge else export_soc_5kw if save or save_night
               else 35 }}'
             5kw_power: 1
             export_power: 100
@@ -253,20 +258,21 @@ automation:
           6kw_power: 1
         winter_soc_6kw: '{{ export_soc_6kw }}'
         full_charge_6kw: '{{ is_state(''binary_sensor.deye_6kw_full_charge'', ''on'') }}'
-        grid_charge_6kw: '{{ full_charge_6kw or priority_6kw }}'
+        grid_charge_6kw: '{{ full_charge_6kw or priority_6kw or night_charge }}'
+        grid_soc_6kw: '{{ 100 if full_charge_6kw or priority_6kw else night_target }}'
         boiler_night: '{{ is_state(''binary_sensor.boiler_night_heating'', ''on'') }}'
         s: '{% set base = config.get(current_state, config[''Idle'']) %}{% set base
           = dict(base, **force_override) if force else base %}{% set base = dict(base,
           **{''6kw_soc'': winter_soc_6kw}) if is_state(''binary_sensor.summer_season'',
           ''off'') and not force and not is_selling_6kw else base %}{{ dict(base, **{''6kw_soc'':
-          100}) if grid_charge_6kw else dict(base, **{''6kw_soc'': [base[''6kw_soc''] |
+          grid_soc_6kw}) if grid_charge_6kw else dict(base, **{''6kw_soc'': [base[''6kw_soc''] |
           float(0), states(''sensor.deye_6kw_battery'') | float(0) | round(0)] | max})
           if boiler_night else base }}'
         grid_charging_6kw: '{{ ''Grid'' if grid_charge_6kw else ''Disabled'' }}'
         grid_charging: '{{ ''Grid'' if night_charge else ''Disabled'' }}'
         energy_pattern_6kw: '{{ ''Battery First'' if save or save_night else ''Load
           First'' }}'
-        winter_charge_6kw: '{{ deye6_mode or (is_state(''binary_sensor.summer_season'',
+        winter_charge_6kw: '{{ deye6_mode or night_charge or (is_state(''binary_sensor.summer_season'',
           ''off'') and (save or save_night)) }}'
         charge_power_6kw: '{{ 3.5 if deye6_mode else 1.5 }}'
     - if:
