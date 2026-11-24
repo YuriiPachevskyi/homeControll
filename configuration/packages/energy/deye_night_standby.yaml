@@ -48,8 +48,10 @@
 #  to the 1st, 23:10-06:30): the 6kW is woken and deye_state_controller
 #  charges it from the grid to 100 % (BMS calibration after weeks at the floor).
 #  Only while input_boolean.deye_6kw_full_charge_enabled is on (off by default).
-#  Night charge modes (binary_sensor.deye_night_grid_charge, Save + Normal /
-#  Full Night Charge, 23:10-06:30) work the same way: 6kW woken, no standby.
+#  6kW night charge (binary_sensor.deye_6kw_night_grid_charge: Save + Normal /
+#  Full Night Charge with input_boolean.deye_6kw_night_standby off, 23:10-06:30)
+#  works the same way: 6kW woken, no standby. With night standby on, or in
+#  Save + 5kW Night Charge, only the 5kW charges (busy5) and the 6kW sleeps.
 # Snow (input_boolean.deye_6kw_snow, set by hand when the 6kW panels are
 # covered - winter 2025/26 they gave 2-14 kWh a week for ~8 weeks while the
 # 5kW ones worked): the 6kW stays in Standby day and night (phase 4 at any
@@ -170,12 +172,14 @@ automation:
       # grid, so it is woken and never put to standby
       full_charge: >-
         {{ (is_state('binary_sensor.deye_6kw_full_charge', 'on')
-            and is_state('binary_sensor.deye_grid_present', 'on'))
-           or is_state('binary_sensor.deye_night_grid_charge', 'on') }}
-      # Night charge modes: no 6kW standby all night, it would be woken
-      # (another ~30 s house blackout) at 23:10 anyway
+            and not is_state('binary_sensor.deye_grid_present', 'off'))
+           or is_state('binary_sensor.deye_6kw_night_grid_charge', 'on') }}
+      # 6kW night charge modes (Normal / Full with 6kW night standby off): no
+      # 6kW standby all night, it would be woken (another ~30 s house
+      # blackout) at 23:10 anyway. Snow still puts it to standby before.
       night_mode: >-
-        {{ states('input_select.selling_mode') in ['Save + Normal Night Charge', 'Save + Full Night Charge'] }}
+        {{ states('input_select.selling_mode') in ['Save + Normal Night Charge', 'Save + Full Night Charge']
+           and is_state('input_boolean.deye_6kw_night_standby', 'off') }}
       grid: "{{ is_state('binary_sensor.deye_5kw_grid', 'on') }}"
       # 5 s poll, and unlike binary_sensor.deye_5kw_grid (30 s, reads off ~1 min
       # while the 5kW enters Standby) it stays ~220 V on a healthy grid
@@ -198,6 +202,7 @@ automation:
       # Things the 5kW battery is needed for at night
       busy5: >-
         {{ full_charge
+           or is_state('binary_sensor.deye_night_grid_charge', 'on')
            or is_state('binary_sensor.boiler_night_heating', 'on')
            or (is_state('input_select.deye_system_state', 'Evening Export')
                and is_state('binary_sensor.selling_mode_save', 'off')
@@ -250,7 +255,7 @@ automation:
                   inverter: 6kw
                   option: Capacity
                   reason: >-
-                    {{ ('night charge' if is_state('binary_sensor.deye_night_grid_charge', 'on') else 'monthly full charge') if full_charge and grid and not grid_v_low
+                    {{ ('night charge' if is_state('binary_sensor.deye_6kw_night_grid_charge', 'on') else 'monthly full charge') if full_charge and grid and not grid_v_low
                        else ('no grid, ' if not grid or grid_v_low else '') ~ 'PV ' ~ (states('sensor.deye_6kw_pv_power') | int(0)) ~ ' / '
                             ~ (states('sensor.deye_5kw_pv_power') | int(0)) ~ ' W, sunny '
                             ~ (sunny | int) ~ ' %' }}

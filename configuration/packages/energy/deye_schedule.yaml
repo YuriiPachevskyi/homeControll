@@ -95,9 +95,10 @@ automation:
       and Save + Normal/Full Night Charge switch to SOC 100 + the state's export limit, so the PV
       surplus is sold but the battery is not (5kW grid peak shaving no longer does this
       since the firmware update). Save + Normal/Full Night Charge is never reset by any automation;
-      from 23:10 to 06:30 (binary_sensor.deye_night_grid_charge) BOTH Deyes get min SOC
-      85 (Normal) / 100 (Full) with grid charging on (all 6 programs Grid), the 6kW
-      charge power is at least 1.5 kW; the grid import does not count as a cascade
+      from 23:10 to 06:30 (binary_sensor.deye_night_grid_charge, grid present) the 5kW
+      gets min SOC 85 (Normal, 5kW) / 100 (Full) with grid charging on (all 6 programs
+      Grid); in Normal / Full the 6kW too (binary_sensor.deye_6kw_night_grid_charge,
+      not while Deye 6kW night standby is on), its charge power at least 1.5 kW; the grid import does not count as a cascade
       overload then and deye_night_standby keeps the 6kW awake all night. In winter (binary_sensor.summer_season
       off) in Save and Save + Normal/Full Night Charge every run (except battery_changed) resets
       input_number.charge_power_deye_6kw to 1.5 kW. In winter 6kW min SOC is
@@ -191,6 +192,7 @@ automation:
     - trigger: state
       entity_id:
       - binary_sensor.deye_night_grid_charge
+      - binary_sensor.deye_6kw_night_grid_charge
       - binary_sensor.deye_grid_present
       not_from:
       - unavailable
@@ -203,7 +205,7 @@ automation:
     # In Save / Save + Normal/Full Night Charge the periodic re-apply runs every 3 hours only
     - condition: template
       value_template: '{{ trigger.id != ''periodic_update''
-        or states(''input_select.selling_mode'') not in [''Save'', ''Save + Normal Night Charge'', ''Save + Full Night Charge'', ''Save + Deye6 Charge'']
+        or states(''input_select.selling_mode'') not in [''Save'', ''Save + Normal Night Charge'', ''Save + Full Night Charge'', ''Save + 5kW Night Charge'', ''Save + Deye6 Charge'']
         or now().hour % 3 == 0 }}'
     actions:
     - variables:
@@ -211,11 +213,13 @@ automation:
         # Save + Normal Night Charge / Save + Full Night Charge: both Deyes
         # charge from the grid at night to night_target
         save_night: '{{ states(''input_select.selling_mode'') in [''Save + Normal Night Charge'',
-          ''Save + Full Night Charge''] }}'
+          ''Save + Full Night Charge'', ''Save + 5kW Night Charge''] }}'
         night_target: '{{ 100 if is_state(''input_select.selling_mode'', ''Save + Full Night Charge'')
           else 85 }}'
         # binary_sensor.deye_night_grid_charge = night mode + window + grid present
         night_charge: '{{ is_state(''binary_sensor.deye_night_grid_charge'', ''on'') }}'
+        # ... and the 6kW too (not in 5kW mode, not with 6kW night standby on)
+        night_charge_6kw: '{{ is_state(''binary_sensor.deye_6kw_night_grid_charge'', ''on'') }}'
         max_discharge_power_5kw: 2400
         smart_limit: '{{ ([states(''sensor.deye_5kw_smart_discharge_limit'') | float(300),
           max_discharge_power_5kw] | min / 1000) | round(2) }}'
@@ -282,8 +286,8 @@ automation:
         winter_soc_6kw: '{{ export_soc_6kw }}'
         # Off-grid the 6kW must not "grid" charge from the 5kW battery
         full_charge_6kw: '{{ is_state(''binary_sensor.deye_6kw_full_charge'', ''on'')
-          and is_state(''binary_sensor.deye_grid_present'', ''on'') }}'
-        grid_charge_6kw: '{{ full_charge_6kw or priority_6kw or night_charge }}'
+          and not is_state(''binary_sensor.deye_grid_present'', ''off'') }}'
+        grid_charge_6kw: '{{ full_charge_6kw or priority_6kw or night_charge_6kw }}'
         grid_soc_6kw: '{{ 100 if full_charge_6kw or priority_6kw else night_target }}'
         boiler_night: '{{ is_state(''binary_sensor.boiler_night_heating'', ''on'') }}'
         s: '{% set base = config.get(current_state, config[''Idle'']) %}{% set base
@@ -297,7 +301,7 @@ automation:
         grid_charging: '{{ ''Grid'' if night_charge else ''Disabled'' }}'
         energy_pattern_6kw: '{{ ''Battery First'' if save or save_night else ''Load
           First'' }}'
-        winter_charge_6kw: '{{ deye6_mode or night_charge or (is_state(''binary_sensor.summer_season'',
+        winter_charge_6kw: '{{ deye6_mode or night_charge_6kw or (is_state(''binary_sensor.summer_season'',
           ''off'') and (save or save_night)) }}'
         charge_power_6kw: '{{ 3.5 if deye6_mode else 1.5 }}'
     - if:
@@ -461,6 +465,82 @@ automation:
     initial_state: true
     mode: queued
     max: 5
+  # Night charge modes, automatic changes:
+  #  - 06:30 (night charge window ends): Save + Full Night Charge (service
+  #    full charge, one night) -> Save + Normal Night Charge;
+  #  - winter 22:00: tomorrow > 50 % sunny (cloud_tomorrow 08:00-18:00 of
+  #    sensor.deye_6kw_sunny_today) -> Normal, no grid charge tonight. Not
+  #    switched back by itself.
+  - id: deye_night_mode_auto
+    alias: Deye night charge mode auto
+    initial_state: true
+    description: Save + Full Night Charge -> Save + Normal Night Charge when the night
+      charge window ends; in winter at 22:00 any night charge mode -> Normal when
+      tomorrow is forecast more than 50 % sunny.
+    triggers:
+    - trigger: state
+      entity_id: binary_sensor.night_charge_window
+      from: 'on'
+      to: 'off'
+      id: full_done
+    - trigger: time
+      at: '22:00:00'
+      id: sunny_check
+    variables:
+      sunny: '{{ 100 - state_attr(''sensor.deye_6kw_sunny_today'', ''cloud_tomorrow'')
+        | float(100) }}'
+    actions:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id: full_done
+        - condition: state
+          entity_id: input_select.selling_mode
+          state: Save + Full Night Charge
+        sequence:
+        - action: input_select.select_option
+          target:
+            entity_id: input_select.selling_mode
+          data:
+            option: Save + Normal Night Charge
+        - action: script.energy_log
+          data:
+            message: 'Night mode: Full Night Charge done -> Save + Normal Night Charge
+              (5kW {{ states(''sensor.deye_5kw_battery'') }} %, 6kW {{ states(''sensor.deye_6kw_battery'')
+              }} %)'
+      - conditions:
+        - condition: trigger
+          id: sunny_check
+        - condition: state
+          entity_id: binary_sensor.summer_season
+          state: 'off'
+        - condition: state
+          entity_id: input_select.selling_mode
+          state:
+          - Save + Normal Night Charge
+          - Save + Full Night Charge
+          - Save + 5kW Night Charge
+        - condition: template
+          value_template: '{{ sunny > 50 }}'
+        sequence:
+        - variables:
+            old_mode: '{{ states(''input_select.selling_mode'') }}'
+        - action: input_select.select_option
+          target:
+            entity_id: input_select.selling_mode
+          data:
+            option: Normal
+        - action: script.energy_log
+          data:
+            message: 'Night mode: tomorrow sunny {{ sunny | round(0) }} % -> Normal (was
+              {{ old_mode }})'
+        - action: script.notify_all
+          data:
+            title: Deye
+            message: 'Завтра сонячно ({{ sunny | round(0) }} %), нічної зарядки не буде:
+              Selling mode {{ old_mode }} -> Normal.'
+            to: yurii_only
+    mode: queued
   - id: deye_6kw_selling_weather_check
     alias: Deye 6kW Battery Selling - Auto Weather Check
     description: Auto-toggles input_boolean.deye_6kw_battery_selling based on tomorrow's

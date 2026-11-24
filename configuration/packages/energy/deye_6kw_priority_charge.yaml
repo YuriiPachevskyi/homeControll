@@ -24,7 +24,12 @@ automation:
       id: tick
     - trigger: state
       entity_id: binary_sensor.deye_6kw_priority_charge
+      not_from:
+      - unavailable
+      - unknown
       to: 'off'
+      # A template reload can flip it off for a moment
+      for: 00:00:10
       id: stop
     conditions:
     - condition: template
@@ -36,7 +41,6 @@ automation:
         default_a: 40
         max_w: 3500
         margin_w: 150
-        gain: 0.7
         cur_a: '{{ states(''number.deye_6kw_battery_grid_charging_current'') | float(0)
           }}'
         g5: '{{ states(''sensor.deye_5kw_grid_power'') | float(0) }}'
@@ -48,6 +52,8 @@ automation:
         # 5kW discharge and grid import count against it
         spare: '{{ -b5 - g5 - margin_w }}'
         step: '{{ [spare, max_w - charge6] | min }}'
+        # Down (import / 5kW discharge) at once, up carefully
+        gain: '{{ 1 if step < 0 else 0.7 }}'
         # What the 6kW battery takes on top of its own PV (Battery First)
         from_grid_port: '{{ [charge6 - pv6, 0] | max }}'
         target_w: '{{ [[cur_a * voltage + gain * step, from_grid_port + 1000, max_w]

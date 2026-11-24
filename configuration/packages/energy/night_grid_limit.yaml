@@ -1,0 +1,170 @@
+# Night grid import limit and the night charge mode guard.
+#
+# 1. Import limit (input_number.night_grid_import_limit, 4 kW): in the night
+#    charge window (23:10-06:30, any mode: night charge, monthly full charge,
+#    boiler night) the total grid import at the 5kW (sensor.deye_5kw_grid_power,
+#    the 6kW and the whole house hang behind it) is kept below the limit. The
+#    house and the boiler come first, the batteries get what is left: every
+#    30 s (and at once when the import goes over the limit) the budget
+#    = present battery charging + (limit - margin - import) is split between
+#    the grid charge currents, 6kW first (it is capped by its max charge
+#    current anyway), the rest to the 5kW, both up to their defaults (5kW 60 A,
+#    6kW 40 A). At the window end both go back to the defaults.
+#    Backstop: import over the limit while nothing is left to cut counts as a
+#    cascade overload (binary_sensor.any_device_high_power, conditions.yaml):
+#    the cascade sheds heating / boiler and boiler night heating does not
+#    switch TENs on while it lasts.
+# 2. Guard: Deye 6kW night standby and the night charge of both Deyes (Save +
+#    Normal / Full Night Charge) exclude each other. Standby turned on in such
+#    a mode is turned off again; one of these modes selected while standby is
+#    on becomes Save + 5kW Night Charge. Both with a notification.
+input_number:
+  night_grid_import_limit:
+    name: Night grid import limit
+    icon: mdi:transmission-tower-import
+    min: 2
+    max: 6
+    step: 0.25
+    unit_of_measurement: kW
+    mode: box
+
+automation:
+  - id: deye_night_import_limiter
+    alias: Deye night grid import limiter
+    initial_state: true
+    description: Night charge window - keeps the grid import under input_number.night_grid_import_limit
+      by moving the 5kW / 6kW grid charge currents (6kW first); defaults 60 / 40 A
+      back at the window end.
+    triggers:
+    - trigger: time_pattern
+      seconds: /30
+      id: tick
+    - trigger: numeric_state
+      entity_id: sensor.deye_5kw_grid_power
+      above: sensor.night_grid_import_limit_w
+      for: 00:00:05
+      id: over
+    - trigger: state
+      entity_id: binary_sensor.night_charge_window
+      from: 'on'
+      to: 'off'
+      id: stop
+    conditions:
+    - condition: template
+      value_template: '{{ trigger.id == ''stop'' or is_state(''binary_sensor.night_charge_window'',
+        ''on'') }}'
+    actions:
+    - variables:
+        v5: 54.4
+        v6: 51
+        def5: 60
+        def6: 40
+        margin_w: 300
+        limit_w: '{{ states(''input_number.night_grid_import_limit'') | float(4) * 1000 }}'
+        g5: '{{ states(''sensor.deye_5kw_grid_power'') | float(0) }}'
+        c5: '{{ [-(states(''sensor.deye_5kw_battery_power'') | float(0)), 0] | max }}'
+        c6: '{{ [-(states(''sensor.deye_6kw_battery_power'') | float(0)), 0] | max }}'
+        cur5: '{{ states(''number.deye_5kw_battery_grid_charging_current'') | float(def5) }}'
+        cur6: '{{ states(''number.deye_6kw_battery_grid_charging_current'') | float(def6) }}'
+        budget: '{{ [c5 + c6 + limit_w - margin_w - g5, 0] | max }}'
+        # The 6kW never takes more than its max charge current
+        cap6: '{{ [def6, states(''number.deye_6kw_battery_max_charging_current'') | float(def6)] | min }}'
+        a6: '{{ def6 if trigger.id == ''stop'' else [[budget / v6, cap6] | min, 0] | max | round(0) | int }}'
+        a5: '{{ def5 if trigger.id == ''stop'' else [[(budget - a6 * v6) / v5, def5] | min, 0] | max | round(0) | int }}'
+        # Small steps only when going up, at once when going down
+        changed6: '{{ (a6 - cur6) | abs >= 3 or (a6 < cur6 and a6 == 0) or (trigger.id == ''stop'' and a6 != cur6) }}'
+        changed5: '{{ (a5 - cur5) | abs >= 3 or (a5 < cur5 and a5 == 0) or (trigger.id == ''stop'' and a5 != cur5) }}'
+    - if:
+      - condition: template
+        value_template: '{{ changed6 }}'
+      then:
+      - action: number.set_value
+        target:
+          entity_id: number.deye_6kw_battery_grid_charging_current
+        data:
+          value: '{{ a6 }}'
+    - if:
+      - condition: template
+        value_template: '{{ changed5 }}'
+      then:
+      - delay: 00:00:02
+      - action: number.set_value
+        target:
+          entity_id: number.deye_5kw_battery_grid_charging_current
+        data:
+          value: '{{ a5 }}'
+    - if:
+      - condition: template
+        value_template: '{{ changed5 or changed6 }}'
+      then:
+      - action: script.energy_log
+        data:
+          message: 'Night import limit: grid {{ g5 | int }} W (limit {{ limit_w | int }}),
+            grid charge 5kW {{ cur5 | int }} -> {{ a5 }} A, 6kW {{ cur6 | int }} -> {{ a6 }} A'
+    mode: single
+    max_exceeded: silent
+
+  - id: deye_night_mode_guard
+    alias: Deye night charge mode guard
+    initial_state: true
+    description: Deye 6kW night standby cannot be on together with Save + Normal / Full
+      Night Charge (both Deyes charge at night). Standby on in such a mode -> off again;
+      such a mode selected with standby on -> Save + 5kW Night Charge.
+    triggers:
+    - trigger: state
+      entity_id: input_boolean.deye_6kw_night_standby
+      to: 'on'
+      id: standby_on
+    - trigger: state
+      entity_id: input_select.selling_mode
+      to:
+      - Save + Normal Night Charge
+      - Save + Full Night Charge
+      id: mode_both
+    conditions:
+    - condition: state
+      entity_id: input_boolean.deye_6kw_night_standby
+      state: 'on'
+    - condition: state
+      entity_id: input_select.selling_mode
+      state:
+      - Save + Normal Night Charge
+      - Save + Full Night Charge
+    actions:
+    - choose:
+      - conditions:
+        - condition: trigger
+          id: standby_on
+        sequence:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.deye_6kw_night_standby
+        - action: script.notify_all
+          data:
+            title: Deye
+            message: 'Deye 6kW night standby недоступний: вибрано {{ states(''input_select.selling_mode'')
+              }} (нічна зарядка обох Deye). Для standby вибери Save + 5kW Night Charge.'
+            to: yurii_only
+      default:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.selling_mode
+        data:
+          option: Save + 5kW Night Charge
+      - action: script.notify_all
+        data:
+          title: Deye
+          message: 'Увімкнено Deye 6kW night standby, тому нічна зарядка обох недоступна:
+            Selling mode -> Save + 5kW Night Charge. Щоб заряджати обидві, спершу вимкни
+            night standby.'
+          to: yurii_only
+    mode: queued
+
+template:
+  - sensor:
+      # The limit in W, for the numeric_state trigger above
+      - name: Night grid import limit W
+        unique_id: night_grid_import_limit_w
+        default_entity_id: sensor.night_grid_import_limit_w
+        unit_of_measurement: W
+        state: "{{ states('input_number.night_grid_import_limit') | float(4) * 1000 }}"
