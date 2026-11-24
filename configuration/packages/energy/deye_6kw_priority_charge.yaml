@@ -2,7 +2,7 @@
 # (packages/energy/conditions.yaml) deye_state_controller puts the 6kW in
 # grid charging (min SOC 100, all 6 programs Grid, max charge 3.5 kW). Its
 # grid port hangs on the 5kW SMART port, so "grid" charging takes the 5kW PV
-# first. This regulator moves the 6kW grid charge current every 20 s so that
+# first. This regulator moves the 6kW grid charge current once a minute so that
 # it takes only what the 5kW would otherwise put into its own battery or
 # export, never grid import or 5kW battery discharge:
 #   spare = 5kW battery charge + 5kW export - margin   (negative on import)
@@ -16,11 +16,11 @@ automation:
     alias: Deye 6kW priority charge regulator
     initial_state: true
     description: Save + Deye6 Charge - regulates number.deye_6kw_battery_grid_charging_current
-      every 20 s so the 6kW battery charges up to 3.5 kW from both PVs without grid
+      once a minute so the 6kW battery charges up to 3.5 kW from both PVs without grid
       import; back to 40 A when binary_sensor.deye_6kw_priority_charge goes off.
     triggers:
     - trigger: time_pattern
-      seconds: /20
+      minutes: /1
       id: tick
     - trigger: state
       entity_id: binary_sensor.deye_6kw_priority_charge
