@@ -160,18 +160,30 @@ automation:
       id: night_charge_stop
     - trigger: state
       entity_id: binary_sensor.deye_6kw_full_charge
+      # Template reload / HA start: unavailable -> on/off is not a change
+      not_from:
+      - unavailable
+      - unknown
       to:
       - 'on'
       - 'off'
       id: full_charge_changed
     - trigger: state
       entity_id: binary_sensor.boiler_night_heating
+      # Template reload / HA start: unavailable -> on/off is not a change
+      not_from:
+      - unavailable
+      - unknown
       to:
       - 'on'
       - 'off'
       id: boiler_night_changed
     - trigger: state
       entity_id: binary_sensor.deye_6kw_priority_charge
+      # Template reload / HA start: unavailable -> on/off is not a change
+      not_from:
+      - unavailable
+      - unknown
       to:
       - 'on'
       - 'off'
@@ -180,6 +192,9 @@ automation:
       entity_id:
       - binary_sensor.deye_night_grid_charge
       - binary_sensor.deye_grid_present
+      not_from:
+      - unavailable
+      - unknown
       to:
       - 'on'
       - 'off'
