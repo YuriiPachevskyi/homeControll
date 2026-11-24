@@ -169,7 +169,8 @@ automation:
       # Monthly full charge or a night charge mode: the 6kW charges from the
       # grid, so it is woken and never put to standby
       full_charge: >-
-        {{ is_state('binary_sensor.deye_6kw_full_charge', 'on')
+        {{ (is_state('binary_sensor.deye_6kw_full_charge', 'on')
+            and is_state('binary_sensor.deye_grid_present', 'on'))
            or is_state('binary_sensor.deye_night_grid_charge', 'on') }}
       # Night charge modes: no 6kW standby all night, it would be woken
       # (another ~30 s house blackout) at 23:10 anyway

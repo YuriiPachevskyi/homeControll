@@ -176,6 +176,14 @@ automation:
       - 'on'
       - 'off'
       id: priority_6kw_changed
+    - trigger: state
+      entity_id:
+      - binary_sensor.deye_night_grid_charge
+      - binary_sensor.deye_grid_present
+      to:
+      - 'on'
+      - 'off'
+      id: grid_charge_changed
     conditions:
     # In Save / Save + Normal/Full Night Charge the periodic re-apply runs every 3 hours only
     - condition: template
@@ -191,8 +199,8 @@ automation:
           ''Save + Full Night Charge''] }}'
         night_target: '{{ 100 if is_state(''input_select.selling_mode'', ''Save + Full Night Charge'')
           else 85 }}'
-        night_charge: '{{ save_night and is_state(''binary_sensor.night_charge_window'',
-          ''on'') }}'
+        # binary_sensor.deye_night_grid_charge = night mode + window + grid present
+        night_charge: '{{ is_state(''binary_sensor.deye_night_grid_charge'', ''on'') }}'
         max_discharge_power_5kw: 2400
         smart_limit: '{{ ([states(''sensor.deye_5kw_smart_discharge_limit'') | float(300),
           max_discharge_power_5kw] | min / 1000) | round(2) }}'
@@ -257,7 +265,9 @@ automation:
           6kw_soc: 55
           6kw_power: 1
         winter_soc_6kw: '{{ export_soc_6kw }}'
-        full_charge_6kw: '{{ is_state(''binary_sensor.deye_6kw_full_charge'', ''on'') }}'
+        # Off-grid the 6kW must not "grid" charge from the 5kW battery
+        full_charge_6kw: '{{ is_state(''binary_sensor.deye_6kw_full_charge'', ''on'')
+          and is_state(''binary_sensor.deye_grid_present'', ''on'') }}'
         grid_charge_6kw: '{{ full_charge_6kw or priority_6kw or night_charge }}'
         grid_soc_6kw: '{{ 100 if full_charge_6kw or priority_6kw else night_target }}'
         boiler_night: '{{ is_state(''binary_sensor.boiler_night_heating'', ''on'') }}'
@@ -319,7 +329,7 @@ automation:
       - if:
         - condition: template
           value_template: '{{ grid_charge_6kw or boiler_night or trigger.id in [''full_charge_changed'',
-            ''boiler_night_changed'', ''priority_6kw_changed'']
+            ''boiler_night_changed'', ''priority_6kw_changed'', ''grid_charge_changed'']
             or not (current_state == ''Evening Export'' and not is_selling_6kw and trigger.id
             != ''state_changed'') }}'
         then:
