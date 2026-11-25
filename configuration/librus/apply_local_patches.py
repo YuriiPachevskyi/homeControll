@@ -696,13 +696,13 @@ CARDS_HELPER = (CARDS_MARKER + "\nfunction __hcSrvDate(s,h){"
 # formatter), so its name is read from the first place; the Today card
 # parses `new Date(d...)` inside its item-text. hass is whatever
 # `X=this.hass` came last before each.
-CARDS_NEXT_LESSON = re.compile(r'(?<=new Date\()(\w+)\.replace\(" ","T"\)(?=\),\w+=new Date,\w+="on"===)')
+CARDS_NEXT_LESSON = re.compile(r'(?<=new Date\()([\w$]+)\.replace\(" ","T"\)(?=\),[\w$]+=new Date,[\w$]+="on"===)')
 CARDS_EDITS = [  # (regex, expected count); {var} = the next-lesson tile's start;
     # the edited part is group 1 when there is one, else the whole match
-    (r'(?<![\w.]){var}\.replace\(" ","T"\)', 2),
-    (r'item-text">\$\{\w+\(\w+,\w+\(new Date\((\w+\.replace\(" ","T"\))', 1),
+    (r'(?<![\w$.]){var}\.replace\(" ","T"\)', 2),
+    (r'item-text">\$\{[\w$]+\([\w$]+,[\w$]+\(new Date\(([\w$]+\.replace\(" ","T"\))', 1),
 ]
-CARDS_HASS = re.compile(r"[,{\s](\w+)=this\.hass[,;]")
+CARDS_HASS = re.compile(r"[,{\s]([\w$]+)=this\.hass[,;]")
 
 
 def patch_cards() -> None:
@@ -739,7 +739,7 @@ def patch_cards() -> None:
 SCHOOL_DAY_MARKER = f"/* {MARKER}: school-day extra activities */"
 SCHOOL_DAY_START = 'getStubConfig(){return{type:"custom:librus-school-day-card"}}'
 SCHOOL_DAY_END = 'he("librus-school-day-card")'
-SCHOOL_DAY_FETCH = re.compile(r"await \w+\(this\.hass,\w+,\w+,\w+\)")  # minified fn name changes (pt -> gt in v0.16.33)
+SCHOOL_DAY_FETCH = re.compile(r"await [\w$]+\(this\.hass,[\w$]+,[\w$]+,[\w$]+\)")  # minified fn name changes (pt -> gt in v0.16.33, wt -> $t in v0.16.46)
 SCHOOL_DAY_SEG = 'e.substitution||e.roomChange||e.moved?"sub":""}'
 SCHOOL_DAY_CSS = ".seg.sub{"
 
