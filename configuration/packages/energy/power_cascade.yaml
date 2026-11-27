@@ -180,7 +180,7 @@ script:
               off_below: 51
           ac_off: >-
             {% set ns = namespace(r=none) %}
-            {% for a in acs if ns.r is none and not is_state(a.climate, 'off')
+            {% for a in acs if ns.r is none and states(a.climate) not in ['off', 'unavailable', 'unknown']
                               and not is_state(a.select, 'off') and soc6 < a.off_below %}
               {% set ns.r = a %}
             {% endfor %}
