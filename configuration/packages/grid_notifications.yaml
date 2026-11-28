@@ -1,5 +1,9 @@
 # Grid outage alerts to the family (script.notify_all): lost after 1 min
 # (5kW grid off, or the Grid meter switch unavailable), restored after 1 min.
+# While the 6kW is in No Battery an outage blacks out the house for a moment and
+# reboots the HA Raspberry (no UPS), so HA comes up with the grid already off and
+# the on->off trigger never fires: on start the state is re-checked after 2 min
+# (integrations + the template reload at +30 s settled) and the missed alert sent.
 automation:
   - id: grid_outage_notifications
     alias: Grid outage notifications
@@ -35,11 +39,22 @@ automation:
         minutes: 1
       trigger: state
       id: restored
+    - trigger: homeassistant
+      event: start
+      id: startup
     actions:
+    - if:
+      - condition: trigger
+        id: startup
+      then:
+      - delay:
+          minutes: 2
     - choose:
       - conditions:
         - condition: trigger
-          id: lost
+          id:
+          - lost
+          - startup
         - condition: state
           entity_id: binary_sensor.deye_5kw_grid
           state: 'off'
@@ -66,7 +81,9 @@ automation:
             message: ⚡ Електроживлення зникло
       - conditions:
         - condition: trigger
-          id: restored
+          id:
+          - restored
+          - startup
         - condition: state
           entity_id: binary_sensor.deye_5kw_grid
           state: 'on'
